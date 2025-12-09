@@ -1,6 +1,6 @@
 {
-    "name": "attd",
-    "short_name": "attd",
+    "name": "Attendance Tracker",
+    "short_name": "Attendance",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

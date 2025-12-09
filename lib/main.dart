@@ -1,122 +1,250 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const AttendanceApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AttendanceApp extends StatelessWidget {
+  const AttendanceApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Attendance Tracker',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const AttendanceHomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class AttendanceHomePage extends StatelessWidget {
+  const AttendanceHomePage({super.key});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  void _showPlaceholder(BuildContext context, String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label coming soon')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    const present = 24;
+    const total = 26;
+    const late = 1;
+    const records = [
+      ('Design Standup', '8:30 AM', 12, 14),
+      ('Client Review', '10:00 AM', 9, 10),
+      ('Engineering Sync', '2:00 PM', 18, 19),
+    ];
+
+    final absent = total - present;
+    final attendanceRate = (present / total * 100).round();
+
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Attendance Tracker'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Today's overview",
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _StatCard(
+                    title: 'Present',
+                    value: '$present',
+                    subtitle: '$attendanceRate% checked in',
+                    background: Colors.green.shade50,
+                    accent: Colors.green.shade700,
+                  ),
+                  _StatCard(
+                    title: 'Absent',
+                    value: '$absent',
+                    subtitle: 'Out today',
+                    background: Colors.red.shade50,
+                    accent: Colors.red.shade700,
+                  ),
+                  _StatCard(
+                    title: 'Late arrivals',
+                    value: '$late',
+                    subtitle: 'Follow up needed',
+                    background: Colors.orange.shade50,
+                    accent: Colors.orange.shade800,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Quick actions',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _ActionChipButton(
+                    icon: Icons.fact_check_outlined,
+                    label: 'Take attendance',
+                    onPressed: () =>
+                        _showPlaceholder(context, 'Taking attendance'),
+                  ),
+                  _ActionChipButton(
+                    icon: Icons.person_add_alt_1,
+                    label: 'Add attendee',
+                    onPressed: () => _showPlaceholder(context, 'Adding attendee'),
+                  ),
+                  _ActionChipButton(
+                    icon: Icons.bar_chart_outlined,
+                    label: 'View stats',
+                    onPressed: () => _showPlaceholder(context, 'Viewing stats'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Recent sessions',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              ...records.map((record) {
+                final title = record.$1;
+                final time = record.$2;
+                final attended = record.$3;
+                final expected = record.$4;
+                final percent = (attended / expected * 100).round();
+
+                return Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                      child: Text(
+                        '${percent}%',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                    title: Text(title),
+                    subtitle: Text('$time · $attended of $expected present'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+                      onPressed: () => _showPlaceholder(context, 'Viewing $title'),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.insights_outlined),
+                  title: const Text('Engagement trend'),
+                  subtitle: Text(
+                    'Attendance is tracking at $attendanceRate% this week.',
+                  ),
+                  trailing: FilledButton(
+                    onPressed: () =>
+                        _showPlaceholder(context, 'Opening weekly trend'),
+                    child: const Text('See details'),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final Color background;
+  final Color accent;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.background,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 150),
+      child: Card(
+        color: background,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: accent),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(color: accent, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: accent),
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _ActionChipButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _ActionChipButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(label),
     );
   }
 }
