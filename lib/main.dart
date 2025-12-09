@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'features/attendance/data/attendance_repository.dart';
+import 'features/attendance/presentation/attendance_flow_page.dart';
+
 void main() {
   runApp(const AttendanceApp());
 }
 
 class AttendanceApp extends StatelessWidget {
-  const AttendanceApp({super.key});
+  const AttendanceApp({super.key, AttendanceRepository? repository})
+      : repository = repository ?? LocalJsonAttendanceRepository();
+
+  final AttendanceRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -15,17 +21,21 @@ class AttendanceApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
-      home: const AttendanceHomePage(),
+      home: AttendanceHomePage(repository: repository),
     );
   }
 }
 
 class AttendanceHomePage extends StatelessWidget {
-  const AttendanceHomePage({super.key});
+  const AttendanceHomePage({super.key, required this.repository});
 
-  void _showPlaceholder(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label coming soon')),
+  final AttendanceRepository repository;
+
+  void _startAttendanceFlow(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AttendanceFlowPage(repository: repository),
+      ),
     );
   }
 
@@ -101,18 +111,17 @@ class AttendanceHomePage extends StatelessWidget {
                   _ActionChipButton(
                     icon: Icons.fact_check_outlined,
                     label: 'Take attendance',
-                    onPressed: () =>
-                        _showPlaceholder(context, 'Taking attendance'),
+                    onPressed: () => _startAttendanceFlow(context),
                   ),
                   _ActionChipButton(
                     icon: Icons.person_add_alt_1,
                     label: 'Add attendee',
-                    onPressed: () => _showPlaceholder(context, 'Adding attendee'),
+                    onPressed: () => _startAttendanceFlow(context),
                   ),
                   _ActionChipButton(
                     icon: Icons.bar_chart_outlined,
                     label: 'View stats',
-                    onPressed: () => _showPlaceholder(context, 'Viewing stats'),
+                    onPressed: () => _startAttendanceFlow(context),
                   ),
                 ],
               ),
@@ -143,7 +152,7 @@ class AttendanceHomePage extends StatelessWidget {
                     subtitle: Text('$time · $attended of $expected present'),
                     trailing: IconButton(
                       icon: const Icon(Icons.arrow_forward_ios_rounded, size: 18),
-                      onPressed: () => _showPlaceholder(context, 'Viewing $title'),
+                      onPressed: () => _startAttendanceFlow(context),
                     ),
                   ),
                 );
@@ -157,8 +166,7 @@ class AttendanceHomePage extends StatelessWidget {
                     'Attendance is tracking at $attendanceRate% this week.',
                   ),
                   trailing: FilledButton(
-                    onPressed: () =>
-                        _showPlaceholder(context, 'Opening weekly trend'),
+                    onPressed: () => _startAttendanceFlow(context),
                     child: const Text('See details'),
                   ),
                 ),
