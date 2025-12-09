@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "995280441940",
+    "project_id": "attd-ef18a",
+    "storage_bucket": "attd-ef18a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:995280441940:android:288d0afb940d4f29a2d3c1",
+        "android_client_info": {
+          "package_name": "com.attendance.tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFdSoqYxiISIC2DxFE5dtEyQ0QfnhdSXo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
