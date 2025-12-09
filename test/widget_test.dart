@@ -52,7 +52,7 @@ class _ImmediateSessionRepository implements SessionRepository {
 }
 
 void main() {
-  testWidgets('Shows attendance overview and actions', (tester) async {
+  testWidgets('Shows analytics overview and actions', (tester) async {
     sqfliteFfiInit();
 
     final sessionRepository = _ImmediateSessionRepository(buildSeedSessions());
@@ -67,10 +67,12 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text("Today's overview"), findsOneWidget);
+    expect(find.text('Engagement overview'), findsOneWidget);
+    expect(find.text('Wellness watchlist'), findsOneWidget);
+    expect(find.text('Drill-down insights'), findsOneWidget);
     expect(find.text('Quick actions'), findsOneWidget);
     expect(find.text('Take attendance'), findsOneWidget);
-    expect(find.text('Present'), findsOneWidget);
+    expect(find.text('Attendance rate'), findsWidgets);
     expect(find.text('Recent sessions'), findsOneWidget);
   });
 }
