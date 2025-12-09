@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'data/session.dart';
@@ -559,7 +560,9 @@ class _SparklinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SparklinePainter oldDelegate) {
+    return !listEquals(oldDelegate.data, data);
+  }
 }
 
 class _StatusBarChart extends StatelessWidget {

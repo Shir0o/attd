@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -5,7 +7,19 @@ import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+class _FakePathProvider extends PathProviderPlatform {
+  _FakePathProvider(this.supportPath);
+
+  final String supportPath;
+
+  @override
+  Future<String?> getApplicationSupportPath() async {
+    return supportPath;
+  }
+}
 
 class _ImmediateSessionRepository implements SessionRepository {
   _ImmediateSessionRepository(this.sessions);
@@ -54,6 +68,10 @@ class _ImmediateSessionRepository implements SessionRepository {
 void main() {
   testWidgets('Shows analytics overview and actions', (tester) async {
     sqfliteFfiInit();
+
+    final tempDir = await Directory.systemTemp.createTemp('attd_test');
+    PathProviderPlatform.instance = _FakePathProvider(tempDir.path);
+    addTearDown(() => tempDir.delete(recursive: true));
 
     final sessionRepository = _ImmediateSessionRepository(buildSeedSessions());
 
