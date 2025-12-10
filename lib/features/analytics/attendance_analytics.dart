@@ -69,7 +69,7 @@ class AttendanceBreakdown {
   final int partial;
   final int absent;
 
-  int get total => present + partial + absent;
+  int get total => present + absent;
 
   double get rate => total == 0 ? 0 : present / total * 100;
 }
@@ -91,7 +91,7 @@ class AttendeeInsight {
   final int absenceStreak;
   final int lateStreak;
 
-  int get total => present + absent + partial;
+  int get total => present + absent;
   double get attendanceRate => total == 0 ? 0 : present / total * 100;
 }
 
@@ -108,7 +108,7 @@ class FamilyInsight {
   final int absent;
   final int partial;
 
-  int get total => present + absent + partial;
+  int get total => present + absent;
   double get attendanceRate => total == 0 ? 0 : present / total * 100;
 }
 
@@ -161,6 +161,7 @@ AttendanceAnalytics calculateAttendanceAnalytics({
           present++;
           break;
         case AttendanceStatus.partial:
+          present++;
           partial++;
           break;
         case AttendanceStatus.absent:
@@ -227,9 +228,12 @@ List<double> _buildTrend(List<Session> sessions) {
   final points = <double>[];
   for (final session in sessions) {
     if (session.records.isEmpty) continue;
-    final presentCount =
-        session.records.where((record) => record.status == AttendanceStatus.present).length;
-    final rate = presentCount / session.records.length * 100;
+    final presentCount = session.records
+        .where((record) => record.status == AttendanceStatus.present)
+        .length;
+    final lateCount =
+        session.records.where((record) => record.status == AttendanceStatus.partial).length;
+    final rate = (presentCount + lateCount) / session.records.length * 100;
     points.add(double.parse(rate.toStringAsFixed(1)));
   }
   return points;
@@ -292,6 +296,7 @@ _MapSummary _summarize(List<_RecordEvent> entries) {
         present++;
         break;
       case AttendanceStatus.partial:
+        present++;
         partial++;
         break;
       case AttendanceStatus.absent:
