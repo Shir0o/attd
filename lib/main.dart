@@ -1,22 +1,22 @@
-import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'data/session.dart';
 import 'data/session_repository.dart';
 import 'features/auth/application/auth_controller.dart';
 import 'features/auth/application/google_auth_service.dart';
 import 'features/auth/config/google_oauth_config.dart';
-import 'features/auth/data/local_auth_data_source.dart';
-import 'features/auth/data/local_auth_repository.dart';
-import 'features/auth/data/local_auth_storage.dart';
+import 'features/auth/data/firebase_auth_repository.dart';
 import 'features/auth/data/google_sign_in_service.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/auth_gate.dart';
+import 'firebase_options.dart';
 import 'features/ai/ai_provider.dart';
 import 'features/ai/ai_provider_factory.dart';
 import 'features/ai/http_ai_provider.dart';
@@ -29,7 +29,11 @@ import 'features/attendance/presentation/attendance_flow_page.dart';
 import 'features/reports/report_export_page.dart';
 import 'features/sessions/session_detail_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(AttendanceApp());
 }
 
@@ -43,7 +47,6 @@ class AttendanceApp extends StatefulWidget {
     AiProviderType providerType = AiProviderType.mock,
     bool aiEnabled = true,
     this.authRepository,
-    this.authDirectoryProvider,
     this.googleAuthService,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository =
@@ -63,7 +66,6 @@ class AttendanceApp extends StatefulWidget {
   final AiProviderType providerType;
   final bool aiEnabled;
   final AuthRepository? authRepository;
-  final Future<Directory> Function()? authDirectoryProvider;
   final GoogleAuthService? googleAuthService;
 
   @override
@@ -77,14 +79,11 @@ class _AttendanceAppState extends State<AttendanceApp> {
   @override
   void initState() {
     super.initState();
-    final authDirectoryProvider =
-        widget.authDirectoryProvider ?? getApplicationDocumentsDirectory;
     final authRepository =
         widget.authRepository ??
-        LocalAuthRepository(
-          LocalAuthDataSource(
-            LocalAuthStorage(directoryProvider: authDirectoryProvider),
-          ),
+        FirebaseAuthRepository(
+          firebaseAuth: FirebaseAuth.instance,
+          firestore: FirebaseFirestore.instance,
         );
     _googleAuthService =
         widget.googleAuthService ??
