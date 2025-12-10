@@ -30,6 +30,10 @@ class _AuthPageState extends State<AuthPage> {
     });
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    await widget.controller.loginWithGoogle();
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -106,6 +110,26 @@ class _AuthPageState extends State<AuthPage> {
                             style: const TextStyle(color: Colors.red),
                           ),
                         ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          key: const Key('googleSignInButton'),
+                          onPressed: state.isLoading
+                              ? null
+                              : () => _handleGoogleSignIn(),
+                          icon: state.isLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.login),
+                          label: const Text('Continue with Google'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
