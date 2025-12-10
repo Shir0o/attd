@@ -5,6 +5,7 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/auth/domain/entities/credentials.dart';
+import 'package:attendance_tracker/features/auth/domain/entities/google_account.dart';
 import 'package:attendance_tracker/features/auth/domain/entities/user.dart';
 import 'package:attendance_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
@@ -127,6 +128,9 @@ class _ImmediateAuthRepository implements AuthRepository {
 
   @override
   Future<User> login(Credentials credentials) async => _user!;
+
+  @override
+  Future<User> loginWithGoogle(GoogleAccount account) async => _user!;
 
   @override
   Future<void> logout() async {
