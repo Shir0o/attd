@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../domain/entities/credentials.dart';
 import '../domain/entities/user.dart';
 import '../domain/repositories/auth_repository.dart';
+import 'google_auth_service.dart';
 
 class AuthState {
   const AuthState({this.user, this.isLoading = false, this.errorMessage});
@@ -24,9 +25,10 @@ class AuthState {
 }
 
 class AuthController extends ChangeNotifier {
-  AuthController({required this.repository});
+  AuthController({required this.repository, this.googleAuthService});
 
   final AuthRepository repository;
+  final GoogleAuthService? googleAuthService;
   AuthState _state = const AuthState();
 
   AuthState get state => _state;
@@ -54,6 +56,35 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<void> loginWithGoogle() async {
+    final service = googleAuthService;
+    if (service == null) return;
+
+    _setState(_state.copyWith(isLoading: true, errorMessage: null));
+    try {
+      final account = await service.signIn();
+      if (account == null) {
+        _setState(_state.copyWith(isLoading: false));
+        return;
+      }
+
+      final user = await repository.loginWithGoogle(account);
+      _setState(AuthState(user: user, isLoading: false));
+    } on AuthException catch (error) {
+      _setState(
+        AuthState(user: null, isLoading: false, errorMessage: error.message),
+      );
+    } catch (_) {
+      _setState(
+        const AuthState(
+          user: null,
+          isLoading: false,
+          errorMessage: 'Google sign-in failed',
+        ),
+      );
+    }
+  }
+
   Future<void> signup({
     required String username,
     required String password,
@@ -72,6 +103,9 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    try {
+      await googleAuthService?.signOut();
+    } catch (_) {}
     await repository.logout();
     _setState(const AuthState());
   }
