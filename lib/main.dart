@@ -11,6 +11,7 @@ import 'features/attendance/models/attendance_status.dart';
 import 'features/attendance/models/family.dart';
 import 'features/attendance/presentation/attendance_flow_page.dart';
 import 'features/sessions/session_detail_page.dart';
+import 'features/reports/report_export_page.dart';
 
 void main() {
   runApp(AttendanceApp());
@@ -97,6 +98,15 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     });
   }
 
+  void _openReports(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ReportExportPage(sessionRepository: widget.sessionRepository),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_HomeData>(
@@ -118,8 +128,10 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
 
         final breakdown = analytics.breakdown;
         final attendanceRate = breakdown.rate.round();
-        final maxAbsenceStreak = analytics.attendees.values
-            .fold<int>(0, (previous, element) => math.max(previous, element.absenceStreak));
+        final maxAbsenceStreak = analytics.attendees.values.fold<int>(
+          0,
+          (previous, element) => math.max(previous, element.absenceStreak),
+        );
         final latestTrend = analytics.trend.isNotEmpty
             ? analytics.trend.last.toStringAsFixed(0)
             : '0';
@@ -232,8 +244,10 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                                 'Wellness watchlist',
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
-                              Icon(Icons.favorite_outline,
-                                  color: Theme.of(context).colorScheme.primary),
+                              Icon(
+                                Icons.favorite_outline,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -324,8 +338,8 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                       ),
                       _ActionChipButton(
                         icon: Icons.bar_chart_outlined,
-                        label: 'View stats',
-                        onPressed: () => _startAttendanceFlow(context),
+                        label: 'Export report',
+                        onPressed: () => _openReports(context),
                       ),
                     ],
                   ),
@@ -507,10 +521,7 @@ class _SparklineChart extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Align(
           alignment: Alignment.topLeft,
-          child: Text(
-            'Trend',
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
+          child: Text('Trend', style: Theme.of(context).textTheme.labelSmall),
         ),
       ),
     );
@@ -536,7 +547,9 @@ class _SparklinePainter extends CustomPainter {
     final maxValue = data.reduce(math.max).clamp(1, 100);
     final minValue = data.reduce(math.min);
     final range = (maxValue - minValue).abs();
-    final horizontalStep = data.length == 1 ? 0.0 : size.width / (data.length - 1);
+    final horizontalStep = data.length == 1
+        ? 0.0
+        : size.width / (data.length - 1);
 
     final points = <Offset>[];
     for (var i = 0; i < data.length; i++) {
@@ -572,8 +585,11 @@ class _StatusBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxValue = [breakdown.present, breakdown.partial, breakdown.absent]
-        .fold<int>(1, (value, element) => math.max(value, element));
+    final maxValue = [
+      breakdown.present,
+      breakdown.partial,
+      breakdown.absent,
+    ].fold<int>(1, (value, element) => math.max(value, element));
 
     Widget buildBar(String label, int count, Color color) {
       final height = count == 0 ? 6.0 : (count / maxValue) * 70 + 6;
@@ -598,10 +614,7 @@ class _StatusBarChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Status breakdown',
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
+        Text('Status breakdown', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -617,10 +630,7 @@ class _StatusBarChart extends StatelessWidget {
 }
 
 class _HomeData {
-  const _HomeData({
-    this.sessions = const [],
-    this.families = const [],
-  });
+  const _HomeData({this.sessions = const [], this.families = const []});
 
   final List<Session> sessions;
   final List<Family> families;
