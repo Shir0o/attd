@@ -8,4 +8,9 @@ class GoogleOAuthConfig {
     'GOOGLE_IOS_CLIENT_ID',
     defaultValue: 'com.googleusercontent.apps.YOUR_IOS_CLIENT_ID',
   );
+
+  static const webServerClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+  );
 }
