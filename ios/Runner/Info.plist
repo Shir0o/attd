@@ -42,7 +42,7 @@
                 <string>UIInterfaceOrientationLandscapeRight</string>
         </array>
         <key>GIDClientID</key>
-        <string>com.googleusercontent.apps.YOUR_IOS_CLIENT_ID</string>
+        <string>YOUR_IOS_CLIENT_ID.apps.googleusercontent.com</string>
         <key>CFBundleURLTypes</key>
         <array>
                 <dict>
