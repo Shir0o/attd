@@ -130,11 +130,11 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('Engagement overview'), findsOneWidget);
-    expect(find.text('Wellness watchlist'), findsOneWidget);
     expect(find.text('Attendance rate'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Wellness watchlist'), 400);
+    expect(find.text('Wellness watchlist'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -800));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Recent sessions'), 800);
 
     expect(find.text('Export report'), findsOneWidget);
     expect(find.text('Quick actions'), findsOneWidget);
