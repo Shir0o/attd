@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
+import 'package:attendance_tracker/features/auth/domain/entities/credentials.dart';
+import 'package:attendance_tracker/features/auth/domain/entities/user.dart';
+import 'package:attendance_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
@@ -114,6 +119,24 @@ class _ImmediateSessionRepository implements SessionRepository {
   }
 }
 
+class _ImmediateAuthRepository implements AuthRepository {
+  User? _user = const User(id: 'user-1', username: 'tester');
+
+  @override
+  Future<User?> currentUser() async => _user;
+
+  @override
+  Future<User> login(Credentials credentials) async => _user!;
+
+  @override
+  Future<void> logout() async {
+    _user = null;
+  }
+
+  @override
+  Future<User> signup(Credentials credentials) async => _user!;
+}
+
 void main() {
   testWidgets('Shows analytics overview and actions', (tester) async {
     sqfliteFfiInit();
@@ -125,6 +148,8 @@ void main() {
       AttendanceApp(
         repository: repository,
         sessionRepository: sessionRepository,
+        authRepository: _ImmediateAuthRepository(),
+        authDirectoryProvider: () async => Directory.systemTemp,
       ),
     );
 
