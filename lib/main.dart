@@ -5,13 +5,17 @@ import 'package:flutter/material.dart';
 
 import 'data/session.dart';
 import 'data/session_repository.dart';
+import 'features/ai/ai_provider.dart';
+import 'features/ai/ai_provider_factory.dart';
+import 'features/ai/http_ai_provider.dart';
+import 'features/ai/mock_ai_provider.dart';
 import 'features/analytics/attendance_analytics.dart';
 import 'features/attendance/data/attendance_repository.dart';
 import 'features/attendance/models/attendance_status.dart';
 import 'features/attendance/models/family.dart';
 import 'features/attendance/presentation/attendance_flow_page.dart';
-import 'features/sessions/session_detail_page.dart';
 import 'features/reports/report_export_page.dart';
+import 'features/sessions/session_detail_page.dart';
 
 void main() {
   runApp(AttendanceApp());
@@ -22,13 +26,27 @@ class AttendanceApp extends StatelessWidget {
     super.key,
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
+    AiProvider? aiProvider,
+    AiProviderFactory? aiFactory,
+    AiProviderType providerType = AiProviderType.mock,
+    bool aiEnabled = true,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository =
            sessionRepository ??
-           LocalSessionRepository(seedSessions: buildSeedSessions());
+           LocalSessionRepository(seedSessions: buildSeedSessions()),
+       aiFactory = aiFactory ?? const AiProviderFactory(),
+       providerType = providerType,
+       aiEnabled = aiEnabled,
+       aiProvider =
+           aiProvider ??
+           (aiFactory ?? const AiProviderFactory()).create(providerType);
 
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
+  final AiProvider aiProvider;
+  final AiProviderFactory aiFactory;
+  final AiProviderType providerType;
+  final bool aiEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +59,10 @@ class AttendanceApp extends StatelessWidget {
       home: AttendanceHomePage(
         repository: repository,
         sessionRepository: sessionRepository,
+        aiProvider: aiProvider,
+        aiFactory: aiFactory,
+        providerType: providerType,
+        aiEnabled: aiEnabled,
       ),
     );
   }
@@ -51,10 +73,18 @@ class AttendanceHomePage extends StatefulWidget {
     super.key,
     required this.repository,
     required this.sessionRepository,
+    required this.aiProvider,
+    required this.aiFactory,
+    required this.providerType,
+    required this.aiEnabled,
   });
 
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
+  final AiProvider aiProvider;
+  final AiProviderFactory aiFactory;
+  final AiProviderType providerType;
+  final bool aiEnabled;
 
   @override
   State<AttendanceHomePage> createState() => _AttendanceHomePageState();
@@ -63,17 +93,351 @@ class AttendanceHomePage extends StatefulWidget {
 class _AttendanceHomePageState extends State<AttendanceHomePage> {
   late Future<_HomeData> _homeDataFuture;
   AnalyticsRange _selectedRange = AnalyticsRange.last30Days;
+  late bool _aiEnabled;
+  late AiProvider _aiProvider;
+  late AiProviderType _providerType;
+  Future<List<AbsencePrediction>>? _predictionFuture;
+  final Map<String, FollowUpSuggestion> _suggestedMessages = {};
+  final Set<String> _loadingSubjects = {};
+  late final TextEditingController _endpointController;
 
   @override
   void initState() {
     super.initState();
+    _aiEnabled = widget.aiEnabled;
+    _aiProvider = widget.aiProvider;
+    _providerType = widget.providerType;
+    final defaultEndpoint = widget.aiProvider is HttpAiProvider
+        ? (widget.aiProvider as HttpAiProvider).endpoint.toString()
+        : widget.aiFactory.defaultEndpoint;
+    _endpointController = TextEditingController(text: defaultEndpoint);
     _homeDataFuture = _loadHomeData();
+  }
+
+  @override
+  void dispose() {
+    _endpointController.dispose();
+    super.dispose();
   }
 
   Future<_HomeData> _loadHomeData() async {
     final sessions = await widget.sessionRepository.loadSessions();
     final families = await widget.repository.fetchFamilies();
     return _HomeData(sessions: sessions, families: families);
+  }
+
+  void _resetAiInsights() {
+    _predictionFuture = null;
+    _suggestedMessages.clear();
+    _loadingSubjects.clear();
+  }
+
+  void _handleRangeChange(AnalyticsRange selection) {
+    setState(() {
+      _selectedRange = selection;
+      _predictionFuture = null;
+    });
+  }
+
+  void _applyProviderSelection(AiProviderType type) {
+    setState(() {
+      _providerType = type;
+      _aiProvider = widget.aiFactory.create(
+        type,
+        endpointOverride: _endpointController.text,
+      );
+      _resetAiInsights();
+    });
+  }
+
+  Family? _familyForFlag(WellnessFlag flag, List<Family> families) {
+    if (flag.isFamily) {
+      try {
+        return families.firstWhere(
+          (family) => family.displayName == flag.subject,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+
+    for (final family in families) {
+      final match = family.members.any(
+        (member) => member.displayName == flag.subject,
+      );
+      if (match) return family;
+    }
+    return null;
+  }
+
+  Future<void> _handleSuggestMessage({
+    required WellnessFlag flag,
+    required AttendanceAnalytics analytics,
+    required List<Session> sessions,
+    required List<Family> families,
+  }) async {
+    if (!_aiEnabled) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enable AI assistant to get suggestions.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _loadingSubjects.add(flag.subject);
+    });
+
+    try {
+      final suggestion = await _aiProvider.suggestFollowUp(
+        FollowUpRequest(
+          flag: flag,
+          analytics: analytics,
+          sessions: sessions,
+          rangeLabel: analytics.range.label,
+          family: _familyForFlag(flag, families),
+        ),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _suggestedMessages[flag.subject] = suggestion;
+      });
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Suggested message for ${flag.subject}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(suggestion.message),
+              const SizedBox(height: 12),
+              Text(
+                suggestion.reasoning,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not generate message: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSubjects.remove(flag.subject);
+        });
+      }
+    }
+  }
+
+  Future<List<AbsencePrediction>>? _obtainPredictionFuture(
+    AttendanceAnalytics analytics,
+    List<Session> sessions,
+  ) {
+    if (!_aiEnabled) return null;
+    _predictionFuture ??= _aiProvider.predictAbsences(
+      AbsencePredictionRequest(analytics: analytics, sessions: sessions),
+    );
+    return _predictionFuture;
+  }
+
+  Widget _buildAiSettings() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI assistant',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Generate follow-ups and forecast risk.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                Switch.adaptive(
+                  value: _aiEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _aiEnabled = value;
+                      if (!value) {
+                        _resetAiInsights();
+                      } else {
+                        _predictionFuture = null;
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+            if (_aiEnabled) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<AiProviderType>(
+                      value: _providerType,
+                      decoration: const InputDecoration(
+                        labelText: 'Provider',
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: AiProviderType.mock,
+                          child: Text('Mock (offline sandbox)'),
+                        ),
+                        DropdownMenuItem(
+                          value: AiProviderType.http,
+                          child: Text('Remote HTTP endpoint'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        _applyProviderSelection(value);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (_providerType == AiProviderType.http)
+                    Expanded(
+                      child: TextFormField(
+                        controller: _endpointController,
+                        decoration: const InputDecoration(
+                          labelText: 'Endpoint',
+                          isDense: true,
+                        ),
+                        onFieldSubmitted: (_) =>
+                            _applyProviderSelection(AiProviderType.http),
+                      ),
+                    ),
+                ],
+              ),
+              if (_providerType == AiProviderType.http)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        _applyProviderSelection(AiProviderType.http),
+                    icon: const Icon(Icons.cloud_sync),
+                    label: const Text('Apply endpoint'),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPredictionPanel(
+    Future<List<AbsencePrediction>>? predictionFuture,
+  ) {
+    if (!_aiEnabled) return const SizedBox.shrink();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Likely upcoming absences',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Icon(Icons.auto_graph),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (predictionFuture == null)
+              Text(
+                'Enable AI above to view absence forecasts.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              )
+            else
+              FutureBuilder<List<AbsencePrediction>>(
+                future: predictionFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Text(
+                      'Could not load predictions: ${snapshot.error}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.red.shade700,
+                      ),
+                    );
+                  }
+
+                  final predictions = snapshot.data ?? [];
+                  if (predictions.isEmpty) {
+                    return Text(
+                      'No high-risk absences detected in this window.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    );
+                  }
+
+                  return Column(
+                    children: predictions.take(4).map((prediction) {
+                      final probabilityLabel =
+                          '${(prediction.probability * 100).round()}% risk';
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: prediction.isFamily
+                              ? Colors.indigo.shade50
+                              : Colors.amber.shade50,
+                          child: Icon(
+                            prediction.isFamily
+                                ? Icons.family_restroom
+                                : Icons.trending_up,
+                            color: prediction.isFamily
+                                ? Colors.indigo.shade700
+                                : Colors.orange.shade700,
+                          ),
+                        ),
+                        title: Text(prediction.subject),
+                        subtitle: Text(prediction.reason),
+                        trailing: Text(
+                          probabilityLabel,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _startAttendanceFlow(BuildContext context) {
@@ -95,6 +459,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     );
     setState(() {
       _homeDataFuture = _loadHomeData();
+      _resetAiInsights();
     });
   }
 
@@ -135,6 +500,10 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         final latestTrend = analytics.trend.isNotEmpty
             ? analytics.trend.last.toStringAsFixed(0)
             : '0';
+        final predictionFuture = _obtainPredictionFuture(
+          analytics,
+          homeData.sessions,
+        );
 
         return Scaffold(
           appBar: AppBar(title: const Text('Attendance Tracker')),
@@ -144,6 +513,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
               onRefresh: () async {
                 setState(() {
                   _homeDataFuture = _loadHomeData();
+                  _resetAiInsights();
                 });
                 await _homeDataFuture;
               },
@@ -184,9 +554,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                             .toList(),
                         onChanged: (selection) {
                           if (selection == null) return;
-                          setState(() {
-                            _selectedRange = selection;
-                          });
+                          _handleRangeChange(selection);
                         },
                       ),
                     ],
@@ -230,6 +598,8 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  _buildAiSettings(),
                   const SizedBox(height: 20),
                   Card(
                     child: Padding(
@@ -257,34 +627,102 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                               style: Theme.of(context).textTheme.bodyMedium,
                             )
                           else
-                            ...analytics.watchlist.map(
-                              (flag) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  backgroundColor: flag.isFamily
-                                      ? Colors.indigo.shade50
-                                      : Colors.red.shade50,
-                                  child: Icon(
-                                    flag.isFamily
-                                        ? Icons.groups_outlined
-                                        : Icons.warning_amber_rounded,
-                                    color: flag.isFamily
-                                        ? Colors.indigo.shade700
-                                        : Colors.red.shade700,
-                                  ),
-                                ),
-                                title: Text(flag.subject),
-                                subtitle: Text(flag.reason),
-                                trailing: TextButton(
-                                  onPressed: () {},
-                                  child: const Text('Follow up'),
-                                ),
-                              ),
+                            FutureBuilder<List<AbsencePrediction>>(
+                              future: predictionFuture,
+                              builder: (context, snapshot) {
+                                final predictionBySubject = {
+                                  for (final prediction in snapshot.data ?? [])
+                                    prediction.subject: prediction,
+                                };
+                                return Column(
+                                  children: analytics.watchlist.map((flag) {
+                                    final suggestion =
+                                        _suggestedMessages[flag.subject];
+                                    final prediction =
+                                        predictionBySubject[flag.subject];
+                                    final loading = _loadingSubjects.contains(
+                                      flag.subject,
+                                    );
+
+                                    return ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: CircleAvatar(
+                                        backgroundColor: flag.isFamily
+                                            ? Colors.indigo.shade50
+                                            : Colors.red.shade50,
+                                        child: Icon(
+                                          flag.isFamily
+                                              ? Icons.groups_outlined
+                                              : Icons.warning_amber_rounded,
+                                          color: flag.isFamily
+                                              ? Colors.indigo.shade700
+                                              : Colors.red.shade700,
+                                        ),
+                                      ),
+                                      title: Text(flag.subject),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(flag.reason),
+                                          if (prediction != null)
+                                            Text(
+                                              'AI risk: ${(prediction.probability * 100).round()}% likely absence',
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          if (suggestion != null) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              suggestion.message,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      trailing: _aiEnabled
+                                          ? TextButton.icon(
+                                              onPressed: loading
+                                                  ? null
+                                                  : () => _handleSuggestMessage(
+                                                      flag: flag,
+                                                      analytics: analytics,
+                                                      sessions:
+                                                          homeData.sessions,
+                                                      families:
+                                                          homeData.families,
+                                                    ),
+                                              icon: loading
+                                                  ? const SizedBox(
+                                                      width: 14,
+                                                      height: 14,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.auto_awesome,
+                                                    ),
+                                              label: const Text(
+                                                'Suggest message',
+                                              ),
+                                            )
+                                          : const Text('AI off'),
+                                    );
+                                  }).toList(),
+                                );
+                              },
                             ),
                         ],
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  _buildPredictionPanel(predictionFuture),
                   const SizedBox(height: 16),
                   Card(
                     child: Padding(
@@ -355,6 +793,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                         onPressed: () {
                           setState(() {
                             _homeDataFuture = _loadHomeData();
+                            _resetAiInsights();
                           });
                         },
                         child: const Text('Refresh'),
