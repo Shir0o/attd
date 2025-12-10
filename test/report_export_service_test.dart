@@ -150,5 +150,29 @@ void main() {
 
       expect(result.syncedToSheets, isTrue);
     });
+
+    test('creates a basic PDF document instead of plain text', () async {
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository(sessions),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.pdf,
+        ),
+      );
+
+      final bytes = await File(result.filePath).readAsBytes();
+      final asString = String.fromCharCodes(bytes);
+
+      expect(bytes.length, greaterThan(0));
+      expect(asString.startsWith('%PDF-'), isTrue);
+      expect(asString, contains('/Type /Page'));
+      expect(asString, contains('Attendance summary report'));
+    });
   });
 }

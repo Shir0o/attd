@@ -110,27 +110,77 @@ class ReportExportService {
     List<Session> sessions,
     ReportSummary summary,
   ) async {
-    final buffer = StringBuffer()
-      ..writeln('Attendance summary report')
-      ..writeln('Generated at: ${_clock().toIso8601String()}')
-      ..writeln(
-        'Sessions: ${summary.sessionCount}, records: ${summary.recordCount}',
-      )
-      ..writeln(
-        'Present: ${summary.present}, Partial: ${summary.partial}, Absent: ${summary.absent}',
-      )
-      ..writeln('---');
+    final lines = <String>[
+      'Attendance summary report',
+      'Generated at: ${_clock().toIso8601String()}',
+      'Sessions: ${summary.sessionCount}, records: ${summary.recordCount}',
+      'Present: ${summary.present}, Partial: ${summary.partial}, Absent: ${summary.absent}',
+      '---',
+    ];
 
     for (final session in sessions) {
-      buffer.writeln(
-        '• ${session.title} (${session.sessionDate.toIso8601String()})',
-      );
+      lines.add('${session.title} (${session.sessionDate.toIso8601String()})');
       for (final record in session.records) {
-        buffer.writeln('  - ${record.attendee}: ${record.status.name}');
+        lines.add('  - ${record.attendee}: ${record.status.name}');
       }
     }
 
-    return Uint8List.fromList(utf8.encode(buffer.toString()));
+    return _buildPdfDocument(lines);
+  }
+
+  Uint8List _buildPdfDocument(List<String> lines) {
+    final content = StringBuffer()
+      ..writeln('BT')
+      ..writeln('/F1 12 Tf')
+      ..writeln('14 TL')
+      ..writeln('72 720 Td');
+
+    for (final line in lines) {
+      content.writeln('(${_pdfEscape(line)}) Tj');
+      content.writeln('T*');
+    }
+
+    content.writeln('ET');
+
+    final contentBytes = utf8.encode(content.toString());
+
+    final objects = <String>[
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj',
+      '4 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n${utf8.decode(contentBytes)}\nendstream\nendobj',
+      '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
+    ];
+
+    final buffer = BytesBuilder();
+    buffer.add(utf8.encode('%PDF-1.4\n'));
+
+    final offsets = <int>[];
+    for (final object in objects) {
+      offsets.add(buffer.length);
+      buffer.add(utf8.encode('$object\n'));
+    }
+
+    final xrefOffset = buffer.length;
+    final count = objects.length + 1;
+    final xref = StringBuffer()
+      ..writeln('xref')
+      ..writeln('0 $count')
+      ..writeln('0000000000 65535 f ');
+
+    for (final offset in offsets) {
+      xref.writeln('${offset.toString().padLeft(10, '0')} 00000 n ');
+    }
+
+    xref
+      ..writeln('trailer')
+      ..writeln('<< /Size $count /Root 1 0 R >>')
+      ..writeln('startxref')
+      ..writeln(xrefOffset)
+      ..writeln('%%EOF');
+
+    buffer.add(utf8.encode(xref.toString()));
+    return buffer.toBytes();
   }
 
   Future<Uint8List> _renderImage(
@@ -195,6 +245,11 @@ class ReportExportService {
   }
 
   String _escape(String value) => value.replaceAll('"', '\\"');
+
+  String _pdfEscape(String value) => value
+      .replaceAll('\\', '\\\\')
+      .replaceAll('(', '\\(')
+      .replaceAll(')', '\\)');
 
   String _extensionFor(ReportFormat format) {
     switch (format) {
