@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -121,7 +119,11 @@ class _ImmediateSessionRepository implements SessionRepository {
 }
 
 class _ImmediateAuthRepository implements AuthRepository {
-  User? _user = const User(id: 'user-1', username: 'tester');
+  User? _user = const User(
+    id: 'user-1',
+    email: 'tester@example.com',
+    displayName: 'tester',
+  );
 
   @override
   Future<User?> currentUser() async => _user;
@@ -153,7 +155,6 @@ void main() {
         repository: repository,
         sessionRepository: sessionRepository,
         authRepository: _ImmediateAuthRepository(),
-        authDirectoryProvider: () async => Directory.systemTemp,
       ),
     );
 
