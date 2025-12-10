@@ -1,10 +1,18 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'data/session.dart';
 import 'data/session_repository.dart';
+import 'features/auth/application/auth_controller.dart';
+import 'features/auth/data/local_auth_data_source.dart';
+import 'features/auth/data/local_auth_repository.dart';
+import 'features/auth/data/local_auth_storage.dart';
+import 'features/auth/domain/repositories/auth_repository.dart';
+import 'features/auth/presentation/auth_gate.dart';
 import 'features/ai/ai_provider.dart';
 import 'features/ai/ai_provider_factory.dart';
 import 'features/ai/http_ai_provider.dart';
@@ -21,7 +29,7 @@ void main() {
   runApp(AttendanceApp());
 }
 
-class AttendanceApp extends StatelessWidget {
+class AttendanceApp extends StatefulWidget {
   AttendanceApp({
     super.key,
     AttendanceRepository? repository,
@@ -30,6 +38,8 @@ class AttendanceApp extends StatelessWidget {
     AiProviderFactory? aiFactory,
     AiProviderType providerType = AiProviderType.mock,
     bool aiEnabled = true,
+    this.authRepository,
+    this.authDirectoryProvider,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository =
            sessionRepository ??
@@ -47,22 +57,54 @@ class AttendanceApp extends StatelessWidget {
   final AiProviderFactory aiFactory;
   final AiProviderType providerType;
   final bool aiEnabled;
+  final AuthRepository? authRepository;
+  final Future<Directory> Function()? authDirectoryProvider;
+
+  @override
+  State<AttendanceApp> createState() => _AttendanceAppState();
+}
+
+class _AttendanceAppState extends State<AttendanceApp> {
+  late final AuthController _authController;
+
+  @override
+  void initState() {
+    super.initState();
+    final authDirectoryProvider =
+        widget.authDirectoryProvider ?? getApplicationDocumentsDirectory;
+    final authRepository =
+        widget.authRepository ??
+        LocalAuthRepository(
+          LocalAuthDataSource(
+            LocalAuthStorage(directoryProvider: authDirectoryProvider),
+          ),
+        );
+    _authController = AuthController(repository: authRepository)
+      ..restoreSession();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Attendance Tracker',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: AttendanceHomePage(
-        repository: repository,
-        sessionRepository: sessionRepository,
-        aiProvider: aiProvider,
-        aiFactory: aiFactory,
-        providerType: providerType,
-        aiEnabled: aiEnabled,
+    return AuthScope(
+      controller: _authController,
+      child: MaterialApp(
+        title: 'Attendance Tracker',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          useMaterial3: true,
+        ),
+        home: AuthGate(
+          controller: _authController,
+          homeBuilder: (context) => AttendanceHomePage(
+            repository: widget.repository,
+            sessionRepository: widget.sessionRepository,
+            aiProvider: widget.aiProvider,
+            aiFactory: widget.aiFactory,
+            providerType: widget.providerType,
+            aiEnabled: widget.aiEnabled,
+            onSignOut: _authController.signOut,
+          ),
+        ),
       ),
     );
   }
@@ -77,6 +119,7 @@ class AttendanceHomePage extends StatefulWidget {
     required this.aiFactory,
     required this.providerType,
     required this.aiEnabled,
+    this.onSignOut,
   });
 
   final AttendanceRepository repository;
@@ -85,6 +128,7 @@ class AttendanceHomePage extends StatefulWidget {
   final AiProviderFactory aiFactory;
   final AiProviderType providerType;
   final bool aiEnabled;
+  final VoidCallback? onSignOut;
 
   @override
   State<AttendanceHomePage> createState() => _AttendanceHomePageState();
@@ -506,7 +550,18 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         );
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Attendance Tracker')),
+          appBar: AppBar(
+            title: const Text('Attendance Tracker'),
+            actions: [
+              if (widget.onSignOut != null)
+                IconButton(
+                  key: const Key('signOutButton'),
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Sign out',
+                  onPressed: widget.onSignOut,
+                ),
+            ],
+          ),
           body: Padding(
             padding: const EdgeInsets.all(16),
             child: RefreshIndicator(
