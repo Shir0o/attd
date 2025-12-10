@@ -5,6 +5,8 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/auth/domain/entities/credentials.dart';
+import 'package:attendance_tracker/features/auth/application/google_auth_service.dart';
+import 'package:attendance_tracker/features/auth/domain/entities/google_account.dart';
 import 'package:attendance_tracker/features/auth/domain/entities/user.dart';
 import 'package:attendance_tracker/features/auth/domain/repositories/auth_repository.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
@@ -18,10 +20,12 @@ class _TestAuthRepository implements AuthRepository {
   _TestAuthRepository({
     this.shouldFailLogin = false,
     this.shouldFailSignup = false,
+    this.shouldFailGoogle = false,
   });
 
   bool shouldFailLogin;
   bool shouldFailSignup;
+  bool shouldFailGoogle;
   User? _user;
 
   @override
@@ -35,6 +39,18 @@ class _TestAuthRepository implements AuthRepository {
     _user = User(
       id: 'user-${credentials.username}',
       username: credentials.username,
+    );
+    return _user!;
+  }
+
+  @override
+  Future<User> loginWithGoogle(GoogleAccount account) async {
+    if (shouldFailGoogle) {
+      throw AuthException('Google sign-in failed');
+    }
+    _user = User(
+      id: 'google-${account.id}',
+      username: account.displayName ?? account.email,
     );
     return _user!;
   }
@@ -54,6 +70,27 @@ class _TestAuthRepository implements AuthRepository {
       username: credentials.username,
     );
     return _user!;
+  }
+}
+
+class _TestGoogleAuthService implements GoogleAuthService {
+  _TestGoogleAuthService({this.account, this.shouldThrow = false});
+
+  GoogleAccount? account;
+  bool shouldThrow;
+  bool signOutCalled = false;
+
+  @override
+  Future<GoogleAccount?> signIn() async {
+    if (shouldThrow) {
+      throw Exception('Google sign in failed');
+    }
+    return account;
+  }
+
+  @override
+  Future<void> signOut() async {
+    signOutCalled = true;
   }
 }
 
@@ -127,6 +164,7 @@ void main() {
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
         authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
 
@@ -148,6 +186,7 @@ void main() {
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
         authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
 
@@ -177,6 +216,7 @@ void main() {
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
         authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
 
@@ -201,6 +241,7 @@ void main() {
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
         authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
 
@@ -218,6 +259,86 @@ void main() {
     await tester.tap(find.byKey(const Key('signOutButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.byKey(const Key('authUsernameField')), findsOneWidget);
+    expect(find.byKey(const Key('authSubmitButton')), findsOneWidget);
+  });
+
+  testWidgets('continues with Google and loads the home page', (tester) async {
+    final authRepository = _TestAuthRepository();
+    final googleService = _TestGoogleAuthService(
+      account: const GoogleAccount(
+        id: 'google-1',
+        email: 'demo@example.com',
+        displayName: 'Demo User',
+      ),
+    );
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        repository: _StubAttendanceRepository(),
+        sessionRepository: _StubSessionRepository(),
+        authRepository: authRepository,
+        authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: googleService,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('googleSignInButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Engagement overview'), findsOneWidget);
+  });
+
+  testWidgets('returns to auth screen when Google sign-in is cancelled', (
+    tester,
+  ) async {
+    final authRepository = _TestAuthRepository();
+    final googleService = _TestGoogleAuthService(account: null);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        repository: _StubAttendanceRepository(),
+        sessionRepository: _StubSessionRepository(),
+        authRepository: authRepository,
+        authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: googleService,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('googleSignInButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Engagement overview'), findsNothing);
+    expect(find.text('Login'), findsWidgets);
+  });
+
+  testWidgets('shows an error message when Google sign-in fails', (
+    tester,
+  ) async {
+    final authRepository = _TestAuthRepository(shouldFailGoogle: true);
+    final googleService = _TestGoogleAuthService(
+      account: const GoogleAccount(id: 'google-1', email: 'demo@example.com'),
+    );
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        repository: _StubAttendanceRepository(),
+        sessionRepository: _StubSessionRepository(),
+        authRepository: authRepository,
+        authDirectoryProvider: () async => Directory.systemTemp,
+        googleAuthService: googleService,
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('googleSignInButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Google sign-in failed'), findsOneWidget);
   });
 }

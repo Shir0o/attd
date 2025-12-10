@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../domain/entities/credentials.dart';
+import '../domain/entities/google_account.dart';
 import '../domain/entities/user.dart';
 import '../domain/repositories/auth_repository.dart';
 import 'local_auth_storage.dart';
@@ -28,6 +29,20 @@ class LocalAuthDataSource {
       throw AuthException('Invalid username or password');
     }
     return User(id: stored.id, username: stored.username);
+  }
+
+  Future<User> authenticateGoogle(GoogleAccount account) async {
+    final displayName = account.displayName?.trim().isNotEmpty == true
+        ? account.displayName!.trim()
+        : account.email;
+    await storage.saveGoogleUser(
+      id: account.id,
+      username: account.email,
+      email: account.email,
+      displayName: displayName,
+    );
+
+    return User(id: account.id, username: displayName);
   }
 
   Future<void> persistSession(User user) => storage.persistSession(user);

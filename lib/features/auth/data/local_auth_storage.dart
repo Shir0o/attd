@@ -70,7 +70,10 @@ class LocalAuthStorage {
     if (sessionId == null) return null;
     final storedUser = await loadUserById(sessionId);
     if (storedUser == null) return null;
-    return User(id: storedUser.id, username: storedUser.username);
+    return User(
+      id: storedUser.id,
+      username: storedUser.displayName ?? storedUser.username,
+    );
   }
 
   Future<void> clearSession() async {
@@ -87,6 +90,8 @@ class LocalAuthStorage {
         id: id,
         username: credentials.username,
         password: credentials.password,
+        displayName: credentials.username,
+        email: credentials.username,
       ),
     );
     await saveUsers(users);
@@ -100,6 +105,26 @@ class LocalAuthStorage {
       return null;
     }
   }
+
+  Future<void> saveGoogleUser({
+    required String id,
+    required String username,
+    required String email,
+    String? displayName,
+  }) async {
+    final users = await loadUsers();
+    users.removeWhere((user) => user.id == id || user.username == username);
+    users.add(
+      _StoredUser(
+        id: id,
+        username: username,
+        password: null,
+        displayName: displayName ?? username,
+        email: email,
+      ),
+    );
+    await saveUsers(users);
+  }
 }
 
 class _StoredUser {
@@ -107,23 +132,31 @@ class _StoredUser {
     required this.id,
     required this.username,
     required this.password,
+    this.displayName,
+    this.email,
   });
 
   final String id;
   final String username;
-  final String password;
+  final String? password;
+  final String? displayName;
+  final String? email;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'username': username,
     'password': password,
+    'displayName': displayName,
+    'email': email,
   };
 
   static _StoredUser fromJson(Map<String, dynamic> json) {
     return _StoredUser(
       id: json['id'] as String,
       username: json['username'] as String,
-      password: json['password'] as String,
+      password: json['password'] as String?,
+      displayName: json['displayName'] as String?,
+      email: json['email'] as String?,
     );
   }
 }
