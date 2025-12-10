@@ -3,14 +3,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'data/session.dart';
 import 'data/session_repository.dart';
 import 'features/auth/application/auth_controller.dart';
+import 'features/auth/application/google_auth_service.dart';
+import 'features/auth/config/google_oauth_config.dart';
 import 'features/auth/data/local_auth_data_source.dart';
 import 'features/auth/data/local_auth_repository.dart';
 import 'features/auth/data/local_auth_storage.dart';
+import 'features/auth/data/google_sign_in_service.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/auth_gate.dart';
 import 'features/ai/ai_provider.dart';
@@ -40,6 +44,7 @@ class AttendanceApp extends StatefulWidget {
     bool aiEnabled = true,
     this.authRepository,
     this.authDirectoryProvider,
+    this.googleAuthService,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository =
            sessionRepository ??
@@ -59,6 +64,7 @@ class AttendanceApp extends StatefulWidget {
   final bool aiEnabled;
   final AuthRepository? authRepository;
   final Future<Directory> Function()? authDirectoryProvider;
+  final GoogleAuthService? googleAuthService;
 
   @override
   State<AttendanceApp> createState() => _AttendanceAppState();
@@ -66,6 +72,7 @@ class AttendanceApp extends StatefulWidget {
 
 class _AttendanceAppState extends State<AttendanceApp> {
   late final AuthController _authController;
+  late final GoogleAuthService _googleAuthService;
 
   @override
   void initState() {
@@ -79,8 +86,18 @@ class _AttendanceAppState extends State<AttendanceApp> {
             LocalAuthStorage(directoryProvider: authDirectoryProvider),
           ),
         );
-    _authController = AuthController(repository: authRepository)
-      ..restoreSession();
+    _googleAuthService =
+        widget.googleAuthService ??
+        GoogleSignInAuthService(
+          googleSignIn: GoogleSignIn(
+            clientId: GoogleOAuthConfig.iosClientId,
+            serverClientId: GoogleOAuthConfig.androidServerClientId,
+          ),
+        );
+    _authController = AuthController(
+      repository: authRepository,
+      googleAuthService: _googleAuthService,
+    )..restoreSession();
   }
 
   @override
