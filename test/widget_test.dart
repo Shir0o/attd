@@ -6,12 +6,13 @@ import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class _InMemoryAttendanceRepository implements AttendanceRepository {
   _InMemoryAttendanceRepository({List<Family>? families})
-      : _families = List<Family>.from(families ?? _defaultFamilies);
+    : _families = List<Family>.from(families ?? _defaultFamilies);
 
   List<Family> _families;
 
@@ -128,13 +129,16 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-
     expect(find.text('Engagement overview'), findsOneWidget);
     expect(find.text('Wellness watchlist'), findsOneWidget);
-    expect(find.text('Drill-down insights'), findsOneWidget);
+    expect(find.text('Attendance rate'), findsWidgets);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -800));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Export report'), findsOneWidget);
     expect(find.text('Quick actions'), findsOneWidget);
     expect(find.text('Take attendance'), findsOneWidget);
-    expect(find.text('Attendance rate'), findsWidgets);
     expect(find.text('Recent sessions'), findsOneWidget);
   });
 }
