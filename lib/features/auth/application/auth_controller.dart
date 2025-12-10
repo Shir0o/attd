@@ -39,14 +39,11 @@ class AuthController extends ChangeNotifier {
     _setState(AuthState(user: user, isLoading: false));
   }
 
-  Future<void> login({
-    required String username,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, errorMessage: null));
     try {
       final user = await repository.login(
-        Credentials(username: username.trim(), password: password),
+        Credentials(email: email.trim(), password: password),
       );
       _setState(AuthState(user: user, isLoading: false));
     } on AuthException catch (error) {
@@ -85,14 +82,11 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<void> signup({
-    required String username,
-    required String password,
-  }) async {
+  Future<void> signup({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, errorMessage: null));
     try {
       final user = await repository.signup(
-        Credentials(username: username.trim(), password: password),
+        Credentials(email: email.trim(), password: password),
       );
       _setState(AuthState(user: user, isLoading: false));
     } on AuthException catch (error) {

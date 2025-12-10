@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -34,12 +32,9 @@ class _TestAuthRepository implements AuthRepository {
   @override
   Future<User> login(Credentials credentials) async {
     if (shouldFailLogin) {
-      throw AuthException('Invalid username or password');
+      throw AuthException('Invalid email or password');
     }
-    _user = User(
-      id: 'user-${credentials.username}',
-      username: credentials.username,
-    );
+    _user = User(id: 'user-${credentials.email}', email: credentials.email);
     return _user!;
   }
 
@@ -50,7 +45,8 @@ class _TestAuthRepository implements AuthRepository {
     }
     _user = User(
       id: 'google-${account.id}',
-      username: account.displayName ?? account.email,
+      email: account.email,
+      displayName: account.displayName ?? account.email,
     );
     return _user!;
   }
@@ -63,12 +59,9 @@ class _TestAuthRepository implements AuthRepository {
   @override
   Future<User> signup(Credentials credentials) async {
     if (shouldFailSignup) {
-      throw AuthException('User already exists');
+      throw AuthException('An account with that email already exists');
     }
-    _user = User(
-      id: 'user-${credentials.username}',
-      username: credentials.username,
-    );
+    _user = User(id: 'user-${credentials.email}', email: credentials.email);
     return _user!;
   }
 }
@@ -153,9 +146,7 @@ class _StubSessionRepository implements SessionRepository {
 }
 
 void main() {
-  testWidgets('requires username and password before submission', (
-    tester,
-  ) async {
+  testWidgets('requires email and password before submission', (tester) async {
     final authRepository = _TestAuthRepository();
 
     await tester.pumpWidget(
@@ -163,7 +154,6 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
@@ -173,7 +163,7 @@ void main() {
     await tester.tap(find.byKey(const Key('authSubmitButton')));
     await tester.pump();
 
-    expect(find.text('Username is required'), findsOneWidget);
+    expect(find.text('Email is required'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
   });
 
@@ -185,7 +175,6 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
@@ -194,8 +183,8 @@ void main() {
     await tester.tap(find.byKey(const Key('switchAuthModeButton')));
     await tester.pump();
     await tester.enterText(
-      find.byKey(const Key('authUsernameField')),
-      'newuser',
+      find.byKey(const Key('authEmailField')),
+      'newuser@example.com',
     );
     await tester.enterText(
       find.byKey(const Key('authPasswordField')),
@@ -215,13 +204,15 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
 
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('authUsernameField')), 'demo');
+    await tester.enterText(
+      find.byKey(const Key('authEmailField')),
+      'demo@example.com',
+    );
     await tester.enterText(
       find.byKey(const Key('authPasswordField')),
       'password',
@@ -229,7 +220,7 @@ void main() {
     await tester.tap(find.byKey(const Key('authSubmitButton')));
 
     await tester.pumpAndSettle();
-    expect(find.text('Invalid username or password'), findsOneWidget);
+    expect(find.text('Invalid email or password'), findsOneWidget);
   });
 
   testWidgets('signs out and returns to auth screen', (tester) async {
@@ -240,13 +231,15 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
     );
 
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('authUsernameField')), 'demo');
+    await tester.enterText(
+      find.byKey(const Key('authEmailField')),
+      'demo@example.com',
+    );
     await tester.enterText(
       find.byKey(const Key('authPasswordField')),
       'password',
@@ -259,7 +252,7 @@ void main() {
     await tester.tap(find.byKey(const Key('signOutButton')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('authUsernameField')), findsOneWidget);
+    expect(find.byKey(const Key('authEmailField')), findsOneWidget);
     expect(find.byKey(const Key('authSubmitButton')), findsOneWidget);
   });
 
@@ -278,7 +271,6 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: googleService,
       ),
     );
@@ -302,7 +294,6 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: googleService,
       ),
     );
@@ -329,7 +320,6 @@ void main() {
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         authRepository: authRepository,
-        authDirectoryProvider: () async => Directory.systemTemp,
         googleAuthService: googleService,
       ),
     );
