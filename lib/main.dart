@@ -90,7 +90,7 @@ class _AttendanceAppState extends State<AttendanceApp> {
         GoogleSignInAuthService(
           googleSignIn: GoogleSignIn(
             clientId: GoogleOAuthConfig.iosClientId,
-            serverClientId: GoogleOAuthConfig.androidServerClientId,
+            serverClientId: GoogleOAuthConfig.webServerClientId,
           ),
         );
     _authController = AuthController(
