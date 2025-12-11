@@ -1,78 +1,97 @@
-import 'dart:convert';
-import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/family.dart';
 import '../models/member.dart';
 
-enum AttendanceStore { localJson, sqlite, firestore }
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
+
+import '../models/family.dart';
+import '../models/member.dart';
 
 abstract class AttendanceRepository {
-  AttendanceStore get store;
-
   Future<List<Family>> fetchFamilies();
 
   Future<void> saveFamilies(List<Family> families);
 
   Future<Family> addVisitor(String familyId, Member visitor);
+
+  Future<Family> addFamily(String displayName);
 }
 
-class LocalJsonAttendanceRepository implements AttendanceRepository {
-  LocalJsonAttendanceRepository({this.fileName = 'families.json', List<Family>? seed})
-      : _seed = seed;
+class FirestoreAttendanceRepository extends AttendanceRepository {
+  FirestoreAttendanceRepository({
+    FirebaseFirestore? firestore,
+    List<Family>? seed,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _seed = seed;
 
-  final String fileName;
+  final FirebaseFirestore _firestore;
   final List<Family>? _seed;
-  List<Family>? _memoryCache;
 
   @override
-  AttendanceStore get store => AttendanceStore.localJson;
 
-  Future<File> _resolveFile() async {
-    final directory = await getApplicationSupportDirectory();
-    return File('${directory.path}/$fileName');
-  }
+  CollectionReference<Map<String, dynamic>> get _familiesRef =>
+      _firestore.collection('families');
 
   @override
   Future<List<Family>> fetchFamilies() async {
-    if (_memoryCache != null) return _memoryCache!;
-
-    final file = await _resolveFile();
-    if (!await file.exists()) {
+    final snapshot = await _familiesRef.get();
+    
+    if (snapshot.docs.isEmpty) {
       final families = _seed ?? _defaultFamilies;
       await saveFamilies(families);
-      _memoryCache = families;
       return families;
     }
 
-    final content = await file.readAsString();
-    final data = jsonDecode(content) as List<dynamic>;
-    final families = data
-        .map((family) => Family.fromJson(family as Map<String, dynamic>))
+    return snapshot.docs
+        .map((doc) => Family.fromJson(doc.data()))
         .toList();
-    _memoryCache = families;
-    return families;
   }
 
   @override
   Future<void> saveFamilies(List<Family> families) async {
-    final file = await _resolveFile();
-    final serialized = jsonEncode(families.map((family) => family.toJson()).toList());
-    await file.writeAsString(serialized, flush: true);
-    _memoryCache = families;
+    final batch = _firestore.batch();
+    
+    for (final family in families) {
+      final docRef = _familiesRef.doc(family.id);
+      batch.set(docRef, family.toJson());
+    }
+    
+    await batch.commit();
   }
 
   @override
   Future<Family> addVisitor(String familyId, Member visitor) async {
-    final families = await fetchFamilies();
-    final updatedFamilies = families.map((family) {
-      if (family.id != familyId) return family;
-      final members = [...family.members, visitor];
-      return family.copyWith(members: members);
-    }).toList();
-    await saveFamilies(updatedFamilies);
-    return updatedFamilies.firstWhere((family) => family.id == familyId);
+    final docRef = _familiesRef.doc(familyId);
+    
+    // We use arrayUnion to atomically add the new member to the members list
+    await docRef.update({
+      'members': FieldValue.arrayUnion([visitor.toJson()]),
+    });
+
+    // Fetch the updated document to return the complete family object
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      throw StateError('Family not found: $familyId');
+    }
+    
+    
+    return Family.fromJson(snapshot.data()!);
+  }
+
+  @override
+  Future<Family> addFamily(String displayName) async {
+    final newFamily = Family(
+      id: const Uuid().v4(),
+      displayName: displayName,
+      members: [],
+    );
+    
+    await _familiesRef.doc(newFamily.id).set(newFamily.toJson());
+    return newFamily;
   }
 
   List<Family> get _defaultFamilies => const [
@@ -104,54 +123,4 @@ class LocalJsonAttendanceRepository implements AttendanceRepository {
           ],
         ),
       ];
-}
-
-class SQLiteAttendanceRepository extends AttendanceRepository {
-  SQLiteAttendanceRepository({AttendanceRepository? fallback})
-      : _delegate = fallback ?? LocalJsonAttendanceRepository();
-
-  final AttendanceRepository _delegate;
-
-  @override
-  AttendanceStore get store => AttendanceStore.sqlite;
-
-  @override
-  Future<Family> addVisitor(String familyId, Member visitor) {
-    return _delegate.addVisitor(familyId, visitor);
-  }
-
-  @override
-  Future<List<Family>> fetchFamilies() {
-    return _delegate.fetchFamilies();
-  }
-
-  @override
-  Future<void> saveFamilies(List<Family> families) {
-    return _delegate.saveFamilies(families);
-  }
-}
-
-class FirestoreAttendanceRepository extends AttendanceRepository {
-  FirestoreAttendanceRepository({AttendanceRepository? fallback})
-      : _delegate = fallback ?? LocalJsonAttendanceRepository();
-
-  final AttendanceRepository _delegate;
-
-  @override
-  AttendanceStore get store => AttendanceStore.firestore;
-
-  @override
-  Future<Family> addVisitor(String familyId, Member visitor) {
-    return _delegate.addVisitor(familyId, visitor);
-  }
-
-  @override
-  Future<List<Family>> fetchFamilies() {
-    return _delegate.fetchFamilies();
-  }
-
-  @override
-  Future<void> saveFamilies(List<Family> families) {
-    return _delegate.saveFamilies(families);
-  }
 }

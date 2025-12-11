@@ -61,12 +61,10 @@ extension AnalyticsRangeX on AnalyticsRange {
 class AttendanceBreakdown {
   const AttendanceBreakdown({
     required this.present,
-    required this.partial,
     required this.absent,
   });
 
   final int present;
-  final int partial;
   final int absent;
 
   int get total => present + absent;
@@ -79,17 +77,13 @@ class AttendeeInsight {
     required this.name,
     required this.present,
     required this.absent,
-    required this.partial,
     required this.absenceStreak,
-    required this.lateStreak,
   });
 
   final String name;
   final int present;
   final int absent;
-  final int partial;
   final int absenceStreak;
-  final int lateStreak;
 
   int get total => present + absent;
   double get attendanceRate => total == 0 ? 0 : present / total * 100;
@@ -100,13 +94,11 @@ class FamilyInsight {
     required this.family,
     required this.present,
     required this.absent,
-    required this.partial,
   });
 
   final Family family;
   final int present;
   final int absent;
-  final int partial;
 
   int get total => present + absent;
   double get attendanceRate => total == 0 ? 0 : present / total * 100;
@@ -151,7 +143,6 @@ AttendanceAnalytics calculateAttendanceAnalytics({
   final attendeeToFamily = _attendeeFamilyIndex(families);
   final attendeeRecords = <String, List<_RecordEvent>>{};
   var present = 0;
-  var partial = 0;
   var absent = 0;
 
   for (final session in filteredSessions) {
@@ -159,10 +150,6 @@ AttendanceAnalytics calculateAttendanceAnalytics({
       switch (record.status) {
         case AttendanceStatus.present:
           present++;
-          break;
-        case AttendanceStatus.partial:
-          present++;
-          partial++;
           break;
         case AttendanceStatus.absent:
           absent++;
@@ -189,9 +176,7 @@ AttendanceAnalytics calculateAttendanceAnalytics({
       name: attendee,
       present: stats.present,
       absent: stats.absent,
-      partial: stats.partial,
       absenceStreak: _streak(entries, AttendanceStatus.absent),
-      lateStreak: _streak(entries, AttendanceStatus.partial),
     );
 
     final familyId = attendeeToFamily[attendee];
@@ -208,14 +193,13 @@ AttendanceAnalytics calculateAttendanceAnalytics({
       family: family,
       present: counter.present,
       absent: counter.absent,
-      partial: counter.partial,
     );
   }
 
   final watchlist = _buildWatchlist(attendees, familyInsights.values.toList());
 
   return AttendanceAnalytics(
-    breakdown: AttendanceBreakdown(present: present, partial: partial, absent: absent),
+    breakdown: AttendanceBreakdown(present: present, absent: absent),
     attendees: attendees,
     families: familyInsights,
     trend: _buildTrend(filteredSessions),
@@ -231,9 +215,7 @@ List<double> _buildTrend(List<Session> sessions) {
     final presentCount = session.records
         .where((record) => record.status == AttendanceStatus.present)
         .length;
-    final lateCount =
-        session.records.where((record) => record.status == AttendanceStatus.partial).length;
-    final rate = (presentCount + lateCount) / session.records.length * 100;
+    final rate = session.records.isEmpty ? 0 : presentCount / session.records.length * 100;
     points.add(double.parse(rate.toStringAsFixed(1)));
   }
   return points;
@@ -251,13 +233,6 @@ List<WellnessFlag> _buildWatchlist(
         WellnessFlag(
           subject: name,
           reason: '${insight.absenceStreak} consecutive absences',
-        ),
-      );
-    } else if (insight.lateStreak >= 2) {
-      flags.add(
-        WellnessFlag(
-          subject: name,
-          reason: 'Late ${insight.lateStreak} times in a row',
         ),
       );
     } else if (insight.total >= 3 && insight.attendanceRate < 75) {
@@ -288,23 +263,18 @@ List<WellnessFlag> _buildWatchlist(
 
 _MapSummary _summarize(List<_RecordEvent> entries) {
   var present = 0;
-  var partial = 0;
   var absent = 0;
   for (final entry in entries) {
     switch (entry.status) {
       case AttendanceStatus.present:
         present++;
         break;
-      case AttendanceStatus.partial:
-        present++;
-        partial++;
-        break;
       case AttendanceStatus.absent:
         absent++;
         break;
     }
   }
-  return _MapSummary(present: present, absent: absent, partial: partial);
+  return _MapSummary(present: present, absent: absent);
 }
 
 int _streak(List<_RecordEvent> entries, AttendanceStatus status) {
@@ -337,25 +307,22 @@ class _RecordEvent {
 }
 
 class _MapSummary {
-  const _MapSummary({required this.present, required this.absent, required this.partial});
+  const _MapSummary({required this.present, required this.absent});
 
   final int present;
   final int absent;
-  final int partial;
 }
 
 class _FamilyCounter {
-  const _FamilyCounter({this.present = 0, this.absent = 0, this.partial = 0});
+  const _FamilyCounter({this.present = 0, this.absent = 0});
 
   final int present;
   final int absent;
-  final int partial;
 
   _FamilyCounter add(_MapSummary summary) {
     return _FamilyCounter(
-      present: present + summary.present,
-      absent: absent + summary.absent,
-      partial: partial + summary.partial,
+      present: (present + summary.present).toInt(),
+      absent: (absent + summary.absent).toInt(),
     );
   }
 }

@@ -48,7 +48,7 @@ class MockAiProvider implements AiProvider {
 
     request.analytics.attendees.forEach((name, insight) {
       final absenceMomentum = _streakMomentum(insight.absenceStreak);
-      final partialPenalty = math.min(insight.lateStreak * 0.05, 0.15);
+      final partialPenalty = 0.0;
       final denominator = math.max(insight.total, 1);
       final absenceRate = insight.absent / denominator;
       final probability = math.min(
@@ -60,7 +60,7 @@ class MockAiProvider implements AiProvider {
           AbsencePrediction(
             subject: name,
             reason:
-                'Recent pattern: ${insight.absenceStreak} absences, ${insight.lateStreak} late arrivals over ${insight.total} sessions.',
+                'Recent pattern: ${insight.absenceStreak} absences over ${insight.total} sessions.',
             probability: double.parse(probability.toStringAsFixed(2)),
           ),
         );

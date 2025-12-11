@@ -58,7 +58,7 @@ void main() {
         date: DateTime(2024, 1, 10),
         records: [
           record('Alana Rivera', AttendanceStatus.absent, now),
-          record('Mateo Rivera', AttendanceStatus.partial, now),
+          record('Mateo Rivera', AttendanceStatus.present, now),
         ],
       ),
       buildSession(
@@ -86,10 +86,8 @@ void main() {
     );
 
     expect(analytics.breakdown.present, 3);
-    expect(analytics.breakdown.partial, 1);
     expect(analytics.breakdown.absent, 2);
     expect(analytics.attendees['Alana Rivera']!.absenceStreak, 2);
-    expect(analytics.attendees['Mateo Rivera']!.lateStreak, 1);
     expect(analytics.trend.length, 2);
     expect(
       analytics.watchlist.map((flag) => flag.subject),

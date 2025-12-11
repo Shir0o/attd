@@ -95,8 +95,6 @@ class _TestGoogleAuthService implements GoogleAuthService {
 }
 
 class _StubAttendanceRepository implements AttendanceRepository {
-  @override
-  AttendanceStore get store => AttendanceStore.localJson;
 
   @override
   Future<Family> addVisitor(String familyId, Member visitor) async {
@@ -110,6 +108,11 @@ class _StubAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> saveFamilies(List<Family> families) async {}
+
+  @override
+  Future<Family> addFamily(String displayName) async {
+    throw UnimplementedError();
+  }
 }
 
 class _StubSessionRepository implements SessionRepository {

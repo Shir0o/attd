@@ -82,13 +82,9 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       trailing: Icon(
         record.status == AttendanceStatus.present
             ? Icons.check_circle
-            : record.status == AttendanceStatus.partial
-            ? Icons.schedule
             : Icons.remove_circle_outline,
         color: record.status == AttendanceStatus.present
             ? Colors.green
-            : record.status == AttendanceStatus.partial
-            ? Colors.orange
             : Colors.red,
       ),
     );
