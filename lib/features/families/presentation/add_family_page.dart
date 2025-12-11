@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../data/attendance_repository.dart';
-import '../models/family.dart';
+import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/models/family.dart';
 
 class AddFamilyPage extends StatefulWidget {
   const AddFamilyPage({super.key, required this.repository});

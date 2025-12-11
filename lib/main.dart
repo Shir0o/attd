@@ -16,6 +16,7 @@ import 'features/auth/data/firebase_auth_repository.dart';
 import 'features/auth/data/google_sign_in_service.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/auth_gate.dart';
+import 'features/families/presentation/family_list_page.dart';
 import 'firebase_options.dart';
 import 'features/ai/ai_provider.dart';
 import 'features/ai/ai_provider_factory.dart';
@@ -508,6 +509,14 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     );
   }
 
+  void _openFamilyList(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FamilyListPage(repository: widget.repository),
+      ),
+    );
+  }
+
   void _openSession(Session session) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -539,7 +548,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(child: CircularProgressIndicator());
           );
         }
 
@@ -834,9 +843,9 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                         onPressed: () => _startAttendanceFlow(context),
                       ),
                       _ActionChipButton(
-                        icon: Icons.person_add_alt_1,
-                        label: 'Add attendee',
-                        onPressed: () => _startAttendanceFlow(context),
+                        icon: Icons.people,
+                        label: 'Manage families',
+                        onPressed: () => _openFamilyList(context),
                       ),
                       _ActionChipButton(
                         icon: Icons.bar_chart_outlined,
@@ -897,7 +906,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                             context,
                           ).colorScheme.primaryContainer,
                           child: Text(
-                            '${percent}%',
+                            '$percent%',
                             style: Theme.of(context).textTheme.labelLarge,
                           ),
                         ),
