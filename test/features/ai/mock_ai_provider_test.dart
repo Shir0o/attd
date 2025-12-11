@@ -68,7 +68,7 @@ void main() {
         ),
         SessionRecord(
           attendee: 'Jordan',
-          status: AttendanceStatus.partial,
+          status: AttendanceStatus.present,
           recordedAt: DateTime(2025, 1, 14),
           recordedBy: 'coach',
         ),

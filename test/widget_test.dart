@@ -10,9 +10,7 @@ import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/main.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class _InMemoryAttendanceRepository implements AttendanceRepository {
   _InMemoryAttendanceRepository({List<Family>? families})
@@ -20,8 +18,6 @@ class _InMemoryAttendanceRepository implements AttendanceRepository {
 
   List<Family> _families;
 
-  @override
-  AttendanceStore get store => AttendanceStore.localJson;
 
   @override
   Future<Family> addVisitor(String familyId, Member visitor) async {
@@ -41,6 +37,17 @@ class _InMemoryAttendanceRepository implements AttendanceRepository {
   @override
   Future<void> saveFamilies(List<Family> families) async {
     _families = List<Family>.from(families);
+  }
+
+  @override
+  Future<Family> addFamily(String displayName) async {
+    final newFamily = Family(
+      id: 'family-${_families.length + 1}',
+      displayName: displayName,
+      members: [],
+    );
+    _families = [..._families, newFamily];
+    return newFamily;
   }
 }
 
@@ -145,7 +152,6 @@ class _ImmediateAuthRepository implements AuthRepository {
 
 void main() {
   testWidgets('Shows analytics overview and actions', (tester) async {
-    sqfliteFfiInit();
 
     final repository = _InMemoryAttendanceRepository();
     final sessionRepository = _ImmediateSessionRepository(buildSeedSessions());

@@ -7,6 +7,7 @@ import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import 'add_family_page.dart';
 
 class AttendanceFlowPage extends StatefulWidget {
   const AttendanceFlowPage({super.key, required this.repository});
@@ -63,7 +64,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
             autofocus: true,
             decoration: const InputDecoration(
               labelText: 'Visitor name',
-              hintText: 'Enter full name',
+              hintText: 'Enter name',
             ),
             textInputAction: TextInputAction.done,
             onSubmitted: (value) => Navigator.of(context).pop(value),
@@ -81,7 +82,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
         );
       },
     );
-
+    
     if (result == null || result.isEmpty) return;
 
     final visitor = Member(
@@ -98,6 +99,27 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
       _familiesFuture = widget.repository.fetchFamilies();
     });
   }
+
+  Future<void> _addFamily() async {
+    final newFamily = await Navigator.of(context).push<Family>(
+      MaterialPageRoute(
+        builder: (context) => AddFamilyPage(repository: widget.repository),
+      ),
+    );
+
+    if (newFamily != null) {
+      setState(() {
+        _familiesFuture = widget.repository.fetchFamilies();
+      });
+      
+      // Wait for families to reload then jump to last page
+      final families = await _familiesFuture;
+      if (mounted) {
+        _jumpTo(families.indexOf(newFamily));
+      }
+    }
+  }
+
 
   void _onNavigate(List<Family> families, int delta) {
     final target = (_currentPage + delta).clamp(0, families.length - 1);
@@ -120,8 +142,13 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Start attendance'),
-        actions: const [
-          Padding(
+        actions: [
+          IconButton(
+            onPressed: _addFamily,
+            icon: const Icon(Icons.add),
+            tooltip: 'Add family',
+          ),
+          const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Center(
               child: Text(

@@ -43,14 +43,12 @@ class ReportSummary {
     required this.sessionCount,
     required this.recordCount,
     required this.present,
-    required this.partial,
     required this.absent,
   });
 
   final int sessionCount;
   final int recordCount;
   final int present;
-  final int partial;
   final int absent;
 
   double get attendanceRate =>
