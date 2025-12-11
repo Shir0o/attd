@@ -59,7 +59,6 @@ class ReportExportService {
 
   ReportSummary _summarize(List<Session> sessions) {
     var present = 0;
-    var partial = 0;
     var absent = 0;
     var records = 0;
 
@@ -69,10 +68,6 @@ class ReportExportService {
         switch (record.status) {
           case AttendanceStatus.present:
             present++;
-            break;
-          case AttendanceStatus.partial:
-            present++;
-            partial++;
             break;
           case AttendanceStatus.absent:
             absent++;
@@ -85,7 +80,6 @@ class ReportExportService {
       sessionCount: sessions.length,
       recordCount: records,
       present: present,
-      partial: partial,
       absent: absent,
     );
   }
@@ -114,7 +108,7 @@ class ReportExportService {
       'Attendance summary report',
       'Generated at: ${_clock().toIso8601String()}',
       'Sessions: ${summary.sessionCount}, records: ${summary.recordCount}',
-      'Present: ${summary.present}, Partial: ${summary.partial}, Absent: ${summary.absent}',
+      'Present: ${summary.present}, Absent: ${summary.absent}',
       '---',
     ];
 
@@ -201,7 +195,6 @@ class ReportExportService {
       'Sessions: ${summary.sessionCount}',
       'Records: ${summary.recordCount}',
       'Present: ${summary.present}',
-      'Partial: ${summary.partial}',
       'Absent: ${summary.absent}',
       'First session: ${sessions.isNotEmpty ? sessions.first.title : 'N/A'}',
     ];

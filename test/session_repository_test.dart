@@ -1,22 +1,14 @@
-import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
-  setUpAll(() {
-    sqfliteFfiInit();
-  });
-
-  LocalSessionRepository buildRepository() {
-    var current = DateTime(2024, 1, 1, 9);
-    return LocalSessionRepository(
-      customFactory: databaseFactoryFfi,
-      dbPathProvider: () async => inMemoryDatabasePath,
-      clock: () => current,
-      seedSessions: const [],
+  FirestoreSessionRepository buildRepository() {
+    return FirestoreSessionRepository(
+      firestore: FakeFirebaseFirestore(),
+      seedSessions: [],
     );
   }
 
@@ -58,11 +50,16 @@ void main() {
       records: [buildRecord('Minh Nguyen', AttendanceStatus.present)],
     );
 
+    // Wait slightly to ensure timestamp difference if needed, though fake firestore might be instant.
+    // For specific ordering relying on time, we might need manual clock control if we were injecting it,
+    // but FirestoreSessionRepository uses DateTime.now() internally which is hard to mock without dependency injection.
+    // However, for typical versioning logic which relies on version numbers, it should be fine.
+
     final updated = await repository.saveSnapshot(
       created.copyWith(
         records: [
           ...created.records,
-          buildRecord('Aarav Patel', AttendanceStatus.partial),
+          buildRecord('Aarav Patel', AttendanceStatus.absent),
         ],
       ),
       actor: 'Tester',

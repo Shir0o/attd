@@ -1,4 +1,4 @@
-enum AttendanceStatus { present, absent, partial }
+enum AttendanceStatus { present, absent }
 
 extension AttendanceStatusLabel on AttendanceStatus {
   String get label {
@@ -7,8 +7,6 @@ extension AttendanceStatusLabel on AttendanceStatus {
         return 'Present';
       case AttendanceStatus.absent:
         return 'Absent';
-      case AttendanceStatus.partial:
-        return 'Partial';
     }
   }
 }

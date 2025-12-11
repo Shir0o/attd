@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import '../features/attendance/models/attendance_status.dart';
@@ -29,82 +27,54 @@ abstract class SessionRepository {
   Future<List<SessionVersion>> history(String sessionId);
 }
 
-class LocalSessionRepository implements SessionRepository {
-  LocalSessionRepository({
-    this.customFactory,
-    this.dbPathProvider,
-    DateTime Function()? clock,
+
+class FirestoreSessionRepository implements SessionRepository {
+  FirestoreSessionRepository({
+    FirebaseFirestore? firestore,
     List<Session>? seedSessions,
-  }) : _clock = clock ?? DateTime.now,
-       _seedSessions = seedSessions ?? [] {
-    _initialization = _init();
-  }
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _seedSessions = seedSessions ?? [];
 
-  final DatabaseFactory? customFactory;
-  final Future<String> Function()? dbPathProvider;
-  final DateTime Function() _clock;
+  final FirebaseFirestore _firestore;
   final List<Session> _seedSessions;
-  late final Future<Database> _database;
-  late final Future<void> _initialization;
 
-  Future<void> _init() async {
-    final dbPath = await (dbPathProvider?.call() ?? _defaultDbPath());
-    _database = _openDatabase(dbPath);
-    final db = await _database;
-    await db.execute(
-      'CREATE TABLE IF NOT EXISTS sessions ('
-      'id TEXT PRIMARY KEY,'
-      'title TEXT NOT NULL,'
-      'session_date TEXT NOT NULL,'
-      'created_at TEXT NOT NULL,'
-      'updated_at TEXT NOT NULL,'
-      'created_by TEXT NOT NULL,'
-      'current_version INTEGER NOT NULL,'
-      'is_deleted INTEGER NOT NULL,'
-      'latest_payload TEXT NOT NULL'
-      ')',
-    );
-    await db.execute(
-      'CREATE TABLE IF NOT EXISTS session_versions ('
-      'id INTEGER PRIMARY KEY AUTOINCREMENT,'
-      'session_id TEXT NOT NULL,'
-      'version INTEGER NOT NULL,'
-      'payload TEXT NOT NULL,'
-      'recorded_at TEXT NOT NULL,'
-      'actor TEXT NOT NULL,'
-      'is_deleted INTEGER NOT NULL,'
-      'FOREIGN KEY(session_id) REFERENCES sessions(id)'
-      ')',
+  CollectionReference<Map<String, dynamic>> get _sessionsRef =>
+      _firestore.collection('sessions');
+
+  CollectionReference<Map<String, dynamic>> _versionsRef(String sessionId) =>
+      _sessionsRef.doc(sessionId).collection('versions');
+
+  @override
+  Future<List<Session>> loadSessions({bool includeDeleted = false}) async {
+    Query<Map<String, dynamic>> query = _sessionsRef.orderBy(
+      'sessionDate',
+      descending: true,
     );
 
-    final existing =
-        Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM sessions'),
-        ) ??
-        0;
-    if (existing == 0 && _seedSessions.isNotEmpty) {
+    if (!includeDeleted) {
+      query = query.where('isDeleted', isEqualTo: false);
+    }
+
+    final snapshot = await query.get();
+
+    if (snapshot.docs.isEmpty && _seedSessions.isNotEmpty) {
+      // Seed if empty
       for (final session in _seedSessions) {
-        await _insertSession(db, session, actor: session.createdBy);
+        await createSession(
+          title: session.title,
+          sessionDate: session.sessionDate,
+          actor: session.createdBy,
+          records: session.records,
+        );
       }
+      // Re-fetch after seeding
+      final newSnapshot = await query.get();
+      return newSnapshot.docs
+          .map((doc) => Session.fromJson(doc.data()))
+          .toList();
     }
-  }
 
-  Future<String> _defaultDbPath() async {
-    final directory = await getApplicationSupportDirectory();
-    await directory.create(recursive: true);
-    return p.join(directory.path, 'sessions.db');
-  }
-
-  Future<Database> _openDatabase(String path) async {
-    DatabaseFactory primary = customFactory ?? databaseFactory;
-
-    try {
-      return primary.openDatabase(path);
-    } catch (_) {
-      sqfliteFfiInit();
-      final fallback = databaseFactoryFfi;
-      return fallback.openDatabase(path);
-    }
+    return snapshot.docs.map((doc) => Session.fromJson(doc.data())).toList();
   }
 
   @override
@@ -114,11 +84,11 @@ class LocalSessionRepository implements SessionRepository {
     required String actor,
     required List<SessionRecord> records,
   }) async {
-    await _initialization;
-    final db = await _database;
-    final now = _clock();
+    final id = const Uuid().v4();
+    final now = DateTime.now();
+    
     final session = Session(
-      id: const Uuid().v4(),
+      id: id,
       title: title,
       sessionDate: sessionDate,
       records: records,
@@ -128,110 +98,107 @@ class LocalSessionRepository implements SessionRepository {
       isDeleted: false,
       currentVersion: 1,
     );
-    await _insertSession(db, session, actor: actor);
+
+    final batch = _firestore.batch();
+    
+    // 1. Create session document
+    batch.set(_sessionsRef.doc(id), session.toJson());
+
+    // 2. Create initial version
+    final versionParam = {
+      'sessionId': id,
+      'version': 1,
+      'snapshot': session.toJson(), // Store full snapshot
+      'recordedAt': now.toIso8601String(),
+      'actor': actor,
+      'isDeleted': false,
+    };
+    // Note: SessionVersion.fromJson expects 'snapshot' to be map or string?
+    // Looking at SessionRepository.dart line 307:
+    // snapshot: Session.fromJson(jsonDecode(row['payload'] as String)...)
+    // But here we are in Firestore, we can store Map directly.
+    // However, the current SessionVersion.fromJson might expect slightly different structure if adapted or if I need to change it.
+    // Let's look at SessionVersion usage in existing code:
+    // It's not a model with fromJson/toJson in the file I saw?
+    // Wait, I checked session_version.dart, it DOES NOT have fromJson/toJson.
+    // So I need to construct Map manually or add fromJson/toJson to SessionVersion.
+    // I will write the map manually here for Firestore.
+    
+    batch.set(_versionsRef(id).doc('1'), versionParam);
+
+    await batch.commit();
     return session;
-  }
-
-  Future<void> _insertSession(
-    Database db,
-    Session session, {
-    required String actor,
-  }) async {
-    await db.insert('sessions', {
-      'id': session.id,
-      'title': session.title,
-      'session_date': session.sessionDate.toIso8601String(),
-      'created_at': session.createdAt.toIso8601String(),
-      'updated_at': session.updatedAt.toIso8601String(),
-      'created_by': session.createdBy,
-      'current_version': session.currentVersion,
-      'is_deleted': session.isDeleted ? 1 : 0,
-      'latest_payload': jsonEncode(session.toJson()),
-    });
-
-    await db.insert('session_versions', {
-      'session_id': session.id,
-      'version': session.currentVersion,
-      'payload': jsonEncode(session.toJson()),
-      'recorded_at': session.updatedAt.toIso8601String(),
-      'actor': actor,
-      'is_deleted': session.isDeleted ? 1 : 0,
-    });
-  }
-
-  Future<void> _saveVersion(
-    Database db,
-    Session session, {
-    required String actor,
-  }) async {
-    await db.update(
-      'sessions',
-      {
-        'title': session.title,
-        'session_date': session.sessionDate.toIso8601String(),
-        'updated_at': session.updatedAt.toIso8601String(),
-        'current_version': session.currentVersion,
-        'is_deleted': session.isDeleted ? 1 : 0,
-        'latest_payload': jsonEncode(session.toJson()),
-      },
-      where: 'id = ?',
-      whereArgs: [session.id],
-    );
-
-    await db.insert('session_versions', {
-      'session_id': session.id,
-      'version': session.currentVersion,
-      'payload': jsonEncode(session.toJson()),
-      'recorded_at': session.updatedAt.toIso8601String(),
-      'actor': actor,
-      'is_deleted': session.isDeleted ? 1 : 0,
-    });
-  }
-
-  @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) async {
-    await _initialization;
-    final db = await _database;
-    final rows = await db.query(
-      'sessions',
-      orderBy: 'session_date DESC',
-      where: includeDeleted ? null : 'is_deleted = 0',
-    );
-    return rows
-        .map(
-          (row) => Session.fromJson(
-            jsonDecode(row['latest_payload'] as String) as Map<String, dynamic>,
-          ),
-        )
-        .toList();
   }
 
   @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
-    await _initialization;
-    final db = await _database;
-    final now = _clock();
-    final next = session.copyWith(
-      currentVersion: session.currentVersion + 1,
+    final now = DateTime.now();
+    final nextVersion = session.currentVersion + 1;
+    final nextSession = session.copyWith(
+      currentVersion: nextVersion,
       updatedAt: now,
     );
-    await _saveVersion(db, next, actor: actor);
-    return next;
+
+    final batch = _firestore.batch();
+
+    // 1. Update session document
+    batch.set(_sessionsRef.doc(session.id), nextSession.toJson());
+
+    // 2. Add new version
+    batch.set(_versionsRef(session.id).doc(nextVersion.toString()), {
+      'sessionId': session.id,
+      'version': nextVersion,
+      'snapshot': nextSession.toJson(),
+      'recordedAt': now.toIso8601String(),
+      'actor': actor,
+      'isDeleted': nextSession.isDeleted,
+    });
+
+    await batch.commit();
+    return nextSession;
   }
 
-  Future<Session> _getLatest(String sessionId) async {
-    final db = await _database;
-    final rows = await db.query(
-      'sessions',
-      where: 'id = ?',
-      whereArgs: [sessionId],
-      limit: 1,
+  Future<Session?> _fetchSession(String sessionId) async {
+    final doc = await _sessionsRef.doc(sessionId).get();
+    if (!doc.exists) return null;
+    return Session.fromJson(doc.data()!);
+  }
+
+  @override
+  Future<Session> duplicate(String sessionId, {required String actor}) async {
+    final source = await _fetchSession(sessionId);
+    if (source == null) throw StateError('Session not found');
+
+    final now = DateTime.now();
+    final newRecords = source.records
+        .map((r) => r.copyWith(recordedAt: now, recordedBy: actor))
+        .toList();
+
+    return createSession(
+      title: '${source.title} (redo)',
+      sessionDate: now,
+      actor: actor,
+      records: newRecords,
     );
-    if (rows.isEmpty) throw StateError('Session not found');
-    return Session.fromJson(
-      jsonDecode(rows.first['latest_payload'] as String)
-          as Map<String, dynamic>,
-    );
+  }
+
+  @override
+  Future<List<SessionVersion>> history(String sessionId) async {
+    final snapshot = await _versionsRef(sessionId)
+        .orderBy('version', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return SessionVersion(
+        sessionId: data['sessionId'] as String,
+        version: data['version'] as int,
+        snapshot: Session.fromJson(data['snapshot'] as Map<String, dynamic>),
+        recordedAt: DateTime.parse(data['recordedAt'] as String),
+        actor: data['actor'] as String,
+        isDeleted: data['isDeleted'] as bool,
+      );
+    }).toList();
   }
 
   @override
@@ -239,80 +206,31 @@ class LocalSessionRepository implements SessionRepository {
     String sessionId, {
     required String actor,
   }) async {
-    await _initialization;
-    final db = await _database;
-    final versions = await db.query(
-      'session_versions',
-      where: 'session_id = ?',
-      whereArgs: [sessionId],
-      orderBy: 'version DESC',
-      limit: 2,
-    );
-    if (versions.length < 2) {
-      return null;
-    }
+    // 1. Get recent versions
+    final versionsSnapshot = await _versionsRef(sessionId)
+        .orderBy('version', descending: true)
+        .limit(2)
+        .get();
 
-    final previous = versions[1];
-    final snapshot = Session.fromJson(
-      jsonDecode(previous['payload'] as String) as Map<String, dynamic>,
-    );
-    final restored = snapshot.copyWith(
-      updatedAt: _clock(),
-      currentVersion: (versions.first['version'] as int) + 1,
-    );
-    await _saveVersion(db, restored, actor: actor);
-    return restored;
-  }
+    if (versionsSnapshot.docs.length < 2) return null;
 
-  @override
-  Future<Session> duplicate(String sessionId, {required String actor}) async {
-    await _initialization;
-    final latest = await _getLatest(sessionId);
-    final now = _clock();
-    final cloned = latest.copyWith(
-      id: const Uuid().v4(),
-      title: '${latest.title} (redo)',
-      sessionDate: now,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: actor,
-      currentVersion: 1,
-      isDeleted: false,
-      records: latest.records
-          .map((record) => record.copyWith(recordedAt: now, recordedBy: actor))
-          .toList(),
+    final previousDoc = versionsSnapshot.docs[1];
+    final previousData = previousDoc.data();
+    final previousSnapshot = Session.fromJson(
+      previousData['snapshot'] as Map<String, dynamic>,
     );
 
-    await _initialization;
-    final db = await _database;
-    await _insertSession(db, cloned, actor: actor);
-    return cloned;
-  }
-
-  @override
-  Future<List<SessionVersion>> history(String sessionId) async {
-    await _initialization;
-    final db = await _database;
-    final rows = await db.query(
-      'session_versions',
-      where: 'session_id = ?',
-      whereArgs: [sessionId],
-      orderBy: 'version DESC',
+    // 2. Create new version from previous state
+    final currentDoc = versionsSnapshot.docs[0];
+    final currentVersion = currentDoc.data()['version'] as int;
+    
+    final restoredSession = previousSnapshot.copyWith(
+      currentVersion: currentVersion + 1,
+      updatedAt: DateTime.now(),
     );
-    return rows
-        .map(
-          (row) => SessionVersion(
-            sessionId: row['session_id'] as String,
-            version: row['version'] as int,
-            snapshot: Session.fromJson(
-              jsonDecode(row['payload'] as String) as Map<String, dynamic>,
-            ),
-            recordedAt: DateTime.parse(row['recorded_at'] as String),
-            actor: row['actor'] as String,
-            isDeleted: (row['is_deleted'] as int) == 1,
-          ),
-        )
-        .toList();
+
+    await saveSnapshot(restoredSession, actor: actor);
+    return restoredSession;
   }
 }
 
@@ -335,12 +253,6 @@ List<Session> buildSeedSessions() {
         SessionRecord(
           attendee: 'Alana Rivera',
           status: AttendanceStatus.present,
-          recordedAt: recordTime,
-          recordedBy: 'Automation',
-        ),
-        SessionRecord(
-          attendee: 'Mateo Rivera',
-          status: AttendanceStatus.partial,
           recordedAt: recordTime,
           recordedBy: 'Automation',
         ),
