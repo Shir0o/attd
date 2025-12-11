@@ -19,15 +19,22 @@ class _TestAuthRepository implements AuthRepository {
     this.shouldFailLogin = false,
     this.shouldFailSignup = false,
     this.shouldFailGoogle = false,
+    this.shouldFailCurrentUser = false,
   });
 
   bool shouldFailLogin;
   bool shouldFailSignup;
   bool shouldFailGoogle;
+  bool shouldFailCurrentUser;
   User? _user;
 
   @override
-  Future<User?> currentUser() async => _user;
+  Future<User?> currentUser() async {
+    if (shouldFailCurrentUser) {
+      throw AuthException('Unable to restore session');
+    }
+    return _user;
+  }
 
   @override
   Future<User> login(Credentials credentials) async {
@@ -194,6 +201,24 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('Engagement overview'), findsOneWidget);
+  });
+
+  testWidgets('shows auth form if restoring the session fails', (tester) async {
+    final authRepository = _TestAuthRepository(shouldFailCurrentUser: true);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        repository: _StubAttendanceRepository(),
+        sessionRepository: _StubSessionRepository(),
+        authRepository: authRepository,
+        googleAuthService: _TestGoogleAuthService(account: null),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('authEmailField')), findsOneWidget);
+    expect(find.text('Unable to restore session'), findsOneWidget);
   });
 
   testWidgets('shows an error message when login fails', (tester) async {
