@@ -20,10 +20,10 @@ class _InMemoryAttendanceRepository implements AttendanceRepository {
 
 
   @override
-  Future<Family> addVisitor(String familyId, Member visitor) async {
+  Future<Family> addMember(String familyId, Member member) async {
     final updated = _families.map((family) {
       if (family.id != familyId) return family;
-      return family.copyWith(members: [...family.members, visitor]);
+      return family.copyWith(members: [...family.members, member]);
     }).toList();
     _families = updated;
     return updated.firstWhere((family) => family.id == familyId);
