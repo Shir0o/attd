@@ -48,10 +48,10 @@ class AttendanceApp extends StatefulWidget {
     bool aiEnabled = true,
     this.authRepository,
     this.googleAuthService,
-  }) : repository = repository ?? LocalJsonAttendanceRepository(),
+  }) : repository = repository ?? FirestoreAttendanceRepository(),
        sessionRepository =
            sessionRepository ??
-           LocalSessionRepository(seedSessions: buildSeedSessions()),
+           FirestoreSessionRepository(seedSessions: buildSeedSessions()),
        aiFactory = aiFactory ?? const AiProviderFactory(),
        providerType = providerType,
        aiEnabled = aiEnabled,
@@ -652,13 +652,6 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                         accent: Colors.red.shade700,
                       ),
                       _StatCard(
-                        title: 'Late arrivals',
-                        value: '${breakdown.partial}',
-                        subtitle: 'Latest trend $latestTrend%',
-                        background: Colors.orange.shade50,
-                        accent: Colors.orange.shade800,
-                      ),
-                      _StatCard(
                         title: 'Watchlist',
                         value: '${analytics.watchlist.length}',
                         subtitle: analytics.watchlist.isEmpty
@@ -1097,7 +1090,6 @@ class _StatusBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final maxValue = [
       breakdown.present,
-      breakdown.partial,
       breakdown.absent,
     ].fold<int>(1, (value, element) => math.max(value, element));
 
@@ -1130,7 +1122,6 @@ class _StatusBarChart extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             buildBar('Present', breakdown.present, Colors.green.shade400),
-            buildBar('Late', breakdown.partial, Colors.orange.shade400),
             buildBar('Absent', breakdown.absent, Colors.red.shade400),
           ],
         ),

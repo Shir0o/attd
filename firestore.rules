@@ -2,8 +2,33 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // User profiles: Only the user can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Families: Shared data, accessible by any authenticated user
+    match /families/{familyId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Sessions: Shared data, accessible by any authenticated user
+    match /sessions/{sessionId} {
+      allow read, write: if isAuthenticated();
+      
+      // Allow access to subcollections (versions)
+      match /versions/{versionId} {
+        allow read, write: if isAuthenticated();
+      }
     }
   }
 }
