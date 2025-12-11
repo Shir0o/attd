@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "995280441940-ejeg76echetebilm6i9frbclg4ep1aho.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.attendance.tracker",
+            "certificate_hash": "62801b9538aae3ad56f777a5ca24e9ef2927c93b"
+          }
+        },
+        {
           "client_id": "995280441940-ljd5jupgd8ak2hirfn4q9vh4n5ungbf6.apps.googleusercontent.com",
           "client_type": 3
         }
