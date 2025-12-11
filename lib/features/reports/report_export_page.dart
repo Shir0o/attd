@@ -198,7 +198,7 @@ class _ReportExportPageState extends State<ReportExportPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'CSV exports the raw check-ins using the local session repository. PDF and image options render a shareable attendance summary.',
+                    'CSV exports the raw check-ins. PDF and image options render a shareable attendance summary.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 12),
