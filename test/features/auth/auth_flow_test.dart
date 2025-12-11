@@ -97,7 +97,7 @@ class _TestGoogleAuthService implements GoogleAuthService {
 class _StubAttendanceRepository implements AttendanceRepository {
 
   @override
-  Future<Family> addVisitor(String familyId, Member visitor) async {
+  Future<Family> addMember(String familyId, Member member) async {
     throw UnimplementedError();
   }
 

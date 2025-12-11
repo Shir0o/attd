@@ -53,17 +53,53 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
   }
 
   Future<void> _addVisitor(Family family) async {
+    final name = await _promptName('Add visitor', 'Visitor name');
+    if (name == null) return;
+
+    final visitor = Member(
+      id: 'visitor-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000)}',
+      displayName: name,
+      isVisitor: true,
+      defaultStatus: AttendanceStatus.present,
+    );
+
+    final updatedFamily = await widget.repository.addMember(family.id, visitor);
+    setState(() {
+      _attendance.putIfAbsent(updatedFamily.id, () => {});
+      _attendance[updatedFamily.id]![visitor.id] = AttendanceStatus.present;
+      _familiesFuture = widget.repository.fetchFamilies();
+    });
+  }
+
+  Future<void> _addMember(Family family) async {
+    final name = await _promptName('Add member', 'Member name');
+    if (name == null) return;
+
+    final member = Member(
+      id: 'member-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000)}',
+      displayName: name,
+      isVisitor: false,
+      defaultStatus: AttendanceStatus.absent,
+    );
+
+    final updatedFamily = await widget.repository.addMember(family.id, member);
+    setState(() {
+      _familiesFuture = widget.repository.fetchFamilies();
+    });
+  }
+
+  Future<String?> _promptName(String title, String label) {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
+    return showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add visitor'),
+          title: Text(title),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Visitor name',
+            decoration: InputDecoration(
+              labelText: label,
               hintText: 'Enter name',
             ),
             textInputAction: TextInputAction.done,
@@ -81,23 +117,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
           ],
         );
       },
-    );
-    
-    if (result == null || result.isEmpty) return;
-
-    final visitor = Member(
-      id: 'visitor-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000)}',
-      displayName: result,
-      isVisitor: true,
-      defaultStatus: AttendanceStatus.present,
-    );
-
-    final updatedFamily = await widget.repository.addVisitor(family.id, visitor);
-    setState(() {
-      _attendance.putIfAbsent(updatedFamily.id, () => {});
-      _attendance[updatedFamily.id]![visitor.id] = AttendanceStatus.present;
-      _familiesFuture = widget.repository.fetchFamilies();
-    });
+    ).then((result) => (result == null || result.isEmpty) ? null : result);
   }
 
   Future<void> _addFamily() async {
@@ -147,15 +167,6 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
             onPressed: _addFamily,
             icon: const Icon(Icons.add),
             tooltip: 'Add family',
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Center(
-              child: Text(
-                'Arrow keys navigate · Enter to select',
-                style: TextStyle(fontSize: 12),
-              ),
-            ),
           ),
         ],
       ),
@@ -240,6 +251,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
                             onStatusChanged: (member, status) =>
                                 _updateStatus(family.id, member, status),
                             onAddVisitor: () => _addVisitor(family),
+                            onAddMember: () => _addMember(family),
                           );
                         },
                       ),
@@ -261,12 +273,14 @@ class _FamilyAttendanceView extends StatelessWidget {
     required this.statusBuilder,
     required this.onStatusChanged,
     required this.onAddVisitor,
+    required this.onAddMember,
   });
 
   final Family family;
   final AttendanceStatus Function(Member) statusBuilder;
   final void Function(Member, AttendanceStatus) onStatusChanged;
   final VoidCallback onAddVisitor;
+  final VoidCallback onAddMember;
 
   @override
   Widget build(BuildContext context) {
@@ -279,7 +293,6 @@ class _FamilyAttendanceView extends StatelessWidget {
         )
         .toList();
     final hasVisitors = family.members.any((member) => member.isVisitor);
-    final storageLabel = hasVisitors ? 'local JSON with visitor log' : 'local JSON store';
 
     return FocusTraversalGroup(
       policy: WidgetOrderTraversalPolicy(),
@@ -300,6 +313,18 @@ class _FamilyAttendanceView extends StatelessWidget {
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
+                FilledButton.tonal(
+                  onPressed: onAddMember,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.person_add),
+                      SizedBox(width: 8),
+                      Text('Add member'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: onAddVisitor,
                   icon: const Icon(Icons.person_add_alt_1),
@@ -336,18 +361,6 @@ class _FamilyAttendanceView extends StatelessWidget {
                   );
                 },
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.storage_outlined,
-                    size: 16, color: Theme.of(context).colorScheme.outline),
-                const SizedBox(width: 6),
-                Text(
-                  'Stored in $storageLabel',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
             ),
           ],
         ),

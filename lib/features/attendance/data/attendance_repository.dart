@@ -16,7 +16,7 @@ abstract class AttendanceRepository {
 
   Future<void> saveFamilies(List<Family> families);
 
-  Future<Family> addVisitor(String familyId, Member visitor);
+  Future<Family> addMember(String familyId, Member member);
 
   Future<Family> addFamily(String displayName);
 }
@@ -64,12 +64,12 @@ class FirestoreAttendanceRepository extends AttendanceRepository {
   }
 
   @override
-  Future<Family> addVisitor(String familyId, Member visitor) async {
+  Future<Family> addMember(String familyId, Member member) async {
     final docRef = _familiesRef.doc(familyId);
     
     // We use arrayUnion to atomically add the new member to the members list
     await docRef.update({
-      'members': FieldValue.arrayUnion([visitor.toJson()]),
+      'members': FieldValue.arrayUnion([member.toJson()]),
     });
 
     // Fetch the updated document to return the complete family object
