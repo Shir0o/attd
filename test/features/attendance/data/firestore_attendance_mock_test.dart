@@ -52,7 +52,7 @@ void main() {
 
     final visitor = Member(id: 'v1', displayName: 'Visitor 1', isVisitor: true);
     
-    final updatedFamily = await repository.addVisitor('f1', visitor);
+    final updatedFamily = await repository.addMember('f1', visitor);
     
     expect(updatedFamily.members.length, equals(1));
     expect(updatedFamily.members.first.displayName, equals('Visitor 1'));
