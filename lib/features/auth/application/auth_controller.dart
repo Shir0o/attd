@@ -35,8 +35,16 @@ class AuthController extends ChangeNotifier {
 
   Future<void> restoreSession() async {
     _setState(_state.copyWith(isLoading: true, errorMessage: null));
-    final user = await repository.currentUser();
-    _setState(AuthState(user: user, isLoading: false));
+    try {
+      final user = await repository.currentUser();
+      _setState(AuthState(user: user, isLoading: false));
+    } on AuthException catch (error) {
+      _setState(
+        AuthState(user: null, isLoading: false, errorMessage: error.message),
+      );
+    } catch (_) {
+      _setState(const AuthState(user: null, isLoading: false));
+    }
   }
 
   Future<void> login({required String email, required String password}) async {
