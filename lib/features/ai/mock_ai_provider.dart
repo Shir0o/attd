@@ -30,12 +30,30 @@ class MockAiProvider implements AiProvider {
       'Warmly,\nThe attendance team',
     ].join(' ');
 
+    final normalizedSubject = request.flag.subject.trim();
+    final suggestedName = normalizedSubject.isEmpty
+        ? 'Community member'
+        : normalizedSubject.split(' ').map(_titleCase).join(' ');
+    final duplicateClusterIds = ['cluster-${normalizedSubject.hashCode.abs() % 3}'];
+
     return FollowUpSuggestion(
       subject: request.flag.subject,
       message: message,
       reasoning:
           'Generated from ${request.analytics.range.label} watchlist signal: ${request.flag.reason}.',
       tone: tone,
+      nameSuggestion: NameSuggestion(
+        suggestedName: suggestedName,
+        confidence: 0.72,
+        duplicateClusterIds: duplicateClusterIds,
+      ),
+      duplicateClusterIds: duplicateClusterIds,
+      subjectLabel: SubjectLabel(
+        label: request.flag.isFamily ? 'Family outreach' : 'Individual follow-up',
+        rationale: 'Flagged from ${request.analytics.range.label} trends.',
+      ),
+      label: request.flag.isFamily ? 'Family outreach' : 'Individual follow-up',
+      labelRationale: 'Supports migration to the labelRationale API.',
     );
   }
 
@@ -62,6 +80,18 @@ class MockAiProvider implements AiProvider {
             reason:
                 'Recent pattern: ${insight.absenceStreak} absences over ${insight.total} sessions.',
             probability: double.parse(probability.toStringAsFixed(2)),
+            nameSuggestion: NameSuggestion(
+              suggestedName: _titleCase(name),
+              confidence: 0.65,
+              duplicateClusterIds: ['cluster-${name.hashCode.abs() % 5}'],
+            ),
+            duplicateClusterIds: ['cluster-${name.hashCode.abs() % 5}'],
+            subjectLabel: const SubjectLabel(
+              label: 'High risk',
+              rationale: 'Multiple consecutive absences detected.',
+            ),
+            label: 'High risk',
+            labelRationale: 'Multiple consecutive absences detected.',
           ),
         );
       }
@@ -79,6 +109,18 @@ class MockAiProvider implements AiProvider {
                 'Family attendance at ${family.attendanceRate.toStringAsFixed(0)}%.',
             probability: double.parse(probability.toStringAsFixed(2)),
             isFamily: true,
+            nameSuggestion: NameSuggestion(
+              suggestedName: _titleCase(family.family.displayName),
+              confidence: 0.58,
+              duplicateClusterIds: ['cluster-${family.family.id}'],
+            ),
+            duplicateClusterIds: ['cluster-${family.family.id}'],
+            subjectLabel: const SubjectLabel(
+              label: 'Family risk',
+              rationale: 'Attendance below desired threshold.',
+            ),
+            label: 'Family risk',
+            labelRationale: 'Attendance below desired threshold.',
           ),
         );
       }
@@ -94,5 +136,14 @@ class MockAiProvider implements AiProvider {
     if (streak == 2) return 0.35;
     if (streak >= 3) return 0.55;
     return 0.1;
+  }
+
+  String _titleCase(String value) {
+    if (value.isEmpty) return value;
+    return value.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      final lower = word.toLowerCase();
+      return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    }).join(' ');
   }
 }
