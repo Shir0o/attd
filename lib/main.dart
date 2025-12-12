@@ -104,7 +104,7 @@ class _AttendanceAppState extends State<AttendanceApp> {
     return AuthScope(
       controller: _authController,
       child: MaterialApp(
-        title: 'Attendance Tracker',
+        title: 'Attendance',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
           useMaterial3: true,
@@ -460,227 +460,106 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     );
   }
 
-  Future<List<AbsencePrediction>>? _obtainPredictionFuture(
-    AttendanceAnalytics analytics,
-    List<Session> sessions,
-    List<Family> families,
-  ) {
-    if (!_aiEnabled) return null;
-    _predictionFuture ??= _aiProvider.predictAbsences(
-      AbsencePredictionRequest(
-        analytics: analytics,
-        sessions: sessions,
-        nameMetadata: buildNameMetadata(
-          sessions: sessions,
-          analytics: analytics,
-          families: families,
-        ),
-        attendanceFeatures: buildAttendanceLabelFeatures(
-          sessions: sessions,
-          analytics: analytics,
-          families: families,
-        ),
-      ),
-    );
-    return _predictionFuture;
-  }
+
 
   Widget _buildAiSettings() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI assistant',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      'Generate follow-ups and forecast risk.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                Switch.adaptive(
-                  value: _aiEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _aiEnabled = value;
-                      if (!value) {
-                        _resetAiInsights();
-                      } else {
-                        _predictionFuture = null;
-                      }
-                    });
-                  },
-                ),
-              ],
-            ),
-            if (_aiEnabled) ...[
-              const SizedBox(height: 12),
-              Row(
+    return Column(
+      children: [
+        _SectionHeader(
+          title: 'AI assistant',
+          subtitle: 'Generate follow-ups and forecast risk',
+          action: Switch.adaptive(
+            value: _aiEnabled,
+            onChanged: (value) {
+              setState(() {
+                _aiEnabled = value;
+                if (!value) {
+                  _resetAiInsights();
+                }
+              });
+            },
+          ),
+        ),
+        if (_aiEnabled)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: DropdownButtonFormField<AiProviderType>(
-                      value: _providerType,
-                      decoration: const InputDecoration(
-                        labelText: 'Provider',
-                        isDense: true,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<AiProviderType>(
+                          value: _providerType,
+                          decoration: const InputDecoration(
+                            labelText: 'Provider',
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: AiProviderType.mock,
+                              child: Text('Mock (offline sandbox)'),
+                            ),
+                            DropdownMenuItem(
+                              value: AiProviderType.http,
+                              child: Text('Remote HTTP endpoint'),
+                            ),
+                            DropdownMenuItem(
+                              value: AiProviderType.gemini,
+                              child: Text('Gemini API (Free Tier)'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            _applyProviderSelection(value);
+                          },
+                        ),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: AiProviderType.mock,
-                          child: Text('Mock (offline sandbox)'),
+                      const SizedBox(width: 12),
+                      if (_providerType == AiProviderType.http ||
+                          _providerType == AiProviderType.gemini)
+                        Expanded(
+                          child: TextFormField(
+                            controller: _endpointController,
+                            obscureText: _providerType == AiProviderType.gemini,
+                            decoration: InputDecoration(
+                              labelText:
+                                  _providerType == AiProviderType.gemini
+                                      ? 'API Key'
+                                      : 'Endpoint',
+                              isDense: true,
+                            ),
+                            onFieldSubmitted:
+                                (_) => _applyProviderSelection(_providerType),
+                          ),
                         ),
-                        DropdownMenuItem(
-                          value: AiProviderType.http,
-                          child: Text('Remote HTTP endpoint'),
-                        ),
-                        DropdownMenuItem(
-                          value: AiProviderType.gemini,
-                          child: Text('Gemini API (Free Tier)'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        _applyProviderSelection(value);
-                      },
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
                   if (_providerType == AiProviderType.http ||
                       _providerType == AiProviderType.gemini)
-                    Expanded(
-                      child: TextFormField(
-                        controller: _endpointController,
-                        obscureText: _providerType == AiProviderType.gemini,
-                        decoration: InputDecoration(
-                          labelText:
-                              _providerType == AiProviderType.gemini
-                                  ? 'API Key'
-                                  : 'Endpoint',
-                          isDense: true,
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _applyProviderSelection(_providerType),
+                        icon: const Icon(Icons.check),
+                        label: Text(
+                          _providerType == AiProviderType.gemini
+                              ? 'Apply Key'
+                              : 'Apply endpoint',
                         ),
-                        onFieldSubmitted:
-                            (_) => _applyProviderSelection(_providerType),
                       ),
                     ),
                 ],
               ),
-              if (_providerType == AiProviderType.http ||
-                  _providerType == AiProviderType.gemini)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => _applyProviderSelection(_providerType),
-                    icon: const Icon(Icons.check),
-                    label: Text(
-                      _providerType == AiProviderType.gemini
-                          ? 'Apply Key'
-                          : 'Apply endpoint',
-                    ),
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPredictionPanel(
-    Future<List<AbsencePrediction>>? predictionFuture,
-  ) {
-    if (!_aiEnabled) return const SizedBox.shrink();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Likely upcoming absences',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const Icon(Icons.auto_graph),
-              ],
             ),
-            const SizedBox(height: 12),
-            if (predictionFuture == null)
-              Text(
-                'Enable AI above to view absence forecasts.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              )
-            else
-              FutureBuilder<List<AbsencePrediction>>(
-                future: predictionFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return Text(
-                      'Could not load predictions: ${snapshot.error}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.red.shade700,
-                      ),
-                    );
-                  }
-
-                  final predictions = snapshot.data ?? [];
-                  if (predictions.isEmpty) {
-                    return Text(
-                      'No high-risk absences detected in this window.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    );
-                  }
-
-                  return Column(
-                    children: predictions.take(4).map((prediction) {
-                      final probabilityLabel =
-                          '${(prediction.probability * 100).round()}% risk';
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor: prediction.isFamily
-                              ? Colors.indigo.shade50
-                              : Colors.amber.shade50,
-                          child: Icon(
-                            prediction.isFamily
-                                ? Icons.family_restroom
-                                : Icons.trending_up,
-                            color: prediction.isFamily
-                                ? Colors.indigo.shade700
-                                : Colors.orange.shade700,
-                          ),
-                        ),
-                        title: Text(prediction.subject),
-                        subtitle: Text(prediction.reason),
-                        trailing: Text(
-                          probabilityLabel,
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                      );
-                    }).toList(),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
+
+
 
   void _startAttendanceFlow(BuildContext context) {
     Navigator.of(context).push(
@@ -750,15 +629,11 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         final latestTrend = analytics.trend.isNotEmpty
             ? analytics.trend.last.toStringAsFixed(0)
             : '0';
-        final predictionFuture = _obtainPredictionFuture(
-          analytics,
-          homeData.sessions,
-          homeData.families,
-        );
+
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Attendance Tracker'),
+            title: const Text('Attendance'),
             actions: [
               if (widget.onSignOut != null)
                 IconButton(
@@ -781,127 +656,126 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
               },
               child: ListView(
                 children: [
-                  Text(
-                    'Engagement overview',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  const _SectionHeader(
+                    title: 'Quick actions',
+                    subtitle: 'Shortcuts for common tasks',
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Rolling window',
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          Text(
-                            range.label,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                      DropdownButton<AnalyticsRange>(
-                        value: _selectedRange,
-                        items: AnalyticsRange.values
-                            .map(
-                              (range) => DropdownMenuItem(
-                                value: range,
-                                child: Text(range.label),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (selection) {
-                          if (selection == null) return;
-                          _handleRangeChange(selection);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
                   Wrap(
                     spacing: 12,
                     runSpacing: 12,
                     children: [
-                      _StatCard(
-                        title: 'Attendance rate',
-                        value: '$attendanceRate%',
-                        subtitle: '${breakdown.total} check-ins',
-                        background: Colors.green.shade50,
-                        accent: Colors.green.shade700,
+                      _ActionChipButton(
+                        icon: Icons.fact_check_outlined,
+                        label: 'Take attendance',
+                        onPressed: () => _startAttendanceFlow(context),
                       ),
-                      _StatCard(
-                        title: 'Absences',
-                        value: '${breakdown.absent}',
-                        subtitle: maxAbsenceStreak == 0
-                            ? 'No recent absences'
-                            : 'Longest streak: $maxAbsenceStreak',
-                        background: Colors.red.shade50,
-                        accent: Colors.red.shade700,
+                      _ActionChipButton(
+                        icon: Icons.people,
+                        label: 'Manage families',
+                        onPressed: () => _openFamilyList(context),
                       ),
-                      _StatCard(
-                        title: 'Watchlist',
-                        value: '${analytics.watchlist.length}',
-                        subtitle: analytics.watchlist.isEmpty
-                            ? 'All clear'
-                            : 'Needs follow-up',
-                        background: Colors.blue.shade50,
-                        accent: Colors.blue.shade800,
+                      _ActionChipButton(
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Export report',
+                        onPressed: () => _openReports(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  _SectionHeader(
+                    title: 'Rolling window',
+                    subtitle: 'Key data from ${range.label}',
+                    action: DropdownButton<AnalyticsRange>(
+                      value: _selectedRange,
+                      items: AnalyticsRange.values
+                          .map(
+                            (range) => DropdownMenuItem(
+                              value: range,
+                              child: Text(range.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (selection) {
+                        if (selection == null) return;
+                        _handleRangeChange(selection);
+                      },
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          title: 'Attendance rate',
+                          value: '$attendanceRate%',
+                          subtitle: '${breakdown.total} check-ins',
+                          background: Colors.green.shade50,
+                          accent: Colors.green.shade700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          title: 'Absences',
+                          value: '${breakdown.absent}',
+                          subtitle: maxAbsenceStreak == 0
+                              ? 'No recent absences'
+                              : 'Longest streak: $maxAbsenceStreak',
+                          background: Colors.red.shade50,
+                          accent: Colors.red.shade700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _StatCard(
+                          title: 'Watchlist',
+                          value: '${analytics.watchlist.length}',
+                          subtitle: analytics.watchlist.isEmpty
+                              ? 'All clear'
+                              : 'Needs follow-up',
+                          background: Colors.blue.shade50,
+                          accent: Colors.blue.shade800,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   _buildAiSettings(),
                   const SizedBox(height: 20),
+                  _SectionHeader(
+                    title: 'Wellness watchlist',
+                    subtitle: 'Members with repeated absences',
+                    action: Icon(
+                      Icons.favorite_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Wellness watchlist',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Icon(
-                                Icons.favorite_outline,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
                           if (analytics.watchlist.isEmpty)
                             Text(
                               'No repeated misses detected in this window.',
                               style: Theme.of(context).textTheme.bodyMedium,
                             )
                           else
-                            FutureBuilder<List<AbsencePrediction>>(
-                              future: predictionFuture,
-                              builder: (context, snapshot) {
-                                final predictionBySubject = {
-                                  for (final prediction in snapshot.data ?? [])
-                                    prediction.subject: prediction,
-                                };
-                                return Column(
+                            Column(
                                   children: analytics.watchlist.map((flag) {
                                     final suggestion =
                                         _suggestedMessages[flag.subject];
-                                    final prediction =
-                                        predictionBySubject[flag.subject];
+
                                     final loading = _loadingSubjects.contains(
                                       flag.subject,
                                     );
                                     final nameInsight =
                                         _NameInsight.fromSources(
                                           suggestion,
-                                          prediction,
+                                          null,
                                         );
                                     final showNameInsight =
                                         nameInsight.hasSuggestion &&
@@ -956,13 +830,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(flag.reason),
-                                                if (prediction != null)
-                                                  Text(
-                                                    'AI risk: ${(prediction.probability * 100).round()}% likely absence',
-                                                    style: Theme.of(
-                                                      context,
-                                                    ).textTheme.bodySmall,
-                                                  ),
+
                                                 if (suggestion != null) ...[
                                                   const SizedBox(height: 4),
                                                   Text(
@@ -1079,36 +947,26 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                                       ),
                                     );
                                   }).toList(),
-                                );
-                              },
-                            ),
+                                ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildPredictionPanel(predictionFuture),
-                  const SizedBox(height: 16),
+
+                  _SectionHeader(
+                    title: 'Drill-down insights',
+                    subtitle: 'Detailed attendance analytics',
+                    action: Text(
+                      range.label,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Drill-down insights',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                range.label,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
                           SizedBox(
                             height: 90,
                             child: _SparklineChart(data: analytics.trend),
@@ -1119,53 +977,21 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
-                  Text(
-                    'Quick actions',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  _SectionHeader(
+                    title: 'Recent sessions',
+                    subtitle: 'History of past meetings',
+                    action: TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _homeDataFuture = _loadHomeData();
+                          _resetAiInsights();
+                        });
+                      },
+                      child: const Text('Refresh'),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _ActionChipButton(
-                        icon: Icons.fact_check_outlined,
-                        label: 'Take attendance',
-                        onPressed: () => _startAttendanceFlow(context),
-                      ),
-                      _ActionChipButton(
-                        icon: Icons.people,
-                        label: 'Manage families',
-                        onPressed: () => _openFamilyList(context),
-                      ),
-                      _ActionChipButton(
-                        icon: Icons.bar_chart_outlined,
-                        label: 'Export report',
-                        onPressed: () => _openReports(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Recent sessions',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _homeDataFuture = _loadHomeData();
-                            _resetAiInsights();
-                          });
-                        },
-                        child: const Text('Refresh'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   if (homeData.sessions.isEmpty)
                     const Card(
                       child: ListTile(
@@ -1223,6 +1049,45 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget? action;
+
+  const _SectionHeader({required this.title, this.subtitle, this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ],
+            ],
+          ),
+          if (action != null) action!,
+        ],
+      ),
     );
   }
 }
