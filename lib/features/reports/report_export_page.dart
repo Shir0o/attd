@@ -24,6 +24,7 @@ class _ReportExportPageState extends State<ReportExportPage> {
   ReportExportResult? _lastResult;
   bool _isProcessing = false;
   String? _error;
+  String? _statusMessage;
 
   @override
   void initState() {
@@ -55,6 +56,7 @@ class _ReportExportPageState extends State<ReportExportPage> {
     setState(() {
       _isProcessing = true;
       _error = null;
+      _statusMessage = _syncSheets ? 'Uploading to Sheets…' : null;
     });
 
     try {
@@ -66,7 +68,12 @@ class _ReportExportPageState extends State<ReportExportPage> {
           syncToGoogleSheets: _syncSheets,
         ),
       );
-      setState(() => _lastResult = result);
+      setState(() {
+        _lastResult = result;
+        _statusMessage = result.sheetSync?.success == true
+            ? 'Uploaded to Sheets'
+            : result.sheetSync?.error ?? _statusMessage;
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -220,6 +227,29 @@ class _ReportExportPageState extends State<ReportExportPage> {
             ),
           ),
           const SizedBox(height: 16),
+          if (_statusMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  if (_isProcessing)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  Expanded(
+                    child: Text(
+                      _statusMessage!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -261,6 +291,7 @@ class _ReportExportPageState extends State<ReportExportPage> {
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
+                      runSpacing: 8,
                       children: [
                         ActionChip(
                           avatar: const Icon(Icons.share_outlined),
@@ -272,10 +303,28 @@ class _ReportExportPageState extends State<ReportExportPage> {
                           label: const Text('Save another copy'),
                           onPressed: _saveCopyToDownloads,
                         ),
-                        if (_lastResult!.syncedToSheets)
+                        if (_lastResult!.sheetSync?.success == true)
                           const Chip(
                             avatar: Icon(Icons.cloud_done_outlined),
                             label: Text('Synced to Sheets'),
+                          ),
+                        if (_lastResult!.sheetSync?.success == false &&
+                            _lastResult!.sheetSync!.attempted)
+                          Chip(
+                            avatar: Icon(
+                              Icons.cloud_off_outlined,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            label: Text(
+                              _lastResult!.sheetSync!.error ??
+                                  'Sheets upload failed',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.errorContainer,
                           ),
                       ],
                     ),
@@ -283,6 +332,28 @@ class _ReportExportPageState extends State<ReportExportPage> {
                     Text(
                       'Sessions: ${_lastResult!.summary.sessionCount}, records: ${_lastResult!.summary.recordCount}, attendance rate: ${_lastResult!.summary.attendanceRate.toStringAsFixed(1)}%',
                     ),
+                    if (_lastResult!.sheetSync?.shareLink != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Last synced sheet:',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      InkWell(
+                        onTap: () => Clipboard.setData(
+                          ClipboardData(
+                            text: _lastResult!.sheetSync!.shareLink!,
+                          ),
+                        ),
+                        child: Text(
+                          _lastResult!.sheetSync!.shareLink!,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

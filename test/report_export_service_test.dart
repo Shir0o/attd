@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -7,6 +8,7 @@ import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/reports/report_export_service.dart';
 import 'package:attendance_tracker/features/reports/report_models.dart';
+import 'package:attendance_tracker/features/reports/sheets_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeSessionRepository implements SessionRepository {
@@ -46,6 +48,32 @@ class _FakeSessionRepository implements SessionRepository {
   Future<List<SessionVersion>> history(String sessionId) async => [];
 }
 
+class _FakeSheetsClient implements SheetsClient {
+  _FakeSheetsClient({this.shouldThrow = false});
+
+  final bool shouldThrow;
+  int uploadCount = 0;
+
+  @override
+  Future<SheetSyncResult> uploadReport({
+    required Uint8List bytes,
+    required ReportFormat format,
+    required DateTime generatedAt,
+    String? suggestedFileName,
+  }) async {
+    uploadCount++;
+    if (shouldThrow) {
+      throw Exception('upload failed');
+    }
+
+    return SheetSyncResult(
+      attempted: true,
+      success: true,
+      shareLink: 'https://sheets.test/${suggestedFileName ?? format.name}',
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -78,9 +106,11 @@ void main() {
 
   group('ReportExportService', () {
     late Directory tempDir;
+    late _FakeSheetsClient fakeSheetsClient;
 
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('reports_test');
+      fakeSheetsClient = _FakeSheetsClient();
     });
 
     tearDown(() async {
@@ -94,6 +124,7 @@ void main() {
         sessionRepository: _FakeSessionRepository(sessions),
         directoryProvider: () async => tempDir,
         clock: () => now,
+        sheetsClient: fakeSheetsClient,
       );
 
       final result = await service.exportReport(
@@ -117,6 +148,7 @@ void main() {
         sessionRepository: _FakeSessionRepository(sessions),
         directoryProvider: () async => tempDir,
         clock: () => now,
+        sheetsClient: fakeSheetsClient,
       );
 
       final result = await service.exportReport(
@@ -132,11 +164,12 @@ void main() {
       expect(File(result.filePath).statSync().size, greaterThan(0));
     });
 
-    test('respects Google Sheets sync flag when supported', () async {
+    test('uploads to Sheets when requested and supported', () async {
       final service = ReportExportService(
         sessionRepository: _FakeSessionRepository(sessions),
         directoryProvider: () async => tempDir,
         clock: () => now,
+        sheetsClient: fakeSheetsClient,
       );
 
       final result = await service.exportReport(
@@ -148,7 +181,54 @@ void main() {
         ),
       );
 
-      expect(result.syncedToSheets, isTrue);
+      expect(result.sheetSync?.attempted, isTrue);
+      expect(result.sheetSync?.success, isTrue);
+      expect(result.sheetSync?.shareLink, isNotEmpty);
+      expect(fakeSheetsClient.uploadCount, 1);
+    });
+
+    test('skips upload when sync flag is disabled', () async {
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository(sessions),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+        sheetsClient: fakeSheetsClient,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.pdf,
+          syncToGoogleSheets: false,
+        ),
+      );
+
+      expect(result.sheetSync, isNull);
+      expect(fakeSheetsClient.uploadCount, 0);
+    });
+
+    test('reports upload failure without throwing', () async {
+      final failingClient = _FakeSheetsClient(shouldThrow: true);
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository(sessions),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+        sheetsClient: failingClient,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.csv,
+          syncToGoogleSheets: true,
+        ),
+      );
+
+      expect(result.sheetSync?.attempted, isTrue);
+      expect(result.sheetSync?.success, isFalse);
+      expect(result.sheetSync?.error, contains('upload failed'));
     });
 
     test('creates a basic PDF document instead of plain text', () async {
@@ -156,6 +236,7 @@ void main() {
         sessionRepository: _FakeSessionRepository(sessions),
         directoryProvider: () async => tempDir,
         clock: () => now,
+        sheetsClient: fakeSheetsClient,
       );
 
       final result = await service.exportReport(
