@@ -31,25 +31,62 @@ class FollowUpRequest {
 }
 
 class FollowUpSuggestion {
-  const FollowUpSuggestion({
+  const FollowUpSuggestion._({
     required this.subject,
     required this.message,
     required this.reasoning,
     required this.tone,
     this.correctedName,
+    this.nameSuggestion,
     this.duplicateCandidates = const [],
+    this.duplicateClusterIds = const [],
     this.label,
-    this.labelReason,
+    this.labelRationale,
+    this.subjectLabel,
   });
+
+  factory FollowUpSuggestion({
+    required String subject,
+    required String message,
+    required String reasoning,
+    required String tone,
+    String? correctedName,
+    NameSuggestion? nameSuggestion,
+    List<String> duplicateCandidates = const [],
+    List<String> duplicateClusterIds = const [],
+    String? label,
+    String? labelRationale,
+    String? labelReason,
+    SubjectLabel? subjectLabel,
+  }) {
+    final normalizedLabelRationale =
+        labelRationale ?? labelReason ?? subjectLabel?.rationale;
+    return FollowUpSuggestion._(
+      subject: subject,
+      message: message,
+      reasoning: reasoning,
+      tone: tone,
+      correctedName: correctedName,
+      nameSuggestion: nameSuggestion,
+      duplicateCandidates: duplicateCandidates,
+      duplicateClusterIds: duplicateClusterIds,
+      label: label ?? subjectLabel?.label,
+      labelRationale: normalizedLabelRationale,
+      subjectLabel: subjectLabel,
+    );
+  }
 
   final String subject;
   final String message;
   final String reasoning;
   final String tone;
   final String? correctedName;
+  final NameSuggestion? nameSuggestion;
   final List<String> duplicateCandidates;
+  final List<String> duplicateClusterIds;
   final String? label;
-  final String? labelReason;
+  final String? labelRationale;
+  final SubjectLabel? subjectLabel;
 }
 
 class AbsencePredictionRequest {
@@ -69,25 +106,62 @@ class AbsencePredictionRequest {
 }
 
 class AbsencePrediction {
-  const AbsencePrediction({
+  const AbsencePrediction._({
     required this.subject,
     required this.reason,
     required this.probability,
     this.isFamily = false,
     this.correctedName,
+    this.nameSuggestion,
     this.duplicateCandidates = const [],
+    this.duplicateClusterIds = const [],
     this.label,
-    this.labelReason,
+    this.labelRationale,
+    this.subjectLabel,
   }) : assert(probability >= 0 && probability <= 1);
+
+  factory AbsencePrediction({
+    required String subject,
+    required String reason,
+    required double probability,
+    bool isFamily = false,
+    String? correctedName,
+    NameSuggestion? nameSuggestion,
+    List<String> duplicateCandidates = const [],
+    List<String> duplicateClusterIds = const [],
+    String? label,
+    String? labelRationale,
+    String? labelReason,
+    SubjectLabel? subjectLabel,
+  }) {
+    final normalizedLabelRationale =
+        labelRationale ?? labelReason ?? subjectLabel?.rationale;
+    return AbsencePrediction._(
+      subject: subject,
+      reason: reason,
+      probability: probability,
+      isFamily: isFamily,
+      correctedName: correctedName,
+      nameSuggestion: nameSuggestion,
+      duplicateCandidates: duplicateCandidates,
+      duplicateClusterIds: duplicateClusterIds,
+      label: label ?? subjectLabel?.label,
+      labelRationale: normalizedLabelRationale,
+      subjectLabel: subjectLabel,
+    );
+  }
 
   final String subject;
   final String reason;
   final double probability;
   final bool isFamily;
   final String? correctedName;
+  final NameSuggestion? nameSuggestion;
   final List<String> duplicateCandidates;
+  final List<String> duplicateClusterIds;
   final String? label;
-  final String? labelReason;
+  final String? labelRationale;
+  final SubjectLabel? subjectLabel;
 }
 
 class NameMetadata {
@@ -111,6 +185,25 @@ class NameMetadata {
       'usageCount': usageCount,
     };
   }
+}
+
+class NameSuggestion {
+  const NameSuggestion({
+    required this.suggestedName,
+    this.confidence,
+    this.duplicateClusterIds = const [],
+  }) : assert(confidence == null || (confidence >= 0 && confidence <= 1));
+
+  final String suggestedName;
+  final double? confidence;
+  final List<String> duplicateClusterIds;
+}
+
+class SubjectLabel {
+  const SubjectLabel({required this.label, this.rationale});
+
+  final String label;
+  final String? rationale;
 }
 
 class AttendanceLabelFeatures {
