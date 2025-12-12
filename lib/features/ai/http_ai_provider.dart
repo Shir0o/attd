@@ -45,6 +45,11 @@ class HttpAiProvider implements AiProvider {
     }
 
     final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    final nameSuggestion = _parseNameSuggestion(
+      payload,
+      fallbackSubject: request.flag.subject,
+    );
+    final subjectLabel = _parseSubjectLabel(payload);
     return FollowUpSuggestion(
       subject: payload['subject'] ?? request.flag.subject,
       message: payload['message'] ?? 'Unable to generate message.',
@@ -56,8 +61,13 @@ class HttpAiProvider implements AiProvider {
               ?.whereType<String>()
               .toList() ??
           const [],
-      label: payload['label'] as String?,
-      labelReason: payload['labelReason'] as String?,
+      duplicateClusterIds: _parseDuplicateClusters(payload),
+      nameSuggestion: nameSuggestion,
+      subjectLabel: subjectLabel,
+      label: payload['label'] as String? ?? subjectLabel?.label,
+      labelRationale: payload['labelRationale'] as String? ??
+          payload['labelReason'] as String? ??
+          subjectLabel?.rationale,
     );
   }
 
@@ -109,20 +119,32 @@ class HttpAiProvider implements AiProvider {
         .cast<Map<String, dynamic>>();
     return items
         .map(
-          (item) => AbsencePrediction(
-            subject: item['subject'] as String,
-            reason: item['reason'] as String? ?? 'No rationale provided',
-            probability: (item['probability'] as num).toDouble(),
-            isFamily: item['isFamily'] as bool? ?? false,
-            correctedName: item['correctedName'] as String?,
-            duplicateCandidates:
-                (item['duplicateCandidates'] as List<dynamic>?)
-                    ?.whereType<String>()
-                    .toList() ??
-                const [],
-            label: item['label'] as String?,
-            labelReason: item['labelReason'] as String?,
-          ),
+          (item) {
+            final nameSuggestion = _parseNameSuggestion(
+              item,
+              fallbackSubject: item['subject'] as String?,
+            );
+            final subjectLabel = _parseSubjectLabel(item);
+            return AbsencePrediction(
+              subject: item['subject'] as String,
+              reason: item['reason'] as String? ?? 'No rationale provided',
+              probability: (item['probability'] as num).toDouble(),
+              isFamily: item['isFamily'] as bool? ?? false,
+              correctedName: item['correctedName'] as String?,
+              duplicateCandidates:
+                  (item['duplicateCandidates'] as List<dynamic>?)
+                      ?.whereType<String>()
+                      .toList() ??
+                  const [],
+              duplicateClusterIds: _parseDuplicateClusters(item),
+              nameSuggestion: nameSuggestion,
+              subjectLabel: subjectLabel,
+              label: item['label'] as String? ?? subjectLabel?.label,
+              labelRationale: item['labelRationale'] as String? ??
+                  item['labelReason'] as String? ??
+                  subjectLabel?.rationale,
+            );
+          },
         )
         .where((prediction) => prediction.probability >= request.minConfidence)
         .toList()
@@ -137,4 +159,57 @@ class HttpException implements Exception {
 
   @override
   String toString() => message;
+}
+
+NameSuggestion? _parseNameSuggestion(
+  Map<String, dynamic> payload, {
+  String? fallbackSubject,
+}) {
+  final rawSuggestion = payload['nameSuggestion'];
+  if (rawSuggestion is Map<String, dynamic>) {
+    final suggestedName = rawSuggestion['suggestedName'] as String?;
+    if (suggestedName != null && suggestedName.isNotEmpty) {
+      return NameSuggestion(
+        suggestedName: suggestedName,
+        confidence: (rawSuggestion['confidence'] as num?)?.toDouble(),
+        duplicateClusterIds: _parseDuplicateClusters(rawSuggestion),
+      );
+    }
+  }
+
+  final correctedName = payload['correctedName'] as String?;
+  final correctedConfidence =
+      (payload['correctedNameConfidence'] as num?)?.toDouble();
+  final duplicateClusters = _parseDuplicateClusters(payload);
+  if (correctedName != null || correctedConfidence != null) {
+    return NameSuggestion(
+      suggestedName: correctedName ?? fallbackSubject ?? 'Unknown',
+      confidence: correctedConfidence,
+      duplicateClusterIds: duplicateClusters,
+    );
+  }
+
+  if (duplicateClusters.isNotEmpty && fallbackSubject != null) {
+    return NameSuggestion(
+      suggestedName: fallbackSubject,
+      duplicateClusterIds: duplicateClusters,
+    );
+  }
+
+  return null;
+}
+
+SubjectLabel? _parseSubjectLabel(Map<String, dynamic> payload) {
+  final label = payload['label'] as String?;
+  if (label == null) return null;
+  final rationale =
+      payload['labelRationale'] as String? ?? payload['labelReason'] as String?;
+  return SubjectLabel(label: label, rationale: rationale);
+}
+
+List<String> _parseDuplicateClusters(Map<String, dynamic> payload) {
+  return (payload['duplicateClusterIds'] as List<dynamic>?)
+          ?.whereType<String>()
+          .toList() ??
+      const [];
 }
