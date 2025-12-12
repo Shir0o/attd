@@ -165,16 +165,17 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(find.text('Engagement overview'), findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
+    expect(find.text('Take attendance'), findsOneWidget);
+    expect(find.text('Export report'), findsOneWidget);
+    expect(find.text('Engagement overview'), findsNothing);
     expect(find.text('Attendance rate'), findsWidgets);
     await tester.scrollUntilVisible(find.text('Wellness watchlist'), 400);
     expect(find.text('Wellness watchlist'), findsOneWidget);
 
     await tester.scrollUntilVisible(find.text('Recent sessions'), 800);
 
-    expect(find.text('Export report'), findsOneWidget);
-    expect(find.text('Quick actions'), findsOneWidget);
-    expect(find.text('Take attendance'), findsOneWidget);
+
     expect(find.text('Recent sessions'), findsOneWidget);
   });
 }
