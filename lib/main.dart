@@ -208,6 +208,8 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
       _aiProvider = widget.aiFactory.create(
         type,
         endpointOverride: _endpointController.text,
+        apiKey: _endpointController.text, // Reusing controller for API Key as well for simplicity, or should I create a separate one?
+        // Let's create a separate controller to be clean.
       );
       _resetAiInsights();
     });
@@ -541,6 +543,10 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                           value: AiProviderType.http,
                           child: Text('Remote HTTP endpoint'),
                         ),
+                        DropdownMenuItem(
+                          value: AiProviderType.gemini,
+                          child: Text('Gemini API (Free Tier)'),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value == null) return;
@@ -549,28 +555,37 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  if (_providerType == AiProviderType.http)
+                  if (_providerType == AiProviderType.http ||
+                      _providerType == AiProviderType.gemini)
                     Expanded(
                       child: TextFormField(
                         controller: _endpointController,
-                        decoration: const InputDecoration(
-                          labelText: 'Endpoint',
+                        obscureText: _providerType == AiProviderType.gemini,
+                        decoration: InputDecoration(
+                          labelText:
+                              _providerType == AiProviderType.gemini
+                                  ? 'API Key'
+                                  : 'Endpoint',
                           isDense: true,
                         ),
-                        onFieldSubmitted: (_) =>
-                            _applyProviderSelection(AiProviderType.http),
+                        onFieldSubmitted:
+                            (_) => _applyProviderSelection(_providerType),
                       ),
                     ),
                 ],
               ),
-              if (_providerType == AiProviderType.http)
+              if (_providerType == AiProviderType.http ||
+                  _providerType == AiProviderType.gemini)
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: () =>
-                        _applyProviderSelection(AiProviderType.http),
-                    icon: const Icon(Icons.cloud_sync),
-                    label: const Text('Apply endpoint'),
+                    onPressed: () => _applyProviderSelection(_providerType),
+                    icon: const Icon(Icons.check),
+                    label: Text(
+                      _providerType == AiProviderType.gemini
+                          ? 'Apply Key'
+                          : 'Apply endpoint',
+                    ),
                   ),
                 ),
             ],

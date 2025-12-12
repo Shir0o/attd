@@ -129,7 +129,11 @@ class _StubAiProviderFactory extends AiProviderFactory {
   final AiProvider provider;
 
   @override
-  AiProvider create(AiProviderType type, {String? endpointOverride}) {
+  AiProvider create(
+    AiProviderType type, {
+    String? endpointOverride,
+    String? apiKey,
+  }) {
     return provider;
   }
 }
