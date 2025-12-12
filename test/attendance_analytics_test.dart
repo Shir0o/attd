@@ -3,6 +3,7 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/analytics/attendance_analytics.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
+import 'package:attendance_tracker/features/attendance/models/label_assignments.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,7 +25,11 @@ void main() {
     );
   }
 
-  SessionRecord record(String attendee, AttendanceStatus status, DateTime when) {
+  SessionRecord record(
+    String attendee,
+    AttendanceStatus status,
+    DateTime when,
+  ) {
     return SessionRecord(
       attendee: attendee,
       status: status,
@@ -137,5 +142,58 @@ void main() {
     expect(patelFamily.attendanceRate, 0);
     expect(analytics.watchlist.any((flag) => flag.subject == 'Patel'), isTrue);
     expect(analytics.attendees['Priya Patel']!.absenceStreak, 3);
+  });
+
+  test('canonicalizes merged names and honors watchlist labels', () {
+    final now = DateTime(2024, 3, 1);
+    final mergedFamilies = [
+      Family(
+        id: 'fam-a',
+        displayName: 'Smith',
+        members: const [
+          Member(
+            id: 'm-a',
+            displayName: 'Liz Smith',
+            canonicalName: 'Elizabeth Smith',
+          ),
+          Member(
+            id: 'm-b',
+            displayName: 'Lizzie Smith',
+            canonicalName: 'Elizabeth Smith',
+            mergedIntoMemberId: 'm-a',
+            labels: LabelAssignments(manualLabels: {watchlistLabel}),
+          ),
+        ],
+      ),
+      const Family(
+        id: 'fam-b',
+        displayName: 'Legacy Smith',
+        canonicalName: 'Smith',
+        mergedIntoFamilyId: 'fam-a',
+        members: [],
+      ),
+    ];
+
+    final sessions = [
+      buildSession(
+        id: 's-merge',
+        title: 'Merge Sample',
+        date: now,
+        records: [record('Lizzie Smith', AttendanceStatus.absent, now)],
+      ),
+    ];
+
+    final analytics = calculateAttendanceAnalytics(
+      sessions: sessions,
+      families: mergedFamilies,
+      range: AnalyticsRange.last30Days.resolve(now),
+    );
+
+    expect(analytics.attendees.containsKey('Elizabeth Smith'), isTrue);
+    expect(
+      analytics.watchlist.map((f) => f.subject),
+      contains('Elizabeth Smith'),
+    );
+    expect(analytics.families.keys, contains('fam-a'));
   });
 }
