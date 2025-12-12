@@ -101,6 +101,10 @@ void main() {
       expect(suggestion.subject, equals(request.flag.subject));
       expect(suggestion.message.toLowerCase(), contains('please'));
       expect(suggestion.reasoning, contains(request.flag.reason));
+      expect(suggestion.nameSuggestion?.suggestedName, isNotEmpty);
+      expect(suggestion.duplicateClusterIds, isNotEmpty);
+      expect(suggestion.label, isNotEmpty);
+      expect(suggestion.labelRationale, isNotEmpty);
     },
   );
 
@@ -116,6 +120,10 @@ void main() {
       );
       expect(alexPrediction.probability, greaterThanOrEqualTo(0.35));
       expect(alexPrediction.reason, contains('absences'));
+      expect(alexPrediction.nameSuggestion?.confidence, greaterThan(0));
+      expect(alexPrediction.duplicateClusterIds, isNotEmpty);
+      expect(alexPrediction.label, equals('High risk'));
+      expect(alexPrediction.labelRationale, isNotEmpty);
     },
   );
 
