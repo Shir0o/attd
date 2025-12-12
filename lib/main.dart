@@ -24,6 +24,7 @@ import 'features/ai/http_ai_provider.dart';
 import 'features/ai/mock_ai_provider.dart';
 import 'features/analytics/attendance_analytics.dart';
 import 'features/attendance/data/attendance_repository.dart';
+import 'features/attendance/utils/name_corrections.dart';
 import 'features/attendance/models/attendance_status.dart';
 import 'features/attendance/models/family.dart';
 import 'features/attendance/presentation/attendance_flow_page.dart';
@@ -158,6 +159,8 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
   Future<List<AbsencePrediction>>? _predictionFuture;
   final Map<String, FollowUpSuggestion> _suggestedMessages = {};
   final Set<String> _loadingSubjects = {};
+  final Set<String> _ignoredNameSuggestions = {};
+  final Map<String, bool> _labelOverrides = {};
   late final TextEditingController _endpointController;
 
   @override
@@ -189,6 +192,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     _predictionFuture = null;
     _suggestedMessages.clear();
     _loadingSubjects.clear();
+    _ignoredNameSuggestions.clear();
   }
 
   void _handleRangeChange(AnalyticsRange selection) {
@@ -273,34 +277,105 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
       );
 
       if (!mounted) return;
+      final insight = _NameInsight.fromSources(suggestion, null);
 
       setState(() {
         _suggestedMessages[flag.subject] = suggestion;
+        if (insight.label != null &&
+            !_labelOverrides.containsKey(flag.subject)) {
+          _labelOverrides[flag.subject] = true;
+        }
+        _ignoredNameSuggestions.remove(flag.subject);
       });
 
       await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Suggested message for ${flag.subject}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(suggestion.message),
-              const SizedBox(height: 12),
-              Text(
-                suggestion.reasoning,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
+        builder: (dialogContext) {
+          var applying = false;
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text('Suggested message for ${flag.subject}'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(suggestion.message),
+                      const SizedBox(height: 12),
+                      Text(
+                        suggestion.reasoning,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (insight.hasSuggestion) ...[
+                        const SizedBox(height: 12),
+                        _NameInsightDetails(insight: insight),
+                      ],
+                      if (insight.label != null) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Text(
+                              'Gemini label',
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildLabelChip(flag.subject, insight),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  if (insight.hasSuggestion)
+                    TextButton.icon(
+                      onPressed: applying
+                          ? null
+                          : () async {
+                              setDialogState(() => applying = true);
+                              await _applyNameSuggestion(
+                                flag: flag,
+                                insight: insight,
+                                families: families,
+                              );
+                              if (mounted) {
+                                setDialogState(() => applying = false);
+                              }
+                              if (Navigator.of(dialogContext).canPop()) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                            },
+                      icon: applying
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check_circle_outline),
+                      label: const Text('Apply correction'),
+                    ),
+                  if (insight.hasSuggestion)
+                    TextButton(
+                      onPressed: applying
+                          ? null
+                          : () {
+                              setState(() {
+                                _ignoredNameSuggestions.add(flag.subject);
+                              });
+                              Navigator.of(dialogContext).pop();
+                            },
+                      child: const Text('Ignore'),
+                    ),
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       );
     } catch (error) {
       if (!mounted) return;
@@ -314,6 +389,73 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         });
       }
     }
+  }
+
+  Future<void> _applyNameSuggestion({
+    required WellnessFlag flag,
+    required _NameInsight insight,
+    required List<Family> families,
+  }) async {
+    if (!insight.hasSuggestion) return;
+    if (_loadingSubjects.contains(flag.subject)) return;
+
+    setState(() {
+      _loadingSubjects.add(flag.subject);
+    });
+
+    try {
+      final updatedFamilies = applyNameCorrection(
+        families: families,
+        subject: flag.subject,
+        correctedName: insight.suggestedName ?? flag.subject,
+        duplicateCandidates: insight.duplicateCandidates,
+      );
+
+      await widget.repository.saveFamilies(updatedFamilies);
+      if (!mounted) return;
+      setState(() {
+        _homeDataFuture = _loadHomeData();
+        _resetAiInsights();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Updated records for ${insight.suggestedName ?? flag.subject}.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not apply suggestion: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSubjects.remove(flag.subject);
+        });
+      }
+    }
+  }
+
+  Widget _buildLabelChip(String subject, _NameInsight insight) {
+    final label = insight.label;
+    if (label == null) return const SizedBox.shrink();
+    final enabled = _labelOverrides[subject] ?? true;
+    return Tooltip(
+      message: insight.labelRationale ?? 'Gemini suggested this label.',
+      child: FilterChip(
+        selected: enabled,
+        onSelected: (value) {
+          setState(() {
+            _labelOverrides[subject] = value;
+          });
+        },
+        avatar: Icon(enabled ? Icons.sell : Icons.sell_outlined, size: 18),
+        label: Text(label),
+      ),
+    );
   }
 
   Future<List<AbsencePrediction>>? _obtainPredictionFuture(
@@ -741,75 +883,185 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                                     final loading = _loadingSubjects.contains(
                                       flag.subject,
                                     );
+                                    final nameInsight =
+                                        _NameInsight.fromSources(
+                                          suggestion,
+                                          prediction,
+                                        );
+                                    final showNameInsight =
+                                        nameInsight.hasSuggestion &&
+                                        !_ignoredNameSuggestions.contains(
+                                          flag.subject,
+                                        );
 
-                                    return ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: CircleAvatar(
-                                        backgroundColor: flag.isFamily
-                                            ? Colors.indigo.shade50
-                                            : Colors.red.shade50,
-                                        child: Icon(
-                                          flag.isFamily
-                                              ? Icons.groups_outlined
-                                              : Icons.warning_amber_rounded,
-                                          color: flag.isFamily
-                                              ? Colors.indigo.shade700
-                                              : Colors.red.shade700,
-                                        ),
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 6,
                                       ),
-                                      title: Text(flag.subject),
-                                      subtitle: Column(
+                                      child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(flag.reason),
-                                          if (prediction != null)
-                                            Text(
-                                              'AI risk: ${(prediction.probability * 100).round()}% likely absence',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall,
+                                          ListTile(
+                                            contentPadding: EdgeInsets.zero,
+                                            leading: CircleAvatar(
+                                              backgroundColor: flag.isFamily
+                                                  ? Colors.indigo.shade50
+                                                  : Colors.red.shade50,
+                                              child: Icon(
+                                                flag.isFamily
+                                                    ? Icons.groups_outlined
+                                                    : Icons
+                                                          .warning_amber_rounded,
+                                                color: flag.isFamily
+                                                    ? Colors.indigo.shade700
+                                                    : Colors.red.shade700,
+                                              ),
                                             ),
-                                          if (suggestion != null) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              suggestion.message,
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall,
+                                            title: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(flag.subject),
+                                                ),
+                                                if (nameInsight.hasLabel)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          left: 6,
+                                                        ),
+                                                    child: _buildLabelChip(
+                                                      flag.subject,
+                                                      nameInsight,
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
-                                          ],
+                                            subtitle: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(flag.reason),
+                                                if (prediction != null)
+                                                  Text(
+                                                    'AI risk: ${(prediction.probability * 100).round()}% likely absence',
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodySmall,
+                                                  ),
+                                                if (suggestion != null) ...[
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    suggestion.message,
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodySmall,
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                            trailing: _aiEnabled
+                                                ? TextButton.icon(
+                                                    onPressed: loading
+                                                        ? null
+                                                        : () => _handleSuggestMessage(
+                                                            flag: flag,
+                                                            analytics:
+                                                                analytics,
+                                                            sessions: homeData
+                                                                .sessions,
+                                                            families: homeData
+                                                                .families,
+                                                          ),
+                                                    icon: loading
+                                                        ? const SizedBox(
+                                                            width: 14,
+                                                            height: 14,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                ),
+                                                          )
+                                                        : const Icon(
+                                                            Icons.auto_awesome,
+                                                          ),
+                                                    label: const Text(
+                                                      'Suggest message',
+                                                    ),
+                                                  )
+                                                : const Text('AI off'),
+                                          ),
+                                          if (showNameInsight)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                    72,
+                                                    0,
+                                                    8,
+                                                    4,
+                                                  ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _NameInsightDetails(
+                                                    insight: nameInsight,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Row(
+                                                    children: [
+                                                      TextButton.icon(
+                                                        onPressed: loading
+                                                            ? null
+                                                            : () => _applyNameSuggestion(
+                                                                flag: flag,
+                                                                insight:
+                                                                    nameInsight,
+                                                                families: homeData
+                                                                    .families,
+                                                              ),
+                                                        icon: loading
+                                                            ? const SizedBox(
+                                                                width: 14,
+                                                                height: 14,
+                                                                child:
+                                                                    CircularProgressIndicator(
+                                                                      strokeWidth:
+                                                                          2,
+                                                                    ),
+                                                              )
+                                                            : const Icon(
+                                                                Icons
+                                                                    .check_circle_outline,
+                                                              ),
+                                                        label: const Text(
+                                                          'Apply',
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      TextButton(
+                                                        onPressed: loading
+                                                            ? null
+                                                            : () {
+                                                                setState(() {
+                                                                  _ignoredNameSuggestions
+                                                                      .add(
+                                                                        flag.subject,
+                                                                      );
+                                                                });
+                                                              },
+                                                        child: const Text(
+                                                          'Ignore',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          const Divider(height: 1),
                                         ],
                                       ),
-                                      trailing: _aiEnabled
-                                          ? TextButton.icon(
-                                              onPressed: loading
-                                                  ? null
-                                                  : () => _handleSuggestMessage(
-                                                      flag: flag,
-                                                      analytics: analytics,
-                                                      sessions:
-                                                          homeData.sessions,
-                                                      families:
-                                                          homeData.families,
-                                                    ),
-                                              icon: loading
-                                                  ? const SizedBox(
-                                                      width: 14,
-                                                      height: 14,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.auto_awesome,
-                                                    ),
-                                              label: const Text(
-                                                'Suggest message',
-                                              ),
-                                            )
-                                          : const Text('AI off'),
                                     );
                                   }).toList(),
                                 );
@@ -1162,6 +1414,127 @@ class _StatusBarChart extends StatelessWidget {
       ],
     );
   }
+}
+
+class _NameInsightDetails extends StatelessWidget {
+  const _NameInsightDetails({required this.insight});
+
+  final _NameInsight insight;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!insight.hasSuggestion) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final confidence = insight.confidence;
+    final confidenceLabel = confidence == null
+        ? null
+        : '${(confidence * 100).round()}% confidence';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (insight.suggestedName != null)
+          Row(
+            children: [
+              const Icon(Icons.edit_note, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Suggested name: ${insight.suggestedName}',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+              if (confidenceLabel != null)
+                Text(confidenceLabel, style: theme.textTheme.bodySmall),
+            ],
+          ),
+        if (insight.duplicateCandidates.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text('Possible duplicates', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: insight.duplicateCandidates
+                .map(
+                  (candidate) => Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text(candidate),
+                    avatar: const Icon(Icons.copy_all, size: 16),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+        if (insight.duplicateClusterIds.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Clusters: ${insight.duplicateClusterIds.join(', ')}',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _NameInsight {
+  const _NameInsight({
+    this.suggestedName,
+    this.confidence,
+    this.duplicateCandidates = const [],
+    this.duplicateClusterIds = const [],
+    this.label,
+    this.labelRationale,
+  });
+
+  factory _NameInsight.fromSources(
+    FollowUpSuggestion? suggestion,
+    AbsencePrediction? prediction,
+  ) {
+    final suggestedName =
+        suggestion?.correctedName ??
+        suggestion?.nameSuggestion?.suggestedName ??
+        prediction?.correctedName ??
+        prediction?.nameSuggestion?.suggestedName;
+    final confidence =
+        suggestion?.nameSuggestion?.confidence ??
+        prediction?.nameSuggestion?.confidence;
+    final duplicateCandidates = <String>{
+      ...?suggestion?.duplicateCandidates,
+      ...?prediction?.duplicateCandidates,
+    };
+    final duplicateClusterIds = <String>{
+      ...?suggestion?.duplicateClusterIds,
+      ...?prediction?.duplicateClusterIds,
+      ...?suggestion?.nameSuggestion?.duplicateClusterIds,
+      ...?prediction?.nameSuggestion?.duplicateClusterIds,
+    };
+
+    return _NameInsight(
+      suggestedName: suggestedName,
+      confidence: confidence,
+      duplicateCandidates: duplicateCandidates.toList(),
+      duplicateClusterIds: duplicateClusterIds.toList(),
+      label: suggestion?.label ?? prediction?.label,
+      labelRationale: suggestion?.labelRationale ?? prediction?.labelRationale,
+    );
+  }
+
+  final String? suggestedName;
+  final double? confidence;
+  final List<String> duplicateCandidates;
+  final List<String> duplicateClusterIds;
+  final String? label;
+  final String? labelRationale;
+
+  bool get hasSuggestion =>
+      suggestedName != null || duplicateCandidates.isNotEmpty;
+
+  bool get hasLabel => label != null;
 }
 
 class _HomeData {
