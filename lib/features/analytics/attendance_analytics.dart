@@ -1,9 +1,15 @@
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
+import 'package:attendance_tracker/features/attendance/models/label_assignments.dart';
+import 'package:attendance_tracker/features/attendance/models/member.dart';
 
 class AnalyticsDateRange {
-  const AnalyticsDateRange({required this.start, required this.end, required this.label});
+  const AnalyticsDateRange({
+    required this.start,
+    required this.end,
+    required this.label,
+  });
 
   final DateTime start;
   final DateTime end;
@@ -15,11 +21,7 @@ class AnalyticsDateRange {
   }
 }
 
-enum AnalyticsRange {
-  last7Days,
-  last30Days,
-  allTime,
-}
+enum AnalyticsRange { last7Days, last30Days, allTime }
 
 extension AnalyticsRangeX on AnalyticsRange {
   AnalyticsDateRange resolve(DateTime now) {
@@ -59,10 +61,7 @@ extension AnalyticsRangeX on AnalyticsRange {
 }
 
 class AttendanceBreakdown {
-  const AttendanceBreakdown({
-    required this.present,
-    required this.absent,
-  });
+  const AttendanceBreakdown({required this.present, required this.absent});
 
   final int present;
   final int absent;
@@ -105,7 +104,11 @@ class FamilyInsight {
 }
 
 class WellnessFlag {
-  const WellnessFlag({required this.subject, required this.reason, this.isFamily = false});
+  const WellnessFlag({
+    required this.subject,
+    required this.reason,
+    this.isFamily = false,
+  });
 
   final String subject;
   final String reason;
@@ -135,18 +138,36 @@ AttendanceAnalytics calculateAttendanceAnalytics({
   required List<Family> families,
   required AnalyticsDateRange range,
 }) {
-  final filteredSessions = sessions
-      .where((session) => range.includes(session.sessionDate))
-      .toList()
-    ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
+  final filteredSessions =
+      sessions.where((session) => range.includes(session.sessionDate)).toList()
+        ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
 
-  final attendeeToFamily = _attendeeFamilyIndex(families);
+  final familiesById = {for (final family in families) family.id: family};
+  final membersById = {
+    for (final family in families)
+      for (final member in family.members) member.id: member,
+  };
+
+  final attendeeToFamily = _attendeeFamilyIndex(
+    families,
+    familiesById,
+    membersById,
+  );
+  final memberLabels = _memberLabelIndex(families, membersById);
+  final familyLabels = _familyLabelIndex(families, familiesById);
+  final canonicalFamilies = _canonicalFamilies(families, familiesById);
+
   final attendeeRecords = <String, List<_RecordEvent>>{};
   var present = 0;
   var absent = 0;
 
   for (final session in filteredSessions) {
     for (final record in session.records) {
+      final canonicalName = _canonicalizeAttendee(
+        record.attendee,
+        membersById,
+        families,
+      );
       switch (record.status) {
         case AttendanceStatus.present:
           present++;
@@ -156,12 +177,9 @@ AttendanceAnalytics calculateAttendanceAnalytics({
           break;
       }
 
-      attendeeRecords.putIfAbsent(record.attendee, () => []);
-      attendeeRecords[record.attendee]!.add(
-        _RecordEvent(
-          date: session.sessionDate,
-          status: record.status,
-        ),
+      attendeeRecords.putIfAbsent(canonicalName, () => []);
+      attendeeRecords[canonicalName]!.add(
+        _RecordEvent(date: session.sessionDate, status: record.status),
       );
     }
   }
@@ -187,7 +205,7 @@ AttendanceAnalytics calculateAttendanceAnalytics({
   });
 
   final familyInsights = <String, FamilyInsight>{};
-  for (final family in families) {
+  for (final family in canonicalFamilies.values) {
     final counter = familyCounters[family.id] ?? _FamilyCounter();
     familyInsights[family.id] = FamilyInsight(
       family: family,
@@ -196,7 +214,12 @@ AttendanceAnalytics calculateAttendanceAnalytics({
     );
   }
 
-  final watchlist = _buildWatchlist(attendees, familyInsights.values.toList());
+  final watchlist = _buildWatchlist(
+    attendees,
+    familyInsights.values.toList(),
+    memberLabels,
+    familyLabels,
+  );
 
   return AttendanceAnalytics(
     breakdown: AttendanceBreakdown(present: present, absent: absent),
@@ -215,7 +238,9 @@ List<double> _buildTrend(List<Session> sessions) {
     final presentCount = session.records
         .where((record) => record.status == AttendanceStatus.present)
         .length;
-    final rate = session.records.isEmpty ? 0 : presentCount / session.records.length * 100;
+    final rate = session.records.isEmpty
+        ? 0
+        : presentCount / session.records.length * 100;
     points.add(double.parse(rate.toStringAsFixed(1)));
   }
   return points;
@@ -224,41 +249,62 @@ List<double> _buildTrend(List<Session> sessions) {
 List<WellnessFlag> _buildWatchlist(
   Map<String, AttendeeInsight> attendees,
   List<FamilyInsight> families,
+  Map<String, LabelAssignments> memberLabels,
+  Map<String, LabelAssignments> familyLabels,
 ) {
-  final flags = <WellnessFlag>[];
+  final flags = <String, WellnessFlag>{};
+
+  void addFlag(String subject, String reason, {bool isFamily = false}) {
+    flags.putIfAbsent(
+      subject,
+      () => WellnessFlag(subject: subject, reason: reason, isFamily: isFamily),
+    );
+  }
+
+  memberLabels.forEach((name, labels) {
+    if (labels.hasLabel(watchlistLabel)) {
+      final reason = labels.isManual(watchlistLabel)
+          ? 'Manually added to watchlist'
+          : 'Watchlist label applied';
+      addFlag(name, reason);
+    }
+  });
 
   attendees.forEach((name, insight) {
+    if (flags.containsKey(name)) return;
     if (insight.absenceStreak >= 2) {
-      flags.add(
-        WellnessFlag(
-          subject: name,
-          reason: '${insight.absenceStreak} consecutive absences',
-        ),
-      );
+      addFlag(name, '${insight.absenceStreak} consecutive absences');
     } else if (insight.total >= 3 && insight.attendanceRate < 75) {
-      flags.add(
-        WellnessFlag(
-          subject: name,
-          reason: 'Attendance dropped to ${insight.attendanceRate.toStringAsFixed(0)}%',
-        ),
+      addFlag(
+        name,
+        'Attendance dropped to ${insight.attendanceRate.toStringAsFixed(0)}%',
       );
     }
   });
 
+  familyLabels.forEach((name, labels) {
+    if (labels.hasLabel(watchlistLabel)) {
+      final reason = labels.isManual(watchlistLabel)
+          ? 'Manually added to watchlist'
+          : 'Watchlist label applied';
+      addFlag(name, reason, isFamily: true);
+    }
+  });
+
   for (final family in families) {
+    if (flags.containsKey(family.family.canonicalName)) continue;
     if (family.total >= 3 && family.attendanceRate < 70) {
-      flags.add(
-        WellnessFlag(
-          subject: family.family.displayName,
-          reason: 'Family attendance at ${family.attendanceRate.toStringAsFixed(0)}%',
-          isFamily: true,
-        ),
+      addFlag(
+        family.family.canonicalName,
+        'Family attendance at ${family.attendanceRate.toStringAsFixed(0)}%',
+        isFamily: true,
       );
     }
   }
 
-  flags.sort((a, b) => a.subject.compareTo(b.subject));
-  return flags;
+  final values = flags.values.toList()
+    ..sort((a, b) => a.subject.compareTo(b.subject));
+  return values;
 }
 
 _MapSummary _summarize(List<_RecordEvent> entries) {
@@ -289,14 +335,127 @@ int _streak(List<_RecordEvent> entries, AttendanceStatus status) {
   return streak;
 }
 
-Map<String, String> _attendeeFamilyIndex(List<Family> families) {
+String _canonicalizeAttendee(
+  String attendee,
+  Map<String, Member> membersById,
+  List<Family> families,
+) {
+  final normalized = attendee.toLowerCase();
+  for (final member in membersById.values) {
+    if (member.displayName.toLowerCase() == normalized ||
+        member.canonicalName.toLowerCase() == normalized) {
+      return _resolveMember(member, membersById).canonicalName;
+    }
+  }
+
+  final familiesById = {for (final family in families) family.id: family};
+  for (final family in families) {
+    if (family.displayName.toLowerCase() == normalized ||
+        family.canonicalName.toLowerCase() == normalized) {
+      return _resolveFamily(family, familiesById).canonicalName;
+    }
+  }
+
+  return attendee;
+}
+
+Family _resolveFamily(Family family, Map<String, Family> familiesById) {
+  var current = family;
+  final visited = <String>{};
+  while (current.mergedIntoFamilyId != null &&
+      !visited.contains(current.mergedIntoFamilyId!)) {
+    final target = familiesById[current.mergedIntoFamilyId!];
+    if (target == null) break;
+    visited.add(current.mergedIntoFamilyId!);
+    current = target;
+  }
+  return current;
+}
+
+Member _resolveMember(Member member, Map<String, Member> membersById) {
+  var current = member;
+  final visited = <String>{};
+  while (current.mergedIntoMemberId != null &&
+      !visited.contains(current.mergedIntoMemberId!)) {
+    final target = membersById[current.mergedIntoMemberId!];
+    if (target == null) break;
+    visited.add(current.mergedIntoMemberId!);
+    current = target;
+  }
+  return current;
+}
+
+Map<String, String> _attendeeFamilyIndex(
+  List<Family> families,
+  Map<String, Family> familiesById,
+  Map<String, Member> membersById,
+) {
   final index = <String, String>{};
   for (final family in families) {
+    final canonicalFamily = _resolveFamily(family, familiesById);
     for (final member in family.members) {
-      index[member.displayName] = family.id;
+      final canonicalMember = _resolveMember(member, membersById);
+      index[canonicalMember.canonicalName] = canonicalFamily.id;
     }
   }
   return index;
+}
+
+Map<String, LabelAssignments> _memberLabelIndex(
+  List<Family> families,
+  Map<String, Member> membersById,
+) {
+  final index = <String, LabelAssignments>{};
+  for (final family in families) {
+    for (final member in family.members) {
+      final canonical = _resolveMember(member, membersById);
+      index[canonical.canonicalName] = _mergeLabelAssignments(
+        index[canonical.canonicalName],
+        [member.labels, canonical.labels],
+      );
+    }
+  }
+  return index;
+}
+
+Map<String, LabelAssignments> _familyLabelIndex(
+  List<Family> families,
+  Map<String, Family> familiesById,
+) {
+  final index = <String, LabelAssignments>{};
+  for (final family in families) {
+    final canonical = _resolveFamily(family, familiesById);
+    index[canonical.canonicalName] = _mergeLabelAssignments(
+      index[canonical.canonicalName],
+      [family.labels, canonical.labels],
+    );
+  }
+  return index;
+}
+
+Map<String, Family> _canonicalFamilies(
+  List<Family> families,
+  Map<String, Family> familiesById,
+) {
+  final canonical = <String, Family>{};
+  for (final family in families) {
+    final resolved = _resolveFamily(family, familiesById);
+    canonical[resolved.id] = resolved;
+  }
+  return canonical;
+}
+
+LabelAssignments _mergeLabelAssignments(
+  LabelAssignments? existing,
+  Iterable<LabelAssignments> additions,
+) {
+  final auto = <String>{...existing?.autoLabels ?? {}};
+  final manual = <String>{...existing?.manualLabels ?? {}};
+  for (final assignment in additions) {
+    auto.addAll(assignment.autoLabels);
+    manual.addAll(assignment.manualLabels);
+  }
+  return LabelAssignments(autoLabels: auto, manualLabels: manual);
 }
 
 class _RecordEvent {
