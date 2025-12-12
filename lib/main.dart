@@ -32,9 +32,7 @@ import 'features/sessions/session_detail_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(AttendanceApp());
 }
 
@@ -548,7 +546,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator());
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
