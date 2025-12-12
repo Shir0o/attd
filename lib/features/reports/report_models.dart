@@ -60,13 +60,27 @@ class ReportExportResult {
     required this.filePath,
     required this.format,
     required this.summary,
-    required this.syncedToSheets,
+    this.sheetSync,
   });
 
   final String filePath;
   final ReportFormat format;
   final ReportSummary summary;
-  final bool syncedToSheets;
+  final SheetSyncResult? sheetSync;
+}
+
+class SheetSyncResult {
+  const SheetSyncResult({
+    required this.attempted,
+    required this.success,
+    this.shareLink,
+    this.error,
+  });
+
+  final bool attempted;
+  final bool success;
+  final String? shareLink;
+  final String? error;
 }
 
 class ReportShareOption {
