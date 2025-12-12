@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../data/session.dart';
 import '../../data/session_repository.dart';
 import '../attendance/models/attendance_status.dart';
+import 'sheets_client.dart';
 import 'report_models.dart';
 
 class ReportExportService {
@@ -17,14 +18,23 @@ class ReportExportService {
     required this.sessionRepository,
     DateTime Function()? clock,
     Future<Directory> Function()? directoryProvider,
+    SheetsClient? sheetsClient,
   }) : _clock = clock ?? DateTime.now,
-       _directoryProvider = directoryProvider ?? getApplicationSupportDirectory;
+       _directoryProvider = directoryProvider ?? getApplicationSupportDirectory,
+       sheetsClient =
+           sheetsClient ??
+           (!kIsWeb
+               ? LocalSheetsClient(
+                   directoryProvider ?? getApplicationSupportDirectory,
+                 )
+               : null);
 
   final SessionRepository sessionRepository;
   final DateTime Function() _clock;
   final Future<Directory> Function() _directoryProvider;
+  final SheetsClient? sheetsClient;
 
-  bool get supportsGoogleSheets => !kIsWeb;
+  bool get supportsGoogleSheets => !kIsWeb && sheetsClient != null;
 
   Future<ReportExportResult> exportReport(ReportRequest request) async {
     final sessions = await sessionRepository.loadSessions();
@@ -40,21 +50,60 @@ class ReportExportService {
 
     final summary = _summarize(filteredSessions);
 
-    final bytes = switch (request.format) {
+    final bytes = await switch (request.format) {
       ReportFormat.csv => _renderCsv(filteredSessions),
       ReportFormat.pdf => _renderPdf(filteredSessions, summary),
       ReportFormat.image => _renderImage(filteredSessions, summary),
     };
 
     final filePath = await _writeFile(bytes, request.format);
-    final syncedToSheets = request.syncToGoogleSheets && supportsGoogleSheets;
+    final sheetSync = await _maybeUploadToSheets(
+      request,
+      bytes,
+      generatedAt: _clock(),
+      suggestedFileName: p.basename(filePath),
+    );
 
     return ReportExportResult(
       filePath: filePath,
       format: request.format,
       summary: summary,
-      syncedToSheets: syncedToSheets,
+      sheetSync: sheetSync,
     );
+  }
+
+  Future<SheetSyncResult?> _maybeUploadToSheets(
+    ReportRequest request,
+    Uint8List bytes, {
+    required DateTime generatedAt,
+    String? suggestedFileName,
+  }) async {
+    if (!request.syncToGoogleSheets) {
+      return null;
+    }
+
+    if (!supportsGoogleSheets || sheetsClient == null) {
+      return const SheetSyncResult(
+        attempted: false,
+        success: false,
+        error: 'Sheets sync is not supported on this platform.',
+      );
+    }
+
+    try {
+      return await sheetsClient!.uploadReport(
+        bytes: bytes,
+        format: request.format,
+        generatedAt: generatedAt,
+        suggestedFileName: suggestedFileName,
+      );
+    } catch (error) {
+      return SheetSyncResult(
+        attempted: true,
+        success: false,
+        error: error.toString(),
+      );
+    }
   }
 
   ReportSummary _summarize(List<Session> sessions) {
@@ -220,10 +269,7 @@ class ReportExportService {
     return data!.buffer.asUint8List();
   }
 
-  Future<String> _writeFile(
-    Future<Uint8List> bytesFuture,
-    ReportFormat format,
-  ) async {
+  Future<String> _writeFile(Uint8List bytes, ReportFormat format) async {
     final directory = await _directoryProvider();
     await directory.create(recursive: true);
 
@@ -232,7 +278,6 @@ class ReportExportService {
         'attendance_report_${now.millisecondsSinceEpoch}.${_extensionFor(format)}';
     final filePath = p.join(directory.path, filename);
     final file = File(filePath);
-    final bytes = await bytesFuture;
     await file.writeAsBytes(bytes, flush: true);
     return filePath;
   }
