@@ -250,6 +250,16 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
     });
 
     try {
+      final nameMetadata = buildNameMetadata(
+        sessions: sessions,
+        analytics: analytics,
+        families: families,
+      );
+      final attendanceFeatures = buildAttendanceLabelFeatures(
+        sessions: sessions,
+        analytics: analytics,
+        families: families,
+      );
       final suggestion = await _aiProvider.suggestFollowUp(
         FollowUpRequest(
           flag: flag,
@@ -257,6 +267,8 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
           sessions: sessions,
           rangeLabel: analytics.range.label,
           family: _familyForFlag(flag, families),
+          nameMetadata: nameMetadata,
+          attendanceFeatures: attendanceFeatures,
         ),
       );
 
@@ -307,10 +319,24 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
   Future<List<AbsencePrediction>>? _obtainPredictionFuture(
     AttendanceAnalytics analytics,
     List<Session> sessions,
+    List<Family> families,
   ) {
     if (!_aiEnabled) return null;
     _predictionFuture ??= _aiProvider.predictAbsences(
-      AbsencePredictionRequest(analytics: analytics, sessions: sessions),
+      AbsencePredictionRequest(
+        analytics: analytics,
+        sessions: sessions,
+        nameMetadata: buildNameMetadata(
+          sessions: sessions,
+          analytics: analytics,
+          families: families,
+        ),
+        attendanceFeatures: buildAttendanceLabelFeatures(
+          sessions: sessions,
+          analytics: analytics,
+          families: families,
+        ),
+      ),
     );
     return _predictionFuture;
   }
@@ -570,6 +596,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         final predictionFuture = _obtainPredictionFuture(
           analytics,
           homeData.sessions,
+          homeData.families,
         );
 
         return Scaffold(

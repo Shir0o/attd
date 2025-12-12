@@ -118,4 +118,37 @@ void main() {
       expect(alexPrediction.reason, contains('absences'));
     },
   );
+
+  test('buildNameMetadata captures usage counts and normalized variants', () {
+    final metadata = buildNameMetadata(
+      sessions: sessions,
+      analytics: analytics,
+      families: families,
+    );
+
+    expect(metadata['Alex']?.normalized, equals('alex'));
+    expect(metadata['Alex']?.usageCount, equals(2));
+    expect(metadata['Lee family']?.usageCount, equals(0));
+  });
+
+  test('buildAttendanceLabelFeatures summarizes streaks and recency', () {
+    final features = buildAttendanceLabelFeatures(
+      sessions: sessions,
+      analytics: analytics,
+      families: families,
+    );
+
+    final alexFeatures = features['Alex'];
+    expect(alexFeatures?.absentCount, equals(2));
+    expect(alexFeatures?.presentCount, equals(0));
+    expect(
+      alexFeatures?.absenceStreak,
+      equals(analytics.attendees['Alex']!.absenceStreak),
+    );
+    expect(alexFeatures?.lastRecorded, equals(DateTime(2025, 1, 14)));
+
+    final familyFeatures = features['Lee family'];
+    expect(familyFeatures?.totalSessions, equals(4));
+    expect(familyFeatures?.lastRecorded, equals(DateTime(2025, 1, 14)));
+  });
 }
