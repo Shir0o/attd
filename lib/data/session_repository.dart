@@ -59,14 +59,18 @@ class FirestoreSessionRepository implements SessionRepository {
 
     if (snapshot.docs.isEmpty && _seedSessions.isNotEmpty) {
       // Seed if empty
+      final batch = _firestore.batch();
       for (final session in _seedSessions) {
         await createSession(
           title: session.title,
           sessionDate: session.sessionDate,
           actor: session.createdBy,
           records: session.records,
+          batch: batch,
         );
       }
+      await batch.commit();
+
       // Re-fetch after seeding
       final newSnapshot = await query.get();
       return newSnapshot.docs
@@ -83,10 +87,11 @@ class FirestoreSessionRepository implements SessionRepository {
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
+    WriteBatch? batch,
   }) async {
     final id = const Uuid().v4();
     final now = DateTime.now();
-    
+
     final session = Session(
       id: id,
       title: title,
@@ -99,10 +104,10 @@ class FirestoreSessionRepository implements SessionRepository {
       currentVersion: 1,
     );
 
-    final batch = _firestore.batch();
-    
+    final writeBatch = batch ?? _firestore.batch();
+
     // 1. Create session document
-    batch.set(_sessionsRef.doc(id), session.toJson());
+    writeBatch.set(_sessionsRef.doc(id), session.toJson());
 
     // 2. Create initial version
     final versionParam = {
@@ -113,20 +118,12 @@ class FirestoreSessionRepository implements SessionRepository {
       'actor': actor,
       'isDeleted': false,
     };
-    // Note: SessionVersion.fromJson expects 'snapshot' to be map or string?
-    // Looking at SessionRepository.dart line 307:
-    // snapshot: Session.fromJson(jsonDecode(row['payload'] as String)...)
-    // But here we are in Firestore, we can store Map directly.
-    // However, the current SessionVersion.fromJson might expect slightly different structure if adapted or if I need to change it.
-    // Let's look at SessionVersion usage in existing code:
-    // It's not a model with fromJson/toJson in the file I saw?
-    // Wait, I checked session_version.dart, it DOES NOT have fromJson/toJson.
-    // So I need to construct Map manually or add fromJson/toJson to SessionVersion.
-    // I will write the map manually here for Firestore.
-    
-    batch.set(_versionsRef(id).doc('1'), versionParam);
 
-    await batch.commit();
+    writeBatch.set(_versionsRef(id).doc('1'), versionParam);
+
+    if (batch == null) {
+      await writeBatch.commit();
+    }
     return session;
   }
 
