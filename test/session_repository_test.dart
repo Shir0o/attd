@@ -4,11 +4,13 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:attendance_tracker/data/session.dart';
+
 void main() {
-  FirestoreSessionRepository buildRepository() {
+  FirestoreSessionRepository buildRepository({List<Session>? seedSessions}) {
     return FirestoreSessionRepository(
       firestore: FakeFirebaseFirestore(),
-      seedSessions: [],
+      seedSessions: seedSessions ?? [],
     );
   }
 
@@ -51,10 +53,6 @@ void main() {
     );
 
     // Wait slightly to ensure timestamp difference if needed, though fake firestore might be instant.
-    // For specific ordering relying on time, we might need manual clock control if we were injecting it,
-    // but FirestoreSessionRepository uses DateTime.now() internally which is hard to mock without dependency injection.
-    // However, for typical versioning logic which relies on version numbers, it should be fine.
-
     final updated = await repository.saveSnapshot(
       created.copyWith(
         records: [
@@ -93,5 +91,23 @@ void main() {
     expect(duplicate.title.contains('(redo)'), isTrue);
     expect(duplicate.currentVersion, 1);
     expect(duplicate.records.first.recordedBy, 'Tester');
+  });
+
+  test('seeds sessions if database is empty', () async {
+    final seedSessions = buildSeedSessions();
+    final repository = buildRepository(seedSessions: seedSessions);
+
+    // Initial load should trigger seeding
+    final sessions = await repository.loadSessions();
+
+    expect(sessions.length, seedSessions.length);
+    expect(sessions.map((s) => s.title), containsAll(seedSessions.map((s) => s.title)));
+
+    // Verify versions are created
+    for (final session in sessions) {
+      final history = await repository.history(session.id);
+      expect(history.length, 1);
+      expect(history.first.version, 1);
+    }
   });
 }
