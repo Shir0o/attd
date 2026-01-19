@@ -118,16 +118,6 @@ class FirestoreSessionRepository implements SessionRepository {
       'actor': actor,
       'isDeleted': false,
     };
-    // Note: SessionVersion.fromJson expects 'snapshot' to be map or string?
-    // Looking at SessionRepository.dart line 307:
-    // snapshot: Session.fromJson(jsonDecode(row['payload'] as String)...)
-    // But here we are in Firestore, we can store Map directly.
-    // However, the current SessionVersion.fromJson might expect slightly different structure if adapted or if I need to change it.
-    // Let's look at SessionVersion usage in existing code:
-    // It's not a model with fromJson/toJson in the file I saw?
-    // Wait, I checked session_version.dart, it DOES NOT have fromJson/toJson.
-    // So I need to construct Map manually or add fromJson/toJson to SessionVersion.
-    // I will write the map manually here for Firestore.
 
     writeBatch.set(_versionsRef(id).doc('1'), versionParam);
 
