@@ -203,7 +203,7 @@ void main() {
     await tester.tap(find.byKey(const Key('authSubmitButton')));
 
     await tester.pumpAndSettle();
-    expect(find.text('Engagement overview'), findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
   });
 
   testWidgets('shows auth form if restoring the session fails', (tester) async {
@@ -308,7 +308,7 @@ void main() {
     await tester.tap(find.byKey(const Key('googleSignInButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Engagement overview'), findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
   });
 
   testWidgets('returns to auth screen when Google sign-in is cancelled', (
@@ -331,7 +331,7 @@ void main() {
     await tester.tap(find.byKey(const Key('googleSignInButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Engagement overview'), findsNothing);
+    expect(find.text('Quick actions'), findsNothing);
     expect(find.text('Login'), findsWidgets);
   });
 
