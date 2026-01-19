@@ -52,7 +52,6 @@ void main() {
       records: [buildRecord('Minh Nguyen', AttendanceStatus.present)],
     );
 
-    // Wait slightly to ensure timestamp difference if needed, though fake firestore might be instant.
     final updated = await repository.saveSnapshot(
       created.copyWith(
         records: [
