@@ -148,14 +148,17 @@ AttendanceAnalytics calculateAttendanceAnalytics({
       for (final member in family.members) member.id: member,
   };
 
+  final visited = <String>{};
+
   final attendeeToFamily = _attendeeFamilyIndex(
     families,
     familiesById,
     membersById,
+    visited,
   );
-  final memberLabels = _memberLabelIndex(families, membersById);
-  final familyLabels = _familyLabelIndex(families, familiesById);
-  final canonicalFamilies = _canonicalFamilies(families, familiesById);
+  final memberLabels = _memberLabelIndex(families, membersById, visited);
+  final familyLabels = _familyLabelIndex(families, familiesById, visited);
+  final canonicalFamilies = _canonicalFamilies(families, familiesById, visited);
 
   final attendeeRecords = <String, List<_RecordEvent>>{};
   var present = 0;
@@ -167,6 +170,7 @@ AttendanceAnalytics calculateAttendanceAnalytics({
         record.attendee,
         membersById,
         families,
+        visited,
       );
       switch (record.status) {
         case AttendanceStatus.present:
@@ -339,12 +343,13 @@ String _canonicalizeAttendee(
   String attendee,
   Map<String, Member> membersById,
   List<Family> families,
+  [Set<String>? visited,]
 ) {
   final normalized = attendee.toLowerCase();
   for (final member in membersById.values) {
     if (member.displayName.toLowerCase() == normalized ||
         member.canonicalName.toLowerCase() == normalized) {
-      return _resolveMember(member, membersById).canonicalName;
+      return _resolveMember(member, membersById, visited).canonicalName;
     }
   }
 
@@ -352,34 +357,46 @@ String _canonicalizeAttendee(
   for (final family in families) {
     if (family.displayName.toLowerCase() == normalized ||
         family.canonicalName.toLowerCase() == normalized) {
-      return _resolveFamily(family, familiesById).canonicalName;
+      return _resolveFamily(family, familiesById, visited).canonicalName;
     }
   }
 
   return attendee;
 }
 
-Family _resolveFamily(Family family, Map<String, Family> familiesById) {
+Family _resolveFamily(
+  Family family,
+  Map<String, Family> familiesById,
+  [Set<String>? visited,]
+) {
   var current = family;
-  final visited = <String>{};
+  final usedVisited = visited ?? <String>{};
+  if (visited != null) visited.clear();
+
   while (current.mergedIntoFamilyId != null &&
-      !visited.contains(current.mergedIntoFamilyId!)) {
+      !usedVisited.contains(current.mergedIntoFamilyId!)) {
     final target = familiesById[current.mergedIntoFamilyId!];
     if (target == null) break;
-    visited.add(current.mergedIntoFamilyId!);
+    usedVisited.add(current.mergedIntoFamilyId!);
     current = target;
   }
   return current;
 }
 
-Member _resolveMember(Member member, Map<String, Member> membersById) {
+Member _resolveMember(
+  Member member,
+  Map<String, Member> membersById,
+  [Set<String>? visited,]
+) {
   var current = member;
-  final visited = <String>{};
+  final usedVisited = visited ?? <String>{};
+  if (visited != null) visited.clear();
+
   while (current.mergedIntoMemberId != null &&
-      !visited.contains(current.mergedIntoMemberId!)) {
+      !usedVisited.contains(current.mergedIntoMemberId!)) {
     final target = membersById[current.mergedIntoMemberId!];
     if (target == null) break;
-    visited.add(current.mergedIntoMemberId!);
+    usedVisited.add(current.mergedIntoMemberId!);
     current = target;
   }
   return current;
@@ -389,12 +406,13 @@ Map<String, String> _attendeeFamilyIndex(
   List<Family> families,
   Map<String, Family> familiesById,
   Map<String, Member> membersById,
+  [Set<String>? visited,]
 ) {
   final index = <String, String>{};
   for (final family in families) {
-    final canonicalFamily = _resolveFamily(family, familiesById);
+    final canonicalFamily = _resolveFamily(family, familiesById, visited);
     for (final member in family.members) {
-      final canonicalMember = _resolveMember(member, membersById);
+      final canonicalMember = _resolveMember(member, membersById, visited);
       index[canonicalMember.canonicalName] = canonicalFamily.id;
     }
   }
@@ -404,11 +422,12 @@ Map<String, String> _attendeeFamilyIndex(
 Map<String, LabelAssignments> _memberLabelIndex(
   List<Family> families,
   Map<String, Member> membersById,
+  [Set<String>? visited,]
 ) {
   final index = <String, LabelAssignments>{};
   for (final family in families) {
     for (final member in family.members) {
-      final canonical = _resolveMember(member, membersById);
+      final canonical = _resolveMember(member, membersById, visited);
       index[canonical.canonicalName] = _mergeLabelAssignments(
         index[canonical.canonicalName],
         [member.labels, canonical.labels],
@@ -421,10 +440,11 @@ Map<String, LabelAssignments> _memberLabelIndex(
 Map<String, LabelAssignments> _familyLabelIndex(
   List<Family> families,
   Map<String, Family> familiesById,
+  [Set<String>? visited,]
 ) {
   final index = <String, LabelAssignments>{};
   for (final family in families) {
-    final canonical = _resolveFamily(family, familiesById);
+    final canonical = _resolveFamily(family, familiesById, visited);
     index[canonical.canonicalName] = _mergeLabelAssignments(
       index[canonical.canonicalName],
       [family.labels, canonical.labels],
@@ -436,10 +456,11 @@ Map<String, LabelAssignments> _familyLabelIndex(
 Map<String, Family> _canonicalFamilies(
   List<Family> families,
   Map<String, Family> familiesById,
+  [Set<String>? visited,]
 ) {
   final canonical = <String, Family>{};
   for (final family in families) {
-    final resolved = _resolveFamily(family, familiesById);
+    final resolved = _resolveFamily(family, familiesById, visited);
     canonical[resolved.id] = resolved;
   }
   return canonical;
