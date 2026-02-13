@@ -31,6 +31,8 @@ import 'features/attendance/presentation/attendance_flow_page.dart';
 import 'features/reports/report_export_page.dart';
 import 'features/sessions/session_detail_page.dart';
 
+import 'features/hub/presentation/hub_page.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -106,16 +108,13 @@ class _AttendanceAppState extends State<AttendanceApp> {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
           useMaterial3: true,
+          fontFamily:
+              'IBM Plex Sans', // Attempt to use the font if available, or fallback
         ),
         home: AuthGate(
           controller: _authController,
-          homeBuilder: (context) => AttendanceHomePage(
-            repository: widget.repository,
+          homeBuilder: (context) => HubPage(
             sessionRepository: widget.sessionRepository,
-            aiProvider: widget.aiProvider,
-            aiFactory: widget.aiFactory,
-            providerType: widget.providerType,
-            aiEnabled: widget.aiEnabled,
             onSignOut: _authController.signOut,
           ),
         ),

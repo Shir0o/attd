@@ -78,7 +78,9 @@ class AuthController extends ChangeNotifier {
       _setState(
         AuthState(user: null, isLoading: false, errorMessage: error.message),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      print('AuthController Google Sign-In Error: $error');
+      print(stackTrace);
       _setState(
         const AuthState(
           user: null,
