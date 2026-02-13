@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'data/session.dart';
 import 'data/session_repository.dart';
+import 'features/hub/data/event_repository.dart';
 import 'features/auth/application/auth_controller.dart';
 import 'features/auth/application/google_auth_service.dart';
 import 'features/auth/config/google_oauth_config.dart';
@@ -44,6 +45,7 @@ class AttendanceApp extends StatefulWidget {
     super.key,
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
+    EventRepository? eventRepository,
     AiProvider? aiProvider,
     AiProviderFactory? aiFactory,
     this.providerType = AiProviderType.mock,
@@ -54,6 +56,7 @@ class AttendanceApp extends StatefulWidget {
        sessionRepository =
            sessionRepository ??
            FirestoreSessionRepository(seedSessions: buildSeedSessions()),
+       eventRepository = eventRepository ?? FirestoreEventRepository(),
        aiFactory = aiFactory ?? const AiProviderFactory(),
        aiProvider =
            aiProvider ??
@@ -61,6 +64,7 @@ class AttendanceApp extends StatefulWidget {
 
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
+  final EventRepository eventRepository;
   final AiProvider aiProvider;
   final AiProviderFactory aiFactory;
   final AiProviderType providerType;
@@ -115,6 +119,7 @@ class _AttendanceAppState extends State<AttendanceApp> {
           controller: _authController,
           homeBuilder: (context) => HubPage(
             sessionRepository: widget.sessionRepository,
+            eventRepository: widget.eventRepository,
             onSignOut: _authController.signOut,
           ),
         ),
