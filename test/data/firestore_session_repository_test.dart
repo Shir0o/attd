@@ -1,5 +1,3 @@
-
-import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
@@ -58,7 +56,10 @@ void main() {
 
     await repository.saveSnapshot(session, actor: 'admin');
 
-    final updated = await firestore.collection('sessions').doc(session.id).get();
+    final updated = await firestore
+        .collection('sessions')
+        .doc(session.id)
+        .get();
     expect(updated.data()?['currentVersion'], equals(2));
 
     final history = await repository.history(session.id);
@@ -77,14 +78,20 @@ void main() {
     // Make a change
     final modified = session.copyWith(title: 'Modified Title');
     await repository.saveSnapshot(modified, actor: 'admin');
-    
+
     // Verify modification
-    final current = await firestore.collection('sessions').doc(session.id).get();
+    final current = await firestore
+        .collection('sessions')
+        .doc(session.id)
+        .get();
     expect(current.data()?['title'], equals('Modified Title'));
     expect(current.data()?['currentVersion'], equals(2));
 
     // Revert
-    final reverted = await repository.revertToPrevious(session.id, actor: 'admin');
+    final reverted = await repository.revertToPrevious(
+      session.id,
+      actor: 'admin',
+    );
     expect(reverted, isNotNull);
     expect(reverted!.title, equals('Original Title'));
     expect(reverted.currentVersion, equals(3)); // Revert is a new version

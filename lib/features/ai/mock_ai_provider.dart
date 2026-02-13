@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:attendance_tracker/features/ai/ai_provider.dart';
-import 'package:attendance_tracker/features/analytics/attendance_analytics.dart';
 
 class MockAiProvider implements AiProvider {
   const MockAiProvider({this.latency = const Duration(milliseconds: 250)});
@@ -34,7 +33,9 @@ class MockAiProvider implements AiProvider {
     final suggestedName = normalizedSubject.isEmpty
         ? 'Community member'
         : normalizedSubject.split(' ').map(_titleCase).join(' ');
-    final duplicateClusterIds = ['cluster-${normalizedSubject.hashCode.abs() % 3}'];
+    final duplicateClusterIds = [
+      'cluster-${normalizedSubject.hashCode.abs() % 3}',
+    ];
 
     return FollowUpSuggestion(
       subject: request.flag.subject,
@@ -49,7 +50,9 @@ class MockAiProvider implements AiProvider {
       ),
       duplicateClusterIds: duplicateClusterIds,
       subjectLabel: SubjectLabel(
-        label: request.flag.isFamily ? 'Family outreach' : 'Individual follow-up',
+        label: request.flag.isFamily
+            ? 'Family outreach'
+            : 'Individual follow-up',
         rationale: 'Flagged from ${request.analytics.range.label} trends.',
       ),
       label: request.flag.isFamily ? 'Family outreach' : 'Individual follow-up',
@@ -140,10 +143,13 @@ class MockAiProvider implements AiProvider {
 
   String _titleCase(String value) {
     if (value.isEmpty) return value;
-    return value.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      final lower = word.toLowerCase();
-      return '${lower[0].toUpperCase()}${lower.substring(1)}';
-    }).join(' ');
+    return value
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          final lower = word.toLowerCase();
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
   }
 }
