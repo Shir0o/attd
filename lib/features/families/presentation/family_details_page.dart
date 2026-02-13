@@ -41,15 +41,18 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
     );
 
     try {
-      final updatedFamily = await widget.repository.addMember(_family.id, member);
+      final updatedFamily = await widget.repository.addMember(
+        _family.id,
+        member,
+      );
       setState(() {
         _family = updatedFamily;
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding member: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error adding member: $e')));
       }
     }
   }
@@ -77,7 +80,8 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: const Text('Add'),
             ),
           ],
@@ -89,9 +93,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_family.displayName),
-      ),
+      appBar: AppBar(title: Text(_family.displayName)),
       body: ListView(
         children: [
           Padding(
@@ -102,14 +104,16 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             ),
           ),
           if (_family.members.isEmpty)
-             const Padding(
-               padding: EdgeInsets.symmetric(horizontal: 16),
-               child: Text('No members yet.'),
-             ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text('No members yet.'),
+            ),
           ..._family.members.map((member) {
             return ListTile(
               leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 child: Text(member.displayName.characters.first.toUpperCase()),
               ),
               title: Text(member.displayName),

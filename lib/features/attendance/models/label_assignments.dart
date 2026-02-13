@@ -16,7 +16,7 @@ class LabelAssignments {
   factory LabelAssignments.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const LabelAssignments();
 
-    Set<String> _parseLabels(dynamic value) {
+    Set<String> parseLabels(dynamic value) {
       if (value is List) {
         return value.map((e) => e.toString()).toSet();
       }
@@ -24,8 +24,8 @@ class LabelAssignments {
     }
 
     return LabelAssignments(
-      autoLabels: _parseLabels(json['autoLabels'] ?? json['labels']),
-      manualLabels: _parseLabels(json['manualLabels']),
+      autoLabels: parseLabels(json['autoLabels'] ?? json['labels']),
+      manualLabels: parseLabels(json['manualLabels']),
     );
   }
 

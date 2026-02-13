@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
@@ -26,7 +24,6 @@ abstract class SessionRepository {
 
   Future<List<SessionVersion>> history(String sessionId);
 }
-
 
 class FirestoreSessionRepository implements SessionRepository {
   FirestoreSessionRepository({
@@ -181,9 +178,9 @@ class FirestoreSessionRepository implements SessionRepository {
 
   @override
   Future<List<SessionVersion>> history(String sessionId) async {
-    final snapshot = await _versionsRef(sessionId)
-        .orderBy('version', descending: true)
-        .get();
+    final snapshot = await _versionsRef(
+      sessionId,
+    ).orderBy('version', descending: true).get();
 
     return snapshot.docs.map((doc) {
       final data = doc.data();
@@ -204,10 +201,9 @@ class FirestoreSessionRepository implements SessionRepository {
     required String actor,
   }) async {
     // 1. Get recent versions
-    final versionsSnapshot = await _versionsRef(sessionId)
-        .orderBy('version', descending: true)
-        .limit(2)
-        .get();
+    final versionsSnapshot = await _versionsRef(
+      sessionId,
+    ).orderBy('version', descending: true).limit(2).get();
 
     if (versionsSnapshot.docs.length < 2) return null;
 
@@ -220,7 +216,7 @@ class FirestoreSessionRepository implements SessionRepository {
     // 2. Create new version from previous state
     final currentDoc = versionsSnapshot.docs[0];
     final currentVersion = currentDoc.data()['version'] as int;
-    
+
     final restoredSession = previousSnapshot.copyWith(
       currentVersion: currentVersion + 1,
       updatedAt: DateTime.now(),
