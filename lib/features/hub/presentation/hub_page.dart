@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../../data/session.dart';
 import '../../../../data/session_repository.dart';
-import '../../attendance/models/attendance_status.dart';
-import '../../sessions/session_detail_page.dart';
+import '../data/event_repository.dart';
+import '../domain/event.dart';
+import 'add_event_page.dart';
 
 class HubPage extends StatefulWidget {
-  const HubPage({super.key, required this.sessionRepository, this.onSignOut});
+  const HubPage({
+    super.key,
+    required this.sessionRepository,
+    required this.eventRepository,
+    this.onSignOut,
+  });
 
   final SessionRepository sessionRepository;
+  final EventRepository eventRepository;
   final VoidCallback? onSignOut;
 
   @override
@@ -16,64 +22,40 @@ class HubPage extends StatefulWidget {
 }
 
 class _HubPageState extends State<HubPage> {
-  late Future<List<Session>> _sessionsFuture;
-  DateTime _selectedDate = DateTime.now();
+  // Using Stream for real-time updates
+  late Stream<List<Event>> _eventsStream;
 
   @override
   void initState() {
     super.initState();
-    _loadSessions();
+    _eventsStream = widget.eventRepository.streamEvents();
   }
 
-  void _loadSessions() {
-    // In a real app, we'd filter by date in the repository
-    _sessionsFuture = widget.sessionRepository.loadSessions().then((sessions) {
-      // Filter for selected date (ignoring time)
-      return sessions.where((s) {
-        return isSameDay(s.sessionDate, _selectedDate);
-      }).toList();
-    });
-  }
-
-  bool isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _loadSessions();
-      });
-    }
-  }
-
-  void _openSession(Session session) async {
-    await Navigator.of(context).push(
+  void _createNewSession() {
+    Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SessionDetailPage(
-          session: session,
-          repository: widget.sessionRepository,
-        ),
+        builder: (_) => AddEventPage(eventRepository: widget.eventRepository),
       ),
     );
-    setState(() {
-      _loadSessions();
-    });
   }
 
-  // Placeholder for creating a new session
-  void _createNewSession() {
-    // TODO: Implement create session flow or navigation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create Session not implemented yet')),
-    );
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
+  bool _isEventToday(Event event) {
+    final now = DateTime.now();
+    if (event.frequency == 'One-time') {
+      return event.oneTimeDate != null && _isToday(event.oneTimeDate!);
+    } else {
+      // Repeating event
+      final todayWeekday = DateFormat('EEEE').format(now);
+      final isToday = event.repeatingDays.contains(todayWeekday);
+      return isToday;
+    }
   }
 
   @override
@@ -98,11 +80,9 @@ class _HubPageState extends State<HubPage> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isSameDay(_selectedDate, DateTime.now())
-                      ? 'TODAY'
-                      : DateFormat('EEEE').format(_selectedDate).toUpperCase(),
-                  style: const TextStyle(
+                const Text(
+                  'TODAY',
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: onSurfaceVariantColor,
@@ -110,7 +90,7 @@ class _HubPageState extends State<HubPage> {
                   ),
                 ),
                 Text(
-                  DateFormat('EEE, MMM d').format(_selectedDate).toUpperCase(),
+                  DateFormat('EEE, MMM d').format(DateTime.now()).toUpperCase(),
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
@@ -120,13 +100,6 @@ class _HubPageState extends State<HubPage> {
               ],
             ),
             actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.calendar_today,
-                  color: onSurfaceVariantColor,
-                ),
-                onPressed: _selectDate,
-              ),
               if (widget.onSignOut != null)
                 IconButton(
                   icon: const Icon(Icons.logout, color: onSurfaceVariantColor),
@@ -138,8 +111,8 @@ class _HubPageState extends State<HubPage> {
           ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            sliver: FutureBuilder<List<Session>>(
-              future: _sessionsFuture,
+            sliver: StreamBuilder<List<Event>>(
+              stream: _eventsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SliverFillRemaining(
@@ -151,44 +124,48 @@ class _HubPageState extends State<HubPage> {
                   return SliverFillRemaining(
                     child: Center(
                       child: Text(
-                        'No sessions for this day',
+                        'No events created yet',
                         style: TextStyle(color: onSurfaceVariantColor),
                       ),
                     ),
                   );
                 }
 
-                final sessions = snapshot.data!;
+                // Sort events: Today's events first
+                final events = snapshot.data!;
+                final todayEvents = <Event>[];
+                final otherEvents = <Event>[];
+
+                for (final event in events) {
+                  if (_isEventToday(event)) {
+                    todayEvents.add(event);
+                  } else {
+                    otherEvents.add(event);
+                  }
+                }
+
+                // Sort within groups if needed (e.g. by time)
+                todayEvents.sort((a, b) {
+                  final timeA = a.time.hour * 60 + a.time.minute;
+                  final timeB = b.time.hour * 60 + b.time.minute;
+                  return timeA.compareTo(timeB);
+                });
+
+                final sortedEvents = [...todayEvents, ...otherEvents];
+
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    final session = sessions[index];
-                    // Calculate stats
-                    // Actually based on previous code, records are attendance records.
-                    // Stitch UI says "0/45 Scanned".
-                    // If 'records' only contains people who scanned/are marked, we might need a total count from somewhere else (like a Group or Family list).
-                    // For now, let's assume 'records' is the list of everyone expected?
-                    // Looking at SessionRecord, it has AttendanceStatus.
-                    final scannedCount = session.records
-                        .where((r) => r.status == AttendanceStatus.present)
-                        .length;
-
-                    // Check if "LIVE" (e.g. within 1 hour of start time) - Simplified logic
-                    final isLive =
-                        session.sessionDate.isBefore(DateTime.now()) &&
-                        session.sessionDate
-                            .add(const Duration(hours: 2))
-                            .isAfter(DateTime.now());
+                    final event = sortedEvents[index];
+                    final isToday = _isEventToday(event);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: _SessionCard(
-                        session: session,
-                        scannedCount: scannedCount,
-                        totalCount: session
-                            .records
-                            .length, // Or some other metric if available
-                        isLive: isLive,
-                        onTap: () => _openSession(session),
+                      child: _EventCard(
+                        event: event,
+                        isToday: isToday,
+                        onTap: () {
+                          // TODO: Handle event tap (edit/view)
+                        },
                         primaryColor: primaryColor,
                         onPrimaryColor: onPrimaryColor,
                         surfaceContainerColor: surfaceContainerColor,
@@ -198,7 +175,7 @@ class _HubPageState extends State<HubPage> {
                         onSecondaryContainerColor: onSecondaryContainerColor,
                       ),
                     );
-                  }, childCount: sessions.length),
+                  }, childCount: sortedEvents.length),
                 );
               },
             ),
@@ -216,12 +193,10 @@ class _HubPageState extends State<HubPage> {
   }
 }
 
-class _SessionCard extends StatelessWidget {
-  const _SessionCard({
-    required this.session,
-    required this.scannedCount,
-    required this.totalCount,
-    required this.isLive,
+class _EventCard extends StatelessWidget {
+  const _EventCard({
+    required this.event,
+    required this.isToday,
     required this.onTap,
     required this.primaryColor,
     required this.onPrimaryColor,
@@ -232,10 +207,8 @@ class _SessionCard extends StatelessWidget {
     required this.onSecondaryContainerColor,
   });
 
-  final Session session;
-  final int scannedCount;
-  final int totalCount;
-  final bool isLive;
+  final Event event;
+  final bool isToday;
   final VoidCallback onTap;
   final Color primaryColor;
   final Color onPrimaryColor;
@@ -248,8 +221,7 @@ class _SessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation:
-          0, // Manually handling shadow if needed, or use default elevation
+      elevation: 0,
       color: surfaceContainerColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
@@ -270,7 +242,7 @@ class _SessionCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isLive)
+                        if (isToday)
                           Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.symmetric(
@@ -285,7 +257,7 @@ class _SessionCard extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'LIVE',
+                                  'TODAY',
                                   style: TextStyle(
                                     color: onPrimaryColor,
                                     fontSize: 12,
@@ -297,12 +269,10 @@ class _SessionCard extends StatelessWidget {
                             ),
                           )
                         else
-                          const SizedBox(
-                            height: 26 + 8,
-                          ), // Placeholder to align titles if needed, or remove
+                          const SizedBox(height: 34), // Spacer
 
                         Text(
-                          session.title,
+                          event.title,
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w500,
@@ -317,9 +287,7 @@ class _SessionCard extends StatelessWidget {
                   ),
                   IconButton(
                     icon: Icon(Icons.more_vert, color: onSurfaceVariantColor),
-                    onPressed: () {
-                      // TODO: Implement more options
-                    },
+                    onPressed: () {},
                   ),
                 ],
               ),
@@ -336,7 +304,7 @@ class _SessionCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        DateFormat.jm().format(session.sessionDate),
+                        event.time.format(context),
                         style: TextStyle(
                           fontSize: 18,
                           color: onSurfaceVariantColor,
@@ -344,49 +312,33 @@ class _SessionCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  // Placeholder for scan count if needed
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isLive
+                      color: isToday
                           ? secondaryContainerColor
-                          : surfaceContainerColor, // Slightly different if live vs not? Stitch uses secondary for live
+                          : surfaceContainerColor.withAlpha(
+                              20,
+                            ), // Less prominent
                       borderRadius: BorderRadius.circular(28),
-                      // border: Border.all(color: onSurfaceVariantColor.withOpacity(0.1)),
+                      border: Border.all(
+                        color: onSurfaceVariantColor.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Text(
-                          '$scannedCount/$totalCount Scanned',
+                          '0/0 Scanned',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: onSecondaryContainerColor,
+                            color: onSurfaceVariantColor,
                           ),
                         ),
-                        if (isLive) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: primaryColor, width: 2),
-                            ),
-                            child: Center(
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: primaryColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
