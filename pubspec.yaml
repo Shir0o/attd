@@ -43,6 +43,7 @@ dependencies:
   uuid: ^4.5.1
   google_generative_ai: ^0.4.7
   path: ^1.9.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

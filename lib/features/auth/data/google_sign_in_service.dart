@@ -11,17 +11,23 @@ class GoogleSignInAuthService implements GoogleAuthService {
 
   @override
   Future<GoogleAccount?> signIn() async {
-    final account = await _googleSignIn.signIn();
-    if (account == null) return null;
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account == null) return null;
 
-    final auth = await account.authentication;
-    return GoogleAccount(
-      id: account.id,
-      email: account.email,
-      displayName: account.displayName,
-      idToken: auth.idToken,
-      accessToken: auth.accessToken,
-    );
+      final auth = await account.authentication;
+      return GoogleAccount(
+        id: account.id,
+        email: account.email,
+        displayName: account.displayName,
+        idToken: auth.idToken,
+        accessToken: auth.accessToken,
+      );
+    } catch (error, stackTrace) {
+      print('Google Sign-In Error: $error');
+      print(stackTrace);
+      rethrow;
+    }
   }
 
   @override
