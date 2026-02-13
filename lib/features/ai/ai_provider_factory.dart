@@ -31,7 +31,6 @@ class AiProviderFactory {
         }
         return GeminiAiProvider(apiKey: apiKey);
       case AiProviderType.mock:
-      default:
         return const MockAiProvider();
     }
   }

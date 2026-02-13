@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../attendance/data/attendance_repository.dart';
-import '../../attendance/models/family.dart';
 
 class AddFamilyPage extends StatefulWidget {
   const AddFamilyPage({super.key, required this.repository});
@@ -40,9 +39,9 @@ class _AddFamilyPageState extends State<AddFamilyPage> {
         setState(() {
           _isSaving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding family: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error adding family: $e')));
       }
     }
   }

@@ -93,7 +93,8 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
               child: const Text('Add'),
             ),
           ],
@@ -121,9 +122,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Start attendance'),
-      ),
+      appBar: AppBar(title: const Text('Start attendance')),
       body: FutureBuilder<List<Family>>(
         future: _familiesFuture,
         builder: (context, snapshot) {
@@ -253,14 +252,16 @@ class _FamilyAttendanceView extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.groups, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.groups,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   family.displayName,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 FilledButton.icon(
@@ -271,20 +272,25 @@ class _FamilyAttendanceView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            const Text('Use arrow keys to select a family, Tab to move fields.'),
+            const Text(
+              'Use arrow keys to select a family, Tab to move fields.',
+            ),
             const SizedBox(height: 12),
             Expanded(
               child: ListView.separated(
                 itemCount: family.members.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final member = family.members[index];
                   final status = statusBuilder(member);
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceTint.withOpacity(0.14),
-                      child: Text(member.displayName.characters.first.toUpperCase()),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceTint.withValues(alpha: 0.14),
+                      child: Text(
+                        member.displayName.characters.first.toUpperCase(),
+                      ),
                     ),
                     title: Text(member.displayName),
                     subtitle: member.isVisitor ? const Text('Visitor') : null,
