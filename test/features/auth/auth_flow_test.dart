@@ -17,15 +17,14 @@ import 'package:flutter_test/flutter_test.dart';
 class _TestAuthRepository implements AuthRepository {
   _TestAuthRepository({
     this.shouldFailLogin = false,
-    this.shouldFailSignup = false,
     this.shouldFailGoogle = false,
     this.shouldFailCurrentUser = false,
   });
 
-  bool shouldFailLogin;
-  bool shouldFailSignup;
-  bool shouldFailGoogle;
-  bool shouldFailCurrentUser;
+  bool shouldFailLogin = false;
+  bool shouldFailSignup = false;
+  bool shouldFailGoogle = false;
+  bool shouldFailCurrentUser = false;
   User? _user;
 
   @override
@@ -74,10 +73,10 @@ class _TestAuthRepository implements AuthRepository {
 }
 
 class _TestGoogleAuthService implements GoogleAuthService {
-  _TestGoogleAuthService({this.account, this.shouldThrow = false});
+  _TestGoogleAuthService({this.account});
 
   GoogleAccount? account;
-  bool shouldThrow;
+  bool shouldThrow = false;
   bool signOutCalled = false;
 
   @override
@@ -95,7 +94,6 @@ class _TestGoogleAuthService implements GoogleAuthService {
 }
 
 class _StubAttendanceRepository implements AttendanceRepository {
-
   @override
   Future<Family> addMember(String familyId, Member member) async {
     throw UnimplementedError();

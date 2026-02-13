@@ -87,7 +87,6 @@ class FirestoreAttendanceRepository extends AttendanceRepository {
   final FirebaseFirestore _firestore;
   final List<Family>? _seed;
 
-  @override
   CollectionReference<Map<String, dynamic>> get _familiesRef =>
       _firestore.collection('families');
 
