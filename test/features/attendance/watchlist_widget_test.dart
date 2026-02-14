@@ -9,10 +9,7 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/utils/name_corrections.dart';
-import 'package:attendance_tracker/features/auth/domain/entities/credentials.dart';
-import 'package:attendance_tracker/features/auth/domain/entities/google_account.dart';
-import 'package:attendance_tracker/features/auth/domain/entities/user.dart';
-import 'package:attendance_tracker/features/auth/domain/repositories/auth_repository.dart';
+
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,38 +65,16 @@ class _ImmediateSessionRepository implements SessionRepository {
       sessions;
 
   @override
-  Future<Session?> revertToPrevious(String sessionId,
-      {required String actor}) async =>
-          sessions.first;
+  Future<Session?> revertToPrevious(
+    String sessionId, {
+    required String actor,
+  }) async => sessions.first;
 
   @override
-  Future<Session> saveSnapshot(Session session, {required String actor}) async =>
-      session;
-}
-
-class _ImmediateAuthRepository implements AuthRepository {
-  User? _user = const User(
-    id: 'user-1',
-    email: 'tester@example.com',
-    displayName: 'tester',
-  );
-
-  @override
-  Future<User?> currentUser() async => _user;
-
-  @override
-  Future<User> login(Credentials credentials) async => _user!;
-
-  @override
-  Future<User> loginWithGoogle(GoogleAccount account) async => _user!;
-
-  @override
-  Future<void> logout() async {
-    _user = null;
-  }
-
-  @override
-  Future<User> signup(Credentials credentials) async => _user!;
+  Future<Session> saveSnapshot(
+    Session session, {
+    required String actor,
+  }) async => session;
 }
 
 class _StubAiProvider implements AiProvider {
@@ -109,9 +84,7 @@ class _StubAiProvider implements AiProvider {
   final List<AbsencePrediction> predictions;
 
   @override
-  Future<FollowUpSuggestion> suggestFollowUp(
-    FollowUpRequest request,
-  ) async {
+  Future<FollowUpSuggestion> suggestFollowUp(FollowUpRequest request) async {
     return suggestion;
   }
 
@@ -246,17 +219,19 @@ void main() {
     );
   });
 
-  testWidgets('shows corrected name, duplicates, and label chips', (tester) async {
+  testWidgets('shows corrected name, duplicates, and label chips', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: AttendanceApp(
+        home: AttendanceHomePage(
           repository: repository,
           sessionRepository: sessionRepository,
           aiProvider: provider,
           aiFactory: _StubAiProviderFactory(provider),
           providerType: AiProviderType.mock,
           aiEnabled: true,
-          authRepository: _ImmediateAuthRepository(),
+          onSignOut: () {},
         ),
       ),
     );
@@ -284,17 +259,19 @@ void main() {
     );
   });
 
-  testWidgets('apply action updates saved families for duplicates', (tester) async {
+  testWidgets('apply action updates saved families for duplicates', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: AttendanceApp(
+        home: AttendanceHomePage(
           repository: repository,
           sessionRepository: sessionRepository,
           aiProvider: provider,
           aiFactory: _StubAiProviderFactory(provider),
           providerType: AiProviderType.mock,
           aiEnabled: true,
-          authRepository: _ImmediateAuthRepository(),
+          onSignOut: () {},
         ),
       ),
     );

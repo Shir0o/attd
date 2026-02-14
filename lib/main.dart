@@ -120,6 +120,7 @@ class _AttendanceAppState extends State<AttendanceApp> {
           homeBuilder: (context) => HubPage(
             sessionRepository: widget.sessionRepository,
             eventRepository: widget.eventRepository,
+            attendanceRepository: widget.repository,
             onSignOut: _authController.signOut,
           ),
         ),
