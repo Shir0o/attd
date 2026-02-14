@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -10,6 +12,8 @@ import 'package:attendance_tracker/features/auth/domain/repositories/auth_reposi
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,14 +157,39 @@ class _StubSessionRepository implements SessionRepository {
   }
 }
 
+class MockEventRepository implements EventRepository {
+  final _controller = StreamController<List<Event>>();
+
+  void emit(List<Event> events) {
+    _controller.add(events);
+  }
+
+  @override
+  Future<void> createEvent(Event event) async {}
+
+  @override
+  Future<void> updateEvent(Event event) async {}
+
+  @override
+  Future<void> deleteEvent(String eventId) async {}
+
+  @override
+  Stream<List<Event>> streamEvents() {
+    return _controller.stream;
+  }
+}
+
 void main() {
   testWidgets('requires email and password before submission', (tester) async {
     final authRepository = _TestAuthRepository();
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
 
     await tester.pumpWidget(
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
@@ -177,11 +206,14 @@ void main() {
 
   testWidgets('signs up a new user and loads the home page', (tester) async {
     final authRepository = _TestAuthRepository();
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
 
     await tester.pumpWidget(
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
@@ -201,16 +233,20 @@ void main() {
     await tester.tap(find.byKey(const Key('authSubmitButton')));
 
     await tester.pumpAndSettle();
-    expect(find.text('Quick actions'), findsOneWidget);
+    // Expect HubPage elements
+    expect(find.text('TODAY'), findsOneWidget);
   });
 
   testWidgets('shows auth form if restoring the session fails', (tester) async {
     final authRepository = _TestAuthRepository(shouldFailCurrentUser: true);
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
 
     await tester.pumpWidget(
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
@@ -224,11 +260,14 @@ void main() {
 
   testWidgets('shows an error message when login fails', (tester) async {
     final authRepository = _TestAuthRepository(shouldFailLogin: true);
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
 
     await tester.pumpWidget(
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
@@ -251,11 +290,14 @@ void main() {
 
   testWidgets('signs out and returns to auth screen', (tester) async {
     final authRepository = _TestAuthRepository();
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
 
     await tester.pumpWidget(
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: _TestGoogleAuthService(account: null),
       ),
@@ -273,9 +315,11 @@ void main() {
     await tester.tap(find.byKey(const Key('authSubmitButton')));
 
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('signOutButton')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('signOutButton')));
+    // Find logout icon
+    expect(find.byIcon(Icons.logout), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.logout));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('authEmailField')), findsOneWidget);
@@ -284,6 +328,9 @@ void main() {
 
   testWidgets('continues with Google and loads the home page', (tester) async {
     final authRepository = _TestAuthRepository();
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
+
     final googleService = _TestGoogleAuthService(
       account: const GoogleAccount(
         id: 'google-1',
@@ -296,6 +343,7 @@ void main() {
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: googleService,
       ),
@@ -306,19 +354,23 @@ void main() {
     await tester.tap(find.byKey(const Key('googleSignInButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick actions'), findsOneWidget);
+    expect(find.text('TODAY'), findsOneWidget);
   });
 
   testWidgets('returns to auth screen when Google sign-in is cancelled', (
     tester,
   ) async {
     final authRepository = _TestAuthRepository();
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
+
     final googleService = _TestGoogleAuthService(account: null);
 
     await tester.pumpWidget(
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: googleService,
       ),
@@ -329,7 +381,7 @@ void main() {
     await tester.tap(find.byKey(const Key('googleSignInButton')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick actions'), findsNothing);
+    expect(find.text('TODAY'), findsNothing);
     expect(find.text('Login'), findsWidgets);
   });
 
@@ -337,6 +389,9 @@ void main() {
     tester,
   ) async {
     final authRepository = _TestAuthRepository(shouldFailGoogle: true);
+    final mockEventRepo = MockEventRepository();
+    mockEventRepo.emit([]);
+
     final googleService = _TestGoogleAuthService(
       account: const GoogleAccount(id: 'google-1', email: 'demo@example.com'),
     );
@@ -345,6 +400,7 @@ void main() {
       AttendanceApp(
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
+        eventRepository: mockEventRepo,
         authRepository: authRepository,
         googleAuthService: googleService,
       ),

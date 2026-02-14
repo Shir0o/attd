@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Speed Swipe Attendance - Manage Members</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#6750A4",
+                        "on-primary": "#FFFFFF",
+                        "primary-container": "#EADDFF",
+                        "on-primary-container": "#21005D",
+                        "surface": "#FEF7FF",
+                        "on-surface": "#1D1B20",
+                        "on-surface-variant": "#49454F",
+                        "surface-container": "#F3EDF7",
+                        "surface-container-high": "#ECE6F0",
+                        "secondary-container": "#E8DEF8",
+                        "on-secondary-container": "#1D192B",
+                        "outline": "#79747E",
+                        "outline-variant": "#CAC4D0",
+                        "error": "#B3261E",
+                        "on-error": "#FFFFFF"
+                    },
+                    fontFamily: {
+                        "sans": ["IBM Plex Sans", "sans-serif"],
+                    },
+                    boxShadow: {
+                        "elevation-1": "0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3)",
+                        "elevation-2": "0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3)",
+                    },
+                    borderRadius: {
+                        "card": "16px",
+                        "pill": "28px",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+            -webkit-tap-highlight-color: transparent;
+        }.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }.no-scrollbar {
+            -ms-overflow-style: none;scrollbar-width: none;}
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-sans antialiased text-on-surface flex flex-col h-screen overflow-hidden selection:bg-primary selection:text-on-primary">
+<header class="bg-surface sticky top-0 z-10 pt-12 px-2 pb-2 border-b border-surface-container-high/50">
+<div class="flex items-center gap-2 h-16">
+<button class="w-12 h-12 rounded-full flex items-center justify-center hover:bg-surface-container active:bg-surface-container-high transition-colors text-on-surface">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-[22px] font-normal text-on-surface truncate pr-4">Morning Service Members</h1>
+</div>
+</header>
+<main class="flex-1 overflow-hidden flex flex-col relative">
+<div class="px-4 pt-4 pb-2 space-y-4 bg-surface z-10 shrink-0">
+<div class="relative w-full">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+</div>
+<input class="block w-full pl-10 pr-4 py-3 rounded-full bg-surface-container-high border-none text-on-surface placeholder:text-on-surface-variant focus:ring-2 focus:ring-primary focus:bg-surface-container transition-all" placeholder="Find members" type="text"/>
+</div>
+<div>
+<label class="text-xs font-medium text-primary tracking-wide ml-4 mb-1 block uppercase">Quick Add Member</label>
+<div class="flex gap-2 items-center">
+<div class="relative flex-1">
+<input class="block w-full px-4 py-3 rounded-card bg-surface border border-outline-variant text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all" placeholder="Enter full name" type="text"/>
+</div>
+<button class="h-[50px] w-[50px] rounded-full bg-primary text-on-primary flex items-center justify-center shadow-elevation-1 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2 px-1">
+<span class="text-sm font-medium text-on-surface-variant">Regular Members</span>
+<span class="text-sm font-medium text-primary bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">42</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar pb-24 px-4">
+<ul class="divide-y divide-outline-variant/20">
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-base font-medium">
+                            JD
+                        </div>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">John Doe</span>
+<span class="text-xs text-on-surface-variant">Joined Oct 2023</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-container bg-pink-100 text-pink-700 flex items-center justify-center text-base font-medium">
+                            AS
+                        </div>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Alice Smith</span>
+<span class="text-xs text-on-surface-variant">Joined Sep 2023</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<img alt="Robert Fox" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOdQVlG3ehI-ypz5bnnfLO31f8RHaiC5w0UuKtkrt-NADRTIqVDSWhLR7vAODhH-uFgLeRHne_bgqOLtYDKPK5fxpy05Oj2ZE8_S2er06xgSSf_1loM04WjWBB8EW_5rsA92KWP99WaFqwVgh3T780PvDaeNWoa8mSj-0EUzuOgSbrqVyfg0EthuQiG1iVKNghgeQh7Nq0bPAeAX-c9wx-nvXkCTrMU7qjEHD66tJsbOqMigWo6ajeC-qXK59Q34Lg5ERtkPKlMTo"/>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Robert Fox</span>
+<span class="text-xs text-on-surface-variant">Joined Aug 2023</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-base font-medium">
+                            CW
+                        </div>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Cody Wilson</span>
+<span class="text-xs text-on-surface-variant">Joined Jan 2023</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-base font-medium">
+                            EM
+                        </div>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Esther McCoy</span>
+<span class="text-xs text-on-surface-variant">Joined Dec 2022</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<img alt="Jerome Bell" class="w-10 h-10 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9jfS3FB563QgfhEgELIwV4WC_QwJhuewW03n-3LjkAL4KzM3QSFDhlUgr1gdvKTssSp6QnaSsyBW6rqjxY1XtgxWDkDBjaVoJMJR5T0XZpg_1_765QSmnlfOIb9SXy0iUxxR1lUWekNRcsqUyz1vX8_pSOic1ovkNjMFOgYemX1txAUMH7u8Jf3hPSOj87KuGFaKzqyIApbmcKn1PexM4EctjEl6DTLo5gY3XIeuq8OBP6VZ9r4u57pozqOMcomq6XgEWYWjQG48"/>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Jerome Bell</span>
+<span class="text-xs text-on-surface-variant">Joined Nov 2022</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-orange-100 text-orange-800 flex items-center justify-center text-base font-medium">
+                            RR
+                        </div>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Ronald Richards</span>
+<span class="text-xs text-on-surface-variant">Joined Oct 2022</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+<li class="flex items-center justify-between py-3 group active:bg-surface-container/30 rounded-lg -mx-2 px-2 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-purple-100 text-purple-800 flex items-center justify-center text-base font-medium">
+                            DA
+                        </div>
+<div class="flex flex-col">
+<span class="text-base font-normal text-on-surface">Darlene Arlene</span>
+<span class="text-xs text-on-surface-variant">Joined Sep 2022</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 active:bg-error/20 transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</li>
+</ul>
+</div>
+</main>
+<div class="fixed bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-surface to-transparent pointer-events-none z-20"></div>
+
+</body></html>

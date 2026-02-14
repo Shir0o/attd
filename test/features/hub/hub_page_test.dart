@@ -11,6 +11,28 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 
+import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/family.dart';
+import 'package:attendance_tracker/features/attendance/models/member.dart';
+
+class MockAttendanceRepository implements AttendanceRepository {
+  @override
+  Future<List<Family>> fetchFamilies() async => [];
+
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
+
+  @override
+  Future<Family> addMember(String familyId, Member member) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Family> addFamily(String displayName) async {
+    throw UnimplementedError();
+  }
+}
+
 class MockEventRepository implements EventRepository {
   final _controller = StreamController<List<Event>>();
 
@@ -95,12 +117,14 @@ void main() {
   ) async {
     final mockEventRepo = MockEventRepository();
     final mockSessionRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
 
     await tester.pumpWidget(
       MaterialApp(
         home: HubPage(
           sessionRepository: mockSessionRepo,
           eventRepository: mockEventRepo,
+          attendanceRepository: mockAttendanceRepo,
         ),
       ),
     );
@@ -179,6 +203,7 @@ void main() {
   ) async {
     final mockEventRepo = MockEventRepository();
     final mockSessionRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
 
     // Set a large text scale factor using platformDispatcher
     tester.platformDispatcher.textScaleFactorTestValue = 2.0;
@@ -188,6 +213,7 @@ void main() {
         home: HubPage(
           sessionRepository: mockSessionRepo,
           eventRepository: mockEventRepo,
+          attendanceRepository: mockAttendanceRepo,
         ),
       ),
     );
@@ -212,5 +238,63 @@ void main() {
 
     // Check for overflow errors by ensuring no exception was thrown
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Can navigate to Manage Members from event menu', (
+    WidgetTester tester,
+  ) async {
+    final mockEventRepo = MockEventRepository();
+    final mockSessionRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HubPage(
+          sessionRepository: mockSessionRepo,
+          eventRepository: mockEventRepo,
+          attendanceRepository: mockAttendanceRepo,
+        ),
+      ),
+    );
+
+    // Initial state
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    final now = DateTime.now();
+    final todayWeekday = DateFormat('EEEE').format(now);
+
+    final eventToday = Event(
+      id: '1',
+      title: 'Test Event',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [todayWeekday],
+      createdAt: now,
+    );
+
+    // Emit event
+    mockEventRepo.emit([eventToday]);
+    await tester.pumpAndSettle();
+
+    // Find menu button (icon is Icons.more_vert)
+    final menuButton = find.byIcon(Icons.more_vert);
+    expect(menuButton, findsOneWidget);
+
+    // Tap menu
+    await tester.tap(menuButton);
+    await tester.pumpAndSettle();
+
+    // Verify 'Manage Members' option is present
+    final manageMembersOption = find.text('Manage Members');
+    expect(manageMembersOption, findsOneWidget);
+
+    // Tap 'Manage Members'
+    await tester.tap(manageMembersOption);
+    await tester.pumpAndSettle();
+
+    // Verify we are on MembersPage (it has a title 'Manage Members')
+    expect(find.text('Manage Members'), findsOneWidget);
+    // And an 'Add member' button (floating action button or similar)
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 }
