@@ -39,6 +39,118 @@ class _HubPageState extends State<HubPage> {
     );
   }
 
+  void _editEvent(Event event) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddEventPage(
+          eventRepository: widget.eventRepository,
+          eventToEdit: event,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteEvent(Event event) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text('Are you sure you want to delete "${event.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await widget.eventRepository.deleteEvent(event.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Event deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting event: $e')));
+        }
+      }
+    }
+  }
+
+  void _showEventMenu(BuildContext context, Event event) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              // Handle bar
+              Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit Event'),
+                onTap: () {
+                  Navigator.pop(context); // Close sheet
+                  _editEvent(event);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.people_outline),
+                title: const Text('Manage regular members'),
+                onTap: () {
+                  Navigator.pop(context); // Close sheet
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Manage members feature coming soon'),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Delete Event',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context); // Close sheet
+                  _deleteEvent(event);
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   bool _isToday(DateTime date) {
     final now = DateTime.now();
     return date.year == now.year &&
@@ -164,8 +276,9 @@ class _HubPageState extends State<HubPage> {
                         event: event,
                         isToday: isToday,
                         onTap: () {
-                          // TODO: Handle event tap (edit/view)
+                          // TODO: Handle event tap (view details)
                         },
+                        onMenuTap: () => _showEventMenu(context, event),
                         primaryColor: primaryColor,
                         onPrimaryColor: onPrimaryColor,
                         surfaceContainerColor: surfaceContainerColor,
@@ -198,6 +311,7 @@ class _EventCard extends StatelessWidget {
     required this.event,
     required this.isToday,
     required this.onTap,
+    required this.onMenuTap,
     required this.primaryColor,
     required this.onPrimaryColor,
     required this.surfaceContainerColor,
@@ -210,6 +324,7 @@ class _EventCard extends StatelessWidget {
   final Event event;
   final bool isToday;
   final VoidCallback onTap;
+  final VoidCallback onMenuTap;
   final Color primaryColor;
   final Color onPrimaryColor;
   final Color surfaceContainerColor;
@@ -287,7 +402,7 @@ class _EventCard extends StatelessWidget {
                   ),
                   IconButton(
                     icon: Icon(Icons.more_vert, color: onSurfaceVariantColor),
-                    onPressed: () {},
+                    onPressed: onMenuTap,
                   ),
                 ],
               ),
