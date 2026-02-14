@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -6,86 +8,56 @@ import 'package:attendance_tracker/features/auth/domain/entities/credentials.dar
 import 'package:attendance_tracker/features/auth/domain/entities/google_account.dart';
 import 'package:attendance_tracker/features/auth/domain/entities/user.dart';
 import 'package:attendance_tracker/features/auth/domain/repositories/auth_repository.dart';
+import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
-import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _InMemoryAttendanceRepository implements AttendanceRepository {
-  _InMemoryAttendanceRepository({List<Family>? families})
-    : _families = List<Family>.from(families ?? _defaultFamilies);
+class MockEventRepository implements EventRepository {
+  final _controller = StreamController<List<Event>>();
 
-  List<Family> _families;
+  void emit(List<Event> events) {
+    _controller.add(events);
+  }
 
+  @override
+  Future<void> createEvent(Event event) async {}
+
+  @override
+  Future<void> updateEvent(Event event) async {}
+
+  @override
+  Future<void> deleteEvent(String eventId) async {}
+
+  @override
+  Stream<List<Event>> streamEvents() {
+    return _controller.stream;
+  }
+}
+
+class MockAttendanceRepository implements AttendanceRepository {
+  @override
+  Future<List<Family>> fetchFamilies() async => [];
+
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
 
   @override
   Future<Family> addMember(String familyId, Member member) async {
-    final updated = _families.map((family) {
-      if (family.id != familyId) return family;
-      return family.copyWith(members: [...family.members, member]);
-    }).toList();
-    _families = updated;
-    return updated.firstWhere((family) => family.id == familyId);
-  }
-
-  @override
-  Future<List<Family>> fetchFamilies() async {
-    return _families;
-  }
-
-  @override
-  Future<void> saveFamilies(List<Family> families) async {
-    _families = List<Family>.from(families);
+    throw UnimplementedError();
   }
 
   @override
   Future<Family> addFamily(String displayName) async {
-    final newFamily = Family(
-      id: 'family-${_families.length + 1}',
-      displayName: displayName,
-      members: [],
-    );
-    _families = [..._families, newFamily];
-    return newFamily;
+    throw UnimplementedError();
   }
 }
 
-const _defaultFamilies = [
-  Family(
-    id: 'family-1',
-    displayName: 'Rivera Family',
-    members: [
-      Member(id: 'member-1', displayName: 'Alana Rivera'),
-      Member(id: 'member-2', displayName: 'Mateo Rivera'),
-      Member(id: 'member-3', displayName: 'Sofia Rivera'),
-    ],
-  ),
-  Family(
-    id: 'family-2',
-    displayName: 'Nguyen Family',
-    members: [
-      Member(id: 'member-4', displayName: 'Minh Nguyen'),
-      Member(id: 'member-5', displayName: 'Linh Nguyen'),
-    ],
-  ),
-  Family(
-    id: 'family-3',
-    displayName: 'Patel Family',
-    members: [
-      Member(id: 'member-6', displayName: 'Aarav Patel'),
-      Member(id: 'member-7', displayName: 'Anaya Patel'),
-      Member(id: 'member-8', displayName: 'Rishi Patel'),
-      Member(id: 'member-9', displayName: 'Priya Patel'),
-    ],
-  ),
-];
-
-class _ImmediateSessionRepository implements SessionRepository {
-  _ImmediateSessionRepository(this.sessions);
-
-  final List<Session> sessions;
-
+class MockSessionRepository implements SessionRepository {
   @override
   Future<Session> createSession({
     required String title,
@@ -97,18 +69,11 @@ class _ImmediateSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<Session> duplicate(String sessionId, {required String actor}) async {
-    return sessions.first;
-  }
+  Future<List<Session>> loadSessions({bool includeDeleted = false}) async => [];
 
   @override
-  Future<List<SessionVersion>> history(String sessionId) async {
-    return const [];
-  }
-
-  @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) async {
-    return sessions;
+  Future<Session> saveSnapshot(Session session, {required String actor}) async {
+    return session;
   }
 
   @override
@@ -116,66 +81,72 @@ class _ImmediateSessionRepository implements SessionRepository {
     String sessionId, {
     required String actor,
   }) async {
-    return sessions.first;
+    return null;
   }
 
   @override
-  Future<Session> saveSnapshot(Session session, {required String actor}) async {
-    return session;
+  Future<Session> duplicate(String sessionId, {required String actor}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<SessionVersion>> history(String sessionId) async {
+    return [];
   }
 }
 
-class _ImmediateAuthRepository implements AuthRepository {
-  User? _user = const User(
-    id: 'user-1',
-    email: 'tester@example.com',
-    displayName: 'tester',
-  );
+class MockAuthRepository implements AuthRepository {
+  @override
+  Future<User?> currentUser() async =>
+      const User(id: 'test', email: 'test@test.com', displayName: 'Test User');
 
   @override
-  Future<User?> currentUser() async => _user;
+  Future<User> login(Credentials credentials) async =>
+      throw UnimplementedError();
 
   @override
-  Future<User> login(Credentials credentials) async => _user!;
+  Future<User> loginWithGoogle(GoogleAccount account) async =>
+      throw UnimplementedError();
 
   @override
-  Future<User> loginWithGoogle(GoogleAccount account) async => _user!;
+  Future<void> logout() async {}
 
   @override
-  Future<void> logout() async {
-    _user = null;
-  }
-
-  @override
-  Future<User> signup(Credentials credentials) async => _user!;
+  Future<User> signup(Credentials credentials) async =>
+      throw UnimplementedError();
 }
 
 void main() {
-  testWidgets('Shows analytics overview and actions', (tester) async {
+  testWidgets('AttendanceApp loads HubPage without BottomNavigationBar', (
+    tester,
+  ) async {
+    final mockEventRepo = MockEventRepository();
+    final mockSessionRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final mockAuthRepo = MockAuthRepository();
 
-    final repository = _InMemoryAttendanceRepository();
-    final sessionRepository = _ImmediateSessionRepository(buildSeedSessions());
+    // Emit empty list to stop loading spinner
+    mockEventRepo.emit([]);
 
     await tester.pumpWidget(
       AttendanceApp(
-        repository: repository,
-        sessionRepository: sessionRepository,
-        authRepository: _ImmediateAuthRepository(),
+        repository: mockAttendanceRepo,
+        sessionRepository: mockSessionRepo,
+        eventRepository: mockEventRepo,
+        authRepository: mockAuthRepo,
       ),
     );
 
+    // Initial pump
+    await tester.pump();
+    // Animation pump/settle
     await tester.pumpAndSettle();
-    expect(find.text('Quick actions'), findsOneWidget);
-    expect(find.text('Take attendance'), findsOneWidget);
-    expect(find.text('Export report'), findsOneWidget);
-    expect(find.text('Engagement overview'), findsNothing);
-    expect(find.text('Attendance rate'), findsWidgets);
-    await tester.scrollUntilVisible(find.text('Wellness watchlist'), 400);
-    expect(find.text('Wellness watchlist'), findsOneWidget);
 
-    await tester.scrollUntilVisible(find.text('Recent sessions'), 800);
+    // Verify NavigationBar does NOT exist
+    expect(find.byType(NavigationBar), findsNothing);
 
-
-    expect(find.text('Recent sessions'), findsOneWidget);
+    // Verify default view is Attendance (HubAttendanceView)
+    // "TODAY" text should be visible (from HubAttendanceView)
+    expect(find.text('TODAY'), findsOneWidget);
   });
 }
