@@ -22,6 +22,12 @@ class MockEventRepository implements EventRepository {
   Future<void> createEvent(Event event) async {}
 
   @override
+  Future<void> updateEvent(Event event) async {}
+
+  @override
+  Future<void> deleteEvent(String eventId) async {}
+
+  @override
   Stream<List<Event>> streamEvents() {
     return _controller.stream;
   }
@@ -152,22 +158,14 @@ void main() {
       matching: find.byType(Card),
     );
 
-    print('DEBUG: Found ${todayCardFinder.evaluate().length} Today Cards');
-    print('DEBUG: Found ${futureCardFinder.evaluate().length} Future Cards');
-
     // Proceed only if exactly 1 found
     if (todayCardFinder.evaluate().length != 1 ||
         futureCardFinder.evaluate().length != 1) {
-      print('DEBUG: Failed to find exact cards, skipping position check');
       // Let it fail naturally later or return early
     }
 
     final todayPosition = tester.getTopLeft(todayCardFinder).dy;
     final futurePosition = tester.getTopLeft(futureCardFinder).dy;
-
-    print(
-      'DEBUG: Today Position: $todayPosition, Future Position: $futurePosition',
-    );
 
     expect(
       todayPosition,
