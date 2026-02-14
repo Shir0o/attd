@@ -228,7 +228,7 @@ class _EventCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 200,
+          constraints: const BoxConstraints(minHeight: 200),
           padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -279,7 +279,7 @@ class _EventCard extends StatelessWidget {
                             color: onSurfaceColor,
                             height: 1.1,
                           ),
-                          maxLines: 2,
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -291,26 +291,32 @@ class _EventCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 20,
-                        color: onSurfaceVariantColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        event.time.format(context),
-                        style: TextStyle(
-                          fontSize: 18,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 20,
                           color: onSurfaceVariantColor,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            event.time.format(context),
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: onSurfaceVariantColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   // Placeholder for scan count if needed
                   Container(
@@ -330,13 +336,17 @@ class _EventCard extends StatelessWidget {
                       ),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '0/0 Scanned',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: onSurfaceVariantColor,
+                        Flexible(
+                          child: Text(
+                            '0/0 Scanned',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: onSurfaceVariantColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

@@ -175,4 +175,44 @@ void main() {
       reason: 'Today events should appear before future events',
     );
   });
+
+  testWidgets('HubPage handles large text scale factor without overflow', (
+    WidgetTester tester,
+  ) async {
+    final mockEventRepo = MockEventRepository();
+    final mockSessionRepo = MockSessionRepository();
+
+    // Set a large text scale factor using platformDispatcher
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HubPage(
+          sessionRepository: mockSessionRepo,
+          eventRepository: mockEventRepo,
+        ),
+      ),
+    );
+
+    // Initial state check - verify it renders at all
+    await tester.pump();
+
+    final now = DateTime.now();
+    final todayWeekday = DateFormat('EEEE').format(now);
+
+    final eventToday = Event(
+      id: '1',
+      title: 'Very Long Title That Might Overflow When Text Scale Is Huge',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [todayWeekday],
+      createdAt: now,
+    );
+
+    mockEventRepo.emit([eventToday]);
+    await tester.pumpAndSettle();
+
+    // Check for overflow errors by ensuring no exception was thrown
+    expect(tester.takeException(), isNull);
+  });
 }
