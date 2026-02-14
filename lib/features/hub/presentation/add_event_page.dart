@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 
 class AddEventPage extends StatefulWidget {
-  const AddEventPage({super.key, required this.eventRepository});
+  const AddEventPage({
+    super.key,
+    required this.eventRepository,
+    this.eventToEdit,
+  });
 
   final EventRepository eventRepository;
+  final Event? eventToEdit;
 
   @override
   State<AddEventPage> createState() => _AddEventPageState();
@@ -14,9 +20,11 @@ class AddEventPage extends StatefulWidget {
 
 class _AddEventPageState extends State<AddEventPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
-  String _frequency = 'Weekly';
+  late TextEditingController _nameController;
+  late TimeOfDay _selectedTime;
+  late String _frequency;
+  late DateTime _selectedDate;
+  late Set<String> _selectedDays;
 
   final List<String> _frequencies = [
     'One-time',
@@ -25,9 +33,6 @@ class _AddEventPageState extends State<AddEventPage> {
     'Monthly',
   ];
 
-  DateTime _selectedDate = DateTime.now();
-
-  final Set<String> _selectedDays = {};
   final List<String> _daysOfWeek = [
     'Sunday',
     'Monday',
@@ -41,15 +46,29 @@ class _AddEventPageState extends State<AddEventPage> {
   @override
   void initState() {
     super.initState();
-    // Set default day(s) to current day
-    final now = DateTime.now();
-    // weekday is 1-7 (Mon-Sun), we need to map to our list
-    // 1=Mon, 7=Sun.
-    // List index: 0=Sun, 1=Mon...
-    // So if weekday=7 (Sun), index=0. If weekday=1 (Mon), index=1.
-    int index = now.weekday == 7 ? 0 : now.weekday;
-    if (index >= 0 && index < _daysOfWeek.length) {
-      _selectedDays.add(_daysOfWeek[index]);
+    final event = widget.eventToEdit;
+
+    if (event != null) {
+      // Editing existing event
+      _nameController = TextEditingController(text: event.title);
+      _selectedTime = event.time;
+      _frequency = event.frequency;
+      _selectedDate = event.oneTimeDate ?? DateTime.now();
+      _selectedDays = event.repeatingDays.toSet();
+    } else {
+      // Creating new event
+      _nameController = TextEditingController();
+      _selectedTime = const TimeOfDay(hour: 10, minute: 0);
+      _frequency = 'Weekly';
+      _selectedDate = DateTime.now();
+      _selectedDays = {};
+
+      // Set default day(s) to current day
+      final now = DateTime.now();
+      int index = now.weekday == 7 ? 0 : now.weekday;
+      if (index >= 0 && index < _daysOfWeek.length) {
+        _selectedDays.add(_daysOfWeek[index]);
+      }
     }
   }
 
@@ -87,18 +106,28 @@ class _AddEventPageState extends State<AddEventPage> {
 
   Future<void> _saveEvent() async {
     if (_formKey.currentState!.validate()) {
-      final newEvent = Event(
-        id: const Uuid().v4(),
+      final isEditing = widget.eventToEdit != null;
+      final eventId = isEditing ? widget.eventToEdit!.id : const Uuid().v4();
+      final createdAt = isEditing
+          ? widget.eventToEdit!.createdAt
+          : DateTime.now();
+
+      final event = Event(
+        id: eventId,
         title: _nameController.text,
         time: _selectedTime,
         frequency: _frequency,
         oneTimeDate: _frequency == 'One-time' ? _selectedDate : null,
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
-        createdAt: DateTime.now(),
+        createdAt: createdAt,
       );
 
       try {
-        await widget.eventRepository.createEvent(newEvent);
+        if (isEditing) {
+          await widget.eventRepository.updateEvent(event);
+        } else {
+          await widget.eventRepository.createEvent(event);
+        }
         if (mounted) {
           Navigator.of(context).pop();
         }
@@ -123,6 +152,8 @@ class _AddEventPageState extends State<AddEventPage> {
     const tertiaryContainerColor = Color(0xFFFFD8E4); // From Stitch CSS
     const onTertiaryContainerColor = Color(0xFF31111D); // From Stitch CSS
 
+    final isEditing = widget.eventToEdit != null;
+
     return Scaffold(
       backgroundColor: surfaceColor,
       appBar: AppBar(
@@ -132,9 +163,9 @@ class _AddEventPageState extends State<AddEventPage> {
           icon: const Icon(Icons.close, color: onSurfaceColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'New Event',
-          style: TextStyle(
+        title: Text(
+          isEditing ? 'Edit Event' : 'New Event',
+          style: const TextStyle(
             color: onSurfaceColor,
             fontSize: 22,
             fontWeight: FontWeight.w500,
@@ -143,9 +174,9 @@ class _AddEventPageState extends State<AddEventPage> {
         actions: [
           TextButton(
             onPressed: _saveEvent,
-            child: const Text(
-              'Save',
-              style: TextStyle(
+            child: Text(
+              isEditing ? 'Save' : 'Save',
+              style: const TextStyle(
                 color: primaryColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -279,11 +310,9 @@ class _AddEventPageState extends State<AddEventPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  // Requires intl package or manual formatting.
-                                  // Using basic string interpolation for now to avoid import if possible,
-                                  // but intl is better. The user removed intl import earlier.
-                                  // Let's use a helper or simple format.
-                                  "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}",
+                                  DateFormat(
+                                    'yyyy-MM-dd',
+                                  ).format(_selectedDate),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: onTertiaryContainerColor,
@@ -385,10 +414,10 @@ class _AddEventPageState extends State<AddEventPage> {
                     borderRadius: BorderRadius.circular(24),
                   ),
                 ),
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text(
-                  'Create Event',
-                  style: TextStyle(
+                icon: Icon(isEditing ? Icons.save : Icons.add, size: 20),
+                label: Text(
+                  isEditing ? 'Save Changes' : 'Create Event',
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.1,

@@ -3,6 +3,8 @@ import '../domain/event.dart';
 
 abstract class EventRepository {
   Future<void> createEvent(Event event);
+  Future<void> updateEvent(Event event);
+  Future<void> deleteEvent(String eventId);
   Stream<List<Event>> streamEvents();
 }
 
@@ -18,6 +20,16 @@ class FirestoreEventRepository implements EventRepository {
   @override
   Future<void> createEvent(Event event) async {
     await _eventsRef.doc(event.id).set(event.toJson());
+  }
+
+  @override
+  Future<void> updateEvent(Event event) async {
+    await _eventsRef.doc(event.id).update(event.toJson());
+  }
+
+  @override
+  Future<void> deleteEvent(String eventId) async {
+    await _eventsRef.doc(eventId).delete();
   }
 
   @override
