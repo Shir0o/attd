@@ -169,6 +169,7 @@ class _AddEventPageState extends State<AddEventPage> {
                       label: 'Event Name',
                       child: TextFormField(
                         controller: _nameController,
+                        textCapitalization: TextCapitalization.sentences,
                         style: const TextStyle(
                           fontSize: 16,
                           color: onTertiaryContainerColor,
