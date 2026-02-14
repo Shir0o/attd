@@ -30,5 +30,10 @@ service cloud.firestore {
         allow read, write: if isAuthenticated();
       }
     }
+
+    // Events: Shared data, accessible by any authenticated user
+    match /events/{eventId} {
+      allow read, write: if isAuthenticated();
+    }
   }
 }
