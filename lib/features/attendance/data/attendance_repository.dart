@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/family.dart';
@@ -18,22 +20,27 @@ abstract class AttendanceRepository {
 }
 
 class LocalJsonAttendanceRepository extends AttendanceRepository {
-  LocalJsonAttendanceRepository({required this.path, List<Family>? seed})
+  LocalJsonAttendanceRepository({this.storagePath, List<Family>? seed})
     : _seed = seed ?? defaultFamilies;
 
-  final String path;
+  final String? storagePath;
   final List<Family> _seed;
 
-  File get _file => File(path);
+  Future<File> get _file async {
+    if (storagePath != null) return File(storagePath!);
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/families.json');
+  }
 
   @override
   Future<List<Family>> fetchFamilies() async {
-    if (!await _file.exists()) {
+    final file = await _file;
+    if (!await file.exists()) {
       await saveFamilies(_seed);
       return _seed;
     }
 
-    final content = await _file.readAsString();
+    final content = await file.readAsString();
     if (content.trim().isEmpty) {
       await saveFamilies(_seed);
       return _seed;
@@ -48,9 +55,10 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   @override
   Future<void> saveFamilies(List<Family> families) async {
-    await _file.create(recursive: true);
+    final file = await _file;
+    await file.create(recursive: true);
     final payload = families.map((family) => family.toJson()).toList();
-    await _file.writeAsString(jsonEncode(payload));
+    await file.writeAsString(jsonEncode(payload));
   }
 
   @override
@@ -74,99 +82,6 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final families = await fetchFamilies();
     await saveFamilies([...families, family]);
     return family;
-  }
-}
-
-class FirestoreAttendanceRepository extends AttendanceRepository {
-  FirestoreAttendanceRepository({
-    FirebaseFirestore? firestore,
-    List<Family>? seed,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _seed = seed;
-
-  final FirebaseFirestore _firestore;
-  final List<Family>? _seed;
-
-  CollectionReference<Map<String, dynamic>> get _familiesRef =>
-      _firestore.collection('families');
-
-  @override
-  Future<List<Family>> fetchFamilies() async {
-    final snapshot = await _familiesRef.get();
-
-    if (snapshot.docs.isEmpty) {
-      final families = _seed ?? defaultFamilies;
-      await saveFamilies(families);
-      return families;
-    }
-
-    return snapshot.docs.map((doc) => Family.fromJson(doc.data())).toList();
-  }
-
-  @override
-  Future<void> saveFamilies(List<Family> families) async {
-    final batch = _firestore.batch();
-
-    for (final family in families) {
-      final docRef = _familiesRef.doc(family.id);
-      batch.set(docRef, family.toJson());
-    }
-
-    await batch.commit();
-  }
-
-  @override
-  Future<Family> addMember(String familyId, Member member) async {
-    final docRef = _familiesRef.doc(familyId);
-
-    // We use arrayUnion to atomically add the new member to the members list
-    await docRef.update({
-      'members': FieldValue.arrayUnion([member.toJson()]),
-    });
-
-    // Fetch the updated document to return the complete family object
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) {
-      throw StateError('Family not found: $familyId');
-    }
-
-    return Family.fromJson(snapshot.data()!);
-  }
-
-  @override
-  Future<Family> addFamily(String displayName) async {
-    final newFamily = Family(
-      id: const Uuid().v4(),
-      displayName: displayName,
-      members: [],
-    );
-
-    await _familiesRef.doc(newFamily.id).set(newFamily.toJson());
-    return newFamily;
-  }
-}
-
-class SqliteAttendanceRepository extends AttendanceRepository {
-  SqliteAttendanceRepository();
-
-  @override
-  Future<Family> addFamily(String displayName) {
-    throw UnimplementedError('SQLite attendance storage not implemented yet.');
-  }
-
-  @override
-  Future<Family> addMember(String familyId, Member member) {
-    throw UnimplementedError('SQLite attendance storage not implemented yet.');
-  }
-
-  @override
-  Future<List<Family>> fetchFamilies() {
-    throw UnimplementedError('SQLite attendance storage not implemented yet.');
-  }
-
-  @override
-  Future<void> saveFamilies(List<Family> families) {
-    throw UnimplementedError('SQLite attendance storage not implemented yet.');
   }
 }
 
