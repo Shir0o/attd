@@ -1,42 +1,35 @@
 import 'dart:math' as math;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
+import 'data/local_session_repository.dart';
 import 'data/session.dart';
 import 'data/session_repository.dart';
-import 'features/hub/data/event_repository.dart';
-import 'features/auth/application/auth_controller.dart';
-import 'features/auth/application/google_auth_service.dart';
-import 'features/auth/config/google_oauth_config.dart';
-import 'features/auth/data/firebase_auth_repository.dart';
-import 'features/auth/data/google_sign_in_service.dart';
-import 'features/auth/domain/repositories/auth_repository.dart';
-import 'features/auth/presentation/auth_gate.dart';
-import 'features/families/presentation/family_list_page.dart';
-import 'firebase_options.dart';
 import 'features/ai/ai_provider.dart';
 import 'features/ai/ai_provider_factory.dart';
 import 'features/ai/http_ai_provider.dart';
-
 import 'features/analytics/attendance_analytics.dart';
+import 'features/auth/application/auth_controller.dart';
+import 'features/auth/application/google_auth_service.dart';
+import 'features/auth/data/local_auth_repository.dart';
+import 'features/auth/domain/repositories/auth_repository.dart';
+import 'features/auth/presentation/auth_gate.dart';
 import 'features/attendance/data/attendance_repository.dart';
-import 'features/attendance/utils/name_corrections.dart';
 import 'features/attendance/models/attendance_status.dart';
 import 'features/attendance/models/family.dart';
 import 'features/attendance/presentation/attendance_flow_page.dart';
+import 'features/attendance/utils/name_corrections.dart';
+import 'features/families/presentation/family_list_page.dart';
+import 'features/hub/data/event_repository.dart';
+import 'features/hub/data/local_event_repository.dart';
+import 'features/hub/presentation/hub_page.dart';
 import 'features/reports/report_export_page.dart';
 import 'features/sessions/session_detail_page.dart';
 
-import 'features/hub/presentation/hub_page.dart';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Firebase initialization removed
   runApp(AttendanceApp());
 }
 
@@ -52,11 +45,11 @@ class AttendanceApp extends StatefulWidget {
     this.aiEnabled = true,
     this.authRepository,
     this.googleAuthService,
-  }) : repository = repository ?? FirestoreAttendanceRepository(),
+  }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository =
            sessionRepository ??
-           FirestoreSessionRepository(seedSessions: buildSeedSessions()),
-       eventRepository = eventRepository ?? FirestoreEventRepository(),
+           LocalJsonSessionRepository(seedSessions: buildSeedSessions()),
+       eventRepository = eventRepository ?? LocalJsonEventRepository(),
        aiFactory = aiFactory ?? const AiProviderFactory(),
        aiProvider =
            aiProvider ??
@@ -78,28 +71,15 @@ class AttendanceApp extends StatefulWidget {
 
 class _AttendanceAppState extends State<AttendanceApp> {
   late final AuthController _authController;
-  late final GoogleAuthService _googleAuthService;
 
   @override
   void initState() {
     super.initState();
-    final authRepository =
-        widget.authRepository ??
-        FirebaseAuthRepository(
-          firebaseAuth: FirebaseAuth.instance,
-          firestore: FirebaseFirestore.instance,
-        );
-    _googleAuthService =
-        widget.googleAuthService ??
-        GoogleSignInAuthService(
-          googleSignIn: GoogleSignIn(
-            clientId: GoogleOAuthConfig.iosClientId,
-            serverClientId: GoogleOAuthConfig.webServerClientId,
-          ),
-        );
+    final authRepository = widget.authRepository ?? LocalAuthRepository();
+    // No Google Auth Service needed for local only
     _authController = AuthController(
       repository: authRepository,
-      googleAuthService: _googleAuthService,
+      googleAuthService: null,
     )..restoreSession();
   }
 
