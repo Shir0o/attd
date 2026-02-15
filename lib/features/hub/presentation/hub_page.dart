@@ -26,6 +26,7 @@ class _HubPageState extends State<HubPage> {
   @override
   Widget build(BuildContext context) {
     return HubAttendanceView(
+      sessionRepository: widget.sessionRepository,
       eventRepository: widget.eventRepository,
       attendanceRepository: widget.attendanceRepository,
       onSignOut: widget.onSignOut,
