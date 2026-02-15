@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../data/session.dart';
+import '../../../../data/session_repository.dart';
+import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/presentation/attendance_deck_page.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 import 'add_event_page.dart';
-import '../../attendance/data/attendance_repository.dart';
 import 'members_page.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
     super.key,
+    required this.sessionRepository,
     required this.eventRepository,
     required this.attendanceRepository,
     this.onSignOut,
   });
 
+  final SessionRepository sessionRepository;
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final VoidCallback? onSignOut;
@@ -279,8 +284,59 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       child: _EventCard(
                         event: event,
                         isToday: isToday,
-                        onTap: () {
-                          // TODO: Handle event tap (view details)
+                        onTap: () async {
+                          // Find or create session for today
+                          // 1. Fetch all sessions (inefficient but works for small scale)
+                          // 2. Filter for matching title + date
+
+                          // Optimization: SessionRepository should probably have findByDateAndTitle?
+                          // For now, load all.
+                          final allSessions = await widget.sessionRepository
+                              .loadSessions();
+                          final now = DateTime.now();
+                          final today = DateTime(now.year, now.month, now.day);
+
+                          Session? session;
+                          try {
+                            session = allSessions.firstWhere(
+                              (s) =>
+                                  s.title == event.title &&
+                                  s.sessionDate.year == today.year &&
+                                  s.sessionDate.month == today.month &&
+                                  s.sessionDate.day == today.day,
+                            );
+                          } catch (_) {
+                            session = null;
+                          }
+
+                          session ??= await widget.sessionRepository
+                              .createSession(
+                                title: event.title,
+                                sessionDate: today,
+                                actor: 'User',
+                                records: [],
+                              );
+
+                          if (!mounted) return;
+
+                          // Fetch members
+                          final families = await widget.attendanceRepository
+                              .fetchFamilies();
+                          final allMembers = families
+                              .expand((f) => f.members)
+                              .toList();
+
+                          if (!context.mounted) return;
+
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => AttendanceDeckPage(
+                                session: session!,
+                                members: allMembers,
+                                sessionRepository: widget.sessionRepository,
+                              ),
+                            ),
+                          );
                         },
                         onMenuTap: () => _showEventMenu(context, event),
                         primaryColor: primaryColor,
