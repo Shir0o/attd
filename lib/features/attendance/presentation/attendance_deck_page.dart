@@ -5,6 +5,7 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
+import 'swipeable_card.dart';
 
 class AttendanceDeckPage extends StatefulWidget {
   const AttendanceDeckPage({
@@ -260,54 +261,63 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         ),
 
                         // Main Card
-                        Container(
-                          decoration: BoxDecoration(
-                            color: surfaceContainerColor,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 3,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Avatar
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  color: surfaceContainerHighColor,
-                                  shape: BoxShape.circle,
+                        SwipeableCard(
+                          key: ValueKey(
+                            currentMember.id,
+                          ), // Important for resetting state
+                          onSwipeLeft: () =>
+                              _processAttendance(AttendanceStatus.absent),
+                          onSwipeRight: () =>
+                              _processAttendance(AttendanceStatus.present),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: surfaceContainerColor,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 3,
+                                  offset: Offset(0, 1),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    currentMember.displayName.isNotEmpty
-                                        ? currentMember.displayName[0]
-                                              .toUpperCase()
-                                        : '?',
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryColor,
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Avatar
+                                Container(
+                                  width: 96,
+                                  height: 96,
+                                  decoration: BoxDecoration(
+                                    color: surfaceContainerHighColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      currentMember.displayName.isNotEmpty
+                                          ? currentMember.displayName[0]
+                                                .toUpperCase()
+                                          : '?',
+                                      style: const TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryColor,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                currentMember.displayName,
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w500,
-                                  color: onSurfaceColor,
+                                const SizedBox(height: 24),
+                                Text(
+                                  currentMember.displayName,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w500,
+                                    color: onSurfaceColor,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
