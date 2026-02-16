@@ -35,7 +35,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   @override
   void initState() {
     super.initState();
-    _eventsStream = widget.eventRepository.streamEvents();
+    _eventsStream = widget.eventRepository.streamEvents().map(_processEvents);
   }
 
   void _createNewSession() {
@@ -179,6 +179,28 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     }
   }
 
+  List<Event> _processEvents(List<Event> events) {
+    final todayEvents = <Event>[];
+    final otherEvents = <Event>[];
+
+    for (final event in events) {
+      if (_isEventToday(event)) {
+        todayEvents.add(event);
+      } else {
+        otherEvents.add(event);
+      }
+    }
+
+    // Sort within groups if needed (e.g. by time)
+    todayEvents.sort((a, b) {
+      final timeA = a.time.hour * 60 + a.time.minute;
+      final timeB = b.time.hour * 60 + b.time.minute;
+      return timeA.compareTo(timeB);
+    });
+
+    return [...todayEvents, ...otherEvents];
+  }
+
   @override
   Widget build(BuildContext context) {
     // Stitch Colors
@@ -252,27 +274,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   );
                 }
 
-                // Sort events: Today's events first
-                final events = snapshot.data!;
-                final todayEvents = <Event>[];
-                final otherEvents = <Event>[];
-
-                for (final event in events) {
-                  if (_isEventToday(event)) {
-                    todayEvents.add(event);
-                  } else {
-                    otherEvents.add(event);
-                  }
-                }
-
-                // Sort within groups if needed (e.g. by time)
-                todayEvents.sort((a, b) {
-                  final timeA = a.time.hour * 60 + a.time.minute;
-                  final timeB = b.time.hour * 60 + b.time.minute;
-                  return timeA.compareTo(timeB);
-                });
-
-                final sortedEvents = [...todayEvents, ...otherEvents];
+                final sortedEvents = snapshot.data!;
 
                 return SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
