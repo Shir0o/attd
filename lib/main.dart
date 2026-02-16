@@ -76,10 +76,9 @@ class _AttendanceAppState extends State<AttendanceApp> {
   void initState() {
     super.initState();
     final authRepository = widget.authRepository ?? LocalAuthRepository();
-    // No Google Auth Service needed for local only
     _authController = AuthController(
       repository: authRepository,
-      googleAuthService: null,
+      googleAuthService: widget.googleAuthService,
     )..restoreSession();
   }
 
