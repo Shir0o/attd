@@ -25,6 +25,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   final String? storagePath;
   final List<Family> _seed;
+  List<Family>? _cachedFamilies;
 
   Future<File> get _file async {
     if (storagePath != null) return File(storagePath!);
@@ -34,27 +35,39 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   @override
   Future<List<Family>> fetchFamilies() async {
+    if (_cachedFamilies != null) {
+      return List<Family>.from(_cachedFamilies!);
+    }
+
     final file = await _file;
     if (!await file.exists()) {
       await saveFamilies(_seed);
-      return _seed;
+      return List<Family>.from(_seed);
     }
 
     final content = await file.readAsString();
     if (content.trim().isEmpty) {
       await saveFamilies(_seed);
-      return _seed;
+      return List<Family>.from(_seed);
     }
 
     final decoded = jsonDecode(content);
-    if (decoded is! List) return _seed;
-    return decoded
+    if (decoded is! List) {
+      _cachedFamilies = List<Family>.from(_seed);
+      return List<Family>.from(_seed);
+    }
+
+    final families = decoded
         .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
         .toList();
+
+    _cachedFamilies = families;
+    return List<Family>.from(families);
   }
 
   @override
   Future<void> saveFamilies(List<Family> families) async {
+    _cachedFamilies = List<Family>.from(families);
     final file = await _file;
     await file.create(recursive: true);
     final payload = families.map((family) => family.toJson()).toList();
