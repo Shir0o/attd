@@ -6,6 +6,7 @@ import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
 import 'add_guest_sheet.dart';
+import 'session_summary_page.dart';
 import 'swipeable_card.dart';
 
 class AttendanceDeckPage extends StatefulWidget {
@@ -182,25 +183,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   @override
   Widget build(BuildContext context) {
     if (_currentIndex >= widget.members.length) {
-      // Done state
-      return Scaffold(
-        backgroundColor: surfaceColor,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'All caught up!',
-                style: TextStyle(fontSize: 24, color: onSurfaceColor),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Back to Hub'),
-              ),
-            ],
-          ),
-        ),
+      return SessionSummaryPage(
+        session: _currentSession,
+        members: widget.members,
+        sessionRepository: widget.sessionRepository,
       );
     }
 
