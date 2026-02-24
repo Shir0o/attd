@@ -226,6 +226,19 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     ),
                   ),
                 ),
+                // Cancel Button
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 16),
+                    child: IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      color: onSurfaceVariantColor,
+                      tooltip: 'Cancel',
+                    ),
+                  ),
+                ),
                 // Add Guest Button
                 Align(
                   alignment: Alignment.topRight,
@@ -265,120 +278,129 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     aspectRatio: 3 / 4,
                     child: Stack(
                       alignment: Alignment.center,
+                      clipBehavior: Clip.none,
                       children: [
                         // Background Cards (Visual effect)
-                        Transform.translate(
-                          offset: const Offset(0, 32),
-                          child: Transform.scale(
-                            scale: 0.9,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: surfaceContainerColor.withValues(
-                                  alpha: 0.4,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 3,
-                                    offset: Offset(0, 1),
+                        Positioned.fill(
+                          child: Transform.translate(
+                            offset: const Offset(0, 32),
+                            child: Transform.scale(
+                              scale: 0.9,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: surfaceContainerColor.withValues(
+                                    alpha: 0.4,
                                   ),
-                                ],
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 3,
+                                      offset: Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
 
-                        Transform.translate(
-                          offset: const Offset(0, 16),
-                          child: Transform.scale(
-                            scale: 0.95,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: surfaceContainerColor.withValues(
-                                  alpha: 0.7,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 3,
-                                    offset: Offset(0, 1),
+                        Positioned.fill(
+                          child: Transform.translate(
+                            offset: const Offset(0, 16),
+                            child: Transform.scale(
+                              scale: 0.95,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: surfaceContainerColor.withValues(
+                                    alpha: 0.7,
                                   ),
-                                ],
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 3,
+                                      offset: Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
 
                         // Main Card
-                        SwipeableCard(
-                          key: ValueKey(
-                            currentMember.id,
-                          ), // Important for resetting state
-                          rightSwipeColor: primaryColor,
-                          leftSwipeColor: errorColor,
-                          onSwipeLeft: () =>
-                              _processAttendance(AttendanceStatus.absent),
-                          onSwipeRight: () =>
-                              _processAttendance(AttendanceStatus.present),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: surfaceContainerColor,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 3,
-                                  offset: Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // Avatar
-                                Container(
-                                  width: 96,
-                                  height: 96,
-                                  decoration: BoxDecoration(
-                                    color: surfaceContainerHighColor,
-                                    shape: BoxShape.circle,
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 2,
-                                        offset: Offset(0, 1),
-                                      ),
-                                    ],
+                        Positioned.fill(
+                          child: SwipeableCard(
+                            key: ValueKey(
+                              currentMember.id,
+                            ), // Important for resetting state
+                            rightSwipeColor: primaryColor,
+                            leftSwipeColor: errorColor,
+                            onSwipeLeft: () =>
+                                _processAttendance(AttendanceStatus.absent),
+                            onSwipeRight: () =>
+                                _processAttendance(AttendanceStatus.present),
+                            child: Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              decoration: BoxDecoration(
+                                color: surfaceContainerColor,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 3,
+                                    offset: Offset(0, 1),
                                   ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: Center(
-                                    child: Text(
-                                      currentMember.displayName.isNotEmpty
-                                          ? currentMember.displayName[0]
-                                                .toUpperCase()
-                                          : '?',
-                                      style: const TextStyle(
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.bold,
-                                        color: primaryColor,
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Avatar
+                                  Container(
+                                    width: 96,
+                                    height: 96,
+                                    decoration: BoxDecoration(
+                                      color: surfaceContainerHighColor,
+                                      shape: BoxShape.circle,
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 2,
+                                          offset: Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: Center(
+                                      child: Text(
+                                        currentMember.displayName.isNotEmpty
+                                            ? currentMember.displayName[0]
+                                                  .toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: primaryColor,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 24),
-                                Text(
-                                  currentMember.displayName,
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w500,
-                                    color: onSurfaceColor,
-                                    height: 1.25, // leading-tight
+                                  const SizedBox(height: 24),
+                                  Text(
+                                    currentMember.displayName,
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w500,
+                                      color: onSurfaceColor,
+                                      height: 1.25, // leading-tight
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
