@@ -72,8 +72,8 @@ class _AddEventPageState extends State<AddEventPage> {
       }
     }
 
-    // Deliberate artificial delay to ensure skeleton is visible and Hero finishes smoothly
-    Future.delayed(const Duration(milliseconds: 800), () {
+    // Optimized artificial delay for a snappier but still smooth transition
+    Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -199,52 +199,57 @@ class _AddEventPageState extends State<AddEventPage> {
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: Column(
-                    key: ValueKey(_isLoading),
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Event Name
-                      _isLoading
-                          ? _buildSkeletonInput(showRequired: true)
-                          : _buildInputContainer(
-                              label: 'Event Name',
-                              child: TextFormField(
-                                controller: _nameController,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: onSurfaceColor,
+                child: RepaintBoundary(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Column(
+                      key: ValueKey(_isLoading),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Event Name
+                        _isLoading
+                            ? _buildSkeletonInput(showRequired: true)
+                            : _buildInputContainer(
+                                label: 'Event Name',
+                                child: TextFormField(
+                                  controller: _nameController,
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: onSurfaceColor,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    hintText: 'Enter event name',
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter an event name';
+                                    }
+                                    return null;
+                                  },
                                 ),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                  hintText: 'Enter event name',
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter an event name';
-                                  }
-                                  return null;
-                                },
+                                backgroundColor: surfaceContainerHighColor,
+                                onSurfaceVariantColor: onSurfaceVariantColor,
+                                textColor: onSurfaceColor,
                               ),
-                              backgroundColor: surfaceContainerHighColor,
-                              onSurfaceVariantColor: onSurfaceVariantColor,
-                              textColor: onSurfaceColor,
+                        if (!_isLoading)
+                          const Padding(
+                            padding: EdgeInsets.only(
+                              left: 16,
+                              top: 4,
+                              bottom: 24,
                             ),
-                      if (!_isLoading)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
-                          child: Text(
-                            'Required',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: onSurfaceVariantColor,
+                            child: Text(
+                              'Required',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: onSurfaceVariantColor,
+                              ),
                             ),
                           ),
-                        ),
 
                       // Event Time
                       _isLoading
