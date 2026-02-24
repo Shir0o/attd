@@ -179,4 +179,63 @@ void main() {
       AttendanceStatus.absent,
     );
   });
+
+  testWidgets('Add Guest functionality works', (tester) async {
+    // Setup Data
+    final session = Session(
+      id: 'session-1',
+      title: 'Test Event',
+      sessionDate: DateTime.now(),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'test-user',
+    );
+
+    final members = [const Member(id: '1', displayName: 'Alice')];
+
+    final mockRepo = MockSessionRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: members,
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    // Verify Alice is shown
+    expect(find.text('Alice'), findsOneWidget);
+
+    // Tap Add Guest
+    await tester.tap(find.text('Add Guest'));
+    await tester.pumpAndSettle(); // Wait for bottom sheet
+
+    // Verify Sheet is shown
+    expect(find.text('Guest Name'), findsOneWidget);
+
+    // Enter Guest Name
+    await tester.enterText(find.byType(TextField), 'Charlie');
+    await tester.pumpAndSettle();
+
+    // Tap Add & Continue
+    await tester.tap(find.text('Add & Continue'));
+    await tester.pumpAndSettle(); // Wait for sheet to close and save
+
+    // Verify Charlie is saved
+    expect(mockRepo.savedSnapshots.isNotEmpty, true);
+    final savedSession = mockRepo.savedSnapshots.last;
+    final charlieRecord = savedSession.records.firstWhere(
+      (r) => r.attendee == 'Charlie',
+    );
+    expect(
+      charlieRecord.status,
+      AttendanceStatus.present,
+    ); // Default is present
+
+    // Verify we are still on Alice (deck didn't advance)
+    expect(find.text('Alice'), findsOneWidget);
+  });
 }
