@@ -98,11 +98,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   void _showEventMenu(BuildContext context, Event event) async {
     final action = await showModalBottomSheet<String>(
       context: context,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
-        return SafeArea(
+        return RepaintBoundary(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -287,12 +288,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     final event = sortedEvents[index];
                     final isToday = _isEventToday(event);
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _EventCard(
-                        event: event,
-                        isToday: isToday,
-                        onTap: () async {
+                    return RepaintBoundary(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _EventCard(
+                          event: event,
+                          isToday: isToday,
+                          onTap: () async {
                           // Find or create session for today
                           // 1. Fetch all sessions (inefficient but works for small scale)
                           // 2. Filter for matching title + date
