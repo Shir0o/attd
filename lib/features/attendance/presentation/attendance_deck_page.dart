@@ -5,6 +5,7 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
+import 'add_guest_sheet.dart';
 import 'swipeable_card.dart';
 
 class AttendanceDeckPage extends StatefulWidget {
@@ -76,14 +77,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _currentIndex = firstUnrecorded;
   }
 
-  Future<void> _processAttendance(AttendanceStatus status) async {
-    if (_currentIndex >= widget.members.length) return;
-
-    final member = widget.members[_currentIndex];
-
+  Future<void> _recordAttendance(
+    String attendeeName,
+    AttendanceStatus status,
+  ) async {
     // Create new record
     final newRecord = SessionRecord(
-      attendee: member.displayName, // Using Name as ID for now based onRepo
+      attendee: attendeeName,
       status: status,
       recordedAt: DateTime.now(),
       recordedBy: 'User', // Placeholder
@@ -93,7 +93,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // If record exists, replace it. If not, add it.
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     final existingIndex = updatedRecords.indexWhere(
-      (r) => r.attendee == member.displayName,
+      (r) => r.attendee == attendeeName,
     );
     if (existingIndex != -1) {
       updatedRecords[existingIndex] = newRecord;
@@ -108,11 +108,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     setState(() {
       _currentSession = updatedSession;
-      _currentIndex++;
     });
 
     // Save to repo logic
-    // We can fire and forget, or await. Ideally await to ensure consistency.
     try {
       await widget.sessionRepository.saveSnapshot(
         updatedSession,
@@ -126,6 +124,39 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
       }
     }
+  }
+
+  void _processAttendance(AttendanceStatus status) {
+    if (_currentIndex >= widget.members.length) return;
+
+    final member = widget.members[_currentIndex];
+
+    // Fire and forget attendance recording
+    _recordAttendance(member.displayName, status);
+
+    setState(() {
+      _currentIndex++;
+    });
+  }
+
+  void _showAddGuestSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => AddGuestSheet(
+            onAdd: (name, isPresent) {
+              _recordAttendance(
+                name,
+                isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('$name added')));
+            },
+          ),
+    );
   }
 
   void _undo() {
@@ -201,9 +232,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 16, right: 16),
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement Add Guest
-                      },
+                      onPressed: _showAddGuestSheet,
                       icon: const Icon(Icons.person_add, size: 20),
                       label: const Text('Add Guest'),
                       style: OutlinedButton.styleFrom(
