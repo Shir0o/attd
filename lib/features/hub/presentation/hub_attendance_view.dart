@@ -5,6 +5,9 @@ import '../../../../data/session.dart';
 import '../../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
+import '../../settings/data/drive_service.dart';
+import '../../settings/data/local_backup_service.dart';
+import '../../settings/presentation/settings_page.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 import 'add_event_page.dart';
@@ -17,12 +20,16 @@ class HubAttendanceView extends StatefulWidget {
     required this.eventRepository,
     required this.attendanceRepository,
     this.onSignOut,
+    this.driveService,
+    this.localBackupService,
   });
 
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final VoidCallback? onSignOut;
+  final DriveService? driveService;
+  final LocalBackupService? localBackupService;
 
   @override
   State<HubAttendanceView> createState() => _HubAttendanceViewState();
@@ -252,6 +259,21 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               ],
             ),
             actions: [
+              if (widget.driveService != null &&
+                  widget.localBackupService != null)
+                IconButton(
+                  icon: const Icon(Icons.settings, color: onSurfaceVariantColor),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SettingsPage(
+                          driveService: widget.driveService!,
+                          localBackupService: widget.localBackupService!,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               if (widget.onSignOut != null)
                 IconButton(
                   icon: const Icon(Icons.logout, color: onSurfaceVariantColor),

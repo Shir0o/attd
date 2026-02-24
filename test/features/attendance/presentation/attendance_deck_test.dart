@@ -86,13 +86,15 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     // Verify initial state: Alice is shown
     expect(find.text('Alice'), findsOneWidget);
     expect(find.text('Bob'), findsNothing);
 
     // Tap Present for Alice
-    await tester.tap(find.byIcon(Icons.check));
+    await tester.tap(find.byKey(const Key('presentButton')));
     await tester.pumpAndSettle();
 
     // Verify Alice is saved
@@ -108,7 +110,7 @@ void main() {
     expect(find.text('Bob'), findsOneWidget);
 
     // Tap Absent for Bob
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byKey(const Key('absentButton')));
     await tester.pumpAndSettle();
 
     // Verify Bob is saved
@@ -155,21 +157,21 @@ void main() {
     );
 
     // Tap Present for Alice
-    await tester.tap(find.byIcon(Icons.check));
+    await tester.tap(find.byKey(const Key('presentButton')));
     await tester.pumpAndSettle();
 
     // Currently seeing Bob
     expect(find.text('Bob'), findsOneWidget);
 
     // Tap Undo
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byKey(const Key('undoButton')));
     await tester.pumpAndSettle();
 
     // Verify we are back to Alice
     expect(find.text('Alice'), findsOneWidget);
 
     // Tap Absent for Alice (change mind)
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byKey(const Key('absentButton')));
     await tester.pumpAndSettle();
 
     // Verify Alice is saved as absent
@@ -205,6 +207,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     // Verify Alice is shown
     expect(find.text('Alice'), findsOneWidget);

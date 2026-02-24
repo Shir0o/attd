@@ -75,6 +75,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     // Find the card (SwipeableCard)
     final cardFinder = find.byType(SwipeableCard);
@@ -121,6 +123,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     // Swipe Left
     await tester.drag(find.byType(SwipeableCard), const Offset(-300, 0));
