@@ -86,6 +86,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     // Verify initial state: Alice is shown
     expect(find.text('Alice'), findsOneWidget);
@@ -205,6 +207,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
 
     // Verify Alice is shown
     expect(find.text('Alice'), findsOneWidget);
