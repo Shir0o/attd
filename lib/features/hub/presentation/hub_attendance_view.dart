@@ -95,8 +95,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     }
   }
 
-  void _showEventMenu(BuildContext context, Event event) {
-    showModalBottomSheet(
+  void _showEventMenu(BuildContext context, Event event) async {
+    final action = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -123,22 +123,14 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 leading: const Icon(Icons.edit_outlined),
                 title: const Text('Edit Event'),
                 onTap: () {
-                  Navigator.pop(context); // Close sheet
-                  _editEvent(event);
+                  Navigator.pop(context, 'edit');
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.people_outline),
                 title: const Text('Manage Members'),
                 onTap: () {
-                  Navigator.pop(context); // Close sheet
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => MembersPage(
-                        attendanceRepository: widget.attendanceRepository,
-                      ),
-                    ),
-                  );
+                  Navigator.pop(context, 'manage');
                 },
               ),
               ListTile(
@@ -148,8 +140,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   style: TextStyle(color: Colors.red),
                 ),
                 onTap: () {
-                  Navigator.pop(context); // Close sheet
-                  _deleteEvent(event);
+                  Navigator.pop(context, 'delete');
                 },
               ),
               const SizedBox(height: 12),
@@ -158,6 +149,21 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         );
       },
     );
+
+    if (action == 'edit') {
+      _editEvent(event);
+    } else if (action == 'manage') {
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MembersPage(
+            attendanceRepository: widget.attendanceRepository,
+          ),
+        ),
+      );
+    } else if (action == 'delete') {
+      _deleteEvent(event);
+    }
   }
 
   bool _isToday(DateTime date) {
@@ -358,6 +364,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab',
         onPressed: _createNewSession,
         backgroundColor: primaryColor,
         foregroundColor: onPrimaryColor,
