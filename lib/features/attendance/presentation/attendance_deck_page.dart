@@ -173,40 +173,58 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Progress Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 0),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 4,
-                backgroundColor: surfaceContainerHighColor,
-                color: primaryColor,
-              ),
-            ),
-
-            // Top Bar with Add Guest
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement Add Guest
-                    },
-                    icon: const Icon(Icons.person_add, size: 20),
-                    label: const Text('Add Guest'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: onSurfaceVariantColor,
-                      backgroundColor: surfaceColor,
-                      side: BorderSide(
-                        color: onSurfaceVariantColor.withValues(alpha: 0.2),
+            // Header Stack (Progress + Add Guest)
+            Stack(
+              children: [
+                // Progress Bar
+                Container(
+                  height: 4,
+                  width: double.infinity,
+                  color: surfaceContainerHighColor,
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progress,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(999),
+                          bottomRight: Radius.circular(999),
+                        ),
                       ),
-                      shape: const StadiumBorder(),
                     ),
                   ),
-                ],
-              ),
+                ),
+                // Add Guest Button
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16, right: 16),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // TODO: Implement Add Guest
+                      },
+                      icon: const Icon(Icons.person_add, size: 20),
+                      label: const Text('Add Guest'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: onSurfaceVariantColor,
+                        backgroundColor: surfaceColor,
+                        side: BorderSide(
+                          color: onSurfaceVariantColor.withValues(alpha: 0.2),
+                        ),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                      ).copyWith(
+                        elevation: WidgetStateProperty.all(
+                          2,
+                        ), // To mimic shadow-sm
+                        shadowColor: WidgetStateProperty.all(Colors.black12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
 
             // Card Area
@@ -226,7 +244,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             scale: 0.9,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: surfaceContainerColor,
+                                color: surfaceContainerColor.withValues(
+                                  alpha: 0.4,
+                                ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: const [
                                   BoxShadow(
@@ -246,7 +266,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             scale: 0.95,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: surfaceContainerColor,
+                                color: surfaceContainerColor.withValues(
+                                  alpha: 0.7,
+                                ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: const [
                                   BoxShadow(
@@ -265,6 +287,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                           key: ValueKey(
                             currentMember.id,
                           ), // Important for resetting state
+                          rightSwipeColor: primaryColor,
+                          leftSwipeColor: errorColor,
                           onSwipeLeft: () =>
                               _processAttendance(AttendanceStatus.absent),
                           onSwipeRight: () =>
@@ -291,7 +315,15 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                   decoration: BoxDecoration(
                                     color: surfaceContainerHighColor,
                                     shape: BoxShape.circle,
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 1),
+                                      ),
+                                    ],
                                   ),
+                                  clipBehavior: Clip.antiAlias,
                                   child: Center(
                                     child: Text(
                                       currentMember.displayName.isNotEmpty
@@ -313,6 +345,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                     fontSize: 32,
                                     fontWeight: FontWeight.w500,
                                     color: onSurfaceColor,
+                                    height: 1.25, // leading-tight
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
