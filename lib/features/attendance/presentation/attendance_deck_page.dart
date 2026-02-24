@@ -28,6 +28,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   late Session _currentSession;
   late int _currentIndex;
   final List<Member> _remainingMembers = [];
+  bool _isLoading = true;
 
   // Stitch Colors
   static const primaryColor = Color(0xFF6750A4);
@@ -75,6 +76,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       }
     }
     _currentIndex = firstUnrecorded;
+
+    // Deliberate delay to ensure skeleton is visible and FAB Hero finishes smoothly
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    });
   }
 
   Future<void> _recordAttendance(
@@ -331,77 +339,107 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
                         // Main Card
                         Positioned.fill(
-                          child: SwipeableCard(
-                            key: ValueKey(
-                              currentMember.id,
-                            ), // Important for resetting state
-                            rightSwipeColor: primaryColor,
-                            leftSwipeColor: errorColor,
-                            onSwipeLeft: () =>
-                                _processAttendance(AttendanceStatus.absent),
-                            onSwipeRight: () =>
-                                _processAttendance(AttendanceStatus.present),
-                            child: Container(
-                              width: double.infinity,
-                              height: double.infinity,
-                              decoration: BoxDecoration(
-                                color: surfaceContainerColor,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 3,
-                                    offset: Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Avatar
-                                  Container(
-                                    width: 96,
-                                    height: 96,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 400),
+                            child: _isLoading
+                                ? Container(
+                                    key: const ValueKey('skeleton'),
+                                    width: double.infinity,
+                                    height: double.infinity,
                                     decoration: BoxDecoration(
-                                      color: surfaceContainerHighColor,
-                                      shape: BoxShape.circle,
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Colors.black12,
-                                          blurRadius: 2,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ],
+                                      color: surfaceContainerColor.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                    clipBehavior: Clip.antiAlias,
                                     child: Center(
-                                      child: Text(
-                                        currentMember.displayName.isNotEmpty
-                                            ? currentMember.displayName[0]
-                                                  .toUpperCase()
-                                            : '?',
-                                        style: const TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: primaryColor,
+                                      child: Container(
+                                        width: 96,
+                                        height: 96,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          shape: BoxShape.circle,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Text(
-                                    currentMember.displayName,
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.w500,
-                                      color: onSurfaceColor,
-                                      height: 1.25, // leading-tight
+                                  )
+                                : SwipeableCard(
+                                    key: ValueKey(
+                                      currentMember.id,
+                                    ), // Important for resetting state
+                                    rightSwipeColor: primaryColor,
+                                    leftSwipeColor: errorColor,
+                                    onSwipeLeft: () => _processAttendance(
+                                      AttendanceStatus.absent,
                                     ),
-                                    textAlign: TextAlign.center,
+                                    onSwipeRight: () => _processAttendance(
+                                      AttendanceStatus.present,
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: surfaceContainerColor,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 3,
+                                            offset: Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          // Avatar
+                                          Container(
+                                            width: 96,
+                                            height: 96,
+                                            decoration: BoxDecoration(
+                                              color: surfaceContainerHighColor,
+                                              shape: BoxShape.circle,
+                                              boxShadow: const [
+                                                BoxShadow(
+                                                  color: Colors.black12,
+                                                  blurRadius: 2,
+                                                  offset: Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            clipBehavior: Clip.antiAlias,
+                                            child: Center(
+                                              child: Text(
+                                                currentMember.displayName.isNotEmpty
+                                                    ? currentMember.displayName[0]
+                                                          .toUpperCase()
+                                                    : '?',
+                                                style: const TextStyle(
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: primaryColor,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          Text(
+                                            currentMember.displayName,
+                                            style: const TextStyle(
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.w500,
+                                              color: onSurfaceColor,
+                                              height: 1.25, // leading-tight
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
                           ),
                         ),
                       ],
@@ -466,18 +504,21 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   SizedBox(
                     width: 88,
                     height: 88,
-                    child: Material(
-                      color: primaryColor,
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      elevation: 3,
-                      child: InkWell(
-                        onTap: () =>
-                            _processAttendance(AttendanceStatus.present),
-                        child: const Icon(
-                          Icons.check,
-                          size: 48,
-                          color: onPrimaryColor,
+                    child: Hero(
+                      tag: 'fab',
+                      child: Material(
+                        color: primaryColor,
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        elevation: 3,
+                        child: InkWell(
+                          onTap: () =>
+                              _processAttendance(AttendanceStatus.present),
+                          child: const Icon(
+                            Icons.check,
+                            size: 48,
+                            color: onPrimaryColor,
+                          ),
                         ),
                       ),
                     ),
