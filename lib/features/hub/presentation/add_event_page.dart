@@ -150,7 +150,6 @@ class _AddEventPageState extends State<AddEventPage> {
     const onSurfaceColor = Color(0xFF1D1B20);
     const onSurfaceVariantColor = Color(0xFF49454F);
     const surfaceContainerHighColor = Color(0xFFECE6F0);
-    const onSurfaceColor = Color(0xFF1D1B20);
 
     final isEditing = widget.eventToEdit != null;
 
