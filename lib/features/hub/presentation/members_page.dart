@@ -214,15 +214,18 @@ class _MembersPageState extends State<MembersPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    FloatingActionButton(
-                      heroTag: 'add_member_fab',
-                      mini:
-                          false, // Stitch design uses a 50x50 button, FAB is close
-                      elevation: 1,
-                      backgroundColor: primaryColor,
-                      foregroundColor: onPrimaryColor,
-                      onPressed: () => _addMember(_quickAddController.text),
-                      child: const Icon(Icons.add),
+                    Hero(
+                      tag: 'fab',
+                      child: FloatingActionButton(
+                        heroTag: 'add_member_fab',
+                        mini:
+                            false, // Stitch design uses a 50x50 button, FAB is close
+                        elevation: 1,
+                        backgroundColor: primaryColor,
+                        foregroundColor: onPrimaryColor,
+                        onPressed: () => _addMember(_quickAddController.text),
+                        child: const Icon(Icons.add),
+                      ),
                     ),
                   ],
                 ),
