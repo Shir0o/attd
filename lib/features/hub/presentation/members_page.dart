@@ -27,9 +27,9 @@ class _MembersPageState extends State<MembersPage> {
 
   void _loadFamilies() {
     setState(() {
-      // Add a deliberate delay to ensure the skeleton loader is visible and transition is smooth
+      // Reduced delay for better responsiveness while still allowing transition to finish
       _familiesFuture = Future.delayed(
-        const Duration(milliseconds: 800),
+        const Duration(milliseconds: 400),
         () => widget.attendanceRepository.fetchFamilies(),
       );
     });
@@ -159,15 +159,15 @@ class _MembersPageState extends State<MembersPage> {
                     onChanged: (val) {
                       setState(() {});
                     },
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'Find members',
-                      hintStyle: const TextStyle(color: onSurfaceVariantColor),
-                      prefixIcon: const Icon(
+                      hintStyle: TextStyle(color: onSurfaceVariantColor),
+                      prefixIcon: Icon(
                         Icons.search,
                         color: onSurfaceVariantColor,
                       ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
                       ),
@@ -215,6 +215,7 @@ class _MembersPageState extends State<MembersPage> {
                     ),
                     const SizedBox(width: 8),
                     FloatingActionButton(
+                      heroTag: 'add_member_fab',
                       mini:
                           false, // Stitch design uses a 50x50 button, FAB is close
                       elevation: 1,
@@ -230,12 +231,13 @@ class _MembersPageState extends State<MembersPage> {
           ),
 
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: FutureBuilder<List<Family>>(
-                key: ValueKey(_familiesFuture),
-                future: _familiesFuture,
-                builder: (context, snapshot) {
+            child: RepaintBoundary(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: FutureBuilder<List<Family>>(
+                  key: ValueKey(_familiesFuture),
+                  future: _familiesFuture,
+                  builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return ListView.separated(
                       padding: const EdgeInsets.symmetric(
