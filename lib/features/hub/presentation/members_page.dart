@@ -229,15 +229,15 @@ class _MembersPageState extends State<MembersPage> {
             ),
           ),
 
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: FutureBuilder<List<Family>>(
-              key: ValueKey(_familiesFuture),
-              future: _familiesFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Expanded(
-                    child: ListView.separated(
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: FutureBuilder<List<Family>>(
+                key: ValueKey(_familiesFuture),
+                future: _familiesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ListView.separated(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
@@ -272,26 +272,22 @@ class _MembersPageState extends State<MembersPage> {
                           ),
                         );
                       },
-                    ),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return Expanded(
-                    child: Center(child: Text('Error: ${snapshot.error}')),
-                  );
-                }
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
 
-                final families = snapshot.data ?? [];
-                final allMembers = _getAllMembers(families);
+                  final families = snapshot.data ?? [];
+                  final allMembers = _getAllMembers(families);
 
-                // Filter
-                final searchTerm = _searchController.text.toLowerCase();
-                final filteredMembers = allMembers.where((m) {
-                  return m.displayName.toLowerCase().contains(searchTerm);
-                }).toList();
+                  // Filter
+                  final searchTerm = _searchController.text.toLowerCase();
+                  final filteredMembers = allMembers.where((m) {
+                    return m.displayName.toLowerCase().contains(searchTerm);
+                  }).toList();
 
-                return Expanded(
-                  child: Column(
+                  return Column(
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -383,9 +379,9 @@ class _MembersPageState extends State<MembersPage> {
                         ),
                       ),
                     ],
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
