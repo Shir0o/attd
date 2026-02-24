@@ -179,6 +179,7 @@ class _SwipeableCardState extends State<SwipeableCard>
         child: Transform.rotate(
           angle: rotation,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               widget.child,
               // Visual Overlay for swipe direction
