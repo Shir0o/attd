@@ -121,9 +121,9 @@ void main() {
     );
     expect(bobRecord.status, AttendanceStatus.absent);
 
-    // Verify Completion Screen
-    expect(find.text('All caught up!'), findsOneWidget);
-    expect(find.text('Back to Hub'), findsOneWidget);
+    // Verify Completion Screen (Session Summary)
+    expect(find.text('Session Summary'), findsOneWidget);
+    expect(find.text('Finalize Report'), findsOneWidget);
   });
 
   testWidgets('AttendanceDeckPage undo logic works', (tester) async {
