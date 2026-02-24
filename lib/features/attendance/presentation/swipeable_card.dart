@@ -6,6 +6,8 @@ class SwipeableCard extends StatefulWidget {
   final VoidCallback? onSwipeLeft;
   final VoidCallback? onSwipeRight;
   final double threshold;
+  final Color? rightSwipeColor;
+  final Color? leftSwipeColor;
 
   const SwipeableCard({
     super.key,
@@ -13,6 +15,8 @@ class SwipeableCard extends StatefulWidget {
     this.onSwipeLeft,
     this.onSwipeRight,
     this.threshold = 100.0,
+    this.rightSwipeColor,
+    this.leftSwipeColor,
   });
 
   @override
@@ -186,21 +190,12 @@ class _SwipeableCardState extends State<SwipeableCard>
                         16,
                       ), // Match card radius
                       color: offset.dx > 0
-                          ? Colors.green.withValues(
+                          ? (widget.rightSwipeColor ?? Colors.green).withValues(
                               alpha: min(0.3, offset.dx.abs() / 400),
                             )
-                          : Colors.red.withValues(
+                          : (widget.leftSwipeColor ?? Colors.red).withValues(
                               alpha: min(0.3, offset.dx.abs() / 400),
                             ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        offset.dx > 0 ? Icons.check_circle : Icons.cancel,
-                        size: 64,
-                        color: Colors.white.withValues(
-                          alpha: min(0.8, offset.dx.abs() / 200),
-                        ),
-                      ),
                     ),
                   ),
                 ),
