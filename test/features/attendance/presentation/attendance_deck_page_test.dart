@@ -94,8 +94,9 @@ void main() {
     expect(savedRecords.first.attendee, 'Test User');
     expect(savedRecords.first.status, AttendanceStatus.present);
 
-    // Verify we are at "All caught up!"
-    expect(find.text('All caught up!'), findsOneWidget);
+    // Verify we are at "Session Summary"
+    expect(find.text('Session Summary'), findsOneWidget);
+    expect(find.text('Finalize Report'), findsOneWidget);
   });
 
   testWidgets('AttendanceDeckPage swipes left to mark absent', (
