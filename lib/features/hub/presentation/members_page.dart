@@ -230,164 +230,161 @@ class _MembersPageState extends State<MembersPage> {
             ),
           ),
 
-                    Expanded(
-                      child: FutureBuilder<List<Family>>(
-                        key: ValueKey(_familiesFuture),
-                        future: _familiesFuture,
-                        builder: (context, snapshot) {
-                          return RepaintBoundary(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: _buildBodyContent(context, snapshot),
-                            ),
-                          );
-                        },
-                      ),
+          Expanded(
+            child: FutureBuilder<List<Family>>(
+              key: ValueKey(_familiesFuture),
+              future: _familiesFuture,
+              builder: (context, snapshot) {
+                return RepaintBoundary(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _buildBodyContent(context, snapshot),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBodyContent(
+    BuildContext context,
+    AsyncSnapshot<List<Family>> snapshot,
+  ) {
+    const primaryColor = Color(0xFF6750A4);
+    const onSurfaceColor = Color(0xFF1D1B20);
+    const onSurfaceVariantColor = Color(0xFF49454F);
+
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return ListView.separated(
+        key: const ValueKey('loading'),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: 8,
+        separatorBuilder:
+            (ctx, i) =>
+                Divider(color: Colors.grey.withValues(alpha: 0.2), height: 1),
+        itemBuilder: (context, index) {
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundColor: Colors.grey.withValues(alpha: 0.1),
+            ),
+            title: Container(
+              width: 150,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            subtitle: Container(
+              width: 80,
+              height: 12,
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    if (snapshot.hasError) {
+      return Center(
+        key: const ValueKey('error'),
+        child: Text('Error: ${snapshot.error}'),
+      );
+    }
+
+    final families = snapshot.data ?? [];
+    final allMembers = _getAllMembers(families);
+    final searchTerm = _searchController.text.toLowerCase();
+    final filteredMembers = allMembers.where((m) {
+      return m.displayName.toLowerCase().contains(searchTerm);
+    }).toList();
+
+    return Column(
+      key: const ValueKey('data'),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Regular Members',
+                style: TextStyle(
+                  color: onSurfaceVariantColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEADDFF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${filteredMembers.length}',
+                  style: const TextStyle(
+                    color: Color(0xFF21005D),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: filteredMembers.length,
+            separatorBuilder:
+                (ctx, i) => Divider(
+                  color: Colors.grey.withValues(alpha: 0.2),
+                  height: 1,
+                ),
+            itemBuilder: (context, index) {
+              final member = filteredMembers[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: primaryColor.withValues(alpha: 0.1),
+                  child: Text(
+                    member.displayName.isNotEmpty
+                        ? member.displayName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
+                ),
+                title: Text(
+                  member.displayName,
+                  style: const TextStyle(color: onSurfaceColor),
+                ),
+                subtitle: const Text(
+                  'Member',
+                  style: TextStyle(fontSize: 12, color: onSurfaceVariantColor),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: onSurfaceVariantColor,
+                  ),
+                  onPressed: () => _deleteMember(member),
                 ),
               );
-            }
-          
-            Widget _buildBodyContent(
-              BuildContext context,
-              AsyncSnapshot<List<Family>> snapshot,
-            ) {
-              const primaryColor = Color(0xFF6750A4);
-              const onSurfaceColor = Color(0xFF1D1B20);
-              const onSurfaceVariantColor = Color(0xFF49454F);
-          
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return ListView.separated(
-                  key: const ValueKey('loading'),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: 8,
-                  separatorBuilder: (ctx, i) => Divider(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                    height: 1,
-                  ),
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey.withValues(alpha: 0.1),
-                      ),
-                      title: Container(
-                        width: 150,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      subtitle: Container(
-                        width: 80,
-                        height: 12,
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }
-          
-              if (snapshot.hasError) {
-                return Center(
-                  key: const ValueKey('error'),
-                  child: Text('Error: ${snapshot.error}'),
-                );
-              }
-          
-              final families = snapshot.data ?? [];
-              final allMembers = _getAllMembers(families);
-              final searchTerm = _searchController.text.toLowerCase();
-              final filteredMembers = allMembers.where((m) {
-                return m.displayName.toLowerCase().contains(searchTerm);
-              }).toList();
-          
-              return Column(
-                key: const ValueKey('data'),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Regular Members',
-                          style: TextStyle(
-                            color: onSurfaceVariantColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEADDFF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${filteredMembers.length}',
-                            style: const TextStyle(
-                              color: Color(0xFF21005D),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: filteredMembers.length,
-                      separatorBuilder: (ctx, i) => Divider(
-                        color: Colors.grey.withValues(alpha: 0.2),
-                        height: 1,
-                      ),
-                      itemBuilder: (context, index) {
-                        final member = filteredMembers[index];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: primaryColor.withValues(alpha: 0.1),
-                            child: Text(
-                              member.displayName.isNotEmpty
-                                  ? member.displayName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: primaryColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            member.displayName,
-                            style: const TextStyle(color: onSurfaceColor),
-                          ),
-                          subtitle: const Text(
-                            'Member',
-                            style: TextStyle(fontSize: 12, color: onSurfaceVariantColor),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: onSurfaceVariantColor,
-                            ),
-                            onPressed: () => _deleteMember(member),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              );
-            }        ],
-      ),
+            },
+          ),
+        ),
+      ],
     );
   }
 }
