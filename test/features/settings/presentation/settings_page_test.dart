@@ -1,0 +1,158 @@
+import 'package:attendance_tracker/features/settings/data/drive_service.dart';
+import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
+import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+// Create a Fake Drive Service
+class FakeDriveService extends ChangeNotifier implements DriveService {
+  @override
+  bool isSyncing = false;
+
+  @override
+  DateTime? lastSyncTime;
+
+  @override
+  GoogleSignInAccount? currentUser;
+
+  @override
+  Future<void> signIn() async {
+    // Mock sign in
+    currentUser = FakeGoogleSignInAccount();
+    notifyListeners();
+  }
+
+  @override
+  Future<void> signOut() async {
+    currentUser = null;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> syncFiles() async {
+    isSyncing = true;
+    notifyListeners();
+    await Future.delayed(const Duration(milliseconds: 100));
+    isSyncing = false;
+    lastSyncTime = DateTime.now();
+    notifyListeners();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeGoogleSignInAccount implements GoogleSignInAccount {
+  @override
+  String get email => 'test@example.com';
+
+  @override
+  String get displayName => 'Test User';
+
+  @override
+  String get id => '123';
+
+  @override
+  String? get photoUrl => null;
+
+  @override
+  String? get serverAuthCode => null;
+
+  @override
+  Future<Map<String, String>> get authHeaders async => {};
+
+  @override
+  Future<GoogleSignInAuthentication> get authentication async => throw UnimplementedError();
+
+  @override
+  Future<void> clearAuthCache() async {}
+}
+
+class FakeLocalBackupService extends LocalBackupService {
+  bool backupCalled = false;
+  bool exportCalled = false;
+
+  @override
+  Future<void> createBackup() async {
+    backupCalled = true;
+  }
+
+  @override
+  Future<void> exportData() async {
+    exportCalled = true;
+  }
+}
+
+void main() {
+  testWidgets('SettingsPage renders correctly', (tester) async {
+    final driveService = FakeDriveService();
+    final localBackupService = FakeLocalBackupService();
+
+    await tester.pumpWidget(MaterialApp(
+      home: SettingsPage(
+        driveService: driveService,
+        localBackupService: localBackupService,
+      ),
+    ));
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Cloud Sync'), findsOneWidget);
+    expect(find.text('Google Drive Sync'), findsOneWidget);
+    expect(find.text('Backup to Local Storage'), findsOneWidget);
+    expect(find.text('Export Data'), findsOneWidget);
+  });
+
+  testWidgets('SettingsPage toggles Drive Sync', (tester) async {
+    final driveService = FakeDriveService();
+    final localBackupService = FakeLocalBackupService();
+
+    await tester.pumpWidget(MaterialApp(
+      home: SettingsPage(
+        driveService: driveService,
+        localBackupService: localBackupService,
+      ),
+    ));
+
+    // Initially signed out
+    expect(driveService.currentUser, isNull);
+    final switchFinder = find.byType(Switch);
+    expect(switchFinder, findsOneWidget);
+
+    // Toggle on
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    expect(driveService.currentUser, isNotNull);
+
+    // "Sync Now" button should appear
+    expect(find.text('Sync Now'), findsOneWidget);
+
+    // Toggle off
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    expect(driveService.currentUser, isNull);
+    expect(find.text('Sync Now'), findsNothing);
+  });
+
+  testWidgets('SettingsPage calls backup and export', (tester) async {
+    final driveService = FakeDriveService();
+    final localBackupService = FakeLocalBackupService();
+
+    await tester.pumpWidget(MaterialApp(
+      home: SettingsPage(
+        driveService: driveService,
+        localBackupService: localBackupService,
+      ),
+    ));
+
+    await tester.tap(find.text('Backup to Local Storage'));
+    await tester.pump();
+    expect(localBackupService.backupCalled, isTrue);
+
+    await tester.tap(find.text('Export Data'));
+    await tester.pump();
+    expect(localBackupService.exportCalled, isTrue);
+  });
+}

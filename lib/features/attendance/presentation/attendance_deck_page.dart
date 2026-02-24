@@ -467,6 +467,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
+                        key: const Key('undoButton'),
                         onTap: _currentIndex > 0 ? _undo : null,
                         child: Icon(
                           Icons.undo,
@@ -490,6 +491,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       clipBehavior: Clip.antiAlias,
                       elevation: 1,
                       child: InkWell(
+                        key: const Key('absentButton'),
                         onTap: () =>
                             _processAttendance(AttendanceStatus.absent),
                         child: const Icon(
@@ -514,6 +516,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         clipBehavior: Clip.antiAlias,
                         elevation: 3,
                         child: InkWell(
+                          key: const Key('presentButton'),
                           onTap: () =>
                               _processAttendance(AttendanceStatus.present),
                           child: const Icon(
