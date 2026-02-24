@@ -24,13 +24,34 @@ import 'features/families/presentation/family_list_page.dart';
 import 'features/hub/data/event_repository.dart';
 import 'features/hub/data/local_event_repository.dart';
 import 'features/hub/presentation/hub_page.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import 'features/auth/data/google_sign_in_service.dart';
 import 'features/reports/report_export_page.dart';
 import 'features/sessions/session_detail_page.dart';
+import 'features/settings/data/drive_service.dart';
+import 'features/settings/data/local_backup_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase initialization removed
-  runApp(AttendanceApp());
+
+  final googleSignIn = GoogleSignIn(
+    scopes: [
+      'email',
+      'https://www.googleapis.com/auth/drive.file',
+    ],
+  );
+
+  final driveService = DriveService(googleSignIn: googleSignIn);
+  final localBackupService = LocalBackupService();
+  final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
+
+  runApp(AttendanceApp(
+    driveService: driveService,
+    localBackupService: localBackupService,
+    googleAuthService: googleAuthService,
+  ));
 }
 
 class AttendanceApp extends StatefulWidget {
@@ -45,6 +66,8 @@ class AttendanceApp extends StatefulWidget {
     this.aiEnabled = true,
     this.authRepository,
     this.googleAuthService,
+    this.driveService,
+    this.localBackupService,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository =
            sessionRepository ??
@@ -64,6 +87,8 @@ class AttendanceApp extends StatefulWidget {
   final bool aiEnabled;
   final AuthRepository? authRepository;
   final GoogleAuthService? googleAuthService;
+  final DriveService? driveService;
+  final LocalBackupService? localBackupService;
 
   @override
   State<AttendanceApp> createState() => _AttendanceAppState();
@@ -101,6 +126,8 @@ class _AttendanceAppState extends State<AttendanceApp> {
             eventRepository: widget.eventRepository,
             attendanceRepository: widget.repository,
             onSignOut: _authController.signOut,
+            driveService: widget.driveService,
+            localBackupService: widget.localBackupService,
           ),
         ),
       ),
