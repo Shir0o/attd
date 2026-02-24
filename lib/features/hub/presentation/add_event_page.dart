@@ -149,8 +149,8 @@ class _AddEventPageState extends State<AddEventPage> {
     const surfaceColor = Color(0xFFFEF7FF);
     const onSurfaceColor = Color(0xFF1D1B20);
     const onSurfaceVariantColor = Color(0xFF49454F);
-    const tertiaryContainerColor = Color(0xFFFFD8E4); // From Stitch CSS
-    const onTertiaryContainerColor = Color(0xFF31111D); // From Stitch CSS
+    const surfaceContainerHighColor = Color(0xFFECE6F0);
+    const onSurfaceColor = Color(0xFF1D1B20);
 
     final isEditing = widget.eventToEdit != null;
 
@@ -203,7 +203,7 @@ class _AddEventPageState extends State<AddEventPage> {
                         textCapitalization: TextCapitalization.sentences,
                         style: const TextStyle(
                           fontSize: 16,
-                          color: onTertiaryContainerColor,
+                          color: onSurfaceColor,
                         ),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
@@ -217,9 +217,9 @@ class _AddEventPageState extends State<AddEventPage> {
                           return null;
                         },
                       ),
-                      tertiaryContainerColor: tertiaryContainerColor,
+                      backgroundColor: surfaceContainerHighColor,
                       onSurfaceVariantColor: onSurfaceVariantColor,
-                      onTertiaryContainerColor: onTertiaryContainerColor,
+                      textColor: onSurfaceColor,
                     ),
                     const Padding(
                       padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
@@ -244,7 +244,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                 _selectedTime.format(context),
                                 style: const TextStyle(
                                   fontSize: 16,
-                                  color: onTertiaryContainerColor,
+                                  color: onSurfaceColor,
                                 ),
                               ),
                             ),
@@ -254,9 +254,9 @@ class _AddEventPageState extends State<AddEventPage> {
                             ),
                           ],
                         ),
-                        tertiaryContainerColor: tertiaryContainerColor,
+                        backgroundColor: surfaceContainerHighColor,
                         onSurfaceVariantColor: onSurfaceVariantColor,
-                        onTertiaryContainerColor: onTertiaryContainerColor,
+                        textColor: onSurfaceColor,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -274,7 +274,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           ),
                           style: const TextStyle(
                             fontSize: 16,
-                            color: onTertiaryContainerColor,
+                            color: onSurfaceColor,
                           ),
                           onChanged: (String? newValue) {
                             if (newValue != null) {
@@ -293,9 +293,9 @@ class _AddEventPageState extends State<AddEventPage> {
                           }).toList(),
                         ),
                       ),
-                      tertiaryContainerColor: tertiaryContainerColor,
+                      backgroundColor: surfaceContainerHighColor,
                       onSurfaceVariantColor: onSurfaceVariantColor,
-                      onTertiaryContainerColor: onTertiaryContainerColor,
+                      textColor: onSurfaceColor,
                     ),
 
                     const SizedBox(height: 24),
@@ -315,7 +315,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                   ).format(_selectedDate),
                                   style: const TextStyle(
                                     fontSize: 16,
-                                    color: onTertiaryContainerColor,
+                                    color: onSurfaceColor,
                                   ),
                                 ),
                               ),
@@ -325,9 +325,9 @@ class _AddEventPageState extends State<AddEventPage> {
                               ),
                             ],
                           ),
-                          tertiaryContainerColor: tertiaryContainerColor,
+                          backgroundColor: surfaceContainerHighColor,
                           onSurfaceVariantColor: onSurfaceVariantColor,
-                          onTertiaryContainerColor: onTertiaryContainerColor,
+                          textColor: onSurfaceColor,
                         ),
                       )
                     else
@@ -434,13 +434,13 @@ class _AddEventPageState extends State<AddEventPage> {
   Widget _buildInputContainer({
     required String label,
     required Widget child,
-    required Color tertiaryContainerColor,
+    required Color backgroundColor,
     required Color onSurfaceVariantColor,
-    required Color onTertiaryContainerColor,
+    required Color textColor,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: tertiaryContainerColor,
+        color: backgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
         border: Border(bottom: BorderSide(color: onSurfaceVariantColor)),
       ),
@@ -452,7 +452,7 @@ class _AddEventPageState extends State<AddEventPage> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: onTertiaryContainerColor.withAlpha(179), // ~70% opacity
+              color: textColor.withAlpha(179), // ~70% opacity
             ),
           ),
           child,
