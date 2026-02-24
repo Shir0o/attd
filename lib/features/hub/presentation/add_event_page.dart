@@ -251,177 +251,179 @@ class _AddEventPageState extends State<AddEventPage> {
                             ),
                           ),
 
-                      // Event Time
-                      _isLoading
-                          ? _buildSkeletonInput()
-                          : GestureDetector(
-                              onTap: () => _selectTime(context),
-                              child: _buildInputContainer(
-                                label: 'Event Time',
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        _selectedTime.format(context),
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: onSurfaceColor,
+                        // Event Time
+                        _isLoading
+                            ? _buildSkeletonInput()
+                            : GestureDetector(
+                                onTap: () => _selectTime(context),
+                                child: _buildInputContainer(
+                                  label: 'Event Time',
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          _selectedTime.format(context),
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            color: onSurfaceColor,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const Icon(
-                                      Icons.schedule,
+                                      const Icon(
+                                        Icons.schedule,
+                                        color: onSurfaceVariantColor,
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: surfaceContainerHighColor,
+                                  onSurfaceVariantColor: onSurfaceVariantColor,
+                                  textColor: onSurfaceColor,
+                                ),
+                              ),
+                        const SizedBox(height: 24),
+
+                        // Frequency
+                        _isLoading
+                            ? _buildSkeletonInput()
+                            : _buildInputContainer(
+                                label: 'Frequency',
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _frequency,
+                                    isExpanded: true,
+                                    icon: const Icon(
+                                      Icons.arrow_drop_down,
                                       color: onSurfaceVariantColor,
                                     ),
-                                  ],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: onSurfaceColor,
+                                    ),
+                                    onChanged: (String? newValue) {
+                                      if (newValue != null) {
+                                        setState(() {
+                                          _frequency = newValue;
+                                        });
+                                      }
+                                    },
+                                    items: _frequencies
+                                        .map<DropdownMenuItem<String>>((
+                                          String value,
+                                        ) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        })
+                                        .toList(),
+                                  ),
                                 ),
                                 backgroundColor: surfaceContainerHighColor,
                                 onSurfaceVariantColor: onSurfaceVariantColor,
                                 textColor: onSurfaceColor,
                               ),
-                            ),
-                      const SizedBox(height: 24),
 
-                      // Frequency
-                      _isLoading
-                          ? _buildSkeletonInput()
-                          : _buildInputContainer(
-                              label: 'Frequency',
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _frequency,
-                                  isExpanded: true,
-                                  icon: const Icon(
-                                    Icons.arrow_drop_down,
+                        const SizedBox(height: 24),
+
+                        // Day / Date
+                        if (_isLoading)
+                          _buildSkeletonInput()
+                        else if (_frequency == 'One-time')
+                          GestureDetector(
+                            onTap: () => _selectDate(context),
+                            child: _buildInputContainer(
+                              label: 'Date',
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      DateFormat(
+                                        'yyyy-MM-dd',
+                                      ).format(_selectedDate),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: onSurfaceColor,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.calendar_today,
                                     color: onSurfaceVariantColor,
                                   ),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: onSurfaceColor,
-                                  ),
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      setState(() {
-                                        _frequency = newValue;
-                                      });
-                                    }
-                                  },
-                                  items: _frequencies
-                                      .map<DropdownMenuItem<String>>((
-                                        String value,
-                                      ) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      })
-                                      .toList(),
-                                ),
+                                ],
                               ),
                               backgroundColor: surfaceContainerHighColor,
                               onSurfaceVariantColor: onSurfaceVariantColor,
                               textColor: onSurfaceColor,
                             ),
-
-                      const SizedBox(height: 24),
-
-                      // Day / Date
-                      if (_isLoading)
-                        _buildSkeletonInput()
-                      else if (_frequency == 'One-time')
-                        GestureDetector(
-                          onTap: () => _selectDate(context),
-                          child: _buildInputContainer(
-                            label: 'Date',
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    DateFormat(
-                                      'yyyy-MM-dd',
-                                    ).format(_selectedDate),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: onSurfaceColor,
-                                    ),
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(left: 16, bottom: 8),
+                                child: Text(
+                                  'Repeats on',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: onSurfaceVariantColor,
                                   ),
                                 ),
-                                const Icon(
-                                  Icons.calendar_today,
-                                  color: onSurfaceVariantColor,
-                                ),
-                              ],
-                            ),
-                            backgroundColor: surfaceContainerHighColor,
-                            onSurfaceVariantColor: onSurfaceVariantColor,
-                            textColor: onSurfaceColor,
-                          ),
-                        )
-                      else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 16, bottom: 8),
-                              child: Text(
-                                'Repeats on',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: onSurfaceVariantColor,
-                                ),
                               ),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: List.generate(_daysOfWeek.length, (
-                                index,
-                              ) {
-                                final dayName = _daysOfWeek[index];
-                                final isSelected = _selectedDays.contains(
-                                  dayName,
-                                );
-                                final label = dayName.substring(0, 1);
-                                return GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      if (isSelected) {
-                                        _selectedDays.remove(dayName);
-                                      } else {
-                                        _selectedDays.add(dayName);
-                                      }
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isSelected
-                                          ? primaryColor
-                                          : const Color(
-                                              0xFFECE6F0,
-                                            ), // surface-container-high
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        label,
-                                        style: TextStyle(
-                                          color: isSelected
-                                              ? onPrimaryColor
-                                              : onSurfaceVariantColor,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14,
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: List.generate(_daysOfWeek.length, (
+                                  index,
+                                ) {
+                                  final dayName = _daysOfWeek[index];
+                                  final isSelected = _selectedDays.contains(
+                                    dayName,
+                                  );
+                                  final label = dayName.substring(0, 1);
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _selectedDays.remove(dayName);
+                                        } else {
+                                          _selectedDays.add(dayName);
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isSelected
+                                            ? primaryColor
+                                            : const Color(
+                                                0xFFECE6F0,
+                                              ), // surface-container-high
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          label,
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? onPrimaryColor
+                                                : onSurfaceVariantColor,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ],
-                        ),
-                    ],
+                                  );
+                                }),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
