@@ -207,7 +207,7 @@ class _AddEventPageState extends State<AddEventPage> {
                     children: [
                       // Event Name
                       _isLoading
-                          ? _buildSkeletonInput()
+                          ? _buildSkeletonInput(showRequired: true)
                           : _buildInputContainer(
                               label: 'Event Name',
                               child: TextFormField(
@@ -234,16 +234,17 @@ class _AddEventPageState extends State<AddEventPage> {
                               onSurfaceVariantColor: onSurfaceVariantColor,
                               textColor: onSurfaceColor,
                             ),
-                      const Padding(
-                        padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
-                        child: Text(
-                          'Required',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: onSurfaceVariantColor,
+                      if (!_isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
+                          child: Text(
+                            'Required',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: onSurfaceVariantColor,
+                            ),
                           ),
                         ),
-                      ),
 
                       // Event Time
                       _isLoading
@@ -456,14 +457,27 @@ class _AddEventPageState extends State<AddEventPage> {
     );
   }
 
-  Widget _buildSkeletonInput() {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-      ),
+  Widget _buildSkeletonInput({bool showRequired = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ),
+        if (showRequired)
+          const Padding(
+            padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
+            child: SizedBox(
+              width: 60,
+              height: 12,
+            ), // Spacer to match 'Required' text height and padding
+          ),
+      ],
     );
   }
 
