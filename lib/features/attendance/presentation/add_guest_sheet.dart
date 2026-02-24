@@ -19,7 +19,7 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
   static const onSurfaceColor = Color(0xFF1D1B20);
   static const onSurfaceVariantColor = Color(0xFF49454F);
   static const surfaceContainerColor = Color(0xFFF3EDF7);
-  static const tertiaryContainerColor = Color(0xFFFFD8E4);
+  static const surfaceContainerHighColor = Color(0xFFECE6F0);
 
   @override
   void dispose() {
@@ -91,7 +91,7 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                   // Name Input
                   Container(
                     decoration: const BoxDecoration(
-                      color: tertiaryContainerColor,
+                      color: surfaceContainerHighColor,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(4),
                         topRight: Radius.circular(4),
