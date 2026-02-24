@@ -27,7 +27,11 @@ class _MembersPageState extends State<MembersPage> {
 
   void _loadFamilies() {
     setState(() {
-      _familiesFuture = widget.attendanceRepository.fetchFamilies();
+      // Add a deliberate delay to ensure the skeleton loader is visible and transition is smooth
+      _familiesFuture = Future.delayed(
+        const Duration(milliseconds: 800),
+        () => widget.attendanceRepository.fetchFamilies(),
+      );
     });
   }
 
@@ -225,125 +229,164 @@ class _MembersPageState extends State<MembersPage> {
             ),
           ),
 
-          FutureBuilder<List<Family>>(
-            future: _familiesFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasError) {
-                return Expanded(
-                  child: Center(child: Text('Error: ${snapshot.error}')),
-                );
-              }
-
-              final families = snapshot.data ?? [];
-              final allMembers = _getAllMembers(families);
-
-              // Filter
-              final searchTerm = _searchController.text.toLowerCase();
-              final filteredMembers = allMembers.where((m) {
-                return m.displayName.toLowerCase().contains(searchTerm);
-              }).toList();
-
-              return Expanded(
-                child: Column(
-                  children: [
-                    Padding(
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: FutureBuilder<List<Family>>(
+              key: ValueKey(_familiesFuture),
+              future: _familiesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Expanded(
+                    child: ListView.separated(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Regular Members',
-                            style: TextStyle(
-                              color: onSurfaceVariantColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFEADDFF,
-                              ), // Primary Container
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${filteredMembers.length}',
-                              style: const TextStyle(
-                                color: Color(0xFF21005D),
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ), // On Primary Container
-                          ),
-                        ],
+                      itemCount: 8,
+                      separatorBuilder: (ctx, i) => Divider(
+                        color: Colors.grey.withValues(alpha: 0.2),
+                        height: 1,
                       ),
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.grey.withValues(alpha: 0.1),
+                          ),
+                          title: Container(
+                            width: 150,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          subtitle: Container(
+                            width: 80,
+                            height: 12,
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    Expanded(
-                      child: ListView.separated(
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Expanded(
+                    child: Center(child: Text('Error: ${snapshot.error}')),
+                  );
+                }
+
+                final families = snapshot.data ?? [];
+                final allMembers = _getAllMembers(families);
+
+                // Filter
+                final searchTerm = _searchController.text.toLowerCase();
+                final filteredMembers = allMembers.where((m) {
+                  return m.displayName.toLowerCase().contains(searchTerm);
+                }).toList();
+
+                return Expanded(
+                  child: Column(
+                    children: [
+                      Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
                         ),
-                        itemCount: filteredMembers.length,
-                        separatorBuilder: (ctx, i) => Divider(
-                          color: Colors.grey.withValues(alpha: 0.2),
-                          height: 1,
-                        ),
-                        itemBuilder: (context, index) {
-                          final member = filteredMembers[index];
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(
-                              backgroundColor: primaryColor.withValues(
-                                alpha: 0.1,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Regular Members',
+                              style: TextStyle(
+                                color: onSurfaceVariantColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFEADDFF,
+                                ), // Primary Container
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                member.displayName.isNotEmpty
-                                    ? member.displayName[0].toUpperCase()
-                                    : '?',
+                                '${filteredMembers.length}',
                                 style: const TextStyle(
-                                  color: primaryColor,
+                                  color: Color(0xFF21005D),
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
-                              ),
+                              ), // On Primary Container
                             ),
-                            title: Text(
-                              member.displayName,
-                              style: const TextStyle(color: onSurfaceColor),
-                            ),
-                            subtitle: const Text(
-                              'Member',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: onSurfaceVariantColor,
-                              ),
-                            ), // Date joined not available in model
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: onSurfaceVariantColor,
-                              ),
-                              onPressed: () => _deleteMember(member),
-                            ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          itemCount: filteredMembers.length,
+                          separatorBuilder: (ctx, i) => Divider(
+                            color: Colors.grey.withValues(alpha: 0.2),
+                            height: 1,
+                          ),
+                          itemBuilder: (context, index) {
+                            final member = filteredMembers[index];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: primaryColor.withValues(
+                                  alpha: 0.1,
+                                ),
+                                child: Text(
+                                  member.displayName.isNotEmpty
+                                      ? member.displayName[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                member.displayName,
+                                style: const TextStyle(color: onSurfaceColor),
+                              ),
+                              subtitle: const Text(
+                                'Member',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: onSurfaceVariantColor,
+                                ),
+                              ), // Date joined not available in model
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: onSurfaceVariantColor,
+                                ),
+                                onPressed: () => _deleteMember(member),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
