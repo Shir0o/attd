@@ -60,21 +60,22 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   Future<void> _deleteEvent(Event event) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Event'),
-        content: Text('Are you sure you want to delete "${event.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Event'),
+            content: Text('Are you sure you want to delete "${event.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true && mounted) {
@@ -157,9 +158,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       if (!context.mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => MembersPage(
-            attendanceRepository: widget.attendanceRepository,
-          ),
+          builder:
+              (_) => MembersPage(
+                attendanceRepository: widget.attendanceRepository,
+              ),
         ),
       );
     } else if (action == 'delete') {
@@ -295,67 +297,70 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           event: event,
                           isToday: isToday,
                           onTap: () async {
-                          // Find or create session for today
-                          // 1. Fetch all sessions (inefficient but works for small scale)
-                          // 2. Filter for matching title + date
+                            // Find or create session for today
+                            // 1. Fetch all sessions (inefficient but works for small scale)
+                            // 2. Filter for matching title + date
 
-                          // Optimization: SessionRepository should probably have findByDateAndTitle?
-                          // For now, load all.
-                          final allSessions = await widget.sessionRepository
-                              .loadSessions();
-                          final now = DateTime.now();
-                          final today = DateTime(now.year, now.month, now.day);
+                            // Optimization: SessionRepository should probably have findByDateAndTitle?
+                            // For now, load all.
+                            final allSessions = await widget.sessionRepository
+                                .loadSessions();
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
 
-                          Session? session;
-                          try {
-                            session = allSessions.firstWhere(
-                              (s) =>
-                                  s.title == event.title &&
-                                  s.sessionDate.year == today.year &&
-                                  s.sessionDate.month == today.month &&
-                                  s.sessionDate.day == today.day,
-                            );
-                          } catch (_) {
-                            session = null;
-                          }
-
-                          session ??= await widget.sessionRepository
-                              .createSession(
-                                title: event.title,
-                                sessionDate: today,
-                                actor: 'User',
-                                records: [],
+                            Session? session;
+                            try {
+                              session = allSessions.firstWhere(
+                                (s) =>
+                                    s.title == event.title &&
+                                    s.sessionDate.year == today.year &&
+                                    s.sessionDate.month == today.month &&
+                                    s.sessionDate.day == today.day,
                               );
+                            } catch (_) {
+                              session = null;
+                            }
 
-                          if (!mounted) return;
+                            session ??= await widget.sessionRepository
+                                .createSession(
+                                  title: event.title,
+                                  sessionDate: today,
+                                  actor: 'User',
+                                  records: [],
+                                );
 
-                          // Fetch members
-                          final families = await widget.attendanceRepository
-                              .fetchFamilies();
-                          final allMembers = families
-                              .expand((f) => f.members)
-                              .toList();
+                            if (!mounted) return;
 
-                          if (!context.mounted) return;
+                            // Fetch members
+                            final families = await widget.attendanceRepository
+                                .fetchFamilies();
+                            final allMembers = families
+                                .expand((f) => f.members)
+                                .toList();
 
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => AttendanceDeckPage(
-                                session: session!,
-                                members: allMembers,
-                                sessionRepository: widget.sessionRepository,
+                            if (!context.mounted) return;
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => AttendanceDeckPage(
+                                      session: session!,
+                                      members: allMembers,
+                                      sessionRepository:
+                                          widget.sessionRepository,
+                                    ),
                               ),
-                            ),
-                          );
-                        },
-                        onMenuTap: () => _showEventMenu(context, event),
-                        primaryColor: primaryColor,
-                        onPrimaryColor: onPrimaryColor,
-                        surfaceContainerColor: surfaceContainerColor,
-                        onSurfaceColor: onSurfaceColor,
-                        onSurfaceVariantColor: onSurfaceVariantColor,
-                        secondaryContainerColor: secondaryContainerColor,
-                        onSecondaryContainerColor: onSecondaryContainerColor,
+                            );
+                          },
+                          onMenuTap: () => _showEventMenu(context, event),
+                          primaryColor: primaryColor,
+                          onPrimaryColor: onPrimaryColor,
+                          surfaceContainerColor: surfaceContainerColor,
+                          onSurfaceColor: onSurfaceColor,
+                          onSurfaceVariantColor: onSurfaceVariantColor,
+                          secondaryContainerColor: secondaryContainerColor,
+                          onSecondaryContainerColor: onSecondaryContainerColor,
+                        ),
                       ),
                     );
                   }, childCount: sortedEvents.length),
@@ -511,11 +516,12 @@ class _EventCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isToday
-                          ? secondaryContainerColor
-                          : surfaceContainerColor.withAlpha(
-                              20,
-                            ), // Less prominent
+                      color:
+                          isToday
+                              ? secondaryContainerColor
+                              : surfaceContainerColor.withAlpha(
+                                20,
+                              ), // Less prominent
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
                         color: onSurfaceVariantColor.withValues(alpha: 0.1),
