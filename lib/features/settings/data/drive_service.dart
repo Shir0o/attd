@@ -112,6 +112,16 @@ class DriveService extends ChangeNotifier {
 
       _lastSyncTime = DateTime.now();
       // TODO: Persist last sync time
+    } on drive.DetailedApiRequestError catch (e) {
+      if (e.status == 403 && e.message != null && e.message!.contains('Google Drive API has not been used')) {
+        print('Sync failed: Google Drive API is not enabled.');
+        throw Exception(
+          'Google Drive API is disabled. Enable it here: '
+          'https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=YOUR_GOOGLE_PROJECT_NUMBER'
+        );
+      }
+      print('Sync failed: DetailedApiRequestError(${e.status}, ${e.message})');
+      rethrow;
     } catch (e) {
       print('Sync failed: $e');
       rethrow;
