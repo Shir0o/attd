@@ -29,17 +29,24 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Future<void> _loadFamilies({bool isInitial = false}) async {
+    final startTime = DateTime.now();
     if (isInitial) {
       setState(() {
         _isLoading = true;
         _error = null;
       });
-      // Optimized delay for better responsiveness while still allowing transition to finish
-      await Future.delayed(const Duration(milliseconds: 250));
     }
 
     try {
       final families = await widget.attendanceRepository.fetchFamilies();
+      
+      // Ensure minimum loading duration for visual consistency
+      final elapsed = DateTime.now().difference(startTime);
+      final remaining = const Duration(milliseconds: 250) - elapsed;
+      if (remaining > Duration.zero) {
+        await Future.delayed(remaining);
+      }
+
       if (mounted) {
         setState(() {
           _families = families;
@@ -285,15 +292,15 @@ class _MembersPageState extends State<MembersPage> {
       return ListView.separated(
         key: const ValueKey('loading'),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: 8,
+        itemCount: 10,
         separatorBuilder:
             (ctx, i) =>
-                Divider(color: Colors.grey.withValues(alpha: 0.2), height: 1),
+                Divider(color: colorScheme.outlineVariant, height: 1),
         itemBuilder: (context, index) {
           return ListTile(
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(
-              backgroundColor: Colors.grey.withValues(alpha: 0.1),
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.05),
             ),
             title: Container(
               width: 150,

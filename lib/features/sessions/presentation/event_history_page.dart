@@ -28,32 +28,38 @@ class EventHistoryPage extends StatefulWidget {
 
 class _EventHistoryPageState extends State<EventHistoryPage> {
   late Stream<List<Session>> _sessionsStream;
-  bool _isLoading = true;
+  late Future<void> _initializationFuture;
   List<Member> _members = [];
 
   @override
   void initState() {
     super.initState();
     _sessionsStream = widget.sessionRepository.streamSessions();
-    _loadData();
+    _initializationFuture = _init();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _init() async {
+    final startTime = DateTime.now();
+    
     try {
-      final families = await widget.attendanceRepository.fetchFamilies();
-      if (mounted) {
-        setState(() {
-          _members = families.expand((f) => f.members).toList();
-        });
-      }
+      // Parallelize member loading and initial session load
+      await Future.wait([
+        widget.attendanceRepository.fetchFamilies().then((families) {
+          if (mounted) {
+            _members = families.expand((f) => f.members).toList();
+          }
+        }),
+        widget.sessionRepository.loadSessions(),
+      ]);
     } catch (e) {
-      debugPrint('Error loading members: $e');
+      debugPrint('Error during initialization: $e');
     }
 
     // Minimum loading duration for visual consistency
-    await Future.delayed(const Duration(milliseconds: 250));
-    if (mounted) {
-      setState(() => _isLoading = false);
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = const Duration(milliseconds: 400) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
     }
   }
 
@@ -85,165 +91,198 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
         centerTitle: true,
       ),
       body: RepaintBoundary(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await widget.sessionRepository.refresh();
-            await widget.attendanceRepository.refresh();
-            await _loadData();
-          },
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 600),
-            child: _isLoading 
-              ? _buildSkeleton(context)
-              : StreamBuilder<List<Session>>(
-                stream: _sessionsStream,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                    return _buildSkeleton(context);
-                  }
+        child: FutureBuilder<void>(
+          future: _initializationFuture,
+          builder: (context, initSnapshot) {
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 600),
+              child: initSnapshot.connectionState != ConnectionState.done
+                  ? _buildSkeleton(context)
+                  : RefreshIndicator(
+                      key: const ValueKey('content'),
+                      onRefresh: () async {
+                        await widget.sessionRepository.refresh();
+                        await widget.attendanceRepository.refresh();
+                        await _init();
+                      },
+                      child: StreamBuilder<List<Session>>(
+                        stream: _sessionsStream,
+                        builder: (context, snapshot) {
+                          final allSessions = snapshot.data ?? [];
+                          final eventSessions = allSessions
+                              .where((s) => s.title == widget.event.title)
+                              .toList();
 
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
+                          // Sort by date descending
+                          eventSessions.sort(
+                            (a, b) => b.sessionDate.compareTo(a.sessionDate),
+                          );
 
-                  final allSessions = snapshot.data ?? [];
-                  final eventSessions = allSessions.where((s) => s.title == widget.event.title).toList();
-
-                  // Sort by date descending
-                  eventSessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-
-                  if (eventSessions.isEmpty) {
-                    return LayoutBuilder(
-                      builder: (context, constraints) => ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          Container(
-                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                          if (eventSessions.isEmpty) {
+                            return LayoutBuilder(
+                              builder: (context, constraints) => ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
                                 children: [
-                                  Icon(
-                                    Icons.history_outlined,
-                                    size: 64,
-                                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No history found',
-                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                                  Container(
+                                    constraints: BoxConstraints(
+                                      minHeight: constraints.maxHeight,
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.history_outlined,
+                                            size: 64,
+                                            color: colorScheme.onSurfaceVariant
+                                                .withOpacity(0.5),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'No history found',
+                                            style: TextStyle(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: eventSessions.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final session = eventSessions[index];
-                      final dateStr = DateFormat('MMM d, yyyy').format(session.sessionDate);
-                      final dayTimeStr = '${DateFormat('EEEE').format(session.sessionDate)} • ${widget.event.time.format(context)}';
-
-                      final presentCount = session.records.where((r) => r.status == AttendanceStatus.present).length;
-                      final absentCount = session.records.where((r) => r.status == AttendanceStatus.absent).length;
-
-                      return Card(
-                        elevation: 0,
-                        color: colorScheme.secondaryContainer.withOpacity(0.4),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => SessionSummaryPage(
-                                  session: session,
-                                  members: _members,
-                                  sessionRepository: widget.sessionRepository,
-                                ),
-                              ),
                             );
-                          },
-                          child: Padding(
+                          }
+
+                          return ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                            itemCount: eventSessions.length,
+                            separatorBuilder:
+                                (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final session = eventSessions[index];
+                              final dateStr = DateFormat('MMM d, yyyy').format(
+                                session.sessionDate,
+                              );
+                              final dayTimeStr =
+                                  '${DateFormat('EEEE').format(session.sessionDate)} • ${widget.event.time.format(context)}';
+
+                              final presentCount = session.records
+                                  .where(
+                                    (r) => r.status == AttendanceStatus.present,
+                                  )
+                                  .length;
+                              final absentCount = session.records
+                                  .where(
+                                    (r) => r.status == AttendanceStatus.absent,
+                                  )
+                                  .length;
+
+                              return Card(
+                                elevation: 0,
+                                color: colorScheme.secondaryContainer
+                                    .withOpacity(0.4),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: colorScheme.surfaceContainerHighest
+                                        .withOpacity(0.5),
+                                  ),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => SessionSummaryPage(
+                                              session: session,
+                                              members: _members,
+                                              sessionRepository:
+                                                  widget.sessionRepository,
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
                                       children: [
-                                        Text(
-                                          dateStr,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w500,
-                                            color: colorScheme.onSurface,
-                                          ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  dateStr,
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  dayTimeStr,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Icon(
+                                              Icons.chevron_right,
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                          ],
                                         ),
-                                        Text(
-                                          dayTimeStr,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            _buildStatusBadge(
+                                              context,
+                                              Icons.check_circle,
+                                              colorScheme.primary,
+                                              '$presentCount Present',
+                                            ),
+                                            Container(
+                                              height: 16,
+                                              width: 1,
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                  ),
+                                              color: colorScheme.outlineVariant,
+                                            ),
+                                            _buildStatusBadge(
+                                              context,
+                                              Icons.cancel,
+                                              colorScheme.error,
+                                              '$absentCount Absent',
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    _buildStatusBadge(
-                                      context,
-                                      Icons.check_circle,
-                                      colorScheme.primary,
-                                      '$presentCount Present',
-                                    ),
-                                    Container(
-                                      height: 16,
-                                      width: 1,
-                                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                                      color: colorScheme.outlineVariant,
-                                    ),
-                                    _buildStatusBadge(
-                                      context,
-                                      Icons.cancel,
-                                      colorScheme.error,
-                                      '$absentCount Absent',
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-          ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+            );
+          },
         ),
       ),
     );
