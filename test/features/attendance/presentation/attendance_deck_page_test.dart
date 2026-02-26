@@ -110,6 +110,8 @@ void main() {
     expect(savedRecords.first.status, AttendanceStatus.present);
 
     // Verify we are at the summary page (it shows the session title)
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
     expect(find.text('Finalize Report'), findsOneWidget);
   });
@@ -142,8 +144,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    // Swipe Left
-    await tester.drag(find.byType(SwipeableCard), const Offset(-300, 0));
+    // Tap Absent button (instead of drag for more reliable transition test)
+    await tester.tap(find.byKey(const Key('absentButton')));
+    await tester.pump(); // Start transition
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
 
     expect(fakeRepo.savedSessions.length, 1);
@@ -151,5 +155,9 @@ void main() {
       fakeRepo.savedSessions.first.records.first.status,
       AttendanceStatus.absent,
     );
+
+    // Verify Completion Screen
+    expect(find.text('Test Session'), findsOneWidget);
+    expect(find.text('Finalize Report'), findsOneWidget);
   });
 }

@@ -72,12 +72,22 @@ class _AddEventPageState extends State<AddEventPage> {
       }
     }
 
-    // Optimized artificial delay for a snappier but still smooth transition
-    Future.delayed(const Duration(milliseconds: 250), () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    });
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final startTime = DateTime.now();
+    
+    // Ensure minimum loading duration for visual consistency
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = const Duration(milliseconds: 600) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
