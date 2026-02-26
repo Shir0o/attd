@@ -5,4 +5,5 @@ abstract class EventRepository {
   Future<void> updateEvent(Event event);
   Future<void> deleteEvent(String eventId);
   Stream<List<Event>> streamEvents();
+  Future<void> refresh();
 }

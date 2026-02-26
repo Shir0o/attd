@@ -52,6 +52,9 @@ class MockSessionRepository implements SessionRepository {
     _savedSnapshots.add(session);
     return session;
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 void main() {

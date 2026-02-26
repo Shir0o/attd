@@ -46,6 +46,9 @@ class _FakeSessionRepository implements SessionRepository {
 
   @override
   Future<List<SessionVersion>> history(String sessionId) async => [];
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class _FakeSheetsClient implements SheetsClient {
