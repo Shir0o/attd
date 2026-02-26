@@ -48,6 +48,9 @@ class FakeSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+
+  @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
     savedSessions.add(session);
     return session;

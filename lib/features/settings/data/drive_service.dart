@@ -5,6 +5,8 @@ import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sig
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:archive/archive_io.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -29,8 +31,10 @@ class DriveService extends ChangeNotifier {
   DateTime? _lastSyncTime;
   bool _isSyncing = false;
   String? _appFolderId;
+  String? _backupFolderId;
 
   static const String _syncFolderName = 'Attendance Tracker Data';
+  static const String _backupFolderName = 'Backups';
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
@@ -63,6 +67,7 @@ class DriveService extends ChangeNotifier {
     await _googleSignIn.signOut();
     _driveApi = null;
     _appFolderId = null;
+    _backupFolderId = null;
     notifyListeners();
   }
 
@@ -79,7 +84,8 @@ class DriveService extends ChangeNotifier {
 
     final query =
         "name = '$_syncFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-    final folderList = await _driveApi!.files.list(q: query, $fields: 'files(id)');
+    final folderList =
+        await _driveApi!.files.list(q: query, $fields: 'files(id)');
 
     if (folderList.files != null && folderList.files!.isNotEmpty) {
       _appFolderId = folderList.files!.first.id;
@@ -95,6 +101,31 @@ class DriveService extends ChangeNotifier {
     final createdFolder = await _driveApi!.files.create(folder);
     _appFolderId = createdFolder.id;
     return _appFolderId!;
+  }
+
+  Future<String> _getOrCreateBackupFolder(String parentId) async {
+    if (_backupFolderId != null) return _backupFolderId!;
+
+    final query =
+        "name = '$_backupFolderName' and '$parentId' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+    final folderList =
+        await _driveApi!.files.list(q: query, $fields: 'files(id)');
+
+    if (folderList.files != null && folderList.files!.isNotEmpty) {
+      _backupFolderId = folderList.files!.first.id;
+      return _backupFolderId!;
+    }
+
+    // Create folder
+    final folder =
+        drive.File()
+          ..name = _backupFolderName
+          ..parents = [parentId]
+          ..mimeType = 'application/vnd.google-apps.folder';
+
+    final createdFolder = await _driveApi!.files.create(folder);
+    _backupFolderId = createdFolder.id;
+    return _backupFolderId!;
   }
 
   Future<void> syncFiles() async {
@@ -158,6 +189,10 @@ class DriveService extends ChangeNotifier {
         if (attendanceRepository != null) attendanceRepository!.refresh(),
         if (eventRepository != null) eventRepository!.refresh(),
       ]);
+
+      // 3. Create Cloud Backup snapshot
+      await _createCloudBackup(folderId, docsDir, filesToSync);
+
       // TODO: Persist last sync time
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 403 &&
@@ -178,6 +213,129 @@ class DriveService extends ChangeNotifier {
       _isSyncing = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _createCloudBackup(
+    String parentId,
+    Directory docsDir,
+    List<String> filesToBackup,
+  ) async {
+    try {
+      final backupFolderId = await _getOrCreateBackupFolder(parentId);
+
+      // Create ZIP
+      final encoder = ZipFileEncoder();
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final backupName = 'attendance_snapshot_$timestamp.zip';
+      final backupPath = p.join(docsDir.path, backupName);
+      encoder.create(backupPath);
+
+      for (final fileName in filesToBackup) {
+        final file = File(p.join(docsDir.path, fileName));
+        if (await file.exists()) {
+          encoder.addFile(file);
+        }
+      }
+      encoder.close();
+
+      // Upload ZIP
+      final backupFile = File(backupPath);
+      final media = drive.Media(
+        backupFile.openRead(),
+        backupFile.lengthSync(),
+      );
+      final driveFile =
+          drive.File()
+            ..name = backupName
+            ..parents = [backupFolderId];
+
+      await _driveApi!.files.create(driveFile, uploadMedia: media);
+
+      // Cleanup local ZIP
+      await backupFile.delete();
+
+      // Maintain last 5 backups
+      await _cleanupOldBackups(backupFolderId);
+    } catch (e) {
+      print('Failed to create cloud backup: $e');
+    }
+  }
+
+  Future<void> _cleanupOldBackups(String folderId) async {
+    final query =
+        "'$folderId' in parents and trashed = false and name contains 'attendance_snapshot_'";
+    final fileList = await _driveApi!.files.list(
+      q: query,
+      $fields: 'files(id, name, createdTime)',
+      orderBy: 'createdTime desc',
+    );
+
+    if (fileList.files != null && fileList.files!.length > 5) {
+      final filesToDelete = fileList.files!.sublist(5);
+      for (final file in filesToDelete) {
+        if (file.id != null) {
+          await _driveApi!.files.delete(file.id!);
+        }
+      }
+    }
+  }
+
+  Future<List<drive.File>> listCloudBackups() async {
+    if (_driveApi == null) return [];
+    final parentId = await _getOrCreateAppFolder();
+    final backupFolderId = await _getOrCreateBackupFolder(parentId);
+
+    final query =
+        "'$backupFolderId' in parents and trashed = false and name contains 'attendance_snapshot_'";
+    final fileList = await _driveApi!.files.list(
+      q: query,
+      $fields: 'files(id, name, createdTime, size)',
+      orderBy: 'createdTime desc',
+    );
+
+    return fileList.files ?? [];
+  }
+
+  Future<void> restoreFromBackup(String fileId) async {
+    if (_driveApi == null) return;
+
+    final docsDir = await getApplicationDocumentsDirectory();
+    final tempBackup = File(p.join(docsDir.path, 'restore_temp.zip'));
+
+    // 1. Download ZIP
+    final media =
+        await _driveApi!.files.get(
+              fileId,
+              downloadOptions: drive.DownloadOptions.fullMedia,
+            )
+            as drive.Media;
+
+    final List<int> bytes = [];
+    await media.stream.forEach(bytes.addAll);
+    await tempBackup.writeAsBytes(bytes);
+
+    // 2. Extract
+    final archive = ZipDecoder().decodeBytes(await tempBackup.readAsBytes());
+    for (final file in archive) {
+      final filename = file.name;
+      if (file.isFile) {
+        final data = file.content as List<int>;
+        File(p.join(docsDir.path, filename))
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(data);
+      }
+    }
+
+    // 3. Cleanup
+    await tempBackup.delete();
+
+    // 4. Refresh
+    await Future.wait([
+      if (sessionRepository != null) sessionRepository!.refresh(),
+      if (attendanceRepository != null) attendanceRepository!.refresh(),
+      if (eventRepository != null) eventRepository!.refresh(),
+    ]);
+    notifyListeners();
   }
 
   Future<Map<String, drive.File>> _listRemoteFiles(String folderId) async {

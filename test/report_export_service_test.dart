@@ -50,6 +50,9 @@ class _FakeSessionRepository implements SessionRepository {
   }) async => throw UnimplementedError();
 
   @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+
+  @override
   Future<List<SessionVersion>> history(String sessionId) async => [];
 
   @override
