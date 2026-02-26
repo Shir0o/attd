@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../data/session.dart';
 import '../../data/session_repository.dart';
@@ -52,6 +53,22 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
+  Future<void> _restoreToVersion(SessionVersion version) async {
+    final restored = await widget.repository.restoreToVersion(
+      version.sessionId,
+      version.version,
+      actor: 'You',
+    );
+    if (restored == null) return;
+    setState(() {
+      _sessionFuture = Future.value(restored);
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Restored to version #${version.version}')),
+    );
+  }
+
   Future<void> _duplicate(Session session) async {
     final duplicated = await widget.repository.duplicate(
       session.id,
@@ -76,7 +93,7 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
       leading: CircleAvatar(child: Text(record.attendee.characters.first)),
       title: Text(record.attendee),
       subtitle: Text(
-        '${record.status.label} · ${TimeOfDay.fromDateTime(record.recordedAt).format(context)} '
+        '${record.status.label} · ${DateFormat('HH:mm:ss').format(record.recordedAt)} '
         'by ${record.recordedBy}',
       ),
       trailing: Icon(
@@ -106,7 +123,12 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             leading: CircleAvatar(child: Text('#${version.version}')),
             title: Text('Saved by ${version.actor}'),
             subtitle: Text(
-              '${version.recordedAt} · ${version.isDeleted ? 'Deleted' : 'Active'}',
+              '${DateFormat('yyyy-MM-dd HH:mm:ss').format(version.recordedAt)} · ${version.isDeleted ? 'Deleted' : 'Active'}',
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.settings_backup_restore),
+              tooltip: 'Restore to this version',
+              onPressed: () => _restoreToVersion(version),
             ),
           ),
         ),

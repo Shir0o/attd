@@ -265,8 +265,26 @@ class LocalJsonSessionRepository implements SessionRepository {
     history.sort((a, b) => b.version.compareTo(a.version));
 
     final previousVersion = history[1];
-    final restoredSession = previousVersion.snapshot.copyWith(
-      currentVersion: history.first.version + 1,
+    return restoreToVersion(sessionId, previousVersion.version, actor: actor);
+  }
+
+  @override
+  Future<Session?> restoreToVersion(
+    String sessionId,
+    int version, {
+    required String actor,
+  }) async {
+    await _loadHistory();
+    final history = _historyCache[sessionId];
+    if (history == null) return null;
+
+    final targetVersion = history.firstWhere(
+      (v) => v.version == version,
+      orElse: () => throw StateError('Version $version not found'),
+    );
+
+    final restoredSession = targetVersion.snapshot.copyWith(
+      currentVersion: (history.isNotEmpty ? history.first.version : version) + 1,
       updatedAt: DateTime.now(),
     );
 
