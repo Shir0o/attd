@@ -49,6 +49,9 @@ Future<void> main() async {
   );
 
   final driveService = DriveService(googleSignIn: googleSignIn);
+  // Restore sync session silently
+  await driveService.signInSilently();
+  
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
 
