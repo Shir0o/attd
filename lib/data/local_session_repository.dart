@@ -11,8 +11,7 @@ import 'session_version.dart';
 import 'session_record.dart';
 
 class LocalJsonSessionRepository implements SessionRepository {
-  LocalJsonSessionRepository({this.storagePath, List<Session>? seedSessions})
-    : _seedSessions = seedSessions ?? [] {
+  LocalJsonSessionRepository({this.storagePath}) {
     _controller = StreamController<List<Session>>.broadcast(
       onListen: () {
         loadSessions().then((sessions) {
@@ -25,7 +24,6 @@ class LocalJsonSessionRepository implements SessionRepository {
   }
 
   final String? storagePath;
-  final List<Session> _seedSessions;
   File? _file;
   late final StreamController<List<Session>> _controller;
 
@@ -54,9 +52,6 @@ class LocalJsonSessionRepository implements SessionRepository {
     if (!await file.exists()) {
       if (await backupFile.exists()) {
         await backupFile.copy(file.path);
-      } else if (_seedSessions.isNotEmpty) {
-        await _saveToFile(_seedSessions);
-        return _seedSessions;
       } else {
         return [];
       }
@@ -212,7 +207,7 @@ class LocalJsonSessionRepository implements SessionRepository {
       }
     }
 
-    // If we have a cache, emit it immediately. 
+    // If we have a cache, emit it immediately.
     // If not, loadSessions will be called by _init or similar and trigger the broadcast stream.
     if (_sessionsCache != null) {
       emit();
@@ -374,11 +369,11 @@ class LocalJsonSessionRepository implements SessionRepository {
     final sessions = await _loadFromFile();
     final initialLength = sessions.length;
     sessions.removeWhere((s) => s.id == sessionId);
-    
+
     if (sessions.length < initialLength) {
       await _saveToFile(sessions);
       _controller.add(await loadSessions());
-      
+
       // Clean up history for this session
       _historyCache.remove(sessionId);
       await _saveHistory();

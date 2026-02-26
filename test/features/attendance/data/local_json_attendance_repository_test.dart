@@ -24,10 +24,7 @@ void main() {
     });
 
     test('persists merge markers and labels', () async {
-      final repo = LocalJsonAttendanceRepository(
-        storagePath: dbPath,
-        seed: const [],
-      );
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
       final families = [
         Family(
           id: 'f1',
@@ -70,10 +67,7 @@ void main() {
       await File(dbPath).create(recursive: true);
       await File(dbPath).writeAsString(jsonEncode(legacyPayload));
 
-      final repo = LocalJsonAttendanceRepository(
-        storagePath: dbPath,
-        seed: const [],
-      );
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
       final loaded = await repo.fetchFamilies();
 
       expect(loaded.single.canonicalName, 'Legacy Family');
