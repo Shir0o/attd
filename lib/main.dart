@@ -43,6 +43,8 @@ Future<void> main() async {
   );
   // Restore sync session silently
   await driveService.signInSilently();
+  // Trigger automatic background sync on startup
+  driveService.syncFiles();
 
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
@@ -102,7 +104,27 @@ class AttendanceApp extends StatefulWidget {
   State<AttendanceApp> createState() => _AttendanceAppState();
 }
 
-class _AttendanceAppState extends State<AttendanceApp> {
+class _AttendanceAppState extends State<AttendanceApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      // Trigger sync when app is backgrounded or closed
+      widget.driveService?.syncFiles();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
