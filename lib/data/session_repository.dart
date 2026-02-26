@@ -8,6 +8,8 @@ import 'session_version.dart';
 abstract class SessionRepository {
   Future<List<Session>> loadSessions({bool includeDeleted = false});
 
+  Stream<List<Session>> streamSessions({bool includeDeleted = false});
+
   Future<Session> createSession({
     required String title,
     required DateTime sessionDate,
