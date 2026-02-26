@@ -22,6 +22,8 @@ abstract class SessionRepository {
   Future<Session> duplicate(String sessionId, {required String actor});
 
   Future<List<SessionVersion>> history(String sessionId);
+
+  Future<void> refresh();
 }
 
 List<Session> buildSeedSessions() {

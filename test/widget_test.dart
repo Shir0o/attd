@@ -39,6 +39,9 @@ class MockEventRepository implements EventRepository {
   Stream<List<Event>> streamEvents() {
     return _controller.stream;
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class MockAttendanceRepository implements AttendanceRepository {
@@ -57,6 +60,9 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<Family> addFamily(String displayName) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class MockSessionRepository implements SessionRepository {
@@ -95,6 +101,9 @@ class MockSessionRepository implements SessionRepository {
   Future<List<SessionVersion>> history(String sessionId) async {
     return [];
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class MockAuthRepository implements AuthRepository {

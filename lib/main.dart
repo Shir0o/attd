@@ -42,25 +42,38 @@ Future<void> main() async {
   final themeController = ThemeController(prefs);
 
   final googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      'https://www.googleapis.com/auth/drive',
-    ],
+    scopes: ['email', 'https://www.googleapis.com/auth/drive'],
   );
 
-  final driveService = DriveService(googleSignIn: googleSignIn);
+  final attendanceRepository = LocalJsonAttendanceRepository();
+  final sessionRepository = LocalJsonSessionRepository(
+    seedSessions: buildSeedSessions(),
+  );
+  final eventRepository = LocalJsonEventRepository();
+
+  final driveService = DriveService(
+    googleSignIn: googleSignIn,
+    attendanceRepository: attendanceRepository,
+    sessionRepository: sessionRepository,
+    eventRepository: eventRepository,
+  );
   // Restore sync session silently
   await driveService.signInSilently();
-  
+
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
 
-  runApp(AttendanceApp(
-    themeController: themeController,
-    driveService: driveService,
-    localBackupService: localBackupService,
-    googleAuthService: googleAuthService,
-  ));
+  runApp(
+    AttendanceApp(
+      themeController: themeController,
+      driveService: driveService,
+      localBackupService: localBackupService,
+      googleAuthService: googleAuthService,
+      repository: attendanceRepository,
+      sessionRepository: sessionRepository,
+      eventRepository: eventRepository,
+    ),
+  );
 }
 
 class AttendanceApp extends StatefulWidget {

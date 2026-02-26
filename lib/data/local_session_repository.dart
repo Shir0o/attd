@@ -131,6 +131,12 @@ class LocalJsonSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> refresh() async {
+    _historyCache.clear();
+    await loadSessions();
+  }
+
+  @override
   Future<List<Session>> loadSessions({bool includeDeleted = false}) async {
     final sessions = await _loadFromFile();
     // Sort by date descending
