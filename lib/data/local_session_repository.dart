@@ -295,6 +295,21 @@ class LocalJsonSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {
+    final sessions = await _loadFromFile();
+    final index = sessions.indexWhere((s) => s.id == sessionId);
+    if (index != -1) {
+      final session = sessions[index];
+      final updated = session.copyWith(
+        isDeleted: true,
+        updatedAt: DateTime.now(),
+        currentVersion: session.currentVersion + 1,
+      );
+      await saveSnapshot(updated, actor: actor);
+    }
+  }
+
+  @override
   Future<List<SessionVersion>> history(String sessionId) async {
     await _loadHistory();
     final list = _historyCache[sessionId] ?? [];

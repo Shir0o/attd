@@ -120,6 +120,9 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+
+  @override
   Future<List<SessionVersion>> history(String sessionId) async {
     return [];
   }

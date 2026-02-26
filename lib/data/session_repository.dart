@@ -22,6 +22,8 @@ abstract class SessionRepository {
   Future<Session?> revertToPrevious(String sessionId, {required String actor});
 
   Future<Session> duplicate(String sessionId, {required String actor});
+  
+  Future<void> deleteSession(String sessionId, {required String actor});
 
   Future<List<SessionVersion>> history(String sessionId);
 

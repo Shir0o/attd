@@ -22,6 +22,39 @@ class _SessionListPageState extends State<SessionListPage> {
     _sessionsStream = widget.sessionRepository.streamSessions();
   }
 
+  Future<void> _deleteSession(Session session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Session'),
+            content: Text(
+              'Are you sure you want to delete the session from ${DateFormat('MMM d').format(session.sessionDate)}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true) {
+      await widget.sessionRepository.deleteSession(session.id, actor: 'User');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Session deleted')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -111,7 +144,17 @@ class _SessionListPageState extends State<SessionListPage> {
                       ),
                     ],
                   ),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deleteSession(session),
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
                   onTap: () async {
                     await Navigator.of(context).push(
                       MaterialPageRoute(
