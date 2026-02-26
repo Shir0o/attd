@@ -116,34 +116,29 @@ class _MembersPageState extends State<MembersPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Stitch Colors
-    const primaryColor = Color(0xFF6750A4);
-    const onPrimaryColor = Color(0xFFFFFFFF);
-    const surfaceColor = Color(0xFFFEF7FF);
-    const onSurfaceColor = Color(0xFF1D1B20);
-    const onSurfaceVariantColor = Color(0xFF49454F);
-    const surfaceContainerHighColor = Color(0xFFECE6F0);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: surfaceColor,
-        surfaceTintColor: surfaceColor,
-        title: const Text(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: colorScheme.surface,
+        title: Text(
           'Manage Members',
-          style: TextStyle(color: onSurfaceColor),
+          style: TextStyle(color: colorScheme.onSurface),
         ),
-        iconTheme: const IconThemeData(color: onSurfaceVariantColor),
+        iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: surfaceContainerHighColor, height: 1),
+          child: Container(color: colorScheme.surfaceContainerHigh, height: 1),
         ),
       ),
       body: Column(
         children: [
           // Search & Quick Add Section
           Container(
-            color: surfaceColor,
+            color: colorScheme.surface,
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +146,7 @@ class _MembersPageState extends State<MembersPage> {
                 // Search
                 Container(
                   decoration: BoxDecoration(
-                    color: surfaceContainerHighColor,
+                    color: colorScheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(28),
                   ),
                   child: TextField(
@@ -159,15 +154,15 @@ class _MembersPageState extends State<MembersPage> {
                     onChanged: (val) {
                       setState(() {});
                     },
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Find members',
-                      hintStyle: TextStyle(color: onSurfaceVariantColor),
+                      hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                       prefixIcon: Icon(
                         Icons.search,
-                        color: onSurfaceVariantColor,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
+                      contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
                       ),
@@ -177,10 +172,10 @@ class _MembersPageState extends State<MembersPage> {
                 const SizedBox(height: 16),
 
                 // Quick Add Label
-                const Text(
+                Text(
                   'QUICK ADD MEMBER',
                   style: TextStyle(
-                    color: primaryColor,
+                    color: colorScheme.primary,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.0,
@@ -193,9 +188,9 @@ class _MembersPageState extends State<MembersPage> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: surfaceColor,
+                          color: colorScheme.surface,
                           border: Border.all(
-                            color: Colors.grey.shade400,
+                            color: colorScheme.outlineVariant,
                           ), // Outline variant?
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -219,8 +214,8 @@ class _MembersPageState extends State<MembersPage> {
                       mini:
                           false, // Stitch design uses a 50x50 button, FAB is close
                       elevation: 1,
-                      backgroundColor: primaryColor,
-                      foregroundColor: onPrimaryColor,
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
                       onPressed: () => _addMember(_quickAddController.text),
                       child: const Icon(Icons.add),
                     ),
@@ -253,9 +248,8 @@ class _MembersPageState extends State<MembersPage> {
     BuildContext context,
     AsyncSnapshot<List<Family>> snapshot,
   ) {
-    const primaryColor = Color(0xFF6750A4);
-    const onSurfaceColor = Color(0xFF1D1B20);
-    const onSurfaceVariantColor = Color(0xFF49454F);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     if (snapshot.connectionState == ConnectionState.waiting) {
       return ListView.separated(
@@ -315,23 +309,23 @@ class _MembersPageState extends State<MembersPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Regular Members',
                 style: TextStyle(
-                  color: onSurfaceVariantColor,
+                  color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEADDFF),
+                  color: colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${filteredMembers.length}',
-                  style: const TextStyle(
-                    color: Color(0xFF21005D),
+                  style: TextStyle(
+                    color: colorScheme.onPrimaryContainer,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -346,7 +340,7 @@ class _MembersPageState extends State<MembersPage> {
             itemCount: filteredMembers.length,
             separatorBuilder:
                 (ctx, i) => Divider(
-                  color: Colors.grey.withValues(alpha: 0.2),
+                  color: colorScheme.outlineVariant,
                   height: 1,
                 ),
             itemBuilder: (context, index) {
@@ -354,29 +348,29 @@ class _MembersPageState extends State<MembersPage> {
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
-                  backgroundColor: primaryColor.withValues(alpha: 0.1),
+                  backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
                   child: Text(
                     member.displayName.isNotEmpty
                         ? member.displayName[0].toUpperCase()
                         : '?',
-                    style: const TextStyle(
-                      color: primaryColor,
+                    style: TextStyle(
+                      color: colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 title: Text(
                   member.displayName,
-                  style: const TextStyle(color: onSurfaceColor),
+                  style: TextStyle(color: colorScheme.onSurface),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Member',
-                  style: TextStyle(fontSize: 12, color: onSurfaceVariantColor),
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                 ),
                 trailing: IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.delete_outline,
-                    color: onSurfaceVariantColor,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   onPressed: () => _deleteMember(member),
                 ),

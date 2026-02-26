@@ -1,11 +1,14 @@
+import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Create a Fake Drive Service
+// ... (rest of the fake classes)
 class FakeDriveService extends ChangeNotifier implements DriveService {
   @override
   bool isSyncing = false;
@@ -85,18 +88,29 @@ class FakeLocalBackupService extends LocalBackupService {
 }
 
 void main() {
+  late ThemeController themeController;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    themeController = ThemeController(prefs);
+  });
+
   testWidgets('SettingsPage renders correctly', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
 
     await tester.pumpWidget(MaterialApp(
       home: SettingsPage(
+        themeController: themeController,
         driveService: driveService,
         localBackupService: localBackupService,
       ),
     ));
 
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Theme Mode'), findsOneWidget);
     expect(find.text('Cloud Sync'), findsOneWidget);
     expect(find.text('Google Drive Sync'), findsOneWidget);
     expect(find.text('Backup to Local Storage'), findsOneWidget);
@@ -109,6 +123,7 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(
       home: SettingsPage(
+        themeController: themeController,
         driveService: driveService,
         localBackupService: localBackupService,
       ),
@@ -116,6 +131,8 @@ void main() {
 
     // Initially signed out
     expect(driveService.currentUser, isNull);
+    // There are now multiple switches (one for theme, one for sync?)
+    // Wait, theme uses DropdownButton, only Sync uses Switch.
     final switchFinder = find.byType(Switch);
     expect(switchFinder, findsOneWidget);
 
@@ -142,6 +159,7 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(
       home: SettingsPage(
+        themeController: themeController,
         driveService: driveService,
         localBackupService: localBackupService,
       ),

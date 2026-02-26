@@ -13,9 +13,11 @@ import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockEventRepository implements EventRepository {
   final _controller = StreamController<List<Event>>();
@@ -120,6 +122,10 @@ void main() {
   testWidgets('AttendanceApp loads HubPage without BottomNavigationBar', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final themeController = ThemeController(prefs);
+
     final mockEventRepo = MockEventRepository();
     final mockSessionRepo = MockSessionRepository();
     final mockAttendanceRepo = MockAttendanceRepository();
@@ -130,6 +136,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: mockAttendanceRepo,
         sessionRepository: mockSessionRepo,
         eventRepository: mockEventRepo,

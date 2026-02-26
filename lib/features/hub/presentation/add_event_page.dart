@@ -151,29 +151,24 @@ class _AddEventPageState extends State<AddEventPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Stitch Colors matching HubPage
-    const primaryColor = Color(0xFF6750A4);
-    const onPrimaryColor = Color(0xFFFFFFFF);
-    const surfaceColor = Color(0xFFFEF7FF);
-    const onSurfaceColor = Color(0xFF1D1B20);
-    const onSurfaceVariantColor = Color(0xFF49454F);
-    const surfaceContainerHighColor = Color(0xFFECE6F0);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     final isEditing = widget.eventToEdit != null;
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: surfaceColor,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: onSurfaceColor),
+          icon: Icon(Icons.close, color: colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           isEditing ? 'Edit Event' : 'New Event',
-          style: const TextStyle(
-            color: onSurfaceColor,
+          style: TextStyle(
+            color: colorScheme.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.w500,
           ),
@@ -183,8 +178,8 @@ class _AddEventPageState extends State<AddEventPage> {
             onPressed: _saveEvent,
             child: Text(
               isEditing ? 'Save' : 'Save',
-              style: const TextStyle(
-                color: primaryColor,
+              style: TextStyle(
+                color: colorScheme.primary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -215,9 +210,9 @@ class _AddEventPageState extends State<AddEventPage> {
                                   controller: _nameController,
                                   textCapitalization:
                                       TextCapitalization.sentences,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
-                                    color: onSurfaceColor,
+                                    color: colorScheme.onSurface,
                                   ),
                                   decoration: const InputDecoration(
                                     border: InputBorder.none,
@@ -231,13 +226,13 @@ class _AddEventPageState extends State<AddEventPage> {
                                     return null;
                                   },
                                 ),
-                                backgroundColor: surfaceContainerHighColor,
-                                onSurfaceVariantColor: onSurfaceVariantColor,
-                                textColor: onSurfaceColor,
+                                backgroundColor: colorScheme.surfaceContainerHigh,
+                                onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                                textColor: colorScheme.onSurface,
                               ),
                         if (!_isLoading)
-                          const Padding(
-                            padding: EdgeInsets.only(
+                          Padding(
+                            padding: const EdgeInsets.only(
                               left: 16,
                               top: 4,
                               bottom: 24,
@@ -246,7 +241,7 @@ class _AddEventPageState extends State<AddEventPage> {
                               'Required',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: onSurfaceVariantColor,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -263,21 +258,21 @@ class _AddEventPageState extends State<AddEventPage> {
                                       Expanded(
                                         child: Text(
                                           _selectedTime.format(context),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 16,
-                                            color: onSurfaceColor,
+                                            color: colorScheme.onSurface,
                                           ),
                                         ),
                                       ),
-                                      const Icon(
+                                      Icon(
                                         Icons.schedule,
-                                        color: onSurfaceVariantColor,
+                                        color: colorScheme.onSurfaceVariant,
                                       ),
                                     ],
                                   ),
-                                  backgroundColor: surfaceContainerHighColor,
-                                  onSurfaceVariantColor: onSurfaceVariantColor,
-                                  textColor: onSurfaceColor,
+                                  backgroundColor: colorScheme.surfaceContainerHigh,
+                                  onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                                  textColor: colorScheme.onSurface,
                                 ),
                               ),
                         const SizedBox(height: 24),
@@ -291,13 +286,13 @@ class _AddEventPageState extends State<AddEventPage> {
                                   child: DropdownButton<String>(
                                     value: _frequency,
                                     isExpanded: true,
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.arrow_drop_down,
-                                      color: onSurfaceVariantColor,
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 16,
-                                      color: onSurfaceColor,
+                                      color: colorScheme.onSurface,
                                     ),
                                     onChanged: (String? newValue) {
                                       if (newValue != null) {
@@ -318,9 +313,9 @@ class _AddEventPageState extends State<AddEventPage> {
                                         .toList(),
                                   ),
                                 ),
-                                backgroundColor: surfaceContainerHighColor,
-                                onSurfaceVariantColor: onSurfaceVariantColor,
-                                textColor: onSurfaceColor,
+                                backgroundColor: colorScheme.surfaceContainerHigh,
+                                onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                                textColor: colorScheme.onSurface,
                               ),
 
                         const SizedBox(height: 24),
@@ -340,35 +335,35 @@ class _AddEventPageState extends State<AddEventPage> {
                                       DateFormat(
                                         'yyyy-MM-dd',
                                       ).format(_selectedDate),
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 16,
-                                        color: onSurfaceColor,
+                                        color: colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
-                                  const Icon(
+                                  Icon(
                                     Icons.calendar_today,
-                                    color: onSurfaceVariantColor,
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ],
                               ),
-                              backgroundColor: surfaceContainerHighColor,
-                              onSurfaceVariantColor: onSurfaceVariantColor,
-                              textColor: onSurfaceColor,
+                              backgroundColor: colorScheme.surfaceContainerHigh,
+                              onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                              textColor: colorScheme.onSurface,
                             ),
                           )
                         else
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Padding(
-                                padding: EdgeInsets.only(left: 16, bottom: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16, bottom: 8),
                                 child: Text(
                                   'Repeats on',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
-                                    color: onSurfaceVariantColor,
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -399,18 +394,16 @@ class _AddEventPageState extends State<AddEventPage> {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: isSelected
-                                            ? primaryColor
-                                            : const Color(
-                                                0xFFECE6F0,
-                                              ), // surface-container-high
+                                            ? colorScheme.primary
+                                            : colorScheme.surfaceContainerHigh,
                                       ),
                                       child: Center(
                                         child: Text(
                                           label,
                                           style: TextStyle(
                                             color: isSelected
-                                                ? onPrimaryColor
-                                                : onSurfaceVariantColor,
+                                                ? colorScheme.onPrimary
+                                                : colorScheme.onSurfaceVariant,
                                             fontWeight: FontWeight.w500,
                                             fontSize: 14,
                                           ),
@@ -439,8 +432,8 @@ class _AddEventPageState extends State<AddEventPage> {
                 child: ElevatedButton.icon(
                   onPressed: _saveEvent,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: onPrimaryColor,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
