@@ -73,7 +73,7 @@ class _AddEventPageState extends State<AddEventPage> {
     }
 
     // Optimized artificial delay for a snappier but still smooth transition
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 250), () {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -224,17 +224,6 @@ class _AddEventPageState extends State<AddEventPage> {
               onPressed: _deleteEvent,
               tooltip: 'Delete Event',
             ),
-          TextButton(
-            onPressed: _saveEvent,
-            child: Text(
-              isEditing ? 'Save' : 'Save',
-              style: TextStyle(
-                color: colorScheme.primary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
         ],
       ),
       body: Column(
@@ -246,7 +235,7 @@ class _AddEventPageState extends State<AddEventPage> {
                 key: _formKey,
                 child: RepaintBoundary(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
+                    duration: const Duration(milliseconds: 600),
                     child: Column(
                       key: ValueKey(_isLoading),
                       crossAxisAlignment: CrossAxisAlignment.start,
