@@ -288,7 +288,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     Divider(height: 1, color: colorScheme.outlineVariant),
                     _SettingsTile(
                       icon: Icons.ios_share,
-                      title: 'Export Data',
+                      title: 'Export Report',
                       subtitle: 'Download spreadsheet (CSV) format',
                       onTap: () async {
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
