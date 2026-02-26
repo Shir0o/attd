@@ -125,7 +125,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  ).colorScheme.onSurfaceVariant.withOpacity(0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -560,7 +560,7 @@ class _EventCard extends StatelessWidget {
                               ), // Less prominent
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
-                        color: onSurfaceVariantColor.withValues(alpha: 0.1),
+                        color: onSurfaceVariantColor.withOpacity(0.1),
                       ),
                     ),
                     child: Row(
