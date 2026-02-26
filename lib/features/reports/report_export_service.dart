@@ -39,13 +39,17 @@ class ReportExportService {
   Future<ReportExportResult> exportReport(ReportRequest request) async {
     final sessions = await sessionRepository.loadSessions();
     final filteredSessions =
-        sessions
-            .where(
-              (session) =>
-                  !session.sessionDate.isBefore(request.startDate) &&
-                  !session.sessionDate.isAfter(request.endDate),
-            )
-            .toList()
+        sessions.where((session) {
+          final inDateRange =
+              !session.sessionDate.isBefore(request.startDate) &&
+              !session.sessionDate.isAfter(request.endDate);
+          if (!inDateRange) return false;
+
+          if (request.selectedEventTitles.isNotEmpty) {
+            return request.selectedEventTitles.contains(session.title);
+          }
+          return true;
+        }).toList()
           ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
 
     final summary = _summarize(filteredSessions);
