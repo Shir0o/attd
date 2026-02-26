@@ -82,7 +82,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                   Icon(
                     Icons.history_outlined,
                     size: 64,
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -108,11 +108,11 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
               return Card(
                 elevation: 0,
-                color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                color: colorScheme.secondaryContainer.withOpacity(0.4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
