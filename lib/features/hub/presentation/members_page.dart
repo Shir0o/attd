@@ -14,7 +14,10 @@ class MembersPage extends StatefulWidget {
 }
 
 class _MembersPageState extends State<MembersPage> {
-  late Future<List<Family>> _familiesFuture;
+  List<Family>? _families;
+  bool _isLoading = true;
+  Object? _error;
+
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _quickAddController =
       TextEditingController(); // For "Quick Add Member"
@@ -22,17 +25,35 @@ class _MembersPageState extends State<MembersPage> {
   @override
   void initState() {
     super.initState();
-    _loadFamilies();
+    _loadFamilies(isInitial: true);
   }
 
-  void _loadFamilies() {
-    setState(() {
+  Future<void> _loadFamilies({bool isInitial = false}) async {
+    if (isInitial) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
       // Optimized delay for better responsiveness while still allowing transition to finish
-      _familiesFuture = Future.delayed(
-        const Duration(milliseconds: 400),
-        () => widget.attendanceRepository.fetchFamilies(),
-      );
-    });
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+
+    try {
+      final families = await widget.attendanceRepository.fetchFamilies();
+      if (mounted) {
+        setState(() {
+          _families = families;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   List<Member> _getAllMembers(List<Family> families) {
@@ -44,31 +65,22 @@ class _MembersPageState extends State<MembersPage> {
   Future<void> _addMember(String name) async {
     if (name.trim().isEmpty) return;
 
-    // Logic to add a member.
-    // Since we only have a name, we need to decide which family to add them to.
-    // Or create a new family for them?
-    // The "Quick Add Member" implies adding a single person.
-    // For simplicity, let's create a new 'Individual' family for them or add to a default group.
-    // Or better, creating a new Family with just this member.
     try {
-      await widget.attendanceRepository.addFamily(
-        name,
-      ); // Assuming addFamily creates a family with the name.
-      // Wait, fetchFamilies returns families. addFamily takes displayName.
-      // But we want to add a Member.
-      // If we add a family, it has no members initially? Let's check repository.
-      // Repository: addFamily(displayName) -> returns Family(members: []).
-      // Then we need to add a member to it?
-      // Or maybe we treat "Family" as the entity itself if it's a single person?
-      // The data model separates Family and Member.
-      // Let's create a family with that name, then add a member with that name to it.
-
       final newFamily = await widget.attendanceRepository.addFamily(name);
       final newMember = Member(id: const Uuid().v4(), displayName: name);
-      await widget.attendanceRepository.addMember(newFamily.id, newMember);
+      final updatedFamily = await widget.attendanceRepository.addMember(
+        newFamily.id,
+        newMember,
+      );
+
+      if (mounted) {
+        setState(() {
+          // Add the newly created family with its member to our local list
+          _families = [...(_families ?? []), updatedFamily];
+        });
+      }
 
       _quickAddController.clear();
-      _loadFamilies();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -82,35 +94,40 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Future<void> _deleteMember(Member member) async {
-    // Repository doesn't seem to have removeMember?
-    // Checking AttendanceRepository... checking file content...
-    // It has fetchFamilies, saveFamilies, addMember, addFamily. No delete.
-    // We'll have to implement delete manually by fetching, modifying, and saving.
+    if (_families == null) return;
+
+    final originalFamilies = List<Family>.from(_families!);
 
     try {
-      final families = await widget.attendanceRepository.fetchFamilies();
-      final updatedFamilies = families
+      final updatedFamilies = _families!
           .map((f) {
             // Remove member from family
-            final updatedMembers = f.members
-                .where((m) => m.id != member.id)
-                .toList();
+            final updatedMembers =
+                f.members.where((m) => m.id != member.id).toList();
             return f.copyWith(members: updatedMembers);
           })
           .where((f) => f.members.isNotEmpty)
-          .toList(); // Optional: remove empty families? Maybe keep them.
+          .toList();
+
+      setState(() {
+        _families = updatedFamilies;
+      });
 
       await widget.attendanceRepository.saveFamilies(updatedFamilies);
-      _loadFamilies();
+
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Removed ${member.displayName}')));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to remove member: $e')));
+      if (mounted) {
+        setState(() {
+          _families = originalFamilies;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to remove member: $e')));
+      }
     }
   }
 
@@ -189,9 +206,7 @@ class _MembersPageState extends State<MembersPage> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: colorScheme.surface,
-                          border: Border.all(
-                            color: colorScheme.outlineVariant,
-                          ), // Outline variant?
+                          border: Border.all(color: colorScheme.outlineVariant),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: TextField(
@@ -211,8 +226,7 @@ class _MembersPageState extends State<MembersPage> {
                     const SizedBox(width: 8),
                     FloatingActionButton(
                       heroTag: 'fab',
-                      mini:
-                          false, // Stitch design uses a 50x50 button, FAB is close
+                      mini: false,
                       elevation: 1,
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,
@@ -226,17 +240,11 @@ class _MembersPageState extends State<MembersPage> {
           ),
 
           Expanded(
-            child: FutureBuilder<List<Family>>(
-              key: ValueKey(_familiesFuture),
-              future: _familiesFuture,
-              builder: (context, snapshot) {
-                return RepaintBoundary(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _buildBodyContent(context, snapshot),
-                  ),
-                );
-              },
+            child: RepaintBoundary(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _buildBodyContent(context),
+              ),
             ),
           ),
         ],
@@ -244,14 +252,11 @@ class _MembersPageState extends State<MembersPage> {
     );
   }
 
-  Widget _buildBodyContent(
-    BuildContext context,
-    AsyncSnapshot<List<Family>> snapshot,
-  ) {
+  Widget _buildBodyContent(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    if (snapshot.connectionState == ConnectionState.waiting) {
+    if (_isLoading && _families == null) {
       return ListView.separated(
         key: const ValueKey('loading'),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -287,19 +292,20 @@ class _MembersPageState extends State<MembersPage> {
       );
     }
 
-    if (snapshot.hasError) {
+    if (_error != null && _families == null) {
       return Center(
         key: const ValueKey('error'),
-        child: Text('Error: ${snapshot.error}'),
+        child: Text('Error: $_error'),
       );
     }
 
-    final families = snapshot.data ?? [];
+    final families = _families ?? [];
     final allMembers = _getAllMembers(families);
     final searchTerm = _searchController.text.toLowerCase();
-    final filteredMembers = allMembers.where((m) {
-      return m.displayName.toLowerCase().contains(searchTerm);
-    }).toList();
+    final filteredMembers =
+        allMembers.where((m) {
+          return m.displayName.toLowerCase().contains(searchTerm);
+        }).toList();
 
     return Column(
       key: const ValueKey('data'),
@@ -339,10 +345,7 @@ class _MembersPageState extends State<MembersPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: filteredMembers.length,
             separatorBuilder:
-                (ctx, i) => Divider(
-                  color: colorScheme.outlineVariant,
-                  height: 1,
-                ),
+                (ctx, i) => Divider(color: colorScheme.outlineVariant, height: 1),
             itemBuilder: (context, index) {
               final member = filteredMembers[index];
               return ListTile(
@@ -365,7 +368,10 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 subtitle: Text(
                   'Member',
-                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 trailing: IconButton(
                   icon: Icon(
@@ -382,3 +388,4 @@ class _MembersPageState extends State<MembersPage> {
     );
   }
 }
+
