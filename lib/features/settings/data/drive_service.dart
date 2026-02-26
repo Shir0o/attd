@@ -84,8 +84,10 @@ class DriveService extends ChangeNotifier {
 
     final query =
         "name = '$_syncFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-    final folderList =
-        await _driveApi!.files.list(q: query, $fields: 'files(id)');
+    final folderList = await _driveApi!.files.list(
+      q: query,
+      $fields: 'files(id)',
+    );
 
     if (folderList.files != null && folderList.files!.isNotEmpty) {
       _appFolderId = folderList.files!.first.id;
@@ -93,10 +95,9 @@ class DriveService extends ChangeNotifier {
     }
 
     // Create folder
-    final folder =
-        drive.File()
-          ..name = _syncFolderName
-          ..mimeType = 'application/vnd.google-apps.folder';
+    final folder = drive.File()
+      ..name = _syncFolderName
+      ..mimeType = 'application/vnd.google-apps.folder';
 
     final createdFolder = await _driveApi!.files.create(folder);
     _appFolderId = createdFolder.id;
@@ -108,8 +109,10 @@ class DriveService extends ChangeNotifier {
 
     final query =
         "name = '$_backupFolderName' and '$parentId' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-    final folderList =
-        await _driveApi!.files.list(q: query, $fields: 'files(id)');
+    final folderList = await _driveApi!.files.list(
+      q: query,
+      $fields: 'files(id)',
+    );
 
     if (folderList.files != null && folderList.files!.isNotEmpty) {
       _backupFolderId = folderList.files!.first.id;
@@ -117,11 +120,10 @@ class DriveService extends ChangeNotifier {
     }
 
     // Create folder
-    final folder =
-        drive.File()
-          ..name = _backupFolderName
-          ..parents = [parentId]
-          ..mimeType = 'application/vnd.google-apps.folder';
+    final folder = drive.File()
+      ..name = _backupFolderName
+      ..parents = [parentId]
+      ..mimeType = 'application/vnd.google-apps.folder';
 
     final createdFolder = await _driveApi!.files.create(folder);
     _backupFolderId = createdFolder.id;
@@ -178,7 +180,12 @@ class DriveService extends ChangeNotifier {
         } else if (localFile.existsSync() && remoteFile != null) {
           // Both exist -> MERGE data
           print('Merging $fileName...');
-          await _mergeAndSyncFile(remoteFile.id!, localFile, folderId, fileName);
+          await _mergeAndSyncFile(
+            remoteFile.id!,
+            localFile,
+            folderId,
+            fileName,
+          );
         }
       }
 
@@ -240,14 +247,10 @@ class DriveService extends ChangeNotifier {
 
       // Upload ZIP
       final backupFile = File(backupPath);
-      final media = drive.Media(
-        backupFile.openRead(),
-        backupFile.lengthSync(),
-      );
-      final driveFile =
-          drive.File()
-            ..name = backupName
-            ..parents = [backupFolderId];
+      final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
+      final driveFile = drive.File()
+        ..name = backupName
+        ..parents = [backupFolderId];
 
       await _driveApi!.files.create(driveFile, uploadMedia: media);
 
@@ -366,10 +369,9 @@ class DriveService extends ChangeNotifier {
 
   Future<void> _uploadFile(File localFile, String name, String folderId) async {
     final media = drive.Media(localFile.openRead(), localFile.lengthSync());
-    final driveFile =
-        drive.File()
-          ..name = name
-          ..parents = [folderId];
+    final driveFile = drive.File()
+      ..name = name
+      ..parents = [folderId];
 
     await _driveApi!.files.create(driveFile, uploadMedia: media);
   }
@@ -479,7 +481,7 @@ class DriveService extends ChangeNotifier {
           } else {
             // Tie-break: Use updatedAt if available
             final existing = merged[id] as Map;
-            final current = item as Map;
+            final current = item;
 
             if (current.containsKey('updatedAt') &&
                 existing.containsKey('updatedAt')) {

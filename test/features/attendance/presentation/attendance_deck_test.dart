@@ -15,7 +15,7 @@ class MockSessionRepository implements SessionRepository {
   List<Session> get savedSnapshots => _savedSnapshots;
 
   @override
-  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+  Stream<List<Session>> streamSessions() {
     return Stream.value([]);
   }
 
@@ -39,30 +39,16 @@ class MockSessionRepository implements SessionRepository {
 
   @override
   Future<List<SessionVersion>> history(String sessionId) async {
-    return const [];
+    return [];
   }
 
   @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) async {
-    return const [];
+  Future<List<Session>> loadSessions() async {
+    return [];
   }
 
   @override
-  Future<Session?> revertToPrevious(
-    String sessionId, {
-    required String actor,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Session?> restoreToVersion(
-    String sessionId,
-    int version, {
-    required String actor,
-  }) async {
-    throw UnimplementedError();
-  }
+  Future<Session?> findSessionById(String id) async => null;
 
   @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
@@ -141,8 +127,8 @@ void main() {
     );
     expect(bobRecord.status, AttendanceStatus.absent);
 
-    // Verify Completion Screen (Session Summary)
-    expect(find.text('Session Summary'), findsOneWidget);
+    // Verify Completion Screen (Session Summary shows session title)
+    expect(find.text('Test Event'), findsOneWidget);
     expect(find.text('Finalize Report'), findsOneWidget);
   });
 

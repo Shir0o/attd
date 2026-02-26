@@ -35,7 +35,7 @@ class _MembersPageState extends State<MembersPage> {
         _error = null;
       });
       // Optimized delay for better responsiveness while still allowing transition to finish
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 250));
     }
 
     try {
@@ -267,7 +267,7 @@ class _MembersPageState extends State<MembersPage> {
           Expanded(
             child: RepaintBoundary(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 600),
                 child: _buildBodyContent(context),
               ),
             ),

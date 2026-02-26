@@ -7,7 +7,6 @@ class SessionVersion {
     required this.snapshot,
     required this.recordedAt,
     required this.actor,
-    this.isDeleted = false,
   });
 
   final String sessionId;
@@ -15,5 +14,4 @@ class SessionVersion {
   final Session snapshot;
   final DateTime recordedAt;
   final String actor;
-  final bool isDeleted;
 }

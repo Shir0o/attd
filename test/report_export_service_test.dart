@@ -17,7 +17,7 @@ class _FakeSessionRepository implements SessionRepository {
   final List<Session> sessions;
 
   @override
-  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+  Stream<List<Session>> streamSessions() {
     return Stream.value(sessions);
   }
 
@@ -34,21 +34,17 @@ class _FakeSessionRepository implements SessionRepository {
       throw UnimplementedError();
 
   @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) async =>
+  Future<List<Session>> loadSessions() async =>
       sessions;
 
   @override
-  Future<Session?> revertToPrevious(
-    String sessionId, {
-    required String actor,
-  }) async => throw UnimplementedError();
-
-  @override
-  Future<Session?> restoreToVersion(
-    String sessionId,
-    int version, {
-    required String actor,
-  }) async => throw UnimplementedError();
+  Future<Session?> findSessionById(String id) async {
+    try {
+      return sessions.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Future<Session> saveSnapshot(
