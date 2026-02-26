@@ -124,6 +124,11 @@ class _StubAttendanceRepository implements AttendanceRepository {
 
 class _StubSessionRepository implements SessionRepository {
   @override
+  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+    return Stream.value([]);
+  }
+
+  @override
   Future<Session> createSession({
     required String title,
     required DateTime sessionDate,

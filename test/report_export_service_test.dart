@@ -17,6 +17,11 @@ class _FakeSessionRepository implements SessionRepository {
   final List<Session> sessions;
 
   @override
+  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+    return Stream.value(sessions);
+  }
+
+  @override
   Future<Session> createSession({
     required String title,
     required DateTime sessionDate,
