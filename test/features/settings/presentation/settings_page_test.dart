@@ -1,3 +1,6 @@
+import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/family.dart';
+import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
@@ -6,6 +9,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class MockAttendanceRepository implements AttendanceRepository {
+  @override
+  Future<Family> addFamily(String displayName) async =>
+      throw UnimplementedError();
+  @override
+  Future<Family> addMember(String familyId, Member member) async =>
+      throw UnimplementedError();
+  @override
+  Future<List<Family>> fetchFamilies() async => [];
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
+  @override
+  Future<void> refresh() async {}
+}
 
 // Create a Fake Drive Service
 // ... (rest of the fake classes)
@@ -99,12 +117,14 @@ void main() {
   testWidgets('SettingsPage renders correctly', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
+    final attendanceRepo = MockAttendanceRepository();
 
     await tester.pumpWidget(MaterialApp(
       home: SettingsPage(
         themeController: themeController,
         driveService: driveService,
         localBackupService: localBackupService,
+        attendanceRepository: attendanceRepo,
       ),
     ));
 
@@ -114,18 +134,20 @@ void main() {
     expect(find.text('Cloud Sync'), findsOneWidget);
     expect(find.text('Google Drive Sync'), findsOneWidget);
     expect(find.text('Backup to Local Storage'), findsOneWidget);
-    expect(find.text('Export Data'), findsOneWidget);
+    expect(find.text('Export Report'), findsOneWidget);
   });
 
   testWidgets('SettingsPage toggles Drive Sync', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
+    final attendanceRepo = MockAttendanceRepository();
 
     await tester.pumpWidget(MaterialApp(
       home: SettingsPage(
         themeController: themeController,
         driveService: driveService,
         localBackupService: localBackupService,
+        attendanceRepository: attendanceRepo,
       ),
     ));
 
@@ -156,12 +178,14 @@ void main() {
   testWidgets('SettingsPage calls backup and export', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
+    final attendanceRepo = MockAttendanceRepository();
 
     await tester.pumpWidget(MaterialApp(
       home: SettingsPage(
         themeController: themeController,
         driveService: driveService,
         localBackupService: localBackupService,
+        attendanceRepository: attendanceRepo,
       ),
     ));
 
@@ -169,7 +193,7 @@ void main() {
     await tester.pump();
     expect(localBackupService.backupCalled, isTrue);
 
-    await tester.tap(find.text('Export Data'));
+    await tester.tap(find.text('Export Report'));
     await tester.pump();
     expect(localBackupService.exportCalled, isTrue);
   });
