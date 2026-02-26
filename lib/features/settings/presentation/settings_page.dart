@@ -289,7 +289,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     _SettingsTile(
                       icon: Icons.ios_share,
                       title: 'Export Data',
-                      subtitle: 'Download CSV or JSON format',
+                      subtitle: 'Download spreadsheet (CSV) format',
                       onTap: () async {
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
                         try {

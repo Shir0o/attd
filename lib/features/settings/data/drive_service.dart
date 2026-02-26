@@ -8,11 +8,23 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../data/session_repository.dart';
+import '../../attendance/data/attendance_repository.dart';
+import '../../hub/data/event_repository.dart';
+
 class DriveService extends ChangeNotifier {
-  DriveService({required GoogleSignIn googleSignIn})
-      : _googleSignIn = googleSignIn;
+  DriveService({
+    required GoogleSignIn googleSignIn,
+    this.sessionRepository,
+    this.attendanceRepository,
+    this.eventRepository,
+  }) : _googleSignIn = googleSignIn;
 
   final GoogleSignIn _googleSignIn;
+  final SessionRepository? sessionRepository;
+  final AttendanceRepository? attendanceRepository;
+  final EventRepository? eventRepository;
+
   drive.DriveApi? _driveApi;
   DateTime? _lastSyncTime;
   bool _isSyncing = false;
@@ -140,6 +152,12 @@ class DriveService extends ChangeNotifier {
       }
 
       _lastSyncTime = DateTime.now();
+      // Refresh repositories to reflect synced changes in UI
+      await Future.wait([
+        if (sessionRepository != null) sessionRepository!.refresh(),
+        if (attendanceRepository != null) attendanceRepository!.refresh(),
+        if (eventRepository != null) eventRepository!.refresh(),
+      ]);
       // TODO: Persist last sync time
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 403 &&

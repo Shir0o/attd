@@ -47,6 +47,9 @@ class FakeSessionRepository implements SessionRepository {
     savedSessions.add(session);
     return session;
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 void main() {
