@@ -35,6 +35,18 @@ class DriveService extends ChangeNotifier {
     }
   }
 
+  Future<void> signInSilently() async {
+    try {
+      await _googleSignIn.signInSilently();
+      if (_googleSignIn.currentUser != null) {
+        await _initDriveApi();
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Silent sign in failed: $e');
+    }
+  }
+
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     _driveApi = null;
