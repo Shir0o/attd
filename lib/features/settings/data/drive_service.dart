@@ -130,6 +130,83 @@ class DriveService extends ChangeNotifier {
     return _backupFolderId!;
   }
 
+  Future<void> overwriteCloudWithLocal() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      await _initDriveApi();
+      final folderId = await _getOrCreateAppFolder();
+      final docsDir = await getApplicationDocumentsDirectory();
+      final filesToSync = [
+        'sessions.json',
+        'families.json',
+        'events.json',
+        'sessions_history.json',
+      ];
+
+      final remoteFiles = await _listRemoteFiles(folderId);
+
+      for (final fileName in filesToSync) {
+        final localFile = File(p.join(docsDir.path, fileName));
+        if (localFile.existsSync()) {
+          final remoteFile = remoteFiles[fileName];
+          if (remoteFile != null) {
+            print('Overwriting remote $fileName...');
+            await _updateFile(remoteFile.id!, localFile);
+          } else {
+            print('Uploading new remote $fileName...');
+            await _uploadFile(localFile, fileName, folderId);
+          }
+        }
+      }
+      _lastSyncTime = DateTime.now();
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> overwriteLocalWithCloud() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+    notifyListeners();
+
+    try {
+      await _initDriveApi();
+      final folderId = await _getOrCreateAppFolder();
+      final docsDir = await getApplicationDocumentsDirectory();
+      final filesToSync = [
+        'sessions.json',
+        'families.json',
+        'events.json',
+        'sessions_history.json',
+      ];
+
+      final remoteFiles = await _listRemoteFiles(folderId);
+
+      for (final fileName in filesToSync) {
+        final remoteFile = remoteFiles[fileName];
+        if (remoteFile != null) {
+          final localFile = File(p.join(docsDir.path, fileName));
+          print('Overwriting local $fileName...');
+          await _downloadFile(remoteFile.id!, localFile);
+        }
+      }
+
+      await Future.wait([
+        if (sessionRepository != null) sessionRepository!.refresh(),
+        if (attendanceRepository != null) attendanceRepository!.refresh(),
+        if (eventRepository != null) eventRepository!.refresh(),
+      ]);
+      _lastSyncTime = DateTime.now();
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> syncFiles() async {
     if (_isSyncing) return;
     _isSyncing = true;
@@ -405,9 +482,16 @@ class DriveService extends ChangeNotifier {
 
     try {
       final remoteJson = jsonDecode(remoteContent);
-      final localJson = jsonDecode(localContent);
+      
+      // CRITICAL: Integrity Check
+      // If remote is not a valid list (corrupted or wrong schema), 
+      // we do NOT merge. We treat local as truth and "heal" the cloud.
+      if (remoteJson is! List) {
+        throw const FormatException('Remote data is not a valid list');
+      }
 
-      if (remoteJson is List && localJson is List) {
+      final localJson = jsonDecode(localContent);
+      if (localJson is List) {
         // Perform merge
         final mergedJson = _mergeJsonLists(localJson, remoteJson, fileName);
         final mergedContent = jsonEncode(mergedJson);
@@ -434,12 +518,24 @@ class DriveService extends ChangeNotifier {
           await localFile.setLastModified(remoteFile.modifiedTime!);
         }
       } else {
-        // Fallback to time-based sync if not lists
+        // Local is corrupted? Repository recovery logic will handle this usually,
+        // but here we just fallback to time-based.
         await _timeBasedSync(fileId, localFile, folderId, fileName);
       }
     } catch (e) {
-      print('Merge failed for $fileName, falling back to time-based: $e');
-      await _timeBasedSync(fileId, localFile, folderId, fileName);
+      print('Sync integrity check failed for $fileName: $e');
+      // HEALING PATH:
+      // If remote is corrupted (Format/Decode error), force upload local to "heal" cloud.
+      // Only do this if local is healthy.
+      try {
+        final localCheck = jsonDecode(localContent);
+        if (localCheck is List) {
+          print('Local data is healthy. Healing cloud with local copy.');
+          await _updateFile(fileId, localFile);
+        }
+      } catch (localError) {
+        print('Both local and remote corrupted. Manual restore required.');
+      }
     }
   }
 

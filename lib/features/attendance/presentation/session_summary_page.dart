@@ -49,7 +49,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 250) - elapsed;
+    final remaining = const Duration(milliseconds: 400) - elapsed;
     if (remaining > Duration.zero) {
       await Future.delayed(remaining);
     }
@@ -260,89 +260,90 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          children: [
-                                            Text(
-                                              'PRESENT',
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 1.0,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${presentMembers.length}',
-                                              style: TextStyle(
-                                                color: colorScheme.primary,
-                                                fontSize: 45,
-                                                fontWeight: FontWeight.w500,
-                                                height: 1.0,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 1,
-                                        height: 60,
-                                        color: colorScheme.onPrimaryContainer
-                                            .withValues(alpha: 0.2),
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              'ABSENT',
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 1.0,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${absentMembers.length}',
-                                              style: TextStyle(
-                                                color: colorScheme.error,
-                                                fontSize: 36,
-                                                fontWeight: FontWeight.w500,
-                                                height: 1.0,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 32),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Attendance Roster',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${widget.members.length} Total',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurfaceVariant,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                                                          children: [
+                                                                            Text(
+                                                                              'PRESENT',
+                                                                              style: TextStyle(
+                                                                                color: colorScheme
+                                                                                    .onPrimaryContainer,
+                                                                                fontSize: 16,
+                                                                                fontWeight: FontWeight.w500,
+                                                                                letterSpacing: 1.0,
+                                                                              ),
+                                                                            ),
+                                                                            const SizedBox(height: 4),
+                                                                            Text(
+                                                                              '${presentMembers.length}',
+                                                                              style: TextStyle(
+                                                                                color: colorScheme.primary,
+                                                                                fontSize: 48,
+                                                                                fontWeight: FontWeight.w500,
+                                                                                height: 1.0,
+                                                                              ),
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                      ),
+                                                                      Container(
+                                                                        width: 1,
+                                                                        height: 60,
+                                                                        color: colorScheme.onPrimaryContainer
+                                                                            .withValues(alpha: 0.2),
+                                                                      ),
+                                                                      Expanded(
+                                                                        child: Column(
+                                                                          children: [
+                                                                            Text(
+                                                                              'ABSENT',
+                                                                              style: TextStyle(
+                                                                                color: colorScheme
+                                                                                    .onPrimaryContainer,
+                                                                                fontSize: 16,
+                                                                                fontWeight: FontWeight.w500,
+                                                                                letterSpacing: 1.0,
+                                                                              ),
+                                                                            ),
+                                                                            const SizedBox(height: 4),
+                                                                            Text(
+                                                                              '${absentMembers.length}',
+                                                                              style: TextStyle(
+                                                                                color: colorScheme.error,
+                                                                                fontSize: 40,
+                                                                                fontWeight: FontWeight.w500,
+                                                                                height: 1.0,
+                                                                              ),
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(height: 32),
+                                                                Row(
+                                                                  mainAxisAlignment:
+                                                                      MainAxisAlignment.spaceBetween,
+                                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                                  children: [
+                                                                    Text(
+                                                                      'Attendance Roster',
+                                                                      style: TextStyle(
+                                                                        color: colorScheme.onSurface,
+                                                                        fontSize: 26,
+                                                                        fontWeight: FontWeight.w500,
+                                                                      ),
+                                                                    ),
+                                                                    Text(
+                                                                      '${widget.members.length} Total',
+                                                                      style: TextStyle(
+                                                                        color: colorScheme.onSurfaceVariant,
+                                                                        fontSize: 16,
+                                                                        fontWeight: FontWeight.w500,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                          
                               ],
                             ),
                           ),
@@ -423,9 +424,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 64),
+                    minimumSize: const Size(double.infinity, 72),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
+                      borderRadius: BorderRadius.circular(36),
                     ),
                     elevation: 4,
                   ).copyWith(
@@ -439,7 +440,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   child: const Text(
                     'Finalize Report',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),
@@ -570,14 +571,15 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
         ),
         width: double.infinity,
         padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+                 child: Text(
+                   title,
+                   style: TextStyle(
+                     color: color,
+                     fontSize: 16,
+                     fontWeight: FontWeight.w500,
+                   ),
+                 ),
+        
       ),
     );
   }
@@ -666,7 +668,7 @@ class _MemberListItem extends StatelessWidget {
                     Text(
                       'Added today',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         color: colorScheme.primary,
                         fontWeight: FontWeight.w500,
                       ),

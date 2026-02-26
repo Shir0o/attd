@@ -199,7 +199,38 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   @override
   Stream<List<Session>> streamSessions() {
-    return _controller.stream;
+    // We wrap the stream to ensure the current cache is emitted immediately
+    // to every new listener, similar to a BehaviorSubject.
+    final controller = StreamController<List<Session>>();
+
+    void emit() {
+      if (!controller.isClosed) {
+        final sessions = _sessionsCache ?? [];
+        // Sort by date descending
+        sessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+        controller.add(sessions);
+      }
+    }
+
+    // If we have a cache, emit it immediately. 
+    // If not, loadSessions will be called by _init or similar and trigger the broadcast stream.
+    if (_sessionsCache != null) {
+      emit();
+    } else {
+      // Trigger a load if we don't have anything yet
+      loadSessions().then((_) => emit());
+    }
+
+    // Listen to the master broadcast stream for future updates
+    final subscription = _controller.stream.listen((sessions) {
+      if (!controller.isClosed) {
+        controller.add(sessions);
+      }
+    });
+
+    controller.onCancel = () => subscription.cancel();
+
+    return controller.stream;
   }
 
   @override

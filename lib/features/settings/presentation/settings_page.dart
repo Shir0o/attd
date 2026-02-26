@@ -46,7 +46,7 @@ class _SettingsPageState extends State<SettingsPage> {
           'Settings',
           style: TextStyle(
             color: colorScheme.onSurface,
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.normal,
           ),
         ),
@@ -105,7 +105,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     Text(
                                       _getThemeLabel(widget.themeController.themeMode),
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 14,
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
@@ -188,6 +188,74 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       Divider(height: 1, color: colorScheme.outlineVariant),
                       _SettingsTile(
+                        icon: Icons.upload_file,
+                        title: 'Overwrite Cloud',
+                        subtitle: 'Force upload local data to Google Drive',
+                        onTap: isSyncing
+                            ? null
+                            : () async {
+                                final confirmed = await _showConfirmDialog(
+                                  context,
+                                  title: 'Overwrite Cloud Data?',
+                                  message:
+                                      'This will replace all data on your Google Drive with the data currently on this device. Use this if you have deleted items that keep coming back.',
+                                  confirmLabel: 'Overwrite',
+                                );
+                                if (confirmed == true) {
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  try {
+                                    await widget.driveService
+                                        .overwriteCloudWithLocal();
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Cloud data overwritten'),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text('Error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                      Divider(height: 1, color: colorScheme.outlineVariant),
+                      _SettingsTile(
+                        icon: Icons.download_for_offline,
+                        title: 'Overwrite Local',
+                        subtitle: 'Force download data from Google Drive',
+                        onTap: isSyncing
+                            ? null
+                            : () async {
+                                final confirmed = await _showConfirmDialog(
+                                  context,
+                                  title: 'Overwrite Local Data?',
+                                  message:
+                                      'This will replace all data on this device with the data from your Google Drive. Current local changes will be lost.',
+                                  confirmLabel: 'Overwrite',
+                                );
+                                if (confirmed == true) {
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  try {
+                                    await widget.driveService
+                                        .overwriteLocalWithCloud();
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Local data overwritten'),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text('Error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                      Divider(height: 1, color: colorScheme.outlineVariant),
+                      _SettingsTile(
                         icon: Icons.sync,
                         title: 'Sync Now',
                         subtitle: isSyncing
@@ -229,7 +297,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Text(
                   'Automatic sync occurs every 15 minutes when connected to Wi-Fi.',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -406,6 +474,33 @@ class _SettingsPageState extends State<SettingsPage> {
       return DateFormat('MMM d').format(dateTime);
     }
   }
+
+  Future<bool?> _showConfirmDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text(confirmLabel),
+              ),
+            ],
+          ),
+    );
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -469,7 +564,7 @@ class _SettingsTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),

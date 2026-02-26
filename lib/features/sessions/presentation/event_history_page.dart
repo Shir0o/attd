@@ -84,7 +84,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
           '${widget.event.title.trim()} History',
           style: TextStyle(
             color: colorScheme.onSurface,
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -108,6 +108,10 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                       child: StreamBuilder<List<Session>>(
                         stream: _sessionsStream,
                         builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return _buildSkeleton(context);
+                          }
+
                           final allSessions = snapshot.data ?? [];
                           final eventSessions = allSessions
                               .where((s) => s.title == widget.event.title)
@@ -142,6 +146,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                           Text(
                                             'No history found',
                                             style: TextStyle(
+                                              fontSize: 16,
                                               color:
                                                   colorScheme.onSurfaceVariant,
                                             ),
@@ -223,7 +228,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                 Text(
                                                   dateStr,
                                                   style: TextStyle(
-                                                    fontSize: 18,
+                                                    fontSize: 22,
                                                     fontWeight: FontWeight.w500,
                                                     color: colorScheme.onSurface,
                                                   ),
@@ -231,7 +236,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                 Text(
                                                   dayTimeStr,
                                                   style: TextStyle(
-                                                    fontSize: 14,
+                                                    fontSize: 16,
                                                     color: colorScheme
                                                         .onSurfaceVariant,
                                                   ),
@@ -297,7 +302,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         return Container(
-          height: 120,
+          height: 140,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
             borderRadius: BorderRadius.circular(16),
@@ -307,17 +312,17 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 120,
-                height: 20,
+                width: 140,
+                height: 24,
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Container(
-                width: 180,
-                height: 14,
+                width: 200,
+                height: 16,
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
@@ -327,8 +332,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
               Row(
                 children: [
                   Container(
-                    width: 80,
-                    height: 18,
+                    width: 100,
+                    height: 20,
                     decoration: BoxDecoration(
                       color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -336,8 +341,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                   ),
                   const SizedBox(width: 32),
                   Container(
-                    width: 80,
-                    height: 18,
+                    width: 100,
+                    height: 20,
                     decoration: BoxDecoration(
                       color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
@@ -361,12 +366,12 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(icon, size: 18, color: color),
+        Icon(icon, size: 20, color: color),
         const SizedBox(width: 6),
         Text(
           label,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.w500,
             color: theme.colorScheme.onSurface,
           ),
