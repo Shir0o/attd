@@ -24,17 +24,6 @@ class SessionSummaryPage extends StatefulWidget {
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
 
-  // Colors from design spec
-  static const primaryColor = Color(0xFF6750A4);
-  static const onPrimaryColor = Color(0xFFFFFFFF);
-  static const primaryContainerColor = Color(0xFFEADDFF);
-  static const onPrimaryContainerColor = Color(0xFF4F378B);
-  static const surfaceColor = Color(0xFFFEF7FF);
-  static const onSurfaceColor = Color(0xFF1D1B20);
-  static const surfaceVariantColor = Color(0xFFE7E0EC);
-  static const onSurfaceVariantColor = Color(0xFF49454F);
-  static const errorColor = Color(0xFFB3261E);
-
   @override
   void initState() {
     super.initState();
@@ -103,6 +92,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final presentMembers = <Member>[];
     final absentMembers = <Member>[];
 
@@ -115,28 +107,28 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colorScheme.surface,
       body: Stack(
         children: [
           CustomScrollView(
             slivers: [
               // Header
               SliverAppBar(
-                backgroundColor: surfaceColor.withValues(alpha: 0.95),
+                backgroundColor: colorScheme.surface.withValues(alpha: 0.95),
                 surfaceTintColor: Colors.transparent,
                 pinned: true,
                 leading: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    color: onSurfaceColor,
+                    color: colorScheme.onSurface,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ),
-                title: const Text(
+                title: Text(
                   'Session Summary',
                   style: TextStyle(
-                    color: onSurfaceColor,
+                    color: colorScheme.onSurface,
                     fontSize: 22,
                     fontWeight: FontWeight.w500,
                   ),
@@ -154,7 +146,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: primaryContainerColor,
+                          color: colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
@@ -172,7 +164,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                   Text(
                                     'PRESENT',
                                     style: TextStyle(
-                                      color: onPrimaryContainerColor,
+                                      color: colorScheme.onPrimaryContainer,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                       letterSpacing: 1.0,
@@ -181,8 +173,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${presentMembers.length}',
-                                    style: const TextStyle(
-                                      color: primaryColor,
+                                    style: TextStyle(
+                                      color: colorScheme.primary,
                                       fontSize: 45,
                                       fontWeight: FontWeight.w500,
                                       height: 1.0,
@@ -194,7 +186,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                             Container(
                               width: 1,
                               height: 60,
-                              color: onPrimaryContainerColor.withValues(
+                              color: colorScheme.onPrimaryContainer.withValues(
                                 alpha: 0.2,
                               ),
                             ),
@@ -204,7 +196,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                   Text(
                                     'ABSENT',
                                     style: TextStyle(
-                                      color: onPrimaryContainerColor,
+                                      color: colorScheme.onPrimaryContainer,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                       letterSpacing: 1.0,
@@ -213,8 +205,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${absentMembers.length}',
-                                    style: const TextStyle(
-                                      color: errorColor,
+                                    style: TextStyle(
+                                      color: colorScheme.error,
                                       fontSize: 36,
                                       fontWeight: FontWeight.w500,
                                       height: 1.0,
@@ -231,10 +223,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text(
+                          Text(
                             'Attendance Roster',
                             style: TextStyle(
-                              color: onSurfaceColor,
+                              color: colorScheme.onSurface,
                               fontSize: 24,
                               fontWeight: FontWeight.w500,
                             ),
@@ -242,7 +234,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           Text(
                             '${widget.members.length} Total',
                             style: TextStyle(
-                              color: onSurfaceVariantColor,
+                              color: colorScheme.onSurfaceVariant,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -259,7 +251,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 pinned: true,
                 delegate: _SectionHeaderDelegate(
                   title: 'Marked Present',
-                  color: primaryColor,
+                  color: colorScheme.primary,
                 ),
               ),
 
@@ -281,7 +273,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 pinned: true,
                 delegate: _SectionHeaderDelegate(
                   title: 'Marked Absent',
-                  color: errorColor,
+                  color: colorScheme.error,
                 ),
               ),
 
@@ -310,18 +302,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               decoration: BoxDecoration(
-                color: surfaceColor,
+                color: colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: surfaceVariantColor.withValues(alpha: 0.3),
+                    color: colorScheme.surfaceVariant.withValues(alpha: 0.3),
                   ),
                 ),
               ),
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: onPrimaryColor,
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
                   minimumSize: const Size(double.infinity, 56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
@@ -331,7 +323,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   overlayColor: WidgetStateProperty.resolveWith(
                     (states) {
                        if (states.contains(WidgetState.pressed)) {
-                          return onPrimaryColor.withValues(alpha: 0.2);
+                          return colorScheme.onPrimary.withValues(alpha: 0.2);
                        }
                        return null;
                     }
@@ -367,13 +359,14 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: const Color(0xFFFEF7FF).withValues(alpha: 0.95), // Surface color with opacity
+      color: colorScheme.surface.withValues(alpha: 0.95), // Surface color with opacity
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       alignment: Alignment.centerLeft,
       child: Container(
-         decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: Color(0xFFE7E0EC), width: 0.5))
+         decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: colorScheme.surfaceVariant, width: 0.5))
          ),
          width: double.infinity,
          padding: const EdgeInsets.only(bottom: 8),
@@ -414,24 +407,18 @@ class _MemberListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Colors
-    const onSurfaceColor = Color(0xFF1D1B20);
-    const onSurfaceVariantColor = Color(0xFF49454F);
-    const surfaceVariantColor = Color(0xFFE7E0EC);
-    const secondaryContainerColor = Color(0xFFE8DEF8);
-    const onSecondaryContainerColor = Color(0xFF1D192B);
-    const primaryColor = Color(0xFF6750A4);
-    const surfaceColor = Color(0xFFFEF7FF);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return InkWell(
       onTap: () => onToggle(!isPresent),
       child: Container(
         height: 72,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: const BoxDecoration(
-          color: surfaceColor,
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
           border: Border(
-            bottom: BorderSide(color: surfaceVariantColor),
+            bottom: BorderSide(color: colorScheme.surfaceVariant),
           ),
         ),
         child: Row(
@@ -441,7 +428,7 @@ class _MemberListItem extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: member.isVisitor ? secondaryContainerColor : surfaceVariantColor,
+                color: member.isVisitor ? colorScheme.secondaryContainer : colorScheme.surfaceVariant,
                 shape: BoxShape.circle,
               ),
               clipBehavior: Clip.antiAlias,
@@ -453,7 +440,7 @@ class _MemberListItem extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
-                    color: member.isVisitor ? onSecondaryContainerColor : onSurfaceVariantColor,
+                    color: member.isVisitor ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -466,17 +453,17 @@ class _MemberListItem extends StatelessWidget {
                 children: [
                   Text(
                     member.displayName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
-                      color: onSurfaceColor,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   if (member.isVisitor)
-                     const Text(
+                     Text(
                        'Added today',
                        style: TextStyle(
                          fontSize: 14,
-                         color: primaryColor,
+                         color: colorScheme.primary,
                          fontWeight: FontWeight.w500
                        ),
                      ),
@@ -487,7 +474,7 @@ class _MemberListItem extends StatelessWidget {
             Switch(
               value: isPresent,
               onChanged: onToggle,
-              activeThumbColor: primaryColor,
+              activeThumbColor: colorScheme.primary,
             ),
           ],
         ),

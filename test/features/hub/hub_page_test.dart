@@ -11,6 +11,9 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 
+import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
@@ -112,6 +115,14 @@ class MockSessionRepository implements SessionRepository {
 }
 
 void main() {
+  late ThemeController themeController;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    themeController = ThemeController(prefs);
+  });
+
   testWidgets('HubPage displays events sorted by Today', (
     WidgetTester tester,
   ) async {
@@ -122,6 +133,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: HubPage(
+          themeController: themeController,
           sessionRepository: mockSessionRepo,
           eventRepository: mockEventRepo,
           attendanceRepository: mockAttendanceRepo,
@@ -211,6 +223,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: HubPage(
+          themeController: themeController,
           sessionRepository: mockSessionRepo,
           eventRepository: mockEventRepo,
           attendanceRepository: mockAttendanceRepo,
@@ -250,6 +263,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: HubPage(
+          themeController: themeController,
           sessionRepository: mockSessionRepo,
           eventRepository: mockEventRepo,
           attendanceRepository: mockAttendanceRepo,

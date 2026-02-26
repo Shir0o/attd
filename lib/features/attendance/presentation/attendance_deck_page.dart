@@ -31,16 +31,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   final List<Member> _remainingMembers = [];
   bool _isLoading = true;
 
-  // Stitch Colors
-  static const primaryColor = Color(0xFF6750A4);
-  static const onPrimaryColor = Color(0xFFFFFFFF);
-  static const surfaceColor = Color(0xFFFEF7FF);
-  static const onSurfaceColor = Color(0xFF1D1B20);
-  static const onSurfaceVariantColor = Color(0xFF49454F);
-  static const surfaceContainerColor = Color(0xFFF3EDF7);
-  static const surfaceContainerHighColor = Color(0xFFECE6F0);
-  static const errorColor = Color(0xFFB3261E);
-
   @override
   void initState() {
     super.initState();
@@ -182,6 +172,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     if (_currentIndex >= widget.members.length) {
       return SessionSummaryPage(
         session: _currentSession,
@@ -194,7 +187,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final progress = (_currentIndex + 1) / widget.members.length;
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -205,14 +198,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                 Container(
                   height: 4,
                   width: double.infinity,
-                  color: surfaceContainerHighColor,
+                  color: colorScheme.surfaceContainerHigh,
                   child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: progress,
                     child: Container(
-                      decoration: const BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.only(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: const BorderRadius.only(
                           topRight: Radius.circular(999),
                           bottomRight: Radius.circular(999),
                         ),
@@ -228,7 +221,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close),
-                      color: onSurfaceVariantColor,
+                      color: colorScheme.onSurfaceVariant,
                       tooltip: 'Cancel',
                     ),
                   ),
@@ -243,10 +236,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       icon: const Icon(Icons.person_add, size: 20),
                       label: const Text('Add Guest'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: onSurfaceVariantColor,
-                        backgroundColor: surfaceColor,
+                        foregroundColor: colorScheme.onSurfaceVariant,
+                        backgroundColor: colorScheme.surface,
                         side: BorderSide(
-                          color: onSurfaceVariantColor.withValues(alpha: 0.2),
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
                         ),
                         shape: const StadiumBorder(),
                         elevation: 0,
@@ -282,7 +275,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               scale: 0.9,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: surfaceContainerColor.withValues(
+                                  color: colorScheme.surfaceContainer.withValues(
                                     alpha: 0.4,
                                   ),
                                   borderRadius: BorderRadius.circular(16),
@@ -306,7 +299,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               scale: 0.95,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: surfaceContainerColor.withValues(
+                                  color: colorScheme.surfaceContainer.withValues(
                                     alpha: 0.7,
                                   ),
                                   borderRadius: BorderRadius.circular(16),
@@ -334,7 +327,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                       width: double.infinity,
                                       height: double.infinity,
                                       decoration: BoxDecoration(
-                                        color: surfaceContainerColor.withValues(
+                                        color: colorScheme.surfaceContainer.withValues(
                                           alpha: 0.5,
                                         ),
                                         borderRadius: BorderRadius.circular(16),
@@ -356,8 +349,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                       key: ValueKey(
                                         currentMember.id,
                                       ), // Important for resetting state
-                                      rightSwipeColor: primaryColor,
-                                      leftSwipeColor: errorColor,
+                                      rightSwipeColor: colorScheme.primary,
+                                      leftSwipeColor: colorScheme.error,
                                       onSwipeLeft: () => _processAttendance(
                                         AttendanceStatus.absent,
                                       ),
@@ -368,7 +361,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                         width: double.infinity,
                                         height: double.infinity,
                                         decoration: BoxDecoration(
-                                          color: surfaceContainerColor,
+                                          color: colorScheme.surfaceContainer,
                                           borderRadius: BorderRadius.circular(16),
                                           boxShadow: const [
                                             BoxShadow(
@@ -387,7 +380,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                               width: 96,
                                               height: 96,
                                               decoration: BoxDecoration(
-                                                color: surfaceContainerHighColor,
+                                                color: colorScheme.surfaceContainerHigh,
                                                 shape: BoxShape.circle,
                                                 boxShadow: const [
                                                   BoxShadow(
@@ -404,10 +397,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                                       ? currentMember.displayName[0]
                                                             .toUpperCase()
                                                       : '?',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 32,
                                                     fontWeight: FontWeight.bold,
-                                                    color: primaryColor,
+                                                    color: colorScheme.primary,
                                                   ),
                                                 ),
                                               ),
@@ -415,10 +408,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                             const SizedBox(height: 24),
                                             Text(
                                               currentMember.displayName,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 32,
                                                 fontWeight: FontWeight.w500,
-                                                color: onSurfaceColor,
+                                                color: colorScheme.onSurface,
                                                 height: 1.25, // leading-tight
                                               ),
                                               textAlign: TextAlign.center,
@@ -449,7 +442,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     width: 88,
                     height: 88,
                     child: Material(
-                      color: surfaceContainerHighColor,
+                      color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
@@ -459,8 +452,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                           Icons.undo,
                           size: 40,
                           color: _currentIndex > 0
-                              ? onSurfaceVariantColor
-                              : onSurfaceVariantColor.withValues(alpha: 0.3),
+                              ? colorScheme.onSurfaceVariant
+                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                         ),
                       ),
                     ),
@@ -472,7 +465,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     width: 88,
                     height: 88,
                     child: Material(
-                      color: surfaceContainerHighColor,
+                      color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
                       elevation: 1,
@@ -480,10 +473,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         key: const Key('absentButton'),
                         onTap: () =>
                             _processAttendance(AttendanceStatus.absent),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           size: 48,
-                          color: errorColor,
+                          color: colorScheme.error,
                         ),
                       ),
                     ),
@@ -497,7 +490,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     child: Hero(
                       tag: 'fab',
                       child: Material(
-                        color: primaryColor,
+                        color: colorScheme.primary,
                         shape: const CircleBorder(),
                         clipBehavior: Clip.antiAlias,
                         elevation: 3,
@@ -505,10 +498,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                           key: const Key('presentButton'),
                           onTap: () =>
                               _processAttendance(AttendanceStatus.present),
-                          child: const Icon(
+                          child: Icon(
                             Icons.check,
                             size: 48,
-                            color: onPrimaryColor,
+                            color: colorScheme.onPrimary,
                           ),
                         ),
                       ),
