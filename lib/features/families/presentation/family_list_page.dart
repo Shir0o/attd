@@ -56,7 +56,10 @@ class _FamilyListPageState extends State<FamilyListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Families'),
+        title: const Text(
+          'Manage Families',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+        ),
       ),
       body: FutureBuilder<List<Family>>(
         future: _familiesFuture,
@@ -85,8 +88,14 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 leading: CircleAvatar(
                   child: Text(family.displayName.characters.first.toUpperCase()),
                 ),
-                title: Text(family.displayName),
-                subtitle: Text('$memberCount members'),
+                title: Text(
+                  family.displayName,
+                  style: const TextStyle(fontSize: 18),
+                ),
+                subtitle: Text(
+                  '$memberCount members',
+                  style: const TextStyle(fontSize: 14),
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _openFamily(family),
               );

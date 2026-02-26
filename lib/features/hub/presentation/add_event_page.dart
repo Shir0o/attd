@@ -80,7 +80,7 @@ class _AddEventPageState extends State<AddEventPage> {
     
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 600) - elapsed;
+    final remaining = const Duration(milliseconds: 800) - elapsed;
     if (remaining > Duration.zero) {
       await Future.delayed(remaining);
     }
@@ -223,7 +223,7 @@ class _AddEventPageState extends State<AddEventPage> {
           isEditing ? 'Edit Event' : 'New Event',
           style: TextStyle(
             color: colorScheme.onSurface,
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -260,7 +260,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                   textCapitalization:
                                       TextCapitalization.sentences,
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 18,
                                     color: colorScheme.onSurface,
                                   ),
                                   decoration: const InputDecoration(
@@ -289,7 +289,7 @@ class _AddEventPageState extends State<AddEventPage> {
                             child: Text(
                               'Required',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 14,
                                 color: colorScheme.onSurfaceVariant,
                               ),
                             ),
@@ -308,7 +308,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                         child: Text(
                                           _selectedTime.format(context),
                                           style: TextStyle(
-                                            fontSize: 16,
+                                            fontSize: 18,
                                             color: colorScheme.onSurface,
                                           ),
                                         ),
@@ -340,7 +340,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                       color: colorScheme.onSurfaceVariant,
                                     ),
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 18,
                                       color: colorScheme.onSurface,
                                     ),
                                     onChanged: (String? newValue) {
@@ -385,7 +385,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                         'yyyy-MM-dd',
                                       ).format(_selectedDate),
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 18,
                                         color: colorScheme.onSurface,
                                       ),
                                     ),
@@ -410,7 +410,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                 child: Text(
                                   'Repeats on',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w500,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
@@ -438,8 +438,8 @@ class _AddEventPageState extends State<AddEventPage> {
                                       });
                                     },
                                     child: Container(
-                                      width: 40,
-                                      height: 40,
+                                      width: 44,
+                                      height: 44,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: isSelected
@@ -454,7 +454,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                                 ? colorScheme.onPrimary
                                                 : colorScheme.onSurfaceVariant,
                                             fontWeight: FontWeight.w500,
-                                            fontSize: 14,
+                                            fontSize: 16,
                                           ),
                                         ),
                                       ),
@@ -475,24 +475,23 @@ class _AddEventPageState extends State<AddEventPage> {
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 56,
               child: Hero(
                 tag: 'fab',
-                child: ElevatedButton.icon(
+                child: ElevatedButton(
                   onPressed: _saveEvent,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     elevation: 1,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  icon: Icon(isEditing ? Icons.save : Icons.add, size: 20),
-                  label: Text(
+                  child: Text(
                     isEditing ? 'Save Changes' : 'Create Event',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.1,
                     ),
@@ -512,7 +511,7 @@ class _AddEventPageState extends State<AddEventPage> {
       children: [
         Container(
           width: double.infinity,
-          height: 56,
+          height: 64,
           decoration: BoxDecoration(
             color: Colors.grey.withValues(alpha: 0.1),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
@@ -523,7 +522,7 @@ class _AddEventPageState extends State<AddEventPage> {
             padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
             child: SizedBox(
               width: 60,
-              height: 12,
+              height: 16,
             ), // Spacer to match 'Required' text height and padding
           ),
       ],
@@ -543,14 +542,14 @@ class _AddEventPageState extends State<AddEventPage> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
         border: Border(bottom: BorderSide(color: onSurfaceVariantColor)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               color: textColor.withAlpha(179), // ~70% opacity
             ),
           ),
