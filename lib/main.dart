@@ -10,11 +10,8 @@ import 'features/ai/ai_provider.dart';
 import 'features/ai/ai_provider_factory.dart';
 import 'features/ai/http_ai_provider.dart';
 import 'features/analytics/attendance_analytics.dart';
-import 'features/auth/application/auth_controller.dart';
 import 'features/auth/application/google_auth_service.dart';
-import 'features/auth/data/local_auth_repository.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
-import 'features/auth/presentation/auth_gate.dart';
 import 'features/attendance/data/attendance_repository.dart';
 import 'features/attendance/models/attendance_status.dart';
 import 'features/attendance/models/family.dart';
@@ -119,59 +116,40 @@ class AttendanceApp extends StatefulWidget {
 }
 
 class _AttendanceAppState extends State<AttendanceApp> {
-  late final AuthController _authController;
-
-  @override
-  void initState() {
-    super.initState();
-    final authRepository = widget.authRepository ?? LocalAuthRepository();
-    _authController = AuthController(
-      repository: authRepository,
-      googleAuthService: widget.googleAuthService,
-    )..restoreSession();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AuthScope(
-      controller: _authController,
-      child: ListenableBuilder(
-        listenable: widget.themeController,
-        builder: (context, child) {
-          return MaterialApp(
-            title: 'Attendance',
-            themeMode: widget.themeController.themeMode,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.indigo,
-                brightness: Brightness.light,
-              ),
-              useMaterial3: true,
-              fontFamily: 'IBM Plex Sans',
+    return ListenableBuilder(
+      listenable: widget.themeController,
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'Attendance',
+          themeMode: widget.themeController.themeMode,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.indigo,
+              brightness: Brightness.light,
             ),
-            darkTheme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.indigo,
-                brightness: Brightness.dark,
-              ),
-              useMaterial3: true,
-              fontFamily: 'IBM Plex Sans',
+            useMaterial3: true,
+            fontFamily: 'IBM Plex Sans',
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.indigo,
+              brightness: Brightness.dark,
             ),
-            home: AuthGate(
-              controller: _authController,
-              homeBuilder: (context) => HubPage(
-                themeController: widget.themeController,
-                sessionRepository: widget.sessionRepository,
-                eventRepository: widget.eventRepository,
-                attendanceRepository: widget.repository,
-                onSignOut: _authController.signOut,
-                driveService: widget.driveService,
-                localBackupService: widget.localBackupService,
-              ),
-            ),
-          );
-        },
-      ),
+            useMaterial3: true,
+            fontFamily: 'IBM Plex Sans',
+          ),
+          home: HubPage(
+            themeController: widget.themeController,
+            sessionRepository: widget.sessionRepository,
+            eventRepository: widget.eventRepository,
+            attendanceRepository: widget.repository,
+            driveService: widget.driveService,
+            localBackupService: widget.localBackupService,
+          ),
+        );
+      },
     );
   }
 }
