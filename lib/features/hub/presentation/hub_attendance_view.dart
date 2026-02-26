@@ -268,6 +268,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               themeController: widget.themeController,
                               driveService: widget.driveService!,
                               localBackupService: widget.localBackupService!,
+                              attendanceRepository: widget.attendanceRepository,
                             ),
                       ),
                     );
