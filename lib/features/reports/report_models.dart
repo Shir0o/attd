@@ -10,6 +10,7 @@ class ReportRequest {
     required this.format,
     this.syncToGoogleSheets = false,
     this.includeWatchlist = true,
+    this.selectedEventTitles = const [],
   }) : assert(
          !endDate.isBefore(startDate),
          'End date must be after start date',
@@ -20,6 +21,7 @@ class ReportRequest {
   final ReportFormat format;
   final bool syncToGoogleSheets;
   final bool includeWatchlist;
+  final List<String> selectedEventTitles;
 
   ReportRequest copyWith({
     DateTime? startDate,
@@ -27,6 +29,7 @@ class ReportRequest {
     ReportFormat? format,
     bool? syncToGoogleSheets,
     bool? includeWatchlist,
+    List<String>? selectedEventTitles,
   }) {
     return ReportRequest(
       startDate: startDate ?? this.startDate,
@@ -34,6 +37,7 @@ class ReportRequest {
       format: format ?? this.format,
       syncToGoogleSheets: syncToGoogleSheets ?? this.syncToGoogleSheets,
       includeWatchlist: includeWatchlist ?? this.includeWatchlist,
+      selectedEventTitles: selectedEventTitles ?? this.selectedEventTitles,
     );
   }
 }

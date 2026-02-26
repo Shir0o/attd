@@ -211,6 +211,7 @@ class _MembersPageState extends State<MembersPage> {
                         ),
                         child: TextField(
                           controller: _quickAddController,
+                          textCapitalization: TextCapitalization.words,
                           decoration: const InputDecoration(
                             hintText: 'Enter full name',
                             border: InputBorder.none,
