@@ -7,6 +7,8 @@ import '../../settings/data/local_backup_service.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/presentation/members_page.dart';
 
+import 'cloud_backup_page.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
@@ -251,6 +253,22 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ),
                         ),
+                      ),
+                      Divider(height: 1, color: colorScheme.outlineVariant),
+                      _SettingsTile(
+                        icon: Icons.history,
+                        title: 'Cloud Version History',
+                        subtitle: 'View and restore previous cloud snapshots',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => CloudBackupPage(
+                                    driveService: widget.driveService,
+                                  ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ],
