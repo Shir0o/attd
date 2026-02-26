@@ -1,31 +1,18 @@
-import 'dart:math' as math;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'data/local_session_repository.dart';
-import 'data/session.dart';
 import 'data/session_repository.dart';
 import 'features/ai/ai_provider.dart';
 import 'features/ai/ai_provider_factory.dart';
-import 'features/ai/http_ai_provider.dart';
-import 'features/analytics/attendance_analytics.dart';
 import 'features/auth/application/google_auth_service.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/attendance/data/attendance_repository.dart';
-import 'features/attendance/models/attendance_status.dart';
-import 'features/attendance/models/family.dart';
-import 'features/attendance/presentation/attendance_flow_page.dart';
-import 'features/attendance/utils/name_corrections.dart';
-import 'features/families/presentation/family_list_page.dart';
 import 'features/hub/data/event_repository.dart';
 import 'features/hub/data/local_event_repository.dart';
 import 'features/hub/presentation/hub_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'features/auth/data/google_sign_in_service.dart';
-import 'features/reports/report_export_page.dart';
-import 'features/sessions/session_detail_page.dart';
 import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
