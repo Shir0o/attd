@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../settings/application/theme_controller.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
+    required this.themeController,
     required this.driveService,
     required this.localBackupService,
   });
 
+  final ThemeController themeController;
   final DriveService driveService;
   final LocalBackupService localBackupService;
 
@@ -19,33 +22,24 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  // Theme Colors
-  static const primaryColor = Color(0xFF6750A4);
-  static const surfaceColor = Color(0xFFFEF7FF);
-  static const onSurfaceColor = Color(0xFF1D1B20);
-  static const onSurfaceVariantColor = Color(0xFF49454F);
-  static const surfaceContainerColor = Color(0xFFF3EDF7);
-  static const surfaceContainerHighColor = Color(0xFFECE6F0);
-  static const primaryContainerColor = Color(0xFFEADDFF);
-  static const onPrimaryContainerColor = Color(0xFF21005D);
-  static const outlineColor = Color(0xFF79747E);
-  static const outlineVariantColor = Color(0xFFCAC4D0);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: surfaceColor,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: onSurfaceColor),
+          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Settings',
           style: TextStyle(
-            color: onSurfaceColor,
+            color: colorScheme.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.normal,
           ),
@@ -61,11 +55,84 @@ class _SettingsPageState extends State<SettingsPage> {
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
+              // Appearance Section
+              _SectionHeader(title: 'Appearance'),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    ListenableBuilder(
+                      listenable: widget.themeController,
+                      builder: (context, _) {
+                        return Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.palette,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Theme Mode',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      _getThemeLabel(widget.themeController.themeMode),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DropdownButton<ThemeMode>(
+                                value: widget.themeController.themeMode,
+                                items: ThemeMode.values.map((mode) {
+                                  return DropdownMenuItem(
+                                    value: mode,
+                                    child: Text(_getThemeLabel(mode)),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  widget.themeController.updateThemeMode(value);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
               // Cloud Sync Section
               _SectionHeader(title: 'Cloud Sync'),
               Container(
                 decoration: BoxDecoration(
-                  color: surfaceContainerColor,
+                  color: colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -78,13 +145,13 @@ class _SettingsPageState extends State<SettingsPage> {
                           Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: primaryContainerColor,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.cloud_sync,
-                              color: onPrimaryContainerColor,
+                              color: colorScheme.onPrimaryContainer,
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -97,16 +164,15 @@ class _SettingsPageState extends State<SettingsPage> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
-                                    color: onSurfaceColor,
                                   ),
                                 ),
                                 Text(
                                   lastSync != null
                                       ? 'Last synced: ${_formatTimeAgo(lastSync)}'
                                       : 'Not synced yet',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: onSurfaceVariantColor,
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -114,7 +180,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           Switch(
                             value: isSignedIn,
-                            activeThumbColor: primaryColor,
+                            activeThumbColor: colorScheme.primary,
                             onChanged: (value) async {
                               final scaffoldMessenger = ScaffoldMessenger.of(context);
                               try {
@@ -135,9 +201,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     // Sync Now Button Area
                     if (isSignedIn) ...[
-                      const Divider(height: 1, color: outlineVariantColor),
+                      Divider(height: 1, color: colorScheme.outlineVariant),
                       Container(
-                        color: surfaceContainerHighColor.withAlpha(80),
+                        color: colorScheme.surfaceContainerHigh.withAlpha(80),
                         padding: const EdgeInsets.all(16),
                         alignment: Alignment.centerRight,
                         child: OutlinedButton.icon(
@@ -174,8 +240,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: primaryColor,
-                            side: const BorderSide(color: outlineColor),
+                            foregroundColor: colorScheme.primary,
+                            side: BorderSide(color: colorScheme.outline),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(28),
                             ),
@@ -186,11 +252,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(top: 8, left: 8, bottom: 24),
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 8, bottom: 24),
                 child: Text(
                   'Automatic sync occurs every 15 minutes when connected to Wi-Fi.',
-                  style: TextStyle(fontSize: 12, color: onSurfaceVariantColor),
+                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                 ),
               ),
 
@@ -198,7 +264,7 @@ class _SettingsPageState extends State<SettingsPage> {
               _SectionHeader(title: 'Local Storage'),
               Container(
                 decoration: BoxDecoration(
-                  color: surfaceContainerColor,
+                  color: colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -219,7 +285,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         }
                       },
                     ),
-                    const Divider(height: 1, color: outlineVariantColor),
+                    Divider(height: 1, color: colorScheme.outlineVariant),
                     _SettingsTile(
                       icon: Icons.ios_share,
                       title: 'Export Data',
@@ -244,30 +310,12 @@ class _SettingsPageState extends State<SettingsPage> {
               _SectionHeader(title: 'Preferences'),
               Container(
                 decoration: BoxDecoration(
-                  color: surfaceContainerColor,
+                  color: colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
-                    _SettingsTile(
-                      icon: Icons.palette,
-                      title: 'Appearance',
-                      subtitle: 'Light theme',
-                      onTap: () {
-                        // TODO: Implement theme toggle
-                      },
-                    ),
-                    const Divider(height: 1, color: outlineVariantColor),
-                    _SettingsTile(
-                      icon: Icons.notifications,
-                      title: 'Notifications',
-                      subtitle: 'On',
-                      onTap: () {
-                        // TODO: Implement notifications toggle
-                      },
-                    ),
-                    const Divider(height: 1, color: outlineVariantColor),
                     _SettingsTile(
                       icon: Icons.info,
                       title: 'About',
@@ -284,6 +332,17 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
     );
+  }
+
+  String _getThemeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'System Default';
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+    }
   }
 
   String _formatTimeAgo(DateTime dateTime) {
@@ -311,10 +370,10 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4, bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: Color(0xFF6750A4), // primary
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );
@@ -336,13 +395,14 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF49454F)), // onSurfaceVariant
+            Icon(icon, color: colorScheme.onSurfaceVariant),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -350,24 +410,24 @@ class _SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF1D1B20), // onSurface
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF49454F), // onSurfaceVariant
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
-              color: Color(0xFF49454F),
+              color: colorScheme.onSurfaceVariant,
               size: 24,
             ),
           ],

@@ -29,12 +29,17 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'features/auth/data/google_sign_in_service.dart';
 import 'features/reports/report_export_page.dart';
 import 'features/sessions/session_detail_page.dart';
+import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase initialization removed
+
+  final prefs = await SharedPreferences.getInstance();
+  final themeController = ThemeController(prefs);
 
   final googleSignIn = GoogleSignIn(
     scopes: [
@@ -48,6 +53,7 @@ Future<void> main() async {
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
 
   runApp(AttendanceApp(
+    themeController: themeController,
     driveService: driveService,
     localBackupService: localBackupService,
     googleAuthService: googleAuthService,
@@ -57,6 +63,7 @@ Future<void> main() async {
 class AttendanceApp extends StatefulWidget {
   AttendanceApp({
     super.key,
+    required this.themeController,
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
     EventRepository? eventRepository,
@@ -78,6 +85,7 @@ class AttendanceApp extends StatefulWidget {
            aiProvider ??
            (aiFactory ?? const AiProviderFactory()).create(providerType);
 
+  final ThemeController themeController;
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
@@ -111,25 +119,42 @@ class _AttendanceAppState extends State<AttendanceApp> {
   Widget build(BuildContext context) {
     return AuthScope(
       controller: _authController,
-      child: MaterialApp(
-        title: 'Attendance',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-          useMaterial3: true,
-          fontFamily:
-              'IBM Plex Sans', // Attempt to use the font if available, or fallback
-        ),
-        home: AuthGate(
-          controller: _authController,
-          homeBuilder: (context) => HubPage(
-            sessionRepository: widget.sessionRepository,
-            eventRepository: widget.eventRepository,
-            attendanceRepository: widget.repository,
-            onSignOut: _authController.signOut,
-            driveService: widget.driveService,
-            localBackupService: widget.localBackupService,
-          ),
-        ),
+      child: ListenableBuilder(
+        listenable: widget.themeController,
+        builder: (context, child) {
+          return MaterialApp(
+            title: 'Attendance',
+            themeMode: widget.themeController.themeMode,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.indigo,
+                brightness: Brightness.light,
+              ),
+              useMaterial3: true,
+              fontFamily: 'IBM Plex Sans',
+            ),
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.indigo,
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+              fontFamily: 'IBM Plex Sans',
+            ),
+            home: AuthGate(
+              controller: _authController,
+              homeBuilder: (context) => HubPage(
+                themeController: widget.themeController,
+                sessionRepository: widget.sessionRepository,
+                eventRepository: widget.eventRepository,
+                attendanceRepository: widget.repository,
+                onSignOut: _authController.signOut,
+                driveService: widget.driveService,
+                localBackupService: widget.localBackupService,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -710,7 +735,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                           title: 'Attendance rate',
                           value: '$attendanceRate%',
                           subtitle: '${breakdown.total} check-ins',
-                          background: Colors.green.shade50,
+                          background: Colors.green.withValues(alpha: 0.1),
                           accent: Colors.green.shade700,
                         ),
                       ),
@@ -722,7 +747,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                           subtitle: maxAbsenceStreak == 0
                               ? 'No recent absences'
                               : 'Longest streak: $maxAbsenceStreak',
-                          background: Colors.red.shade50,
+                          background: Colors.red.withValues(alpha: 0.1),
                           accent: Colors.red.shade700,
                         ),
                       ),
@@ -734,7 +759,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
                           subtitle: analytics.watchlist.isEmpty
                               ? 'All clear'
                               : 'Needs follow-up',
-                          background: Colors.blue.shade50,
+                          background: Colors.blue.withValues(alpha: 0.1),
                           accent: Colors.blue.shade800,
                         ),
                       ),

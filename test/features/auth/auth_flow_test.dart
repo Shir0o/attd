@@ -14,9 +14,11 @@ import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _TestAuthRepository implements AuthRepository {
   _TestAuthRepository({
@@ -180,6 +182,14 @@ class MockEventRepository implements EventRepository {
 }
 
 void main() {
+  late ThemeController themeController;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    themeController = ThemeController(prefs);
+  });
+
   testWidgets('requires email and password before submission', (tester) async {
     final authRepository = _TestAuthRepository();
     final mockEventRepo = MockEventRepository();
@@ -187,6 +197,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -211,6 +222,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -244,6 +256,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -265,6 +278,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -295,6 +309,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -341,6 +356,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -368,6 +384,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
@@ -398,6 +415,7 @@ void main() {
 
     await tester.pumpWidget(
       AttendanceApp(
+        themeController: themeController,
         repository: _StubAttendanceRepository(),
         sessionRepository: _StubSessionRepository(),
         eventRepository: mockEventRepo,
