@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -12,11 +13,22 @@ import 'session_record.dart';
 
 class LocalJsonSessionRepository implements SessionRepository {
   LocalJsonSessionRepository({this.storagePath, List<Session>? seedSessions})
-    : _seedSessions = seedSessions ?? [];
+    : _seedSessions = seedSessions ?? [] {
+    _controller = StreamController<List<Session>>.broadcast(
+      onListen: () {
+        loadSessions().then((sessions) {
+          if (!_controller.isClosed) {
+            _controller.add(sessions);
+          }
+        });
+      },
+    );
+  }
 
   final String? storagePath;
   final List<Session> _seedSessions;
   File? _file;
+  late final StreamController<List<Session>> _controller;
 
   // We add a 'versions' field to the JSON representation of the session for local storage,
   // even though it's not in the main Session model.
@@ -133,7 +145,16 @@ class LocalJsonSessionRepository implements SessionRepository {
   @override
   Future<void> refresh() async {
     _historyCache.clear();
-    await loadSessions();
+    final sessions = await loadSessions();
+    _controller.add(sessions);
+  }
+
+  @override
+  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+    return _controller.stream.map((sessions) {
+      if (includeDeleted) return sessions;
+      return sessions.where((s) => !s.isDeleted).toList();
+    });
   }
 
   @override
@@ -142,8 +163,10 @@ class LocalJsonSessionRepository implements SessionRepository {
     // Sort by date descending
     sessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
 
-    if (includeDeleted) return sessions;
-    return sessions.where((s) => !s.isDeleted).toList();
+    final filtered =
+        includeDeleted ? sessions : sessions.where((s) => !s.isDeleted).toList();
+    _controller.add(filtered);
+    return filtered;
   }
 
   @override
@@ -171,6 +194,7 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     sessions.add(session);
     await _saveToFile(sessions);
+    _controller.add(await loadSessions());
 
     // Save initial version
     await _loadHistory();
@@ -205,6 +229,7 @@ class LocalJsonSessionRepository implements SessionRepository {
       sessions.add(nextSession);
     }
     await _saveToFile(sessions);
+    _controller.add(await loadSessions());
 
     // Save history
     await _loadHistory();
