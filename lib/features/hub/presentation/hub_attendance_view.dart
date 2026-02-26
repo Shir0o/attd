@@ -21,7 +21,6 @@ class HubAttendanceView extends StatefulWidget {
     required this.eventRepository,
     required this.attendanceRepository,
     required this.themeController,
-    this.onSignOut,
     this.driveService,
     this.localBackupService,
   });
@@ -30,7 +29,6 @@ class HubAttendanceView extends StatefulWidget {
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final ThemeController themeController;
-  final VoidCallback? onSignOut;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
 
@@ -274,11 +272,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       ),
                     );
                   },
-                ),
-              if (widget.onSignOut != null)
-                IconButton(
-                  icon: Icon(Icons.logout, color: colorScheme.onSurfaceVariant),
-                  onPressed: widget.onSignOut,
                 ),
             ],
             expandedHeight: 100,

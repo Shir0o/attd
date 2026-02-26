@@ -14,7 +14,6 @@ class HubPage extends StatefulWidget {
     required this.eventRepository,
     required this.attendanceRepository,
     required this.themeController,
-    this.onSignOut,
     this.driveService,
     this.localBackupService,
   });
@@ -23,7 +22,6 @@ class HubPage extends StatefulWidget {
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final ThemeController themeController;
-  final VoidCallback? onSignOut;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
 
@@ -39,7 +37,6 @@ class _HubPageState extends State<HubPage> {
       eventRepository: widget.eventRepository,
       attendanceRepository: widget.attendanceRepository,
       themeController: widget.themeController,
-      onSignOut: widget.onSignOut,
       driveService: widget.driveService,
       localBackupService: widget.localBackupService,
     );
