@@ -144,116 +144,32 @@ class _SettingsPageState extends State<SettingsPage> {
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.cloud_sync,
-                              color: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Google Drive Sync',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                Text(
-                                  lastSync != null
-                                      ? 'Last synced: ${_formatTimeAgo(lastSync)}'
-                                      : 'Not synced yet',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: isSignedIn,
-                            activeThumbColor: colorScheme.primary,
-                            onChanged: (value) async {
-                              final scaffoldMessenger = ScaffoldMessenger.of(context);
-                              try {
-                                if (value) {
-                                  await widget.driveService.signIn();
-                                } else {
-                                  await widget.driveService.signOut();
-                                }
-                              } catch (e) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
-                                );
-                              }
-                            },
-                          ),
-                        ],
+                    _SettingsTile(
+                      icon: Icons.cloud_sync,
+                      title: 'Google Drive Sync',
+                      subtitle: lastSync != null
+                          ? 'Last synced: ${_formatTimeAgo(lastSync)}'
+                          : 'Not synced yet',
+                      trailing: Switch(
+                        value: isSignedIn,
+                        activeThumbColor: colorScheme.primary,
+                        onChanged: (value) async {
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          try {
+                            if (value) {
+                              await widget.driveService.signIn();
+                            } else {
+                              await widget.driveService.signOut();
+                            }
+                          } catch (e) {
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        },
                       ),
                     ),
-                    // Sync Now Button Area
                     if (isSignedIn) ...[
-                      Divider(height: 1, color: colorScheme.outlineVariant),
-                      Container(
-                        color: colorScheme.surfaceContainerHigh.withAlpha(80),
-                        padding: const EdgeInsets.all(16),
-                        alignment: Alignment.centerRight,
-                        child: OutlinedButton.icon(
-                          onPressed: isSyncing
-                              ? null
-                              : () async {
-                                  final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                  try {
-                                    await widget.driveService.syncFiles();
-                                    scaffoldMessenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Sync completed successfully'),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    scaffoldMessenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text('Sync failed: $e'),
-                                      ),
-                                    );
-                                  }
-                                },
-                          icon: isSyncing
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.sync, size: 18),
-                          label: Text(
-                            isSyncing ? 'Syncing...' : 'Sync Now',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.primary,
-                            side: BorderSide(color: colorScheme.outline),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                          ),
-                        ),
-                      ),
                       Divider(height: 1, color: colorScheme.outlineVariant),
                       _SettingsTile(
                         icon: Icons.history,
@@ -270,6 +186,40 @@ class _SettingsPageState extends State<SettingsPage> {
                           );
                         },
                       ),
+                      Divider(height: 1, color: colorScheme.outlineVariant),
+                      _SettingsTile(
+                        icon: Icons.sync,
+                        title: 'Sync Now',
+                        subtitle: isSyncing
+                            ? 'Syncing...'
+                            : 'Manually trigger a cloud sync',
+                        trailing: isSyncing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : null,
+                        onTap: isSyncing
+                            ? null
+                            : () async {
+                                final scaffoldMessenger =
+                                    ScaffoldMessenger.of(context);
+                                try {
+                                  await widget.driveService.syncFiles();
+                                  scaffoldMessenger.showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Sync completed successfully'),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  scaffoldMessenger.showSnackBar(
+                                    SnackBar(content: Text('Sync failed: $e')),
+                                  );
+                                }
+                              },
+                      ),
                     ],
                   ],
                 ),
@@ -278,7 +228,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 padding: const EdgeInsets.only(top: 8, left: 8, bottom: 24),
                 child: Text(
                   'Automatic sync occurs every 15 minutes when connected to Wi-Fi.',
-                  style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
 
@@ -328,29 +281,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 24),
 
-              // Preferences Section
-              _SectionHeader(title: 'Preferences'),
-              Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    _SettingsTile(
-                      icon: Icons.info,
-                      title: 'About',
-                      subtitle: 'Version 2.4.0',
-                      onTap: () {
-                        // TODO: Show about dialog
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // Management Section
               _SectionHeader(title: 'Management'),
               Container(
@@ -380,6 +310,72 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // Privacy & Data Section
+              _SectionHeader(title: 'Privacy & Data'),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.security,
+                      title: 'Privacy Declaration',
+                      subtitle: 'How your data is handled',
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder:
+                              (context) => AlertDialog(
+                                title: const Text('Privacy Declaration'),
+                                content: const Text(
+                                  'Attendance Tracker is designed with privacy in mind.\n\n'
+                                  '• All attendance data is stored locally on your device.\n'
+                                  '• We do not store or transmit your data to any third-party servers.\n'
+                                  '• Google Drive Sync uses your personal Google account storage only.\n'
+                                  '• No data is collected or tracked by the application developers.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // About Section
+              _SectionHeader(title: 'About'),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.info,
+                      title: 'Version',
+                      subtitle: '2.4.0',
+                      onTap: () {
+                        // TODO: Show about details
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 48),
             ],
           );
         },
@@ -438,13 +434,15 @@ class _SettingsTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.onTap,
+    this.onTap,
+    this.trailing,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -478,11 +476,12 @@ class _SettingsTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: colorScheme.onSurfaceVariant,
-              size: 24,
-            ),
+            trailing ??
+                Icon(
+                  Icons.chevron_right,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 24,
+                ),
           ],
         ),
       ),

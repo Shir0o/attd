@@ -25,7 +25,7 @@ class SessionSummaryPage extends StatefulWidget {
 
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
-  final bool _isRefreshing = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -35,6 +35,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 
   Future<void> _refreshLatest() async {
+    final startTime = DateTime.now();
+    
     final latest = await widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
@@ -43,6 +45,17 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       setState(() {
         _currentSession = latest;
       });
+    }
+
+    // Ensure minimum loading duration for visual consistency
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = const Duration(milliseconds: 250) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -170,200 +183,219 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       backgroundColor: colorScheme.surface,
       body: Stack(
         children: [
-          CustomScrollView(
-            slivers: [
-              // Header
-              SliverAppBar(
-                backgroundColor: colorScheme.surface.withValues(alpha: 0.95),
-                surfaceTintColor: Colors.transparent,
-                pinned: true,
-                leading: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: colorScheme.onSurface,
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-                title: Text(
-                  _currentSession.title.trim(),
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                centerTitle: true,
-                actions: [
-                  IconButton(
-                    tooltip: 'Delete session',
-                    onPressed: _deleteSession,
-                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
-                  ),
-                ],
-              ),
-
-              // Stats Card
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 3,
-                              offset: const Offset(0, 1),
+          RepaintBoundary(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 600),
+              child: _isLoading
+                  ? _buildSkeleton(context)
+                  : CustomScrollView(
+                      key: const ValueKey('content'),
+                      slivers: [
+                        // Header
+                        SliverAppBar(
+                          backgroundColor: colorScheme.surface.withValues(
+                            alpha: 0.95,
+                          ),
+                          surfaceTintColor: Colors.transparent,
+                          pinned: true,
+                          leading: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              color: colorScheme.onSurface,
+                              onPressed: () => Navigator.of(context).pop(),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'PRESENT',
-                                    style: TextStyle(
-                                      color: colorScheme.onPrimaryContainer,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${presentMembers.length}',
-                                    style: TextStyle(
-                                      color: colorScheme.primary,
-                                      fontSize: 45,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 60,
-                              color: colorScheme.onPrimaryContainer.withValues(
-                                alpha: 0.2,
-                              ),
-                            ),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'ABSENT',
-                                    style: TextStyle(
-                                      color: colorScheme.onPrimaryContainer,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${absentMembers.length}',
-                                    style: TextStyle(
-                                      color: colorScheme.error,
-                                      fontSize: 36,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.0,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Attendance Roster',
+                          ),
+                          title: Text(
+                            _currentSession.title.trim(),
                             style: TextStyle(
                               color: colorScheme.onSurface,
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Text(
-                            '${widget.members.length} Total',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          centerTitle: true,
+                          actions: [
+                            IconButton(
+                              tooltip: 'Delete session',
+                              onPressed: _deleteSession,
+                              icon: Icon(
+                                Icons.delete_outline,
+                                color: colorScheme.error,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Stats Card
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        blurRadius: 3,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              'PRESENT',
+                                              style: TextStyle(
+                                                color: colorScheme
+                                                    .onPrimaryContainer,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${presentMembers.length}',
+                                              style: TextStyle(
+                                                color: colorScheme.primary,
+                                                fontSize: 45,
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 1,
+                                        height: 60,
+                                        color: colorScheme.onPrimaryContainer
+                                            .withValues(alpha: 0.2),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              'ABSENT',
+                                              style: TextStyle(
+                                                color: colorScheme
+                                                    .onPrimaryContainer,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${absentMembers.length}',
+                                              style: TextStyle(
+                                                color: colorScheme.error,
+                                                fontSize: 36,
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Attendance Roster',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${widget.members.length} Total',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                        ),
 
-              // Marked Present Header
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SectionHeaderDelegate(
-                  title: 'Marked Present',
-                  color: colorScheme.primary,
-                ),
-              ),
+                        // Marked Present Header
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _SectionHeaderDelegate(
+                            title: 'Marked Present',
+                            color: colorScheme.primary,
+                          ),
+                        ),
 
-              // Present List
-              SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final member = presentMembers[index];
-                  return _MemberListItem(
-                    member: member,
-                    isPresent: true,
-                    onToggle: (value) => _toggleAttendance(member, value),
-                  );
-                }, childCount: presentMembers.length),
-              ),
+                        // Present List
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((context, index) {
+                            final member = presentMembers[index];
+                            return _MemberListItem(
+                              member: member,
+                              isPresent: true,
+                              onToggle: (value) =>
+                                  _toggleAttendance(member, value),
+                            );
+                          }, childCount: presentMembers.length),
+                        ),
 
-              // Marked Absent Header
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SectionHeaderDelegate(
-                  title: 'Marked Absent',
-                  color: colorScheme.error,
-                ),
-              ),
+                        // Marked Absent Header
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _SectionHeaderDelegate(
+                            title: 'Marked Absent',
+                            color: colorScheme.error,
+                          ),
+                        ),
 
-              // Absent List
-              SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final member = absentMembers[index];
-                  return _MemberListItem(
-                    member: member,
-                    isPresent: false,
-                    onToggle: (value) => _toggleAttendance(member, value),
-                  );
-                }, childCount: absentMembers.length),
-              ),
+                        // Absent List
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((context, index) {
+                            final member = absentMembers[index];
+                            return _MemberListItem(
+                              member: member,
+                              isPresent: false,
+                              onToggle: (value) =>
+                                  _toggleAttendance(member, value),
+                            );
+                          }, childCount: absentMembers.length),
+                        ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
+                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      ],
+                    ),
+            ),
           ),
 
           // Finalize Button
@@ -383,32 +415,34 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   ),
                 ),
               ),
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                style:
-                    ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      elevation: 1,
-                    ).copyWith(
-                      overlayColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.pressed)) {
-                          return colorScheme.onPrimary.withValues(alpha: 0.2);
-                        }
-                        return null;
-                      }),
+              child: Hero(
+                tag: 'fab',
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 64),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32),
                     ),
-                icon: const Icon(Icons.check_circle),
-                label: const Text(
-                  'Finalize Report',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
+                    elevation: 4,
+                  ).copyWith(
+                    overlayColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.pressed)) {
+                        return colorScheme.onPrimary.withValues(alpha: 0.2);
+                      }
+                      return null;
+                    }),
+                  ),
+                  child: const Text(
+                    'Finalize Report',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
@@ -416,6 +450,92 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return ListView(
+      key: const ValueKey('skeleton'),
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Fake AppBar
+        Row(
+          children: [
+            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            const Spacer(),
+            Container(width: 120, height: 20, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            const Spacer(),
+            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        // Session Date
+        Container(
+          width: 150,
+          height: 16,
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Stats Card
+        Container(
+          height: 140,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        const SizedBox(height: 32),
+        // Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(width: 180, height: 24, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(width: 60, height: 14, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+          ],
+        ),
+        const SizedBox(height: 24),
+        // List items
+        ...List.generate(
+          5,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 120,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  width: 40,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

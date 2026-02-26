@@ -128,6 +128,8 @@ void main() {
     expect(bobRecord.status, AttendanceStatus.absent);
 
     // Verify Completion Screen (Session Summary shows session title)
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
     expect(find.text('Test Event'), findsOneWidget);
     expect(find.text('Finalize Report'), findsOneWidget);
   });
