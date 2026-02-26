@@ -65,16 +65,17 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     }
   }
 
-  void _createNewSession() {
-    Navigator.of(context).push(
+  void _createNewSession() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AddEventPage(eventRepository: widget.eventRepository),
       ),
     );
+    if (mounted) _loadMembers();
   }
 
-  void _editEvent(Event event) {
-    Navigator.of(context).push(
+  void _editEvent(Event event) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AddEventPage(
           eventRepository: widget.eventRepository,
@@ -82,6 +83,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       ),
     );
+    if (mounted) _loadMembers();
   }
 
   Future<void> _deleteEvent(Event event) async {
@@ -200,12 +202,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       _editEvent(event);
     } else if (action == 'manage') {
       if (!context.mounted) return;
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) =>
               MembersPage(attendanceRepository: widget.attendanceRepository),
         ),
       );
+      if (mounted) _loadMembers();
     } else if (action == 'delete') {
       _deleteEvent(event);
     }
@@ -274,25 +277,26 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'TODAY',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurfaceVariant,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  Text(
-                    DateFormat(
-                      'EEE, MMM d',
-                    ).format(DateTime.now()).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
+                                  Text(
+                                    'TODAY',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurfaceVariant,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                  Text(
+                                    DateFormat(
+                                      'EEE, MMM d',
+                                    ).format(DateTime.now()).toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                  
                 ],
               ),
               actions: [
@@ -387,7 +391,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 totalCount: totalCount,
                                 onTap: () async {
                                   if (todaySession != null) {
-                                    Navigator.of(context).push(
+                                    await Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => SessionSummaryPage(
                                           session: todaySession,
@@ -397,6 +401,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                         ),
                                       ),
                                     );
+                                    if (mounted) _loadMembers();
                                     return;
                                   }
 
@@ -411,7 +416,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                                   if (!context.mounted) return;
 
-                                  Navigator.of(context).push(
+                                  await Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) => AttendanceDeckPage(
                                         session: session,
@@ -421,6 +426,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                       ),
                                     ),
                                   );
+                                  if (mounted) _loadMembers();
                                 },
                                 onMenuTap: () => _showEventMenu(context, event),
                                 primaryColor: colorScheme.primary,
@@ -532,7 +538,7 @@ class _EventCard extends StatelessWidget {
                                   'TODAY',
                                   style: TextStyle(
                                     color: onPrimaryColor,
-                                    fontSize: 12,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w500,
                                     letterSpacing: 0.5,
                                   ),
@@ -566,22 +572,23 @@ class _EventCard extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.schedule,
                           size: 20,
                           color: onSurfaceVariantColor,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Flexible(
                           child: Text(
                             event.time.format(context),
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 20,
                               color: onSurfaceVariantColor,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -594,7 +601,7 @@ class _EventCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 8,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
                       color: isToday
@@ -612,9 +619,9 @@ class _EventCard extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            '$scannedCount/$totalCount Scanned',
+                            '$scannedCount/$totalCount Present',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 16,
                               fontWeight: FontWeight.w500,
                               color: onSurfaceVariantColor,
                             ),

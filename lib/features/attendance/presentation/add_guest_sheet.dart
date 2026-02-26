@@ -71,7 +71,7 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
             Text(
               'Add Guest',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.normal,
               ),
@@ -96,16 +96,21 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Guest Name',
-                        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                        labelStyle: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ),
                         contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                         border: UnderlineInputBorder(
-                          borderSide: BorderSide(color: colorScheme.onSurfaceVariant),
+                          borderSide:
+                              BorderSide(color: colorScheme.onSurfaceVariant),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+                          borderSide:
+                              BorderSide(color: colorScheme.primary, width: 2),
                         ),
                       ),
-                      style: TextStyle(color: colorScheme.onSurface),
+                      style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -116,7 +121,10 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                     children: [
                       Text(
                         'Mark as Present',
-                        style: TextStyle(fontSize: 16, color: colorScheme.onSurface),
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
                       Switch(
                         value: _isPresent,

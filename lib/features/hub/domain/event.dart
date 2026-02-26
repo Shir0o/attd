@@ -9,6 +9,7 @@ class Event {
   final List<String>
   repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   Event({
     required this.id,
@@ -18,7 +19,8 @@ class Event {
     this.oneTimeDate,
     this.repeatingDays = const [],
     required this.createdAt,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? createdAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -29,6 +31,7 @@ class Event {
       'oneTimeDate': oneTimeDate?.toIso8601String(),
       'repeatingDays': repeatingDays,
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
@@ -51,6 +54,9 @@ class Event {
               .toList() ??
           [],
       createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.parse(json['createdAt'] as String),
     );
   }
 }

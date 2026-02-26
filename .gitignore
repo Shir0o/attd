@@ -33,6 +33,12 @@ migrate_working_dir/
 /build/
 /coverage/
 key.properties
+*.bak
+*.tmp
+*.jks
+*.keystore
+android/key.properties
+android/key.properties.example
 
 # Symbolication related
 app.*.symbols

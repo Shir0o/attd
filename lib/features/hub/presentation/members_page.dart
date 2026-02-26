@@ -224,7 +224,7 @@ class _MembersPageState extends State<MembersPage> {
                   'QUICK ADD MEMBER',
                   style: TextStyle(
                     color: colorScheme.primary,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.0,
                   ),
@@ -243,6 +243,7 @@ class _MembersPageState extends State<MembersPage> {
                         child: TextField(
                           controller: _quickAddController,
                           textCapitalization: TextCapitalization.words,
+                          style: const TextStyle(fontSize: 18),
                           decoration: const InputDecoration(
                             hintText: 'Enter full name',
                             border: InputBorder.none,
@@ -364,7 +365,7 @@ class _MembersPageState extends State<MembersPage> {
                   '${filteredMembers.length}',
                   style: TextStyle(
                     color: colorScheme.onPrimaryContainer,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -396,12 +397,12 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 title: Text(
                   member.displayName,
-                  style: TextStyle(color: colorScheme.onSurface),
+                  style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
                 ),
                 subtitle: Text(
                   'Member',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),

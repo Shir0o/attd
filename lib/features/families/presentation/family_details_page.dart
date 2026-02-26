@@ -94,31 +94,45 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_family.displayName)),
+      appBar: AppBar(
+        title: Text(
+          _family.displayName,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+        ),
+      ),
       body: ListView(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
               'Members',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
           if (_family.members.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('No members yet.'),
+              child: Text(
+                'No members yet.',
+                style: TextStyle(fontSize: 16),
+              ),
             ),
           ..._family.members.map((member) {
             return ListTile(
               leading: CircleAvatar(
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Text(member.displayName.characters.first.toUpperCase()),
               ),
-              title: Text(member.displayName),
-              subtitle: member.isVisitor ? const Text('Visitor') : null,
+              title: Text(
+                member.displayName,
+                style: const TextStyle(fontSize: 18),
+              ),
+              subtitle: member.isVisitor
+                  ? const Text('Visitor', style: TextStyle(fontSize: 14))
+                  : null,
             );
           }),
         ],

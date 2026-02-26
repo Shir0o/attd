@@ -70,7 +70,18 @@ class LocalJsonEventRepository implements EventRepository {
   @override
   Future<void> createEvent(Event event) async {
     await _init();
-    _cache.insert(0, event); // Add to top
+    final now = DateTime.now();
+    final newEvent = Event(
+      id: event.id,
+      title: event.title,
+      time: event.time,
+      frequency: event.frequency,
+      oneTimeDate: event.oneTimeDate,
+      repeatingDays: event.repeatingDays,
+      createdAt: event.createdAt,
+      updatedAt: now,
+    );
+    _cache.insert(0, newEvent); // Add to top
     await _save();
   }
 
@@ -79,7 +90,18 @@ class LocalJsonEventRepository implements EventRepository {
     await _init();
     final index = _cache.indexWhere((e) => e.id == event.id);
     if (index != -1) {
-      _cache[index] = event;
+      final now = DateTime.now();
+      final updatedEvent = Event(
+        id: event.id,
+        title: event.title,
+        time: event.time,
+        frequency: event.frequency,
+        oneTimeDate: event.oneTimeDate,
+        repeatingDays: event.repeatingDays,
+        createdAt: event.createdAt,
+        updatedAt: now,
+      );
+      _cache[index] = updatedEvent;
       await _save();
     }
   }
