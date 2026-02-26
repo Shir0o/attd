@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'data/local_session_repository.dart';
 import 'data/session_repository.dart';
-import 'features/ai/ai_provider.dart';
-import 'features/ai/ai_provider_factory.dart';
 import 'features/auth/application/google_auth_service.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/attendance/data/attendance_repository.dart';
@@ -30,9 +28,7 @@ Future<void> main() async {
   );
 
   final attendanceRepository = LocalJsonAttendanceRepository();
-  final sessionRepository = LocalJsonSessionRepository(
-    seedSessions: buildSeedSessions(),
-  );
+  final sessionRepository = LocalJsonSessionRepository();
   final eventRepository = LocalJsonEventRepository();
 
   final driveService = DriveService(
@@ -69,32 +65,18 @@ class AttendanceApp extends StatefulWidget {
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
     EventRepository? eventRepository,
-    AiProvider? aiProvider,
-    AiProviderFactory? aiFactory,
-    this.providerType = AiProviderType.mock,
-    this.aiEnabled = true,
     this.authRepository,
     this.googleAuthService,
     this.driveService,
     this.localBackupService,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
-       sessionRepository =
-           sessionRepository ??
-           LocalJsonSessionRepository(seedSessions: buildSeedSessions()),
-       eventRepository = eventRepository ?? LocalJsonEventRepository(),
-       aiFactory = aiFactory ?? const AiProviderFactory(),
-       aiProvider =
-           aiProvider ??
-           (aiFactory ?? const AiProviderFactory()).create(providerType);
+       sessionRepository = sessionRepository ?? LocalJsonSessionRepository(),
+       eventRepository = eventRepository ?? LocalJsonEventRepository();
 
   final ThemeController themeController;
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
-  final AiProvider aiProvider;
-  final AiProviderFactory aiFactory;
-  final AiProviderType providerType;
-  final bool aiEnabled;
   final AuthRepository? authRepository;
   final GoogleAuthService? googleAuthService;
   final DriveService? driveService;
@@ -104,7 +86,8 @@ class AttendanceApp extends StatefulWidget {
   State<AttendanceApp> createState() => _AttendanceAppState();
 }
 
-class _AttendanceAppState extends State<AttendanceApp> with WidgetsBindingObserver {
+class _AttendanceAppState extends State<AttendanceApp>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -119,7 +102,8 @@ class _AttendanceAppState extends State<AttendanceApp> with WidgetsBindingObserv
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       // Trigger sync when app is backgrounded or closed
       widget.driveService?.syncFiles();
     }
@@ -176,4 +160,3 @@ class _AttendanceAppState extends State<AttendanceApp> with WidgetsBindingObserv
     );
   }
 }
-

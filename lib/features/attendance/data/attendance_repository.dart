@@ -20,11 +20,9 @@ abstract class AttendanceRepository {
 }
 
 class LocalJsonAttendanceRepository extends AttendanceRepository {
-  LocalJsonAttendanceRepository({this.storagePath, List<Family>? seed})
-    : _seed = seed ?? defaultFamilies;
+  LocalJsonAttendanceRepository({this.storagePath});
 
   final String? storagePath;
-  final List<Family> _seed;
   List<Family>? _cachedFamilies;
 
   @override
@@ -47,20 +45,20 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
     final file = await _file;
     if (!await file.exists()) {
-      await saveFamilies(_seed);
-      return List<Family>.from(_seed);
+      await saveFamilies([]);
+      return [];
     }
 
     final content = await file.readAsString();
     if (content.trim().isEmpty) {
-      await saveFamilies(_seed);
-      return List<Family>.from(_seed);
+      await saveFamilies([]);
+      return [];
     }
 
     final decoded = jsonDecode(content);
     if (decoded is! List) {
-      _cachedFamilies = List<Family>.from(_seed);
-      return List<Family>.from(_seed);
+      _cachedFamilies = [];
+      return [];
     }
 
     final families = decoded
@@ -103,33 +101,3 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     return family;
   }
 }
-
-const List<Family> defaultFamilies = [
-  Family(
-    id: 'family-1',
-    displayName: 'Rivera Family',
-    members: [
-      Member(id: 'member-1', displayName: 'Alana Rivera'),
-      Member(id: 'member-2', displayName: 'Mateo Rivera'),
-      Member(id: 'member-3', displayName: 'Sofia Rivera'),
-    ],
-  ),
-  Family(
-    id: 'family-2',
-    displayName: 'Nguyen Family',
-    members: [
-      Member(id: 'member-4', displayName: 'Minh Nguyen'),
-      Member(id: 'member-5', displayName: 'Linh Nguyen'),
-    ],
-  ),
-  Family(
-    id: 'family-3',
-    displayName: 'Patel Family',
-    members: [
-      Member(id: 'member-6', displayName: 'Aarav Patel'),
-      Member(id: 'member-7', displayName: 'Anaya Patel'),
-      Member(id: 'member-8', displayName: 'Rishi Patel'),
-      Member(id: 'member-9', displayName: 'Priya Patel'),
-    ],
-  ),
-];
