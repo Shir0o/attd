@@ -36,6 +36,9 @@ class _TrackingAttendanceRepository implements AttendanceRepository {
     lastSaved = families;
     _families = families;
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class _ImmediateSessionRepository implements SessionRepository {
@@ -75,6 +78,9 @@ class _ImmediateSessionRepository implements SessionRepository {
     Session session, {
     required String actor,
   }) async => session;
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class _StubAiProvider implements AiProvider {

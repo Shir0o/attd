@@ -117,6 +117,9 @@ class _StubAttendanceRepository implements AttendanceRepository {
   Future<Family> addFamily(String displayName) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class _StubSessionRepository implements SessionRepository {
@@ -157,6 +160,9 @@ class _StubSessionRepository implements SessionRepository {
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
     return session;
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 class MockEventRepository implements EventRepository {
@@ -179,6 +185,9 @@ class MockEventRepository implements EventRepository {
   Stream<List<Event>> streamEvents() {
     return _controller.stream;
   }
+
+  @override
+  Future<void> refresh() async {}
 }
 
 void main() {

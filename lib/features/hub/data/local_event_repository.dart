@@ -19,16 +19,26 @@ class LocalJsonEventRepository implements EventRepository {
   Future<File> get _storageFile async {
     if (_file != null) return _file!;
 
-    final directory = storagePath != null
-        ? Directory(storagePath!)
-        : await getApplicationDocumentsDirectory();
+    final directory =
+        storagePath != null
+            ? Directory(storagePath!)
+            : await getApplicationDocumentsDirectory();
 
     _file = File('${directory.path}/events.json');
     return _file!;
   }
 
+  @override
+  Future<void> refresh() async {
+    _initialized = false;
+    await _init();
+  }
+
   Future<void> _init() async {
-    if (_initialized) return;
+    if (_initialized) {
+      _controller.add(_cache);
+      return;
+    }
 
     final file = await _storageFile;
     if (await file.exists()) {
@@ -83,7 +93,28 @@ class LocalJsonEventRepository implements EventRepository {
 
   @override
   Stream<List<Event>> streamEvents() {
-    _init(); // Trigger init if not already
-    return _controller.stream;
+    // We wrap the stream to ensure the current cache is emitted immediately
+    // to every new listener, similar to a BehaviorSubject.
+    final controller = StreamController<List<Event>>();
+
+    void emit() {
+      if (!controller.isClosed) {
+        controller.add(_cache);
+      }
+    }
+
+    // Start loading data
+    _init().then((_) => emit());
+
+    // Listen to the master broadcast stream for future updates
+    final subscription = _controller.stream.listen((events) {
+      if (!controller.isClosed) {
+        controller.add(events);
+      }
+    });
+
+    controller.onCancel = () => subscription.cancel();
+
+    return controller.stream;
   }
 }

@@ -17,6 +17,8 @@ abstract class AttendanceRepository {
   Future<Family> addMember(String familyId, Member member);
 
   Future<Family> addFamily(String displayName);
+
+  Future<void> refresh();
 }
 
 class LocalJsonAttendanceRepository extends AttendanceRepository {
@@ -26,6 +28,12 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
   final String? storagePath;
   final List<Family> _seed;
   List<Family>? _cachedFamilies;
+
+  @override
+  Future<void> refresh() async {
+    _cachedFamilies = null;
+    await fetchFamilies();
+  }
 
   Future<File> get _file async {
     if (storagePath != null) return File(storagePath!);
