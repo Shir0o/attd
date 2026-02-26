@@ -392,27 +392,103 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     _SettingsTile(
                       icon: Icons.security,
-                      title: 'Privacy Declaration',
+                      title: 'Privacy Policy',
                       subtitle: 'How your data is handled',
                       onTap: () {
-                        showDialog(
+                        showModalBottomSheet(
                           context: context,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          backgroundColor: colorScheme.surface,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(28)),
+                          ),
                           builder:
-                              (context) => AlertDialog(
-                                title: const Text('Privacy Declaration'),
-                                content: const Text(
-                                  'Attendance Tracker is designed with privacy in mind.\n\n'
-                                  '• All attendance data is stored locally on your device.\n'
-                                  '• We do not store or transmit your data to any third-party servers.\n'
-                                  '• Google Drive Sync uses your personal Google account storage only.\n'
-                                  '• No data is collected or tracked by the application developers.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Close'),
-                                  ),
-                                ],
+                              (context) => DraggableScrollableSheet(
+                                initialChildSize: 0.9,
+                                minChildSize: 0.5,
+                                maxChildSize: 0.95,
+                                expand: false,
+                                builder: (context, scrollController) {
+                                  return Column(
+                                    children: [
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        width: 32,
+                                        height: 4,
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.onSurfaceVariant
+                                              .withValues(alpha: 0.4),
+                                          borderRadius:
+                                              BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: ListView(
+                                          controller: scrollController,
+                                          padding: const EdgeInsets.all(24),
+                                          children: [
+                                            Text(
+                                              'Privacy Policy',
+                                              style: theme.textTheme.headlineMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: colorScheme.onSurface,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 24),
+                                            Text(
+                                              'Attendance Tracker is designed with privacy as a core principle. Your data belongs to you.',
+                                              style: theme.textTheme.titleMedium
+                                                  ?.copyWith(
+                                                    color: colorScheme.primary,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 32),
+                                            _buildPolicyPoint(
+                                              context,
+                                              Icons.storage,
+                                              'Local-First Storage',
+                                              'All your attendance records, member lists, and event configurations are stored locally on your device database. We do not maintain any central servers to store your information.',
+                                            ),
+                                            _buildPolicyPoint(
+                                              context,
+                                              Icons.cloud_off,
+                                              'No Third-Party Tracking',
+                                              'We do not use any analytics, tracking pixels, or advertising identifiers. Your usage of the app is completely private and anonymous.',
+                                            ),
+                                            _buildPolicyPoint(
+                                              context,
+                                              Icons.folder_shared,
+                                              'User-Controlled Sync',
+                                              'Google Drive Sync uses your personal Google account storage only. The app only accesses its own dedicated folder and does not see other files in your Drive.',
+                                            ),
+                                            _buildPolicyPoint(
+                                              context,
+                                              Icons.visibility_off,
+                                              'Developer Access',
+                                              'The application developers have no technical means to access, view, or modify your attendance data. All synchronization and backups are encrypted via your Google account.',
+                                            ),
+                                            const SizedBox(height: 48),
+                                            Center(
+                                              child: Text(
+                                                'Effective Date: February 25, 2026',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 24),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                         );
                       },
@@ -499,6 +575,55 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+    );
+  }
+
+  Widget _buildPolicyPoint(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String description,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: colorScheme.primary, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
