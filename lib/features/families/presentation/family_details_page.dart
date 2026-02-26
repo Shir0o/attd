@@ -67,6 +67,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
           content: TextField(
             controller: controller,
             autofocus: true,
+            textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
               labelText: label,
               hintText: 'Enter name',
