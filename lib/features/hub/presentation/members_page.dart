@@ -96,8 +96,32 @@ class _MembersPageState extends State<MembersPage> {
   Future<void> _deleteMember(Member member) async {
     if (_families == null) return;
 
-    final originalFamilies = List<Family>.from(_families!);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Remove Member'),
+            content: Text(
+              'Are you sure you want to remove "${member.displayName}"? This will not delete their historical attendance records.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+    );
 
+    if (confirmed != true) return;
+
+    final originalFamilies = List<Family>.from(_families!);
+    // ... rest of the method
     try {
       final updatedFamilies = _families!
           .map((f) {

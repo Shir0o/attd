@@ -69,7 +69,50 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
     );
   }
 
+  Future<void> _deleteSession(Session session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Session'),
+            content: Text(
+              'Are you sure you want to delete "${session.title}" for ${DateFormat('yyyy-MM-dd').format(session.sessionDate)}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await widget.repository.deleteSession(session.id, actor: 'You');
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting session: $e')));
+        }
+      }
+    }
+  }
+
   Future<void> _duplicate(Session session) async {
+    // ... rest of method
     final duplicated = await widget.repository.duplicate(
       session.id,
       actor: 'You',
@@ -118,22 +161,106 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        ...versions.map(
-          (version) => ListTile(
-            leading: CircleAvatar(child: Text('#${version.version}')),
-            title: Text('Saved by ${version.actor}'),
-            subtitle: Text(
-              '${DateFormat('yyyy-MM-dd HH:mm:ss').format(version.recordedAt)} · ${version.isDeleted ? 'Deleted' : 'Active'}',
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.settings_backup_restore),
-              tooltip: 'Restore to this version',
-              onPressed: () => _restoreToVersion(version),
-            ),
-          ),
+        ...versions.asMap().entries.map(
+          (entry) {
+            final index = entry.key;
+            final version = entry.value;
+            final prevVersion =
+                index + 1 < versions.length ? versions[index + 1] : null;
+
+            final diffs = _calculateDiff(version.snapshot, prevVersion?.snapshot);
+
+            return Column(
+              children: [
+                ListTile(
+                  leading: CircleAvatar(child: Text('#${version.version}')),
+                  title: Text('Saved by ${version.actor}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${DateFormat('yyyy-MM-dd HH:mm:ss').format(version.recordedAt)} · ${version.isDeleted ? 'Deleted' : 'Active'}',
+                      ),
+                      if (diffs.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: diffs.map((diff) {
+                              final color = diff.startsWith('+')
+                                  ? Colors.green
+                                  : diff.startsWith('-')
+                                      ? Colors.red
+                                      : Colors.blue;
+                              return Text(
+                                diff,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: color.withValues(alpha: 0.8),
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.settings_backup_restore),
+                    tooltip: 'Restore to this version',
+                    onPressed: () => _restoreToVersion(version),
+                  ),
+                ),
+                const Divider(indent: 72, height: 1),
+              ],
+            );
+          },
         ),
       ],
     );
+  }
+
+  List<String> _calculateDiff(Session current, Session? previous) {
+    if (previous == null) return ['Initial version'];
+    final added = <String>[];
+    final removed = <String>[];
+    final changed = <String>[];
+
+    final currentRecords = {for (var r in current.records) r.attendee: r};
+    final previousRecords = {for (var r in previous.records) r.attendee: r};
+
+    // Added
+    for (final attendee in currentRecords.keys) {
+      if (!previousRecords.containsKey(attendee)) {
+        added.add('+ $attendee');
+      }
+    }
+
+    // Removed
+    for (final attendee in previousRecords.keys) {
+      if (!currentRecords.containsKey(attendee)) {
+        removed.add('- $attendee');
+      }
+    }
+
+    // Changed
+    for (final attendee in currentRecords.keys) {
+      if (previousRecords.containsKey(attendee)) {
+        final currentRecord = currentRecords[attendee]!;
+        final previousRecord = previousRecords[attendee]!;
+        if (currentRecord.status != previousRecord.status) {
+          changed.add(
+            '~ $attendee: ${previousRecord.status.label} → ${currentRecord.status.label}',
+          );
+        }
+      }
+    }
+
+    final all = [...added, ...removed, ...changed];
+    if (all.length > 5) {
+      return [...all.take(5), '...and ${all.length - 5} more'];
+    }
+    return all;
   }
 
   @override
@@ -153,6 +280,11 @@ class _SessionDetailPageState extends State<SessionDetailPage> {
           appBar: AppBar(
             title: Text(session.title),
             actions: [
+              IconButton(
+                tooltip: 'Delete session',
+                onPressed: () => _deleteSession(session),
+                icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+              ),
               IconButton(
                 tooltip: 'Revert to previous',
                 onPressed: session.currentVersion > 1
