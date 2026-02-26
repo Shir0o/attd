@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../settings/application/theme_controller.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
+import '../../attendance/data/attendance_repository.dart';
+import '../../hub/presentation/members_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -11,11 +13,13 @@ class SettingsPage extends StatefulWidget {
     required this.themeController,
     required this.driveService,
     required this.localBackupService,
+    required this.attendanceRepository,
   });
 
   final ThemeController themeController;
   final DriveService driveService;
   final LocalBackupService localBackupService;
+  final AttendanceRepository attendanceRepository;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -322,6 +326,37 @@ class _SettingsPageState extends State<SettingsPage> {
                       subtitle: 'Version 2.4.0',
                       onTap: () {
                         // TODO: Show about dialog
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Management Section
+              _SectionHeader(title: 'Management'),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.people_outline,
+                      title: 'Manage Members',
+                      subtitle: 'Add, edit, or remove members',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder:
+                                (_) => MembersPage(
+                                  attendanceRepository:
+                                      widget.attendanceRepository,
+                                ),
+                          ),
+                        );
                       },
                     ),
                   ],
