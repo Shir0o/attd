@@ -13,14 +13,6 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
   final _nameController = TextEditingController();
   bool _isPresent = true;
 
-  // Colors from design
-  static const primaryColor = Color(0xFF6750A4);
-  static const onPrimaryColor = Color(0xFFFFFFFF);
-  static const onSurfaceColor = Color(0xFF1D1B20);
-  static const onSurfaceVariantColor = Color(0xFF49454F);
-  static const surfaceContainerColor = Color(0xFFF3EDF7);
-  static const surfaceContainerHighColor = Color(0xFFECE6F0);
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -37,15 +29,18 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: surfaceContainerColor,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(28),
           topRight: Radius.circular(28),
         ),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Colors.black12,
             blurRadius: 8,
@@ -66,18 +61,18 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: onSurfaceVariantColor.withValues(alpha: 0.4),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 12),
 
             // Title
-            const Text(
+            Text(
               'Add Guest',
               style: TextStyle(
                 fontSize: 22,
-                color: onSurfaceColor,
+                color: colorScheme.onSurface,
                 fontWeight: FontWeight.normal,
               ),
             ),
@@ -90,27 +85,27 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                 children: [
                   // Name Input
                   Container(
-                    decoration: const BoxDecoration(
-                      color: surfaceContainerHighColor,
-                      borderRadius: BorderRadius.only(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHigh,
+                      borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
                         topRight: Radius.circular(4),
                       ),
                     ),
                     child: TextField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Guest Name',
-                        labelStyle: TextStyle(color: onSurfaceVariantColor),
-                        contentPadding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                         border: UnderlineInputBorder(
-                          borderSide: BorderSide(color: onSurfaceVariantColor),
+                          borderSide: BorderSide(color: colorScheme.onSurfaceVariant),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: primaryColor, width: 2),
+                          borderSide: BorderSide(color: colorScheme.primary, width: 2),
                         ),
                       ),
-                      style: const TextStyle(color: onSurfaceColor),
+                      style: TextStyle(color: colorScheme.onSurface),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -119,9 +114,9 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Mark as Present',
-                        style: TextStyle(fontSize: 16, color: onSurfaceColor),
+                        style: TextStyle(fontSize: 16, color: colorScheme.onSurface),
                       ),
                       Switch(
                         value: _isPresent,
@@ -130,14 +125,14 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                         thumbColor:
                             WidgetStateProperty.resolveWith((states) {
                               if (states.contains(WidgetState.selected)) {
-                                return primaryColor;
+                                return colorScheme.primary;
                               }
                               return null;
                             }),
                         trackColor:
                             WidgetStateProperty.resolveWith((states) {
                               if (states.contains(WidgetState.selected)) {
-                                return primaryColor.withValues(alpha: 0.5);
+                                return colorScheme.primary.withValues(alpha: 0.5);
                               }
                               return null;
                             }),
@@ -153,8 +148,8 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                     child: FilledButton(
                       onPressed: _submit,
                       style: FilledButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: onPrimaryColor,
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
                       ),
                       child: const Text('Add & Continue'),
                     ),

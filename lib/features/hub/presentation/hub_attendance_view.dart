@@ -7,6 +7,7 @@ import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
+import '../../settings/application/theme_controller.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -19,6 +20,7 @@ class HubAttendanceView extends StatefulWidget {
     required this.sessionRepository,
     required this.eventRepository,
     required this.attendanceRepository,
+    required this.themeController,
     this.onSignOut,
     this.driveService,
     this.localBackupService,
@@ -27,6 +29,7 @@ class HubAttendanceView extends StatefulWidget {
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
+  final ThemeController themeController;
   final VoidCallback? onSignOut;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
@@ -219,41 +222,34 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
   @override
   Widget build(BuildContext context) {
-    // Stitch Colors
-    const primaryColor = Color(0xFF6750A4);
-    const onPrimaryColor = Color(0xFFFFFFFF);
-    const surfaceColor = Color(0xFFFEF7FF);
-    const onSurfaceColor = Color(0xFF1D1B20);
-    const onSurfaceVariantColor = Color(0xFF49454F);
-    const surfaceContainerColor = Color(0xFFF3EDF7);
-    const secondaryContainerColor = Color(0xFFE8DEF8);
-    const onSecondaryContainerColor = Color(0xFF1D192B);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: surfaceColor,
+      backgroundColor: colorScheme.surface,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            backgroundColor: surfaceColor,
+            backgroundColor: colorScheme.surface,
             floating: true,
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'TODAY',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: onSurfaceVariantColor,
+                    color: colorScheme.onSurfaceVariant,
                     letterSpacing: 1.0,
                   ),
                 ),
                 Text(
                   DateFormat('EEE, MMM d').format(DateTime.now()).toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
-                    color: onSurfaceColor,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -262,11 +258,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               if (widget.driveService != null &&
                   widget.localBackupService != null)
                 IconButton(
-                  icon: const Icon(Icons.settings, color: onSurfaceVariantColor),
+                  icon: Icon(Icons.settings, color: colorScheme.onSurfaceVariant),
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => SettingsPage(
+                          themeController: widget.themeController,
                           driveService: widget.driveService!,
                           localBackupService: widget.localBackupService!,
                         ),
@@ -276,7 +273,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 ),
               if (widget.onSignOut != null)
                 IconButton(
-                  icon: const Icon(Icons.logout, color: onSurfaceVariantColor),
+                  icon: Icon(Icons.logout, color: colorScheme.onSurfaceVariant),
                   onPressed: widget.onSignOut,
                 ),
             ],
@@ -299,7 +296,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     child: Center(
                       child: Text(
                         'No events created yet',
-                        style: TextStyle(color: onSurfaceVariantColor),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ),
                   );
@@ -375,13 +372,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                             );
                           },
                           onMenuTap: () => _showEventMenu(context, event),
-                          primaryColor: primaryColor,
-                          onPrimaryColor: onPrimaryColor,
-                          surfaceContainerColor: surfaceContainerColor,
-                          onSurfaceColor: onSurfaceColor,
-                          onSurfaceVariantColor: onSurfaceVariantColor,
-                          secondaryContainerColor: secondaryContainerColor,
-                          onSecondaryContainerColor: onSecondaryContainerColor,
+                          primaryColor: colorScheme.primary,
+                          onPrimaryColor: colorScheme.onPrimary,
+                          surfaceContainerColor: colorScheme.surfaceContainer,
+                          onSurfaceColor: colorScheme.onSurface,
+                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                          secondaryContainerColor: colorScheme.secondaryContainer,
+                          onSecondaryContainerColor: colorScheme.onSecondaryContainer,
                         ),
                       ),
                     );
@@ -395,8 +392,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab',
         onPressed: _createNewSession,
-        backgroundColor: primaryColor,
-        foregroundColor: onPrimaryColor,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.add, size: 24),
       ),
