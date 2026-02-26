@@ -69,7 +69,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _currentIndex = firstUnrecorded;
 
     // Snappier delay to allow Hero to finish without making the app feel slow
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 250), () {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -320,7 +320,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         Positioned.fill(
                           child: RepaintBoundary(
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 400),
+                              duration: const Duration(milliseconds: 600),
                               child: _isLoading
                                   ? Container(
                                       key: const ValueKey('skeleton'),

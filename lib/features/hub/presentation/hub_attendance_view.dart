@@ -14,6 +14,9 @@ import '../domain/event.dart';
 import 'add_event_page.dart';
 import 'members_page.dart';
 import '../../sessions/presentation/event_history_page.dart';
+import '../../attendance/models/attendance_status.dart';
+import '../../attendance/presentation/session_summary_page.dart';
+import '../../attendance/models/member.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -40,11 +43,26 @@ class HubAttendanceView extends StatefulWidget {
 class _HubAttendanceViewState extends State<HubAttendanceView> {
   // Using Stream for real-time updates
   late Stream<List<Event>> _eventsStream;
+  List<Member> _members = [];
 
   @override
   void initState() {
     super.initState();
     _eventsStream = widget.eventRepository.streamEvents().map(_processEvents);
+    _loadMembers();
+  }
+
+  Future<void> _loadMembers() async {
+    try {
+      final families = await widget.attendanceRepository.fetchFamilies();
+      if (mounted) {
+        setState(() {
+          _members = families.expand((f) => f.members).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading members: $e');
+    }
   }
 
   void _createNewSession() {
@@ -69,22 +87,21 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   Future<void> _deleteEvent(Event event) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Event'),
-            content: Text('Are you sure you want to delete "${event.title}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text('Are you sure you want to delete "${event.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true && mounted) {
@@ -172,11 +189,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       if (!context.mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder:
-              (_) => EventHistoryPage(
-                event: event,
-                sessionRepository: widget.sessionRepository,
-              ),
+          builder: (_) => EventHistoryPage(
+            event: event,
+            sessionRepository: widget.sessionRepository,
+            attendanceRepository: widget.attendanceRepository,
+          ),
         ),
       );
     } else if (action == 'edit') {
@@ -185,10 +202,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       if (!context.mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder:
-              (_) => MembersPage(
-                attendanceRepository: widget.attendanceRepository,
-              ),
+          builder: (_) =>
+              MembersPage(attendanceRepository: widget.attendanceRepository),
         ),
       );
     } else if (action == 'delete') {
@@ -244,167 +259,193 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: colorScheme.surface,
-            floating: true,
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TODAY',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurfaceVariant,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                Text(
-                  DateFormat('EEE, MMM d').format(DateTime.now()).toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              if (widget.driveService != null &&
-                  widget.localBackupService != null)
-                IconButton(
-                  icon: Icon(
-                    Icons.settings,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (_) => SettingsPage(
-                              themeController: widget.themeController,
-                              driveService: widget.driveService!,
-                              localBackupService: widget.localBackupService!,
-                              attendanceRepository: widget.attendanceRepository,
-                            ),
-                      ),
-                    );
-                  },
-                ),
-            ],
-            expandedHeight: 100,
-            toolbarHeight: 80,
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            sliver: StreamBuilder<List<Event>>(
-              stream: _eventsStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Text(
-                        'No events created yet',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
-                      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await widget.eventRepository.refresh();
+          await widget.sessionRepository.refresh();
+          await _loadMembers();
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              backgroundColor: colorScheme.surface,
+              floating: true,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'TODAY',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: 1.0,
                     ),
-                  );
-                }
-
-                final sortedEvents = snapshot.data!;
-
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final event = sortedEvents[index];
-                    final isToday = _isEventToday(event);
-
-                    return RepaintBoundary(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _EventCard(
-                          event: event,
-                          isToday: isToday,
-                          onTap: () async {
-                            // Find or create session for today
-                            // 1. Fetch all sessions (inefficient but works for small scale)
-                            // 2. Filter for matching title + date
-
-                            // Optimization: SessionRepository should probably have findByDateAndTitle?
-                            // For now, load all.
-                            final allSessions = await widget.sessionRepository
-                                .loadSessions();
-                            final now = DateTime.now();
-                            final today = DateTime(now.year, now.month, now.day);
-
-                            Session? session;
-                            try {
-                              session = allSessions.firstWhere(
-                                (s) =>
-                                    s.title == event.title &&
-                                    s.sessionDate.year == today.year &&
-                                    s.sessionDate.month == today.month &&
-                                    s.sessionDate.day == today.day,
-                              );
-                            } catch (_) {
-                              session = null;
-                            }
-
-                            session ??= await widget.sessionRepository
-                                .createSession(
-                                  title: event.title,
-                                  sessionDate: today,
-                                  actor: 'User',
-                                  records: [],
-                                );
-
-                            if (!mounted) return;
-
-                            // Fetch members
-                            final families = await widget.attendanceRepository
-                                .fetchFamilies();
-                            final allMembers = families
-                                .expand((f) => f.members)
-                                .toList();
-
-                            if (!context.mounted) return;
-
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder:
-                                    (_) => AttendanceDeckPage(
-                                      session: session!,
-                                      members: allMembers,
-                                      sessionRepository:
-                                          widget.sessionRepository,
-                                    ),
-                              ),
-                            );
-                          },
-                          onMenuTap: () => _showEventMenu(context, event),
-                          primaryColor: colorScheme.primary,
-                          onPrimaryColor: colorScheme.onPrimary,
-                          surfaceContainerColor: colorScheme.surfaceContainer,
-                          onSurfaceColor: colorScheme.onSurface,
-                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                          secondaryContainerColor: colorScheme.secondaryContainer,
-                          onSecondaryContainerColor: colorScheme.onSecondaryContainer,
+                  ),
+                  Text(
+                    DateFormat(
+                      'EEE, MMM d',
+                    ).format(DateTime.now()).toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                if (widget.driveService != null &&
+                    widget.localBackupService != null)
+                  IconButton(
+                    icon: Icon(
+                      Icons.settings,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SettingsPage(
+                            themeController: widget.themeController,
+                            driveService: widget.driveService!,
+                            localBackupService: widget.localBackupService!,
+                            attendanceRepository: widget.attendanceRepository,
+                          ),
                         ),
-                      ),
-                    );
-                  }, childCount: sortedEvents.length),
-                );
-              },
+                      );
+                    },
+                  ),
+              ],
+              expandedHeight: 100,
+              toolbarHeight: 80,
             ),
-          ),
-        ],
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              sliver: StreamBuilder<List<Session>>(
+                stream: widget.sessionRepository.streamSessions(),
+                builder: (context, sessionSnapshot) {
+                  final sessions = sessionSnapshot.data ?? [];
+                  return StreamBuilder<List<Event>>(
+                    stream: _eventsStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SliverFillRemaining(
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return SliverFillRemaining(
+                          child: Center(
+                            child: Text(
+                              'No events created yet',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final sortedEvents = snapshot.data!;
+
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final event = sortedEvents[index];
+                          final isToday = _isEventToday(event);
+
+                          final now = DateTime.now();
+                          final today = DateTime(now.year, now.month, now.day);
+                          final matchingSessions = sessions.where(
+                            (s) =>
+                                s.title == event.title &&
+                                s.sessionDate.year == today.year &&
+                                s.sessionDate.month == today.month &&
+                                s.sessionDate.day == today.day,
+                          );
+                          Session? todaySession = matchingSessions.isNotEmpty
+                              ? matchingSessions.first
+                              : null;
+
+                          final scannedCount =
+                              todaySession?.records
+                                  .where(
+                                    (r) => r.status == AttendanceStatus.present,
+                                  )
+                                  .length ??
+                              0;
+                          final totalCount = _members.length;
+
+                          return RepaintBoundary(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _EventCard(
+                                event: event,
+                                isToday: isToday,
+                                scannedCount: scannedCount,
+                                totalCount: totalCount,
+                                onTap: () async {
+                                  if (todaySession != null) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => SessionSummaryPage(
+                                          session: todaySession,
+                                          members: _members,
+                                          sessionRepository:
+                                              widget.sessionRepository,
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  // Create session for today
+                                  final session = await widget.sessionRepository
+                                      .createSession(
+                                        title: event.title,
+                                        sessionDate: today,
+                                        actor: 'User',
+                                        records: [],
+                                      );
+
+                                  if (!context.mounted) return;
+
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => AttendanceDeckPage(
+                                        session: session,
+                                        members: _members,
+                                        sessionRepository:
+                                            widget.sessionRepository,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onMenuTap: () => _showEventMenu(context, event),
+                                primaryColor: colorScheme.primary,
+                                onPrimaryColor: colorScheme.onPrimary,
+                                surfaceContainerColor:
+                                    colorScheme.surfaceContainer,
+                                onSurfaceColor: colorScheme.onSurface,
+                                onSurfaceVariantColor:
+                                    colorScheme.onSurfaceVariant,
+                                secondaryContainerColor:
+                                    colorScheme.secondaryContainer,
+                                onSecondaryContainerColor:
+                                    colorScheme.onSecondaryContainer,
+                              ),
+                            ),
+                          );
+                        }, childCount: sortedEvents.length),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'fab',
@@ -431,6 +472,8 @@ class _EventCard extends StatelessWidget {
     required this.onSurfaceVariantColor,
     required this.secondaryContainerColor,
     required this.onSecondaryContainerColor,
+    required this.scannedCount,
+    required this.totalCount,
   });
 
   final Event event;
@@ -444,6 +487,8 @@ class _EventCard extends StatelessWidget {
   final Color onSurfaceVariantColor;
   final Color secondaryContainerColor;
   final Color onSecondaryContainerColor;
+  final int scannedCount;
+  final int totalCount;
 
   @override
   Widget build(BuildContext context) {
@@ -552,12 +597,11 @@ class _EventCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          isToday
-                              ? secondaryContainerColor
-                              : surfaceContainerColor.withAlpha(
-                                20,
-                              ), // Less prominent
+                      color: isToday
+                          ? secondaryContainerColor
+                          : surfaceContainerColor.withAlpha(
+                              20,
+                            ), // Less prominent
                       borderRadius: BorderRadius.circular(28),
                       border: Border.all(
                         color: onSurfaceVariantColor.withOpacity(0.1),
@@ -568,7 +612,7 @@ class _EventCard extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            '0/0 Scanned',
+                            '$scannedCount/$totalCount Scanned',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,

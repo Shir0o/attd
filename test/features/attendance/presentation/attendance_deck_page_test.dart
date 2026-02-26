@@ -13,7 +13,7 @@ class FakeSessionRepository implements SessionRepository {
   List<Session> savedSessions = [];
 
   @override
-  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+  Stream<List<Session>> streamSessions() {
     return Stream.value([]);
   }
 
@@ -33,27 +33,22 @@ class FakeSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<List<SessionVersion>> history(String sessionId) {
-    throw UnimplementedError();
+  Future<List<SessionVersion>> history(String sessionId) async {
+    return [];
   }
 
   @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) {
-    throw UnimplementedError();
+  Future<List<Session>> loadSessions() async {
+    return [];
   }
 
   @override
-  Future<Session?> revertToPrevious(String sessionId, {required String actor}) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Session?> restoreToVersion(
-    String sessionId,
-    int version, {
-    required String actor,
-  }) {
-    throw UnimplementedError();
+  Future<Session?> findSessionById(String id) async {
+    try {
+      return savedSessions.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -114,8 +109,8 @@ void main() {
     expect(savedRecords.first.attendee, 'Test User');
     expect(savedRecords.first.status, AttendanceStatus.present);
 
-    // Verify we are at "Session Summary"
-    expect(find.text('Session Summary'), findsOneWidget);
+    // Verify we are at the summary page (it shows the session title)
+    expect(find.text('Test Session'), findsOneWidget);
     expect(find.text('Finalize Report'), findsOneWidget);
   });
 

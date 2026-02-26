@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
-import '../features/attendance/models/attendance_status.dart';
 import 'session.dart';
 import 'session_repository.dart';
 import 'session_version.dart';
@@ -35,6 +34,7 @@ class LocalJsonSessionRepository implements SessionRepository {
   // This is a simple way to store history without multiple files.
   // Map<SessionId, List<SessionVersion>>
   final Map<String, List<SessionVersion>> _historyCache = {};
+  List<Session>? _sessionsCache;
 
   Future<File> get _storageFile async {
     if (_file != null) return _file!;
@@ -49,35 +49,85 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   Future<List<Session>> _loadFromFile() async {
     final file = await _storageFile;
+    final backupFile = File('${file.path}.bak');
+
     if (!await file.exists()) {
-      if (_seedSessions.isNotEmpty) {
+      if (await backupFile.exists()) {
+        await backupFile.copy(file.path);
+      } else if (_seedSessions.isNotEmpty) {
         await _saveToFile(_seedSessions);
         return _seedSessions;
+      } else {
+        return [];
       }
-      return [];
     }
 
     try {
       final content = await file.readAsString();
       if (content.isEmpty) return [];
-
       final List<dynamic> jsonList = jsonDecode(content);
-
-      // Extract versions if they are embedded (implementation detail)
-      // For this simple implementation, we might need a custom wrapper or just store them separately.
-      // Let's store them in a separate file to be cleaner: sessions_history.json
-
-      return jsonList.map((e) => Session.fromJson(e)).toList();
+      final sessions = jsonList.map((e) => Session.fromJson(e)).toList();
+      _sessionsCache = sessions;
+      return sessions;
     } catch (e) {
-      print('Error loading sessions: $e');
+      print('Main storage corrupted, attempting recovery: $e');
+      // Recovery Path 1: Try the .bak file
+      try {
+        if (await backupFile.exists()) {
+          final backupContent = await backupFile.readAsString();
+          final List<dynamic> jsonList = jsonDecode(backupContent);
+          print('Successfully recovered from .bak file');
+          return jsonList.map((e) => Session.fromJson(e)).toList();
+        }
+      } catch (backupError) {
+        print('Backup recovery failed: $backupError');
+      }
+
+      // Recovery Path 2: Try the latest snapshots from history
+      try {
+        await _loadHistory();
+        if (_historyCache.isNotEmpty) {
+          print('Attempting reconstruction from history snapshots');
+          final recovered = _historyCache.values
+              .map((versions) => versions.first.snapshot)
+              .toList();
+          return recovered;
+        }
+      } catch (historyError) {
+        print('History recovery failed: $historyError');
+      }
+
       return [];
     }
   }
 
   Future<void> _saveToFile(List<Session> sessions) async {
+    _sessionsCache = sessions;
     final file = await _storageFile;
-    final jsonList = sessions.map((e) => e.toJson()).toList();
-    await file.writeAsString(jsonEncode(jsonList));
+    final tempFile = File('${file.path}.tmp');
+    final backupFile = File('${file.path}.bak');
+
+    try {
+      final jsonList = sessions.map((e) => e.toJson()).toList();
+      final content = jsonEncode(jsonList);
+
+      // 1. Write to temp file
+      await tempFile.writeAsString(content);
+
+      // 2. Rotate current to backup
+      if (await file.exists()) {
+        await file.rename(backupFile.path);
+      }
+
+      // 3. Move temp to current (Atomic rename)
+      await tempFile.rename(file.path);
+    } catch (e) {
+      print('Error during atomic save: $e');
+      // If we failed, try to restore current from backup if possible
+      if (await backupFile.exists() && !await file.exists()) {
+        await backupFile.copy(file.path);
+      }
+    }
   }
 
   // History file handling
@@ -109,7 +159,6 @@ class LocalJsonSessionRepository implements SessionRepository {
                   snapshot: Session.fromJson(v['snapshot']),
                   recordedAt: DateTime.parse(v['recordedAt']),
                   actor: v['actor'],
-                  isDeleted: v['isDeleted'],
                 ),
               )
               .toList();
@@ -133,7 +182,6 @@ class LocalJsonSessionRepository implements SessionRepository {
               'snapshot': v.snapshot.toJson(),
               'recordedAt': v.recordedAt.toIso8601String(),
               'actor': v.actor,
-              'isDeleted': v.isDeleted,
             },
           )
           .toList();
@@ -150,23 +198,43 @@ class LocalJsonSessionRepository implements SessionRepository {
   }
 
   @override
-  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
-    return _controller.stream.map((sessions) {
-      if (includeDeleted) return sessions;
-      return sessions.where((s) => !s.isDeleted).toList();
-    });
+  Stream<List<Session>> streamSessions() {
+    return _controller.stream;
   }
 
   @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) async {
+  Future<List<Session>> loadSessions() async {
+    if (_sessionsCache != null) {
+      // Sort copy to avoid mutating cache incorrectly if sort is needed
+      final sorted = List<Session>.from(_sessionsCache!);
+      sorted.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+      _controller.add(sorted);
+      return sorted;
+    }
+
     final sessions = await _loadFromFile();
     // Sort by date descending
     sessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
 
-    final filtered =
-        includeDeleted ? sessions : sessions.where((s) => !s.isDeleted).toList();
-    _controller.add(filtered);
-    return filtered;
+    _controller.add(sessions);
+    return sessions;
+  }
+
+  @override
+  Future<Session?> findSessionById(String id) async {
+    if (_sessionsCache != null) {
+      try {
+        return _sessionsCache!.firstWhere((s) => s.id == id);
+      } catch (_) {
+        return null;
+      }
+    }
+    final sessions = await loadSessions();
+    try {
+      return sessions.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -188,7 +256,6 @@ class LocalJsonSessionRepository implements SessionRepository {
       createdAt: now,
       updatedAt: now,
       createdBy: actor,
-      isDeleted: false,
       currentVersion: 1,
     );
 
@@ -204,7 +271,6 @@ class LocalJsonSessionRepository implements SessionRepository {
       snapshot: session,
       recordedAt: now,
       actor: actor,
-      isDeleted: false,
     );
     _historyCache[id] = [version];
     await _saveHistory();
@@ -240,7 +306,6 @@ class LocalJsonSessionRepository implements SessionRepository {
       snapshot: nextSession,
       recordedAt: now,
       actor: actor,
-      isDeleted: nextSession.isDeleted,
     );
 
     if (!_historyCache.containsKey(session.id)) {
@@ -250,45 +315,6 @@ class LocalJsonSessionRepository implements SessionRepository {
     await _saveHistory();
 
     return nextSession;
-  }
-
-  @override
-  Future<Session?> revertToPrevious(
-    String sessionId, {
-    required String actor,
-  }) async {
-    await _loadHistory();
-    final history = _historyCache[sessionId];
-    if (history == null || history.length < 2) return null;
-
-    // Sort desc by version just in case
-    history.sort((a, b) => b.version.compareTo(a.version));
-
-    final previousVersion = history[1];
-    return restoreToVersion(sessionId, previousVersion.version, actor: actor);
-  }
-
-  @override
-  Future<Session?> restoreToVersion(
-    String sessionId,
-    int version, {
-    required String actor,
-  }) async {
-    await _loadHistory();
-    final history = _historyCache[sessionId];
-    if (history == null) return null;
-
-    final targetVersion = history.firstWhere(
-      (v) => v.version == version,
-      orElse: () => throw StateError('Version $version not found'),
-    );
-
-    final restoredSession = targetVersion.snapshot.copyWith(
-      currentVersion: (history.isNotEmpty ? history.first.version : version) + 1,
-      updatedAt: DateTime.now(),
-    );
-
-    return saveSnapshot(restoredSession, actor: actor);
   }
 
   @override
@@ -315,15 +341,16 @@ class LocalJsonSessionRepository implements SessionRepository {
   @override
   Future<void> deleteSession(String sessionId, {required String actor}) async {
     final sessions = await _loadFromFile();
-    final index = sessions.indexWhere((s) => s.id == sessionId);
-    if (index != -1) {
-      final session = sessions[index];
-      final updated = session.copyWith(
-        isDeleted: true,
-        updatedAt: DateTime.now(),
-        currentVersion: session.currentVersion + 1,
-      );
-      await saveSnapshot(updated, actor: actor);
+    final initialLength = sessions.length;
+    sessions.removeWhere((s) => s.id == sessionId);
+    
+    if (sessions.length < initialLength) {
+      await _saveToFile(sessions);
+      _controller.add(await loadSessions());
+      
+      // Clean up history for this session
+      _historyCache.remove(sessionId);
+      await _saveHistory();
     }
   }
 

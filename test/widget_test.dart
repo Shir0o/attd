@@ -67,7 +67,7 @@ class MockAttendanceRepository implements AttendanceRepository {
 
 class MockSessionRepository implements SessionRepository {
   @override
-  Stream<List<Session>> streamSessions({bool includeDeleted = false}) {
+  Stream<List<Session>> streamSessions() {
     return Stream.value([]);
   }
 
@@ -82,28 +82,14 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<List<Session>> loadSessions({bool includeDeleted = false}) async => [];
+  Future<List<Session>> loadSessions() async => [];
+
+  @override
+  Future<Session?> findSessionById(String id) async => null;
 
   @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
     return session;
-  }
-
-  @override
-  Future<Session?> revertToPrevious(
-    String sessionId, {
-    required String actor,
-  }) async {
-    return null;
-  }
-
-  @override
-  Future<Session?> restoreToVersion(
-    String sessionId,
-    int version, {
-    required String actor,
-  }) async {
-    return null;
   }
 
   @override

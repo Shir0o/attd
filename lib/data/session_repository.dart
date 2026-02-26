@@ -6,9 +6,11 @@ import 'session_record.dart';
 import 'session_version.dart';
 
 abstract class SessionRepository {
-  Future<List<Session>> loadSessions({bool includeDeleted = false});
+  Future<List<Session>> loadSessions();
 
-  Stream<List<Session>> streamSessions({bool includeDeleted = false});
+  Stream<List<Session>> streamSessions();
+
+  Future<Session?> findSessionById(String id);
 
   Future<Session> createSession({
     required String title,
@@ -19,16 +21,8 @@ abstract class SessionRepository {
 
   Future<Session> saveSnapshot(Session session, {required String actor});
 
-  Future<Session?> revertToPrevious(String sessionId, {required String actor});
-
-  Future<Session?> restoreToVersion(
-    String sessionId,
-    int version, {
-    required String actor,
-  });
-
   Future<Session> duplicate(String sessionId, {required String actor});
-  
+
   Future<void> deleteSession(String sessionId, {required String actor});
 
   Future<List<SessionVersion>> history(String sessionId);

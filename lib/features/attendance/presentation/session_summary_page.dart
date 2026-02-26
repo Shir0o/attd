@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
+import '../../../../data/session_version.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
 
@@ -23,15 +25,31 @@ class SessionSummaryPage extends StatefulWidget {
 
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
+  final bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
     _currentSession = widget.session;
+    _refreshLatest();
+  }
+
+  Future<void> _refreshLatest() async {
+    final latest = await widget.sessionRepository.findSessionById(
+      _currentSession.id,
+    );
+
+    if (latest != null && mounted) {
+      setState(() {
+        _currentSession = latest;
+      });
+    }
   }
 
   Future<void> _toggleAttendance(Member member, bool isPresent) async {
-    final status = isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
+    final status = isPresent
+        ? AttendanceStatus.present
+        : AttendanceStatus.absent;
     final attendeeName = member.displayName;
 
     final newRecord = SessionRecord(
@@ -78,15 +96,57 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   AttendanceStatus _getStatus(Member member) {
     // Check if member has a record in the session
-    try {
-      final record = _currentSession.records.firstWhere(
-        (r) => r.attendee == member.displayName,
-      );
-      return record.status;
-    } catch (e) {
-      // If no record, default to absent? Or defaultStatus?
-      // Since deck flow forces a choice, we assume Absent if not found for summary.
-      return AttendanceStatus.absent;
+    for (final record in _currentSession.records) {
+      if (record.attendee == member.displayName) {
+        return record.status;
+      }
+    }
+    // If no record, default to absent? Or defaultStatus?
+    // Since deck flow forces a choice, we assume Absent if not found for summary.
+    return AttendanceStatus.absent;
+  }
+
+  Future<void> _deleteSession() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Session'),
+        content: Text(
+          'Are you sure you want to delete "${_currentSession.title}" for ${DateFormat('yyyy-MM-dd').format(_currentSession.sessionDate)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await widget.sessionRepository.deleteSession(
+          _currentSession.id,
+          actor: 'You',
+        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Session deleted')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting session: $e')));
+        }
+      }
     }
   }
 
@@ -126,14 +186,21 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   ),
                 ),
                 title: Text(
-                  'Session Summary',
+                  _currentSession.title.trim(),
                   style: TextStyle(
                     color: colorScheme.onSurface,
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 centerTitle: true,
+                actions: [
+                  IconButton(
+                    tooltip: 'Delete session',
+                    onPressed: _deleteSession,
+                    icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                  ),
+                ],
               ),
 
               // Stats Card
@@ -143,6 +210,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Text(
+                        'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
@@ -262,8 +336,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   return _MemberListItem(
                     member: member,
                     isPresent: true,
-                    onToggle:
-                        (value) => _toggleAttendance(member, value),
+                    onToggle: (value) => _toggleAttendance(member, value),
                   );
                 }, childCount: presentMembers.length),
               ),
@@ -284,8 +357,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   return _MemberListItem(
                     member: member,
                     isPresent: false,
-                    onToggle:
-                        (value) => _toggleAttendance(member, value),
+                    onToggle: (value) => _toggleAttendance(member, value),
                   );
                 }, childCount: absentMembers.length),
               ),
@@ -305,30 +377,31 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 color: colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: colorScheme.surfaceVariant.withValues(alpha: 0.3),
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.3,
+                    ),
                   ),
                 ),
               ),
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
-                  minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  elevation: 1,
-                ).copyWith(
-                  overlayColor: WidgetStateProperty.resolveWith(
-                    (states) {
-                       if (states.contains(WidgetState.pressed)) {
+                style:
+                    ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      elevation: 1,
+                    ).copyWith(
+                      overlayColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.pressed)) {
                           return colorScheme.onPrimary.withValues(alpha: 0.2);
-                       }
-                       return null;
-                    }
-                  )
-                ),
+                        }
+                        return null;
+                      }),
+                    ),
                 icon: const Icon(Icons.check_circle),
                 label: const Text(
                   'Finalize Report',
@@ -361,23 +434,30 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.surface.withValues(alpha: 0.95), // Surface color with opacity
+      color: colorScheme.surface.withValues(
+        alpha: 0.95,
+      ), // Surface color with opacity
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       alignment: Alignment.centerLeft,
       child: Container(
-         decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colorScheme.surfaceVariant, width: 0.5))
-         ),
-         width: double.infinity,
-         padding: const EdgeInsets.only(bottom: 8),
-         child: Text(
-           title,
-           style: TextStyle(
-             color: color,
-             fontSize: 14,
-             fontWeight: FontWeight.w500,
-           ),
-         ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: colorScheme.surfaceContainerHighest,
+              width: 0.5,
+            ),
+          ),
+        ),
+        width: double.infinity,
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -418,7 +498,7 @@ class _MemberListItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.surface,
           border: Border(
-            bottom: BorderSide(color: colorScheme.surfaceVariant),
+            bottom: BorderSide(color: colorScheme.surfaceContainerHighest),
           ),
         ),
         child: Row(
@@ -428,7 +508,9 @@ class _MemberListItem extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: member.isVisitor ? colorScheme.secondaryContainer : colorScheme.surfaceVariant,
+                color: member.isVisitor
+                    ? colorScheme.secondaryContainer
+                    : colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
               clipBehavior: Clip.antiAlias,
@@ -440,7 +522,9 @@ class _MemberListItem extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
-                    color: member.isVisitor ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
+                    color: member.isVisitor
+                        ? colorScheme.onSecondaryContainer
+                        : colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -459,14 +543,14 @@ class _MemberListItem extends StatelessWidget {
                     ),
                   ),
                   if (member.isVisitor)
-                     Text(
-                       'Added today',
-                       style: TextStyle(
-                         fontSize: 14,
-                         color: colorScheme.primary,
-                         fontWeight: FontWeight.w500
-                       ),
-                     ),
+                    Text(
+                      'Added today',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                 ],
               ),
             ),

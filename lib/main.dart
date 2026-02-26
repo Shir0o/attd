@@ -140,6 +140,13 @@ class _AttendanceAppState extends State<AttendanceApp> with WidgetsBindingObserv
             ),
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+              },
+            ),
           ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
@@ -148,6 +155,13 @@ class _AttendanceAppState extends State<AttendanceApp> with WidgetsBindingObserv
             ),
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+              },
+            ),
           ),
           home: HubPage(
             themeController: widget.themeController,
