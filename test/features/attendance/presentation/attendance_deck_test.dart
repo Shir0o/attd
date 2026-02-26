@@ -56,6 +56,15 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<Session?> restoreToVersion(
+    String sessionId,
+    int version, {
+    required String actor,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
     _savedSnapshots.add(session);
     return session;
