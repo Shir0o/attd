@@ -149,8 +149,52 @@ class _AddEventPageState extends State<AddEventPage> {
     }
   }
 
+  Future<void> _deleteEvent() async {
+    final event = widget.eventToEdit;
+    if (event == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Event'),
+            content: Text('Are you sure you want to delete "${event.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await widget.eventRepository.deleteEvent(event.id);
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Event deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting event: $e')));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ... rest of build method
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -174,6 +218,12 @@ class _AddEventPageState extends State<AddEventPage> {
           ),
         ),
         actions: [
+          if (isEditing)
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: colorScheme.error),
+              onPressed: _deleteEvent,
+              tooltip: 'Delete Event',
+            ),
           TextButton(
             onPressed: _saveEvent,
             child: Text(
