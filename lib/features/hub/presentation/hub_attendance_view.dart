@@ -13,6 +13,7 @@ import '../data/event_repository.dart';
 import '../domain/event.dart';
 import 'add_event_page.dart';
 import 'members_page.dart';
+import '../../sessions/presentation/event_history_page.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -130,6 +131,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               ),
               const SizedBox(height: 12),
               ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('View History'),
+                onTap: () {
+                  Navigator.pop(context, 'history');
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.edit_outlined),
                 title: const Text('Edit Event'),
                 onTap: () {
@@ -160,7 +168,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       },
     );
 
-    if (action == 'edit') {
+    if (action == 'history') {
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder:
+              (_) => EventHistoryPage(
+                event: event,
+                sessionRepository: widget.sessionRepository,
+              ),
+        ),
+      );
+    } else if (action == 'edit') {
       _editEvent(event);
     } else if (action == 'manage') {
       if (!context.mounted) return;
