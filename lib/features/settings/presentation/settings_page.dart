@@ -5,84 +5,23 @@ import '../../settings/application/theme_controller.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 
-import '../../attendance/data/attendance_repository.dart';
-import '../../hub/data/event_repository.dart';
-import '../../hub/application/setup_service.dart';
-
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     required this.themeController,
     required this.driveService,
     required this.localBackupService,
-    this.attendanceRepository,
-    this.eventRepository,
   });
 
   final ThemeController themeController;
   final DriveService driveService;
   final LocalBackupService localBackupService;
-  final AttendanceRepository? attendanceRepository;
-  final EventRepository? eventRepository;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  Future<void> _importSetup() async {
-    if (widget.attendanceRepository == null || widget.eventRepository == null) {
-      return;
-    }
-
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Import Shared Setup'),
-            content: TextField(
-              controller: controller,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Paste the setup configuration here',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, controller.text),
-                child: const Text('Import'),
-              ),
-            ],
-          ),
-    );
-
-    if (result != null && result.isNotEmpty && mounted) {
-      try {
-        final setupService = SetupService(
-          attendanceRepository: widget.attendanceRepository!,
-          eventRepository: widget.eventRepository!,
-        );
-        await setupService.importBundle(result);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Setup imported successfully')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
-        }
-      }
-    }
-  }
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -362,16 +301,6 @@ class _SettingsPageState extends State<SettingsPage> {
                         }
                       },
                     ),
-                    if (widget.attendanceRepository != null &&
-                        widget.eventRepository != null) ...[
-                      Divider(height: 1, color: colorScheme.outlineVariant),
-                      _SettingsTile(
-                        icon: Icons.file_download_outlined,
-                        title: 'Import Shared Setup',
-                        subtitle: 'Add events and members from a shared config',
-                        onTap: _importSetup,
-                      ),
-                    ],
                   ],
                 ),
               ),

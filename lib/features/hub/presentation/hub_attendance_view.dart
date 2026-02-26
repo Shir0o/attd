@@ -14,9 +14,6 @@ import '../domain/event.dart';
 import 'add_event_page.dart';
 import 'members_page.dart';
 
-import '../application/setup_service.dart';
-import 'share_setup_dialog.dart';
-
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
     super.key,
@@ -44,27 +41,11 @@ class HubAttendanceView extends StatefulWidget {
 class _HubAttendanceViewState extends State<HubAttendanceView> {
   // Using Stream for real-time updates
   late Stream<List<Event>> _eventsStream;
-  late final SetupService _setupService;
 
   @override
   void initState() {
     super.initState();
     _eventsStream = widget.eventRepository.streamEvents().map(_processEvents);
-    _setupService = SetupService(
-      attendanceRepository: widget.attendanceRepository,
-      eventRepository: widget.eventRepository,
-    );
-  }
-
-  void _showShareSetup() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => ShareSetupDialog(
-            eventRepository: widget.eventRepository,
-            setupService: _setupService,
-          ),
-    );
   }
 
   void _createNewSession() {
@@ -289,43 +270,16 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               themeController: widget.themeController,
                               driveService: widget.driveService!,
                               localBackupService: widget.localBackupService!,
-                              attendanceRepository: widget.attendanceRepository,
-                              eventRepository: widget.eventRepository,
                             ),
                       ),
                     );
                   },
                 ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: colorScheme.onSurfaceVariant),
-                onSelected: (value) {
-                  if (value == 'share_setup') {
-                    _showShareSetup();
-                  } else if (value == 'sign_out' && widget.onSignOut != null) {
-                    widget.onSignOut!();
-                  }
-                },
-                itemBuilder:
-                    (context) => [
-                      const PopupMenuItem(
-                        value: 'share_setup',
-                        child: ListTile(
-                          leading: Icon(Icons.share_outlined),
-                          title: Text('Share Setup'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      if (widget.onSignOut != null)
-                        const PopupMenuItem(
-                          value: 'sign_out',
-                          child: ListTile(
-                            leading: Icon(Icons.logout),
-                            title: Text('Sign Out'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                    ],
-              ),
+              if (widget.onSignOut != null)
+                IconButton(
+                  icon: Icon(Icons.logout, color: colorScheme.onSurfaceVariant),
+                  onPressed: widget.onSignOut,
+                ),
             ],
             expandedHeight: 100,
             toolbarHeight: 80,
