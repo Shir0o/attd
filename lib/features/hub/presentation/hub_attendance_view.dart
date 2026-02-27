@@ -11,6 +11,7 @@ import '../../settings/application/theme_controller.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
+import '../utils/event_date_utils.dart';
 import 'add_event_page.dart';
 import 'members_page.dart';
 import '../../sessions/presentation/event_history_page.dart';
@@ -204,8 +205,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       if (!context.mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) =>
-              MembersPage(attendanceRepository: widget.attendanceRepository),
+          builder: (_) => MembersPage(
+            attendanceRepository: widget.attendanceRepository,
+            event: event,
+            eventRepository: widget.eventRepository,
+          ),
         ),
       );
       if (mounted) _loadMembers();
@@ -266,6 +270,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         onRefresh: () async {
           await widget.eventRepository.refresh();
           await widget.sessionRepository.refresh();
+          await widget.attendanceRepository.refresh();
           await _loadMembers();
         },
         child: CustomScrollView(
@@ -277,26 +282,25 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                                  Text(
-                                    'TODAY',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: colorScheme.onSurfaceVariant,
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  Text(
-                                    DateFormat(
-                                      'EEE, MMM d',
-                                    ).format(DateTime.now()).toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w500,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
-                  
+                  Text(
+                    'TODAY',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurfaceVariant,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  Text(
+                    DateFormat(
+                      'EEE, MMM d',
+                    ).format(DateTime.now()).toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
                 ],
               ),
               actions: [
@@ -307,8 +311,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       Icons.settings,
                       color: colorScheme.onSurfaceVariant,
                     ),
-                    onPressed: () {
-                      Navigator.of(context).push(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => SettingsPage(
                             themeController: widget.themeController,
@@ -318,6 +322,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           ),
                         ),
                       );
+                      // Refresh after returning from Settings
+                      if (mounted) {
+                        await widget.eventRepository.refresh();
+                        await widget.sessionRepository.refresh();
+                        await widget.attendanceRepository.refresh();
+                        await _loadMembers();
+                      }
                     },
                   ),
               ],
@@ -359,11 +370,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           final event = sortedEvents[index];
                           final isToday = _isEventToday(event);
 
+                          // Logic for display stats:
+                          // We want to show stats for the "current relevant session" for this event.
+                          // Usually 'today', but if we are late, maybe previous week?
+                          // For simplicity on the Hub card, let's stick to 'Today's session' if it exists.
+
                           final now = DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
+
+                          // Try to find a session for today for this event
                           final matchingSessions = sessions.where(
                             (s) =>
-                                s.title == event.title &&
+                                (s.eventId == event.id || s.title == event.title) &&
                                 s.sessionDate.year == today.year &&
                                 s.sessionDate.month == today.month &&
                                 s.sessionDate.day == today.day,
@@ -379,7 +397,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                   )
                                   .length ??
                               0;
-                          final totalCount = _members.length;
+
+                          // Total count: use event specific members if available, else all members
+                          final totalCount = event.memberIds.isNotEmpty
+                              ? event.memberIds.length
+                              : _members.length;
 
                           return RepaintBoundary(
                             child: Padding(
@@ -390,42 +412,63 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 scannedCount: scannedCount,
                                 totalCount: totalCount,
                                 onTap: () async {
-                                  if (todaySession != null) {
+                                  // 1. Calculate target date
+                                  final targetDate = calculateTargetDate(event, DateTime.now());
+
+                                  // 2. Find existing session for target date
+                                  final existingSessions = sessions.where((s) =>
+                                    (s.eventId == event.id || s.title == event.title) &&
+                                    s.sessionDate.year == targetDate.year &&
+                                    s.sessionDate.month == targetDate.month &&
+                                    s.sessionDate.day == targetDate.day
+                                  );
+
+                                  Session? targetSession = existingSessions.isNotEmpty
+                                      ? existingSessions.first
+                                      : null;
+
+                                  // 3. Filter members
+                                  final sessionMembers = event.memberIds.isNotEmpty
+                                      ? _members.where((m) => event.memberIds.contains(m.id)).toList()
+                                      : _members;
+
+                                  if (targetSession != null) {
+                                    // Session exists -> Summary
                                     await Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => SessionSummaryPage(
-                                          session: todaySession,
-                                          members: _members,
+                                          session: targetSession!,
+                                          members: sessionMembers,
                                           sessionRepository:
                                               widget.sessionRepository,
                                         ),
                                       ),
                                     );
-                                    if (mounted) _loadMembers();
-                                    return;
+                                  } else {
+                                    // Session does not exist -> Create new -> Deck
+                                    final session = await widget.sessionRepository
+                                        .createSession(
+                                          title: event.title,
+                                          eventId: event.id,
+                                          sessionDate: targetDate,
+                                          actor: 'User',
+                                          records: [],
+                                        );
+
+                                    if (!context.mounted) return;
+
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => AttendanceDeckPage(
+                                          session: session,
+                                          members: sessionMembers,
+                                          sessionRepository:
+                                              widget.sessionRepository,
+                                        ),
+                                      ),
+                                    );
                                   }
 
-                                  // Create session for today
-                                  final session = await widget.sessionRepository
-                                      .createSession(
-                                        title: event.title,
-                                        sessionDate: today,
-                                        actor: 'User',
-                                        records: [],
-                                      );
-
-                                  if (!context.mounted) return;
-
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => AttendanceDeckPage(
-                                        session: session,
-                                        members: _members,
-                                        sessionRepository:
-                                            widget.sessionRepository,
-                                      ),
-                                    ),
-                                  );
                                   if (mounted) _loadMembers();
                                 },
                                 onMenuTap: () => _showEventMenu(context, event),
@@ -619,7 +662,7 @@ class _EventCard extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            '$scannedCount/$totalCount Present',
+                            '/ Present',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,

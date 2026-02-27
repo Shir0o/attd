@@ -8,6 +8,7 @@ class Event {
   final DateTime? oneTimeDate; // For 'One-time' events
   final List<String>
   repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
+  final List<String> memberIds; // Members associated with this event
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -18,6 +19,7 @@ class Event {
     required this.frequency,
     this.oneTimeDate,
     this.repeatingDays = const [],
+    this.memberIds = const [],
     required this.createdAt,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? createdAt;
@@ -30,6 +32,7 @@ class Event {
       'frequency': frequency,
       'oneTimeDate': oneTimeDate?.toIso8601String(),
       'repeatingDays': repeatingDays,
+      'memberIds': memberIds,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -50,6 +53,11 @@ class Event {
           : null,
       repeatingDays:
           (json['repeatingDays'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      memberIds:
+          (json['memberIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
