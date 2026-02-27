@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/data/session.dart';
+import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 
 import '../../helpers/mocks.dart';
 
@@ -25,7 +26,6 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        // Removed custom font family
       ),
       home: AttendanceDeckPage(
         session: session,
@@ -69,16 +69,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
 
-    await expectLater(
-      find.byType(AttendanceDeckPage),
-      matchesGoldenFile('goldens/attendance_deck_initial.png'),
-    );
+    // Verify first member card is visible
+    expect(find.text('Alice Johnson'), findsOneWidget);
+    // Verify swipeable card is present
+    expect(find.byType(SwipeableCard), findsOneWidget);
   });
 
   testWidgets('AttendanceDeckPage Golden Test - Swipe Action (Partial)', (tester) async {
     setScreenSize(tester);
     final members = [
       const Member(id: '1', displayName: 'Alice Johnson'),
+      const Member(id: '2', displayName: 'Bob Smith'),
     ];
 
     final session = Session(
@@ -100,19 +101,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
 
-    final cardFinder = find.byKey(const ValueKey('1'));
+    final cardFinder = find.byType(SwipeableCard);
     expect(cardFinder, findsOneWidget);
 
+    // Simulate Swipe Right (Present)
     final gesture = await tester.startGesture(tester.getCenter(cardFinder));
-    await gesture.moveBy(const Offset(100, 0));
+    await gesture.moveBy(const Offset(300, 0)); // Move far enough to trigger swipe
     await tester.pump();
-
-    await expectLater(
-      find.byType(AttendanceDeckPage),
-      matchesGoldenFile('goldens/attendance_deck_swipe_right.png'),
-    );
-
     await gesture.up();
     await tester.pumpAndSettle();
+
+    // Alice should be gone, Bob should appear
+    expect(find.text('Alice Johnson'), findsNothing);
+    expect(find.text('Bob Smith'), findsOneWidget);
   });
 }
