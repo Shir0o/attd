@@ -1,0 +1,268 @@
+import 'dart:async';
+
+import 'package:attendance_tracker/data/session.dart';
+import 'package:attendance_tracker/data/session_record.dart';
+import 'package:attendance_tracker/data/session_repository.dart';
+import 'package:attendance_tracker/data/session_version.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
+import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+class MockSessionRepository implements SessionRepository {
+  final List<Session> _sessions = [];
+  final StreamController<List<Session>> _streamController = StreamController();
+
+  void addSession(Session session) {
+    _sessions.add(session);
+    _streamController.add(_sessions);
+  }
+
+  @override
+  Future<Session> createSession({
+    required String title,
+    required DateTime sessionDate,
+    required String actor,
+    required List<SessionRecord> records,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {
+    _sessions.removeWhere((s) => s.id == sessionId);
+    _streamController.add(_sessions);
+  }
+
+  @override
+  Future<Session> duplicate(String sessionId, {required String actor}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Session?> findSessionById(String id) async {
+    try {
+      return _sessions.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<List<SessionVersion>> history(String sessionId) async {
+    return [];
+  }
+
+  @override
+  Future<List<Session>> loadSessions() async {
+    return _sessions;
+  }
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<Session> saveSnapshot(Session session, {required String actor}) async {
+    final index = _sessions.indexWhere((s) => s.id == session.id);
+    if (index != -1) {
+      _sessions[index] = session;
+    } else {
+      _sessions.add(session);
+    }
+    _streamController.add(_sessions);
+    return session;
+  }
+
+  @override
+  Stream<List<Session>> streamSessions() {
+    return _streamController.stream;
+  }
+}
+
+void main() {
+  testWidgets('SessionSummaryPage renders correct stats and members', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = const Member(id: '1', displayName: 'Alice');
+    final member2 = const Member(id: '2', displayName: 'Bob');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1, member2],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    // Wait for the initial loading animation and delay
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    // Verify Title and Date
+    expect(find.text('Test Session'), findsOneWidget);
+    expect(find.text('Session Date: October 27, 2023'), findsOneWidget);
+
+    // Verify Stats (Alice Present, Bob Absent (default))
+
+    // Alice should be in "Marked Present" section
+    final presentHeader = find.text('Marked Present');
+    expect(presentHeader, findsOneWidget);
+
+    final absentHeader = find.text('Marked Absent');
+    expect(absentHeader, findsOneWidget);
+
+    // Alice is present
+    expect(find.widgetWithText(SliverList, 'Alice'), findsOneWidget);
+    // Bob is absent
+    expect(find.widgetWithText(SliverList, 'Bob'), findsOneWidget);
+
+    // Verify switches
+    final aliceSwitch = find.descendant(
+       of: find.widgetWithText(SliverList, 'Alice'),
+       matching: find.byType(Switch),
+    );
+    expect(tester.widget<Switch>(aliceSwitch).value, isTrue);
+
+    final bobSwitch = find.descendant(
+       of: find.widgetWithText(SliverList, 'Bob'),
+       matching: find.byType(Switch),
+    );
+    expect(tester.widget<Switch>(bobSwitch).value, isFalse);
+
+    // Accessibility
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+  });
+
+  testWidgets('SessionSummaryPage toggling switch updates repository', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = const Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    // Initially Absent
+    final switchFinder = find.byType(Switch);
+    expect(tester.widget<Switch>(switchFinder).value, isFalse);
+
+    // Toggle to Present
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Switch>(switchFinder).value, isTrue);
+
+    // Verify Repo Updated
+    final updatedSession = await mockRepo.findSessionById('s1');
+    expect(updatedSession?.records.length, 1);
+    expect(updatedSession?.records.first.attendee, 'Alice');
+    expect(updatedSession?.records.first.status, AttendanceStatus.present);
+  });
+
+  testWidgets('SessionSummaryPage delete button shows confirmation', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = const Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    // Find delete button
+    final deleteButton = find.byIcon(Icons.delete_outline);
+    expect(deleteButton, findsOneWidget);
+
+    await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+
+    // Check dialog
+    expect(find.text('Delete Session'), findsOneWidget);
+    expect(find.textContaining('Are you sure you want to delete'), findsOneWidget);
+
+    // Cancel
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Session'), findsNothing);
+
+    // Open again and delete
+    await tester.tap(deleteButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    // Verify session deleted from repo
+    final deletedSession = await mockRepo.findSessionById('s1');
+    expect(deletedSession, isNull);
+
+    // Should have popped
+    expect(find.text('Test Session'), findsNothing);
+  });
+}
