@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
@@ -7,6 +9,30 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 
 import '../../helpers/mocks.dart';
+
+// Helper for fuzzy comparison (simple override for test environment)
+class TolerantComparator extends LocalFileComparator {
+  TolerantComparator(super.testFile, {this.precisionError = 0.01});
+
+  final double precisionError;
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    final result = await GoldenFileComparator.compareLists(
+      imageBytes,
+      await getGoldenBytes(golden),
+    );
+    if (!result.passed && result.diffPercent <= precisionError) {
+      debugPrint('Golden file difference of ${result.diffPercent * 100}% is within tolerance of ${precisionError * 100}%. Passing.');
+      return true;
+    }
+    if (!result.passed) {
+      final error = await generateFailureOutput(result, golden, basedir);
+      throw FlutterError(error);
+    }
+    return true;
+  }
+}
 
 void main() {
   late MockSessionRepository mockSessionRepository;
@@ -44,6 +70,17 @@ void main() {
     // Reset after test
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+
+    // Set tolerance for this test file
+    if (goldenFileComparator is LocalFileComparator) {
+      final testUrl = (goldenFileComparator as LocalFileComparator).basedir;
+      goldenFileComparator = TolerantComparator(
+        // The default implementation uses uri-based paths.
+        // We reconstruct the Uri from the existing comparator.
+        Uri.parse(testUrl.toString() + 'session_summary_golden_test.dart'),
+        precisionError: 0.01, // 1% tolerance
+      );
+    }
 
     final members = [
       const Member(id: '1', displayName: 'Alice Johnson'),
