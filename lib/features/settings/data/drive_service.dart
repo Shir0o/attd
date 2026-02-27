@@ -482,18 +482,40 @@ class DriveService extends ChangeNotifier {
 
     try {
       final remoteJson = jsonDecode(remoteContent);
-      
+
       // CRITICAL: Integrity Check
-      // If remote is not a valid list (corrupted or wrong schema), 
-      // we do NOT merge. We treat local as truth and "heal" the cloud.
-      if (remoteJson is! List) {
-        throw const FormatException('Remote data is not a valid list');
+      // We check if the remote data matches the expected type for the file.
+      final isHistoryFile = fileName == 'sessions_history.json';
+      final bool isValidRemote = isHistoryFile
+          ? remoteJson is Map<String, dynamic>
+          : remoteJson is List;
+
+      if (!isValidRemote) {
+        throw FormatException(
+          'Remote data for $fileName is not a valid ${isHistoryFile ? 'Map' : 'List'}',
+        );
       }
 
       final localJson = jsonDecode(localContent);
-      if (localJson is List) {
+      final bool isValidLocal = isHistoryFile
+          ? localJson is Map<String, dynamic>
+          : localJson is List;
+
+      if (isValidLocal) {
         // Perform merge
-        final mergedJson = _mergeJsonLists(localJson, remoteJson, fileName);
+        dynamic mergedJson;
+        if (isHistoryFile) {
+          mergedJson = _mergeHistoryMaps(
+            localJson as Map<String, dynamic>,
+            remoteJson as Map<String, dynamic>,
+          );
+        } else {
+          mergedJson = _mergeJsonLists(
+            localJson as List,
+            remoteJson as List,
+            fileName,
+          );
+        }
         final mergedContent = jsonEncode(mergedJson);
 
         // 3. Update local
@@ -559,6 +581,51 @@ class DriveService extends ChangeNotifier {
     )) {
       await _updateFile(fileId, localFile);
     }
+  }
+
+  Map<String, dynamic> _mergeHistoryMaps(
+    Map<String, dynamic> local,
+    Map<String, dynamic> remote,
+  ) {
+    final Map<String, dynamic> merged = {};
+
+    final allSessionIds = {...local.keys, ...remote.keys};
+
+    for (final sessionId in allSessionIds) {
+      final localVersions = local[sessionId] as List? ?? [];
+      final remoteVersions = remote[sessionId] as List? ?? [];
+
+      // Merge versions by version number
+      final Map<int, dynamic> mergedVersions = {};
+      for (final v in [...remoteVersions, ...localVersions]) {
+        if (v is Map && v.containsKey('version')) {
+          final ver = v['version'] as int;
+          // If we have duplicates, we could compare recordedAt, but version numbers should be consistent.
+          // For safety, prefer the one with a later recordedAt if available.
+          if (!mergedVersions.containsKey(ver)) {
+            mergedVersions[ver] = v;
+          } else {
+            final existing = mergedVersions[ver] as Map;
+            final current = v;
+            if (current.containsKey('recordedAt') &&
+                existing.containsKey('recordedAt')) {
+              final currentRec = DateTime.parse(current['recordedAt']);
+              final existingRec = DateTime.parse(existing['recordedAt']);
+              if (currentRec.isAfter(existingRec)) {
+                mergedVersions[ver] = v;
+              }
+            }
+          }
+        }
+      }
+
+      final sortedVersions = mergedVersions.values.toList();
+      // Sort newer first (descending version)
+      sortedVersions.sort((a, b) => (b['version'] as int).compareTo(a['version'] as int));
+      merged[sessionId] = sortedVersions;
+    }
+
+    return merged;
   }
 
   List<dynamic> _mergeJsonLists(
