@@ -26,7 +26,7 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'IBM Plex Sans',
+        // Removed custom font family
       ),
       home: EventHistoryPage(
         event: event,
@@ -36,7 +36,15 @@ void main() {
     );
   }
 
+  void setScreenSize(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   testWidgets('EventHistoryPage Golden Test - List of Sessions', (tester) async {
+    setScreenSize(tester);
     final event = Event(
       id: 'event-1',
       title: 'Weekly Sync',
@@ -74,12 +82,10 @@ void main() {
     );
 
     mockSessionRepository.emit([session1, session2]);
-    // Also set loaded sessions for FutureBuilder
     mockSessionRepository.setSessions([session1, session2]);
 
     await tester.pumpWidget(buildEventHistoryPage(event: event));
 
-    // Wait for _init Future
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
@@ -90,6 +96,7 @@ void main() {
   });
 
   testWidgets('EventHistoryPage Golden Test - Empty History', (tester) async {
+    setScreenSize(tester);
     final event = Event(
       id: 'event-2',
       title: 'New Event',

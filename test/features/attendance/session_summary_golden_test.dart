@@ -27,7 +27,7 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'IBM Plex Sans',
+        // Removed custom font family to avoid rendering issues in test environment
       ),
       home: SessionSummaryPage(
         session: session,
@@ -38,6 +38,13 @@ void main() {
   }
 
   testWidgets('SessionSummaryPage Golden Test - Mix of Present and Absent', (tester) async {
+    // Set a consistent surface size for golden tests
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    // Reset after test
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final members = [
       const Member(id: '1', displayName: 'Alice Johnson'),
       const Member(id: '2', displayName: 'Bob Smith'),
