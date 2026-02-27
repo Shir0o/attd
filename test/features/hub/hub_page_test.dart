@@ -220,6 +220,10 @@ void main() {
       lessThan(futurePosition),
       reason: 'Today events should appear before future events',
     );
+
+    // Accessibility check
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
   });
 
   testWidgets('HubPage handles large text scale factor without overflow', (
