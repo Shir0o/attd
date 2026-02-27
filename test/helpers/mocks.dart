@@ -102,12 +102,14 @@ class MockSessionRepository implements SessionRepository {
   @override
   Future<Session> createSession({
     required String title,
+    String? eventId,
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
   }) async {
     final session = Session(
       id: 'mock-session-${_sessions.length + 1}',
+      eventId: eventId,
       title: title,
       sessionDate: sessionDate,
       records: records,
