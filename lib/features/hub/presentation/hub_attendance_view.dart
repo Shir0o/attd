@@ -380,11 +380,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               getLastSupposedOccurrence(event, now);
 
                           // Find the most recent session for this event
-                          final eventSessions = sessions.where(
-                            (s) =>
-                                (s.eventId == event.id ||
-                                    s.title == event.title),
-                          ).toList();
+                          final eventSessions = sessions.where((s) {
+                            if (s.eventId != null) {
+                              return s.eventId == event.id;
+                            }
+                            return s.title == event.title;
+                          }).toList();
                           eventSessions.sort(
                             (a, b) => b.sessionDate.compareTo(a.sessionDate),
                           );
@@ -439,11 +440,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                       calculateTargetDate(event, DateTime.now());
 
                                   // 2. Find existing session for target date (or most recent relevant)
-                                  final eventSessionsOnTap = sessions.where(
-                                    (s) =>
-                                        (s.eventId == event.id ||
-                                            s.title == event.title),
-                                  ).toList();
+                                  final eventSessionsOnTap = sessions.where((s) {
+                                    if (s.eventId != null) {
+                                      return s.eventId == event.id;
+                                    }
+                                    return s.title == event.title;
+                                  }).toList();
                                   eventSessionsOnTap.sort(
                                     (a, b) =>
                                         b.sessionDate.compareTo(a.sessionDate),
