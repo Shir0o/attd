@@ -49,4 +49,9 @@ class HubRobot {
     await tester.tap(find.text(option));
     await tester.pumpAndSettle();
   }
+
+  Future<void> openEventHistory(String eventTitle) async {
+    await tapEventMenu(eventTitle);
+    await selectMenuOption('View History');
+  }
 }

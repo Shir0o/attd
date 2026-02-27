@@ -29,4 +29,18 @@ class MembersRobot {
   Future<void> tapFamily(String familyName) async {
     // Do nothing as we are already on the combined page
   }
+
+  Future<void> toggleMemberInEvent(String memberName, {bool selected = true}) async {
+    final memberFinder = find.text(memberName);
+    await tester.pumpUntilFound(memberFinder);
+
+    final rowFinder = find.ancestor(of: memberFinder, matching: find.byType(ListTile));
+    final checkboxFinder = find.descendant(of: rowFinder, matching: find.byType(Checkbox));
+
+    final Checkbox checkbox = tester.widget(checkboxFinder);
+    if (checkbox.value != selected) {
+      await tester.tap(checkboxFinder);
+      await tester.pumpAndSettle();
+    }
+  }
 }

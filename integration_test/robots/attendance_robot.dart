@@ -40,4 +40,29 @@ class AttendanceRobot {
     await tester.tap(find.text('Finalize Report'));
     await tester.pumpAndSettle();
   }
+
+  Future<void> addGuest(String name, {bool isPresent = true}) async {
+    await tester.tap(find.text('Add Guest'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), name);
+    await tester.pumpAndSettle();
+
+    if (!isPresent) {
+       await tester.tap(find.byType(Switch));
+       await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('Add & Continue'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> undoSwipe() async {
+    await tester.tap(find.byKey(const Key('undoButton')));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> verifyCardVisible(String memberName) async {
+    await tester.pumpUntilFound(find.text(memberName));
+  }
 }
