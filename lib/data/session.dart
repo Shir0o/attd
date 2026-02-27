@@ -3,6 +3,7 @@ import 'session_record.dart';
 class Session {
   const Session({
     required this.id,
+    this.eventId,
     required this.title,
     required this.sessionDate,
     required this.records,
@@ -13,6 +14,7 @@ class Session {
   });
 
   final String id;
+  final String? eventId;
   final String title;
   final DateTime sessionDate;
   final List<SessionRecord> records;
@@ -23,6 +25,7 @@ class Session {
 
   Session copyWith({
     String? id,
+    String? eventId,
     String? title,
     DateTime? sessionDate,
     List<SessionRecord>? records,
@@ -33,6 +36,7 @@ class Session {
   }) {
     return Session(
       id: id ?? this.id,
+      eventId: eventId ?? this.eventId,
       title: title ?? this.title,
       sessionDate: sessionDate ?? this.sessionDate,
       records: records ?? this.records,
@@ -47,6 +51,7 @@ class Session {
     final recordsJson = json['records'] as List<dynamic>? ?? [];
     return Session(
       id: json['id'] as String,
+      eventId: json['eventId'] as String?,
       title: json['title'] as String,
       sessionDate: DateTime.parse(json['sessionDate'] as String),
       records: recordsJson
@@ -64,6 +69,7 @@ class Session {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'eventId': eventId,
       'title': title,
       'sessionDate': sessionDate.toIso8601String(),
       'records': records.map((record) => record.toJson()).toList(),

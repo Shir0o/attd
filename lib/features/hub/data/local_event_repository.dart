@@ -78,6 +78,7 @@ class LocalJsonEventRepository implements EventRepository {
       frequency: event.frequency,
       oneTimeDate: event.oneTimeDate,
       repeatingDays: event.repeatingDays,
+      memberIds: event.memberIds,
       createdAt: event.createdAt,
       updatedAt: now,
     );
@@ -98,6 +99,7 @@ class LocalJsonEventRepository implements EventRepository {
         frequency: event.frequency,
         oneTimeDate: event.oneTimeDate,
         repeatingDays: event.repeatingDays,
+        memberIds: event.memberIds,
         createdAt: event.createdAt,
         updatedAt: now,
       );
