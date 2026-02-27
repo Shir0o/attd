@@ -381,10 +381,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                           // Find the most recent session for this event
                           final eventSessions = sessions.where((s) {
-                            if (s.eventId != null) {
+                            if (s.eventId != null && s.eventId!.isNotEmpty) {
                               return s.eventId == event.id;
                             }
-                            return s.title == event.title;
+                            // Legacy fallback: only match by title if no eventId is present
+                            return s.title.trim() == event.title.trim();
                           }).toList();
                           eventSessions.sort(
                             (a, b) => b.sessionDate.compareTo(a.sessionDate),
@@ -441,10 +442,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                                   // 2. Find existing session for target date (or most recent relevant)
                                   final eventSessionsOnTap = sessions.where((s) {
-                                    if (s.eventId != null) {
+                                    if (s.eventId != null &&
+                                        s.eventId!.isNotEmpty) {
                                       return s.eventId == event.id;
                                     }
-                                    return s.title == event.title;
+                                    // Legacy fallback: only match by title if no eventId is present
+                                    return s.title.trim() == event.title.trim();
                                   }).toList();
                                   eventSessionsOnTap.sort(
                                     (a, b) =>
