@@ -473,18 +473,42 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                       : _members;
 
                                   if (foundSession != null) {
-                                    // Session exists -> Summary
+                                    // Session exists
                                     final sessionToOpen = foundSession;
-                                    await Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => SessionSummaryPage(
-                                          session: sessionToOpen,
-                                          members: sessionMembers,
-                                          sessionRepository:
-                                              widget.sessionRepository,
+                                    
+                                    // If the session is "empty" or "incomplete", go to Deck to resume/start
+                                    // If it's fully marked, go to Summary
+                                    final bool isIncomplete = sessionToOpen.records.length < sessionMembers.length;
+
+                                    if (isIncomplete) {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => AttendanceDeckPage(
+                                            session: sessionToOpen,
+                                            members: sessionMembers,
+                                            sessionRepository:
+                                                widget.sessionRepository,
+                                          ),
                                         ),
-                                      ),
-                                    );
+                                      );
+                                      
+                                      // Cleanup if still empty after returning
+                                      final resultSession = await widget.sessionRepository.findSessionById(sessionToOpen.id);
+                                      if (resultSession != null && resultSession.records.isEmpty) {
+                                        await widget.sessionRepository.deleteSession(sessionToOpen.id, actor: 'System (Cleanup)');
+                                      }
+                                    } else {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => SessionSummaryPage(
+                                            session: sessionToOpen,
+                                            members: sessionMembers,
+                                            sessionRepository:
+                                                widget.sessionRepository,
+                                          ),
+                                        ),
+                                      );
+                                    }
                                   } else {
                                     // Session does not exist -> Create new -> Deck
                                     final session = await widget.sessionRepository
@@ -508,6 +532,14 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                         ),
                                       ),
                                     );
+
+                                    // Check if the session was actually used/finished
+                                    // We fetch the latest state from the repo
+                                    final resultSession = await widget.sessionRepository.findSessionById(session.id);
+                                    if (resultSession != null && resultSession.records.isEmpty) {
+                                      // If no records were added, assume the user cancelled/aborted
+                                      await widget.sessionRepository.deleteSession(session.id, actor: 'System (Cleanup)');
+                                    }
                                   }
 
                                   if (mounted) _loadMembers();
