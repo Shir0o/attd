@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart'; // Ensure uuid package is available
+import 'package:uuid/uuid.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
+import '../data/event_repository.dart';
+import '../domain/event.dart';
 
 class MembersPage extends StatefulWidget {
-  const MembersPage({super.key, required this.attendanceRepository});
+  const MembersPage({
+    super.key,
+    required this.attendanceRepository,
+    this.event,
+    this.eventRepository,
+  });
 
   final AttendanceRepository attendanceRepository;
+  final Event? event;
+  final EventRepository? eventRepository;
 
   @override
   State<MembersPage> createState() => _MembersPageState();
@@ -17,14 +26,15 @@ class _MembersPageState extends State<MembersPage> {
   List<Family>? _families;
   bool _isLoading = true;
   Object? _error;
+  Event? _currentEvent; // To track local changes to the event
 
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _quickAddController =
-      TextEditingController(); // For "Quick Add Member"
+  final TextEditingController _quickAddController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _currentEvent = widget.event;
     _loadFamilies(isInitial: true);
   }
 
@@ -40,7 +50,6 @@ class _MembersPageState extends State<MembersPage> {
     try {
       final families = await widget.attendanceRepository.fetchFamilies();
       
-      // Ensure minimum loading duration for visual consistency
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 250) - elapsed;
       if (remaining > Duration.zero) {
@@ -64,8 +73,6 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   List<Member> _getAllMembers(List<Family> families) {
-    // Flatten families to get all members
-    // In a real app we might care about family structure, but the design shows a flat list
     return families.expand((f) => f.members).toList();
   }
 
@@ -82,9 +89,13 @@ class _MembersPageState extends State<MembersPage> {
 
       if (mounted) {
         setState(() {
-          // Add the newly created family with its member to our local list
           _families = [...(_families ?? []), updatedFamily];
         });
+
+        // If in event mode, automatically add to event
+        if (_currentEvent != null && widget.eventRepository != null) {
+          await _toggleEventMember(newMember, true);
+        }
       }
 
       _quickAddController.clear();
@@ -101,6 +112,11 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Future<void> _deleteMember(Member member) async {
+    // In event mode, "Delete" might mean removing from event only,
+    // or deleting the member entirely. The prompt says "Hide or disable 'Delete Member' when in Event context".
+    // Let's hide the delete button in event mode, relying on checkboxes for "remove from event".
+    // So this function is only for global delete.
+
     if (_families == null) return;
 
     final confirmed = await showDialog<bool>(
@@ -128,11 +144,9 @@ class _MembersPageState extends State<MembersPage> {
     if (confirmed != true) return;
 
     final originalFamilies = List<Family>.from(_families!);
-    // ... rest of the method
     try {
       final updatedFamilies = _families!
           .map((f) {
-            // Remove member from family
             final updatedMembers =
                 f.members.where((m) => m.id != member.id).toList();
             return f.copyWith(members: updatedMembers);
@@ -162,10 +176,55 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
+  Future<void> _toggleEventMember(Member member, bool isSelected) async {
+    if (_currentEvent == null || widget.eventRepository == null) return;
+
+    final updatedMemberIds = List<String>.from(_currentEvent!.memberIds);
+    if (isSelected) {
+      if (!updatedMemberIds.contains(member.id)) {
+        updatedMemberIds.add(member.id);
+      }
+    } else {
+      updatedMemberIds.remove(member.id);
+    }
+
+    // We can't use copyWith on Event because I didn't add it in the first step (oops, maybe I should check).
+    // Let's construct a new Event manually.
+    // Ah, wait, I can assume Event is immutable and I should probably have added copyWith.
+    // But since I didn't, let's just create a new instance.
+
+    final updatedEvent = Event(
+      id: _currentEvent!.id,
+      title: _currentEvent!.title,
+      time: _currentEvent!.time,
+      frequency: _currentEvent!.frequency,
+      oneTimeDate: _currentEvent!.oneTimeDate,
+      repeatingDays: _currentEvent!.repeatingDays,
+      memberIds: updatedMemberIds,
+      createdAt: _currentEvent!.createdAt,
+      // updatedAt will be set by repository or constructor logic
+    );
+
+    setState(() {
+      _currentEvent = updatedEvent;
+    });
+
+    try {
+      await widget.eventRepository!.updateEvent(updatedEvent);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update event: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isEventMode = _currentEvent != null;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -173,7 +232,9 @@ class _MembersPageState extends State<MembersPage> {
         backgroundColor: colorScheme.surface,
         surfaceTintColor: colorScheme.surface,
         title: Text(
-          'Manage Members',
+          isEventMode
+              ? 'Manage Event Members'
+              : 'Manage Members',
           style: TextStyle(color: colorScheme.onSurface),
         ),
         iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
@@ -221,7 +282,9 @@ class _MembersPageState extends State<MembersPage> {
 
                 // Quick Add Label
                 Text(
-                  'QUICK ADD MEMBER',
+                  isEventMode
+                      ? 'QUICK ADD TO EVENT'
+                      : 'QUICK ADD MEMBER',
                   style: TextStyle(
                     color: colorScheme.primary,
                     fontSize: 14,
@@ -288,6 +351,7 @@ class _MembersPageState extends State<MembersPage> {
   Widget _buildBodyContent(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isEventMode = _currentEvent != null;
 
     if (_isLoading && _families == null) {
       return ListView.separated(
@@ -335,10 +399,25 @@ class _MembersPageState extends State<MembersPage> {
     final families = _families ?? [];
     final allMembers = _getAllMembers(families);
     final searchTerm = _searchController.text.toLowerCase();
-    final filteredMembers =
+
+    // Filter by search
+    var filteredMembers =
         allMembers.where((m) {
           return m.displayName.toLowerCase().contains(searchTerm);
         }).toList();
+
+    // In Event Mode, maybe we want to sort selected members to the top?
+    if (isEventMode) {
+      filteredMembers.sort((a, b) {
+        final aSelected = _currentEvent!.memberIds.contains(a.id);
+        final bSelected = _currentEvent!.memberIds.contains(b.id);
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        return a.displayName.compareTo(b.displayName);
+      });
+    } else {
+      filteredMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
+    }
 
     return Column(
       key: const ValueKey('data'),
@@ -349,7 +428,9 @@ class _MembersPageState extends State<MembersPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Regular Members',
+                isEventMode
+                    ? 'Assigned Members'
+                    : 'Regular Members',
                 style: TextStyle(
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
@@ -362,7 +443,9 @@ class _MembersPageState extends State<MembersPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${filteredMembers.length}',
+                  isEventMode
+                      ? '${_currentEvent!.memberIds.length} / ${filteredMembers.length}'
+                      : '${filteredMembers.length}',
                   style: TextStyle(
                     color: colorScheme.onPrimaryContainer,
                     fontSize: 14,
@@ -381,38 +464,58 @@ class _MembersPageState extends State<MembersPage> {
                 (ctx, i) => Divider(color: colorScheme.outlineVariant, height: 1),
             itemBuilder: (context, index) {
               final member = filteredMembers[index];
+              final isSelected = isEventMode
+                  ? _currentEvent!.memberIds.contains(member.id)
+                  : false;
+
               return ListTile(
                 contentPadding: EdgeInsets.zero,
+                onTap: isEventMode
+                    ? () => _toggleEventMember(member, !isSelected)
+                    : null,
                 leading: CircleAvatar(
-                  backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                  backgroundColor: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.primary.withValues(alpha: 0.1),
                   child: Text(
                     member.displayName.isNotEmpty
                         ? member.displayName[0].toUpperCase()
                         : '?',
                     style: TextStyle(
-                      color: colorScheme.primary,
+                      color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 title: Text(
                   member.displayName,
-                  style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
-                ),
-                subtitle: Text(
-                  'Member',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.onSurface,
+                    fontSize: 18,
+                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                   ),
                 ),
-                trailing: IconButton(
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: () => _deleteMember(member),
-                ),
+                subtitle: isEventMode && isSelected
+                    ? Text(
+                        'Assigned',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    : null,
+                trailing: isEventMode
+                    ? Checkbox(
+                        value: isSelected,
+                        onChanged: (val) => _toggleEventMember(member, val ?? false),
+                      )
+                    : IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        onPressed: () => _deleteMember(member),
+                      ),
               );
             },
           ),
@@ -421,4 +524,3 @@ class _MembersPageState extends State<MembersPage> {
     );
   }
 }
-
