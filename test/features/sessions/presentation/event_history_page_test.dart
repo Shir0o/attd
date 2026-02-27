@@ -50,6 +50,7 @@ class MockSessionRepository implements SessionRepository {
   @override
   Future<Session> createSession({
     required String title,
+    String? eventId,
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,

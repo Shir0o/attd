@@ -266,6 +266,7 @@ class LocalJsonSessionRepository implements SessionRepository {
   @override
   Future<Session> createSession({
     required String title,
+    String? eventId,
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
@@ -276,6 +277,7 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     final session = Session(
       id: id,
+      eventId: eventId,
       title: title,
       sessionDate: sessionDate,
       records: records,
@@ -358,6 +360,7 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     return createSession(
       title: '${source.title} (redo)',
+      eventId: source.eventId,
       sessionDate: now,
       actor: actor,
       records: newRecords,
