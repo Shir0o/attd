@@ -379,30 +379,47 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           final lastSupposed =
                               getLastSupposedOccurrence(event, now);
 
-                          final matchingSessions = sessions.where(
+                          // Find the most recent session for this event
+                          final eventSessions = sessions.where(
                             (s) =>
                                 (s.eventId == event.id ||
-                                    s.title == event.title) &&
-                                s.sessionDate.year == lastSupposed.year &&
-                                s.sessionDate.month == lastSupposed.month &&
-                                s.sessionDate.day == lastSupposed.day,
+                                    s.title == event.title),
+                          ).toList();
+                          eventSessions.sort(
+                            (a, b) => b.sessionDate.compareTo(a.sessionDate),
                           );
-                          final hasSession = matchingSessions.isNotEmpty;
+
+                          // A session is considered "current" if it's on or after the last supposed occurrence
+                          Session? targetSession;
+                          if (eventSessions.isNotEmpty) {
+                            final latest = eventSessions.first;
+                            final latestDate = DateTime(
+                              latest.sessionDate.year,
+                              latest.sessionDate.month,
+                              latest.sessionDate.day,
+                            );
+                            if (!latestDate.isBefore(lastSupposed)) {
+                              targetSession = latest;
+                            }
+                          }
+
+                          final hasSession = targetSession != null;
+                          final displayDate = targetSession?.sessionDate ?? lastSupposed;
 
                           String attendanceStatus;
                           if (lastSupposed.isAfter(today)) {
                             attendanceStatus = 'Upcoming';
                           } else {
-                            final isLastSupposedToday =
-                                lastSupposed.year == today.year &&
-                                    lastSupposed.month == today.month &&
-                                    lastSupposed.day == today.day;
-                            if (isLastSupposedToday) {
+                            final isTargetToday =
+                                displayDate.year == today.year &&
+                                    displayDate.month == today.month &&
+                                    displayDate.day == today.day;
+                            if (isTargetToday) {
                               attendanceStatus =
                                   hasSession ? 'Taken today' : 'Not taken yet';
                             } else {
                               final dateStr =
-                                  DateFormat('MMM d').format(lastSupposed);
+                                  DateFormat('MMM d').format(displayDate);
                               attendanceStatus = hasSession
                                   ? 'Taken ($dateStr)'
                                   : 'Missed ($dateStr)';
@@ -421,29 +438,42 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                   final targetDate =
                                       calculateTargetDate(event, DateTime.now());
 
-                                  // 2. Find existing session for target date
-                                  final existingSessions = sessions.where((s) =>
-                                    (s.eventId == event.id || s.title == event.title) &&
-                                    s.sessionDate.year == targetDate.year &&
-                                    s.sessionDate.month == targetDate.month &&
-                                    s.sessionDate.day == targetDate.day
+                                  // 2. Find existing session for target date (or most recent relevant)
+                                  final eventSessionsOnTap = sessions.where(
+                                    (s) =>
+                                        (s.eventId == event.id ||
+                                            s.title == event.title),
+                                  ).toList();
+                                  eventSessionsOnTap.sort(
+                                    (a, b) =>
+                                        b.sessionDate.compareTo(a.sessionDate),
                                   );
 
-                                  Session? targetSession = existingSessions.isNotEmpty
-                                      ? existingSessions.first
-                                      : null;
+                                  Session? foundSession;
+                                  if (eventSessionsOnTap.isNotEmpty) {
+                                    final latest = eventSessionsOnTap.first;
+                                    final latestDate = DateTime(
+                                      latest.sessionDate.year,
+                                      latest.sessionDate.month,
+                                      latest.sessionDate.day,
+                                    );
+                                    if (!latestDate.isBefore(targetDate)) {
+                                      foundSession = latest;
+                                    }
+                                  }
 
                                   // 3. Filter members
                                   final sessionMembers = event.memberIds.isNotEmpty
                                       ? _members.where((m) => event.memberIds.contains(m.id)).toList()
                                       : _members;
 
-                                  if (targetSession != null) {
+                                  if (foundSession != null) {
                                     // Session exists -> Summary
+                                    final sessionToOpen = foundSession;
                                     await Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => SessionSummaryPage(
-                                          session: targetSession,
+                                          session: sessionToOpen,
                                           members: sessionMembers,
                                           sessionRepository:
                                               widget.sessionRepository,
