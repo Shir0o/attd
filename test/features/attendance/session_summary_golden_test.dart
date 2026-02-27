@@ -23,7 +23,9 @@ class TolerantComparator extends LocalFileComparator {
       await getGoldenBytes(golden),
     );
     if (!result.passed && result.diffPercent <= precisionError) {
-      debugPrint('Golden file difference of ${result.diffPercent * 100}% is within tolerance of ${precisionError * 100}%. Passing.');
+      debugPrint(
+        'Golden file difference of ${result.diffPercent * 100}% is within tolerance of ${precisionError * 100}%. Passing.',
+      );
       return true;
     }
     if (!result.passed) {
@@ -63,7 +65,9 @@ void main() {
     );
   }
 
-  testWidgets('SessionSummaryPage Golden Test - Mix of Present and Absent', (tester) async {
+  testWidgets('SessionSummaryPage Golden Test - Mix of Present and Absent', (
+    tester,
+  ) async {
     // Set a consistent surface size for golden tests
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 1.0;
@@ -77,7 +81,7 @@ void main() {
       goldenFileComparator = TolerantComparator(
         // The default implementation uses uri-based paths.
         // We reconstruct the Uri from the existing comparator.
-        Uri.parse(testUrl.toString() + 'session_summary_golden_test.dart'),
+        Uri.parse('${testUrl}session_summary_golden_test.dart'),
         precisionError: 0.01, // 1% tolerance
       );
     }
@@ -117,10 +121,9 @@ void main() {
     // Seed mock repo so findSessionById works (called in initState)
     mockSessionRepository.setSessions([session]);
 
-    await tester.pumpWidget(buildSessionSummaryPage(
-      session: session,
-      members: members,
-    ));
+    await tester.pumpWidget(
+      buildSessionSummaryPage(session: session, members: members),
+    );
 
     // Wait for _refreshLatest loading
     await tester.pump(const Duration(milliseconds: 500));
