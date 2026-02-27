@@ -25,7 +25,7 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'IBM Plex Sans',
+        // Removed custom font family
       ),
       home: AttendanceDeckPage(
         session: session,
@@ -35,7 +35,15 @@ void main() {
     );
   }
 
+  void setScreenSize(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   testWidgets('AttendanceDeckPage Golden Test - Initial View', (tester) async {
+    setScreenSize(tester);
     final members = [
       const Member(id: '1', displayName: 'Alice Johnson'),
       const Member(id: '2', displayName: 'Bob Smith'),
@@ -68,6 +76,7 @@ void main() {
   });
 
   testWidgets('AttendanceDeckPage Golden Test - Swipe Action (Partial)', (tester) async {
+    setScreenSize(tester);
     final members = [
       const Member(id: '1', displayName: 'Alice Johnson'),
     ];
@@ -91,25 +100,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
 
-    // Find the card to swipe
-    // Assuming the top card is findable by key or type. The code uses ValueKey(member.id)
     final cardFinder = find.byKey(const ValueKey('1'));
-
-    // Ensure we found the card before trying to drag
     expect(cardFinder, findsOneWidget);
 
-    // Start gesture
     final gesture = await tester.startGesture(tester.getCenter(cardFinder));
-    // Drag to right partially
     await gesture.moveBy(const Offset(100, 0));
-    await tester.pump(); // Rebuild with drag offset
+    await tester.pump();
 
     await expectLater(
       find.byType(AttendanceDeckPage),
       matchesGoldenFile('goldens/attendance_deck_swipe_right.png'),
     );
 
-    // Finish gesture to clean up
     await gesture.up();
     await tester.pumpAndSettle();
   });

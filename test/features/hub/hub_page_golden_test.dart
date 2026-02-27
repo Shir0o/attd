@@ -32,7 +32,7 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'IBM Plex Sans',
+        // Removed custom font family
       ),
       home: HubPage(
         sessionRepository: mockSessionRepository,
@@ -43,12 +43,17 @@ void main() {
     );
   }
 
-  testWidgets('HubPage Golden Test - Loading State', (tester) async {
-    // Initial state is loading until events are emitted
-    await tester.pumpWidget(buildHubPage());
+  void setScreenSize(WidgetTester tester) {
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
 
-    // Don't settle, just pump once to capture loading indicator
-    await tester.pump();
+  testWidgets('HubPage Golden Test - Loading State', (tester) async {
+    setScreenSize(tester);
+    await tester.pumpWidget(buildHubPage());
+    await tester.pump(); // Capture loading indicator
 
     await expectLater(
       find.byType(HubPage),
@@ -57,6 +62,7 @@ void main() {
   });
 
   testWidgets('HubPage Golden Test - Empty State', (tester) async {
+    setScreenSize(tester);
     await tester.pumpWidget(buildHubPage());
 
     mockEventRepository.emit([]);
@@ -69,6 +75,7 @@ void main() {
   });
 
   testWidgets('HubPage Golden Test - Populated State', (tester) async {
+    setScreenSize(tester);
     await tester.pumpWidget(buildHubPage());
 
     final now = DateTime.now();
