@@ -11,6 +11,7 @@ abstract class SessionRepository {
 
   Future<Session> createSession({
     required String title,
+    String? eventId,
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
