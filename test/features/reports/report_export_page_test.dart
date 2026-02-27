@@ -17,6 +17,7 @@ class MockSessionRepository implements SessionRepository {
   @override
   Future<Session> createSession({
     required String title,
+    String? eventId,
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
@@ -84,26 +85,6 @@ void main() {
     expect(find.text('Output format'), findsOneWidget);
     expect(find.text('CSV'), findsOneWidget);
 
-    // Instead of precise matching which seems flaky due to potential wrapping,
-    // let's just assert that a FilledButton exists which contains "Generate report" OR Icon(Icons.analytics_outlined)
-    // The previous failures were odd, but finding by type FilledButton was also failing with 0 found?
-    // Wait, the previous failure said "Found 0 widgets with type FilledButton".
-    // This implies FilledButton is not being used or not found in the tree.
-    // Looking at the code:  is used.
-    // FilledButton.icon is a factory constructor that returns a FilledButton (or subclass).
-    // Maybe it's because it's inside a ListView?
-    // Let's print the tree if it fails again.
-
-    // We will try finding by Key or just verifying a Button exists.
-    // Since we don't have Keys, let's try finding by type 'FilledButton'.
-    // If that fails, maybe the button is not being rendered?
-    // It's at the bottom of a ListView. Maybe it's off screen?
-    // But  finds off-screen widgets in a ListView usually unless strict visibility is enforced?
-    // Actually,  works on the widget tree.
-    // Maybe  is not the runtime type? It might be  or similar private class?
-    // No, usually it works.
-
-    // Let's try finding the Text widget "Generate report" again but with skipOffstage: false just in case.
     expect(find.text('Generate report', skipOffstage: false), findsOneWidget);
 
     // Accessibility check
