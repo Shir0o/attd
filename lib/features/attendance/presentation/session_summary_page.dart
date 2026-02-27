@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
-import '../../../../data/session_version.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
 
