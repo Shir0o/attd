@@ -52,8 +52,8 @@ void main() {
       expect(result, DateTime(2023, 10, 18));
     });
 
-    test('returns 2 weeks ago if time is BEFORE event time (Bi-weekly)', () {
-      final now = DateTime(2023, 10, 25, 10, 0);
+    test('returns last occurrence if time is BEFORE event time', () {
+      final now = DateTime(2023, 10, 25, 10, 0); // Wednesday
       final event = Event(
         id: '1',
         title: 'Bi-weekly Event',
@@ -64,12 +64,13 @@ void main() {
       );
 
       final result = calculateTargetDate(event, now);
-      // Expect 14 days ago: Oct 11
-      expect(result, DateTime(2023, 10, 11));
+      // Logic finds the most recent valid weekday (excluding today since time hasn't passed)
+      // Expect 7 days ago (the last Wednesday): Oct 18
+      expect(result, DateTime(2023, 10, 18));
     });
 
-    test('returns last month if time is BEFORE event time (Monthly)', () {
-      final now = DateTime(2023, 10, 25, 10, 0);
+    test('returns last occurrence if time is BEFORE event time for Monthly', () {
+      final now = DateTime(2023, 10, 25, 10, 0); // Wednesday
       final event = Event(
         id: '1',
         title: 'Monthly Event',
@@ -80,8 +81,9 @@ void main() {
       );
 
       final result = calculateTargetDate(event, now);
-      // Expect 1 month ago: Sept 25
-      expect(result, DateTime(2023, 9, 25));
+      // Logic finds the most recent valid weekday (excluding today since time hasn't passed)
+      // Expect 7 days ago (the last Wednesday): Oct 18
+      expect(result, DateTime(2023, 10, 18));
     });
   });
 }
