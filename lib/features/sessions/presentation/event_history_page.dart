@@ -113,9 +113,13 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                           }
 
                           final allSessions = snapshot.data ?? [];
-                          final eventSessions = allSessions
-                              .where((s) => s.title == widget.event.title)
-                              .toList();
+                          final eventSessions = allSessions.where((s) {
+                            if (s.eventId != null && s.eventId!.isNotEmpty) {
+                              return s.eventId == widget.event.id;
+                            }
+                            // Legacy fallback: only match by title if no eventId is present
+                            return s.title.trim() == widget.event.title.trim();
+                          }).toList();
 
                           // Sort by date descending
                           eventSessions.sort(
