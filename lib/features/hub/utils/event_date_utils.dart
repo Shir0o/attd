@@ -69,15 +69,22 @@ DateTime getLastSupposedOccurrence(Event event, DateTime now) {
   }
 
   // Search backwards for the last occurrence
+  final creationDate = DateTime(
+    event.createdAt.year,
+    event.createdAt.month,
+    event.createdAt.day,
+  );
+
   for (int i = 1; i <= 7; i++) {
     final prev = today.subtract(Duration(days: i));
     if (eventWeekdays.contains(prev.weekday)) {
-      // For Weekly, this is the one.
-      // For Bi-weekly or Monthly, we'd need a reference date to be precise,
-      // but the current app seems to use weekdays as the primary repeating logic.
+      // Don't suggest an occurrence before the event was even created
+      if (prev.isBefore(creationDate)) {
+        return today.isBefore(creationDate) ? creationDate : today;
+      }
       return prev;
     }
   }
 
-  return today;
+  return today.isBefore(creationDate) ? creationDate : today;
 }

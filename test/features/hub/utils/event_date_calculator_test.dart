@@ -14,7 +14,7 @@ void main() {
         time: const TimeOfDay(hour: 12, minute: 0),
         frequency: 'One-time',
         oneTimeDate: oneTimeDate,
-        createdAt: DateTime.now(),
+        createdAt: now.subtract(const Duration(days: 30)),
       );
 
       final result = calculateTargetDate(event, now);
@@ -29,7 +29,7 @@ void main() {
         time: const TimeOfDay(hour: 12, minute: 0), // 12 PM
         frequency: 'Weekly',
         repeatingDays: ['Wednesday'],
-        createdAt: DateTime.now(),
+        createdAt: now.subtract(const Duration(days: 30)),
       );
 
       final result = calculateTargetDate(event, now);
@@ -44,7 +44,7 @@ void main() {
         time: const TimeOfDay(hour: 12, minute: 0), // 12 PM
         frequency: 'Weekly',
         repeatingDays: ['Wednesday'],
-        createdAt: DateTime.now(),
+        createdAt: now.subtract(const Duration(days: 30)),
       );
 
       final result = calculateTargetDate(event, now);
@@ -60,7 +60,7 @@ void main() {
         time: const TimeOfDay(hour: 12, minute: 0),
         frequency: 'Bi-weekly',
         repeatingDays: ['Wednesday'],
-        createdAt: DateTime.now(),
+        createdAt: now.subtract(const Duration(days: 30)),
       );
 
       final result = calculateTargetDate(event, now);
@@ -77,7 +77,7 @@ void main() {
         time: const TimeOfDay(hour: 12, minute: 0),
         frequency: 'Monthly',
         repeatingDays: ['Wednesday'],
-        createdAt: DateTime.now(),
+        createdAt: now.subtract(const Duration(days: 30)),
       );
 
       final result = calculateTargetDate(event, now);
