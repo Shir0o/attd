@@ -34,18 +34,11 @@ void main() {
       // On Settings Page
       await settings.tapManageMembers();
 
-      // On Families List Page
-      await members.addFamily('Test Family');
-      await members.verifyFamily('Test Family');
-      await members.tapFamily('Test Family');
-
-      // On Family Details Page
+      // On Members Page (Flattened)
       await members.addMember('John Doe');
       await members.verifyMember('John Doe');
 
       // Go back to Hub
-      await tester.pageBack(); // Back to Family List
-      await tester.pumpAndSettle();
       await tester.pageBack(); // Back to Settings
       await tester.pumpAndSettle();
       await tester.pageBack(); // Back to Hub
@@ -83,6 +76,7 @@ void main() {
       // 8. Verify Hub Stats
       // Should see updated stats on the card
       await hub.verifyEventCard('Weekly Meeting');
+      await tester.pumpUntilFound(find.text('Taken today'));
 
       // Cleanup
       if (await tempDir.exists()) {

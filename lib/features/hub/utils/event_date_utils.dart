@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import '../domain/event.dart';
 
 /// Calculates the target session date for an event based on the current time.

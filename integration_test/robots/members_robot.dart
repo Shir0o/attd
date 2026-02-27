@@ -8,44 +8,25 @@ class MembersRobot {
 
   final WidgetTester tester;
 
-  Future<void> addFamily(String familyName) async {
-    // Tap Add Family
-    await tester.tap(find.byType(FloatingActionButton));
-    await tester.pumpAndSettle();
-
-    // Enter Name
-    await tester.enterText(find.byType(TextField), familyName);
-    await tester.pumpAndSettle();
-
-    // Confirm
-    await tester.tap(find.text('Add'));
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> verifyFamily(String familyName) async {
-    await tester.pumpUntilFound(find.text(familyName));
-  }
-
-  Future<void> tapFamily(String familyName) async {
-    await tester.tap(find.text(familyName));
-    await tester.pumpAndSettle();
-  }
-
   Future<void> addMember(String memberName) async {
-    // Tap Add Member
+    // In the new MembersPage, we use the Quick Add field
+    final textField = find.byType(TextField).last; // The second TextField is Quick Add
+    await tester.enterText(textField, memberName);
+    await tester.pumpAndSettle();
+
+    // Tap the FAB next to the TextField
     await tester.tap(find.byType(FloatingActionButton));
-    await tester.pumpAndSettle();
-
-    // Enter Name
-    await tester.enterText(find.byType(TextField), memberName);
-    await tester.pumpAndSettle();
-
-    // Confirm
-    await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
   }
 
   Future<void> verifyMember(String memberName) async {
     await tester.pumpUntilFound(find.text(memberName));
+  }
+
+  // Deprecated in new flattened UI, but kept for compatibility or redirected
+  Future<void> addFamily(String familyName) async => addMember(familyName);
+  Future<void> verifyFamily(String familyName) async => verifyMember(familyName);
+  Future<void> tapFamily(String familyName) async {
+    // Do nothing as we are already on the combined page
   }
 }
