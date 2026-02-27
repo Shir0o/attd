@@ -198,13 +198,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           ),
                           surfaceTintColor: Colors.transparent,
                           pinned: true,
-                          leading: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: IconButton(
-                              icon: const Icon(Icons.arrow_back),
-                              color: colorScheme.onSurface,
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
+                          leading: IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            color: colorScheme.onSurface,
+                            onPressed: () => Navigator.of(context).pop(),
                           ),
                           title: Text(
                             _currentSession.title.trim(),
@@ -260,90 +257,89 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                     children: [
                                       Expanded(
                                         child: Column(
-                                                                          children: [
-                                                                            Text(
-                                                                              'PRESENT',
-                                                                              style: TextStyle(
-                                                                                color: colorScheme
-                                                                                    .onPrimaryContainer,
-                                                                                fontSize: 16,
-                                                                                fontWeight: FontWeight.w500,
-                                                                                letterSpacing: 1.0,
-                                                                              ),
-                                                                            ),
-                                                                            const SizedBox(height: 4),
-                                                                            Text(
-                                                                              '${presentMembers.length}',
-                                                                              style: TextStyle(
-                                                                                color: colorScheme.primary,
-                                                                                fontSize: 48,
-                                                                                fontWeight: FontWeight.w500,
-                                                                                height: 1.0,
-                                                                              ),
-                                                                            ),
-                                                                          ],
-                                                                        ),
-                                                                      ),
-                                                                      Container(
-                                                                        width: 1,
-                                                                        height: 60,
-                                                                        color: colorScheme.onPrimaryContainer
-                                                                            .withValues(alpha: 0.2),
-                                                                      ),
-                                                                      Expanded(
-                                                                        child: Column(
-                                                                          children: [
-                                                                            Text(
-                                                                              'ABSENT',
-                                                                              style: TextStyle(
-                                                                                color: colorScheme
-                                                                                    .onPrimaryContainer,
-                                                                                fontSize: 16,
-                                                                                fontWeight: FontWeight.w500,
-                                                                                letterSpacing: 1.0,
-                                                                              ),
-                                                                            ),
-                                                                            const SizedBox(height: 4),
-                                                                            Text(
-                                                                              '${absentMembers.length}',
-                                                                              style: TextStyle(
-                                                                                color: colorScheme.error,
-                                                                                fontSize: 40,
-                                                                                fontWeight: FontWeight.w500,
-                                                                                height: 1.0,
-                                                                              ),
-                                                                            ),
-                                                                          ],
-                                                                        ),
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                                const SizedBox(height: 32),
-                                                                Row(
-                                                                  mainAxisAlignment:
-                                                                      MainAxisAlignment.spaceBetween,
-                                                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                                                  children: [
-                                                                    Text(
-                                                                      'Attendance Roster',
-                                                                      style: TextStyle(
-                                                                        color: colorScheme.onSurface,
-                                                                        fontSize: 26,
-                                                                        fontWeight: FontWeight.w500,
-                                                                      ),
-                                                                    ),
-                                                                    Text(
-                                                                      '${widget.members.length} Total',
-                                                                      style: TextStyle(
-                                                                        color: colorScheme.onSurfaceVariant,
-                                                                        fontSize: 16,
-                                                                        fontWeight: FontWeight.w500,
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                          
+                                          children: [
+                                            Text(
+                                              'PRESENT',
+                                              style: TextStyle(
+                                                color: colorScheme
+                                                    .onPrimaryContainer,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${presentMembers.length}',
+                                              style: TextStyle(
+                                                color: colorScheme.primary,
+                                                fontSize: 48,
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 1,
+                                        height: 60,
+                                        color: colorScheme.onPrimaryContainer
+                                            .withValues(alpha: 0.2),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              'ABSENT',
+                                              style: TextStyle(
+                                                color: colorScheme
+                                                    .onPrimaryContainer,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${absentMembers.length}',
+                                              style: TextStyle(
+                                                color: colorScheme.error,
+                                                fontSize: 40,
+                                                fontWeight: FontWeight.w500,
+                                                height: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Attendance Roster',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${widget.members.length} Total',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
