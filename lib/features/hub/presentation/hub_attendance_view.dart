@@ -15,7 +15,6 @@ import '../utils/event_date_utils.dart';
 import 'add_event_page.dart';
 import 'members_page.dart';
 import '../../sessions/presentation/event_history_page.dart';
-import '../../attendance/models/attendance_status.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/models/member.dart';
 
@@ -377,31 +376,38 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                           final now = DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
+                          final lastSupposed =
+                              getLastSupposedOccurrence(event, now);
 
-                          // Try to find a session for today for this event
                           final matchingSessions = sessions.where(
                             (s) =>
-                                (s.eventId == event.id || s.title == event.title) &&
-                                s.sessionDate.year == today.year &&
-                                s.sessionDate.month == today.month &&
-                                s.sessionDate.day == today.day,
+                                (s.eventId == event.id ||
+                                    s.title == event.title) &&
+                                s.sessionDate.year == lastSupposed.year &&
+                                s.sessionDate.month == lastSupposed.month &&
+                                s.sessionDate.day == lastSupposed.day,
                           );
-                          Session? todaySession = matchingSessions.isNotEmpty
-                              ? matchingSessions.first
-                              : null;
+                          final hasSession = matchingSessions.isNotEmpty;
 
-                          final scannedCount =
-                              todaySession?.records
-                                  .where(
-                                    (r) => r.status == AttendanceStatus.present,
-                                  )
-                                  .length ??
-                              0;
-
-                          // Total count: use event specific members if available, else all members
-                          final totalCount = event.memberIds.isNotEmpty
-                              ? event.memberIds.length
-                              : _members.length;
+                          String attendanceStatus;
+                          if (lastSupposed.isAfter(today)) {
+                            attendanceStatus = 'Upcoming';
+                          } else {
+                            final isLastSupposedToday =
+                                lastSupposed.year == today.year &&
+                                    lastSupposed.month == today.month &&
+                                    lastSupposed.day == today.day;
+                            if (isLastSupposedToday) {
+                              attendanceStatus =
+                                  hasSession ? 'Taken today' : 'Not taken yet';
+                            } else {
+                              final dateStr =
+                                  DateFormat('MMM d').format(lastSupposed);
+                              attendanceStatus = hasSession
+                                  ? 'Taken ($dateStr)'
+                                  : 'Missed ($dateStr)';
+                            }
+                          }
 
                           return RepaintBoundary(
                             child: Padding(
@@ -409,11 +415,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               child: _EventCard(
                                 event: event,
                                 isToday: isToday,
-                                scannedCount: scannedCount,
-                                totalCount: totalCount,
+                                attendanceStatus: attendanceStatus,
                                 onTap: () async {
                                   // 1. Calculate target date
-                                  final targetDate = calculateTargetDate(event, DateTime.now());
+                                  final targetDate =
+                                      calculateTargetDate(event, DateTime.now());
 
                                   // 2. Find existing session for target date
                                   final existingSessions = sessions.where((s) =>
@@ -437,7 +443,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                     await Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => SessionSummaryPage(
-                                          session: targetSession!,
+                                          session: targetSession,
                                           members: sessionMembers,
                                           sessionRepository:
                                               widget.sessionRepository,
@@ -521,8 +527,7 @@ class _EventCard extends StatelessWidget {
     required this.onSurfaceVariantColor,
     required this.secondaryContainerColor,
     required this.onSecondaryContainerColor,
-    required this.scannedCount,
-    required this.totalCount,
+    required this.attendanceStatus,
   });
 
   final Event event;
@@ -536,8 +541,7 @@ class _EventCard extends StatelessWidget {
   final Color onSurfaceVariantColor;
   final Color secondaryContainerColor;
   final Color onSecondaryContainerColor;
-  final int scannedCount;
-  final int totalCount;
+  final String attendanceStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -640,7 +644,6 @@ class _EventCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Placeholder for scan count if needed
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -662,7 +665,7 @@ class _EventCard extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            '/ Present',
+                            attendanceStatus,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,

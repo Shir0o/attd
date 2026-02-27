@@ -24,53 +24,61 @@ DateTime calculateTargetDate(Event event, DateTime now) {
         event.oneTimeDate!.month,
         event.oneTimeDate!.day,
       );
-      // If today is the day, return it. Otherwise return the scheduled date.
-      // Or simply return the scheduled date always? The prompt says "previous week"
-      // logic applies to "weekly repeating event".
-      // For one-time, let's stick to the scheduled date.
       return oneTime;
     }
     return today;
   }
 
-  // 2. Check if today is a repeating day
-  // (The caller usually filters this, but let's be safe or just assume 'now' is the relevant context)
+  // 2. For repeating events, find the last (or current) supposed occurrence
+  return getLastSupposedOccurrence(event, now);
+}
 
-  // 3. Compare Time
-  final eventTime = DateTime(
-    now.year,
-    now.month,
-    now.day,
-    event.time.hour,
-    event.time.minute,
-  );
+/// Finds the most recent date an event was supposed to occur,
+/// including today if the event time has passed.
+DateTime getLastSupposedOccurrence(Event event, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
 
-  // If we are BEFORE the scheduled time on the same day
-  if (now.isBefore(eventTime)) {
-    switch (event.frequency) {
-      case 'Weekly':
-        return today.subtract(const Duration(days: 7));
-      case 'Bi-weekly':
-        return today.subtract(const Duration(days: 14));
-      case 'Monthly':
-        // Subtracting a month can be tricky (e.g. March 31 -> Feb 28/29)
-        // Simple approach: go to first day of previous month, then try to match day.
-        // Or just subtract 30 days?
-        // Let's do logical month subtraction.
-        int newYear = today.year;
-        int newMonth = today.month - 1;
-        if (newMonth < 1) {
-          newYear--;
-          newMonth = 12;
-        }
-        final daysInNewMonth = DateUtils.getDaysInMonth(newYear, newMonth);
-        final newDay = today.day > daysInNewMonth ? daysInNewMonth : today.day;
-        return DateTime(newYear, newMonth, newDay);
-      default:
-        return today;
+  if (event.frequency == 'One-time') {
+    return event.oneTimeDate ?? today;
+  }
+
+  final Map<String, int> weekdays = {
+    'Monday': DateTime.monday,
+    'Tuesday': DateTime.tuesday,
+    'Wednesday': DateTime.wednesday,
+    'Thursday': DateTime.thursday,
+    'Friday': DateTime.friday,
+    'Saturday': DateTime.saturday,
+    'Sunday': DateTime.sunday,
+  };
+
+  final eventWeekdays = event.repeatingDays.map((d) => weekdays[d]!).toList();
+  if (eventWeekdays.isEmpty) return today;
+
+  // Check today
+  if (eventWeekdays.contains(now.weekday)) {
+    final eventTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      event.time.hour,
+      event.time.minute,
+    );
+    if (!now.isBefore(eventTime)) {
+      return today;
     }
   }
 
-  // Otherwise, return today
+  // Search backwards for the last occurrence
+  for (int i = 1; i <= 7; i++) {
+    final prev = today.subtract(Duration(days: i));
+    if (eventWeekdays.contains(prev.weekday)) {
+      // For Weekly, this is the one.
+      // For Bi-weekly or Monthly, we'd need a reference date to be precise,
+      // but the current app seems to use weekdays as the primary repeating logic.
+      return prev;
+    }
+  }
+
   return today;
 }
