@@ -1,0 +1,90 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
+import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
+import 'package:attendance_tracker/data/session.dart';
+import 'package:attendance_tracker/data/session_record.dart';
+
+import '../../helpers/mocks.dart';
+
+void main() {
+  late MockSessionRepository mockSessionRepository;
+
+  setUp(() {
+    mockSessionRepository = MockSessionRepository();
+  });
+
+  Widget buildSessionSummaryPage({
+    required Session session,
+    required List<Member> members,
+  }) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.indigo,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
+        fontFamily: 'IBM Plex Sans',
+      ),
+      home: SessionSummaryPage(
+        session: session,
+        members: members,
+        sessionRepository: mockSessionRepository,
+      ),
+    );
+  }
+
+  testWidgets('SessionSummaryPage Golden Test - Mix of Present and Absent', (tester) async {
+    final members = [
+      const Member(id: '1', displayName: 'Alice Johnson'),
+      const Member(id: '2', displayName: 'Bob Smith'),
+      const Member(id: '3', displayName: 'Charlie Brown'),
+    ];
+
+    final records = [
+      SessionRecord(
+        attendee: 'Alice Johnson',
+        status: AttendanceStatus.present,
+        recordedAt: DateTime.now(),
+        recordedBy: 'User',
+      ),
+      SessionRecord(
+        attendee: 'Bob Smith',
+        status: AttendanceStatus.absent,
+        recordedAt: DateTime.now(),
+        recordedBy: 'User',
+      ),
+    ];
+
+    final session = Session(
+      id: 'session-summary-1',
+      title: 'Weekly Sync',
+      sessionDate: DateTime(2023, 10, 27),
+      records: records,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+      currentVersion: 1,
+    );
+
+    // Seed mock repo so findSessionById works (called in initState)
+    mockSessionRepository.setSessions([session]);
+
+    await tester.pumpWidget(buildSessionSummaryPage(
+      session: session,
+      members: members,
+    ));
+
+    // Wait for _refreshLatest loading
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(SessionSummaryPage),
+      matchesGoldenFile('goldens/session_summary_mixed.png'),
+    );
+  });
+}
