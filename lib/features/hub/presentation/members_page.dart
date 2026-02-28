@@ -321,6 +321,7 @@ class _MembersPageState extends State<MembersPage> {
                     ),
                     const SizedBox(width: 8),
                     FloatingActionButton(
+                      key: const ValueKey('member_add_fab'),
                       heroTag: 'fab',
                       mini: false,
                       elevation: 1,

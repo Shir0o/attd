@@ -46,6 +46,10 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Integration Tests
+/screenshots/
+/test_driver/*.log
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../utils/test_utils.dart';
 
 
 class EventRobot {
@@ -8,26 +9,39 @@ class EventRobot {
   final WidgetTester tester;
 
   Future<void> enterName(String name) async {
-    await tester.enterText(find.byType(TextFormField), name);
+    final finder = find.byType(TextFormField);
+    await tester.pumpUntilFound(finder);
+    await tester.enterText(finder, name);
     await tester.pumpAndSettle();
   }
 
   Future<void> selectFrequency(String frequency) async {
-    await tester.tap(find.byIcon(Icons.arrow_drop_down));
+    final dropdownFinder = find.byIcon(Icons.arrow_drop_down);
+    await tester.pumpUntilFound(dropdownFinder);
+    await tester.ensureVisible(dropdownFinder);
+    await tester.tap(dropdownFinder);
     await tester.pumpAndSettle();
-    await tester.tap(find.text(frequency).last);
+    
+    final itemFinder = find.text(frequency).last;
+    await tester.pumpUntilFound(itemFinder);
+    await tester.tap(itemFinder);
     await tester.pumpAndSettle();
   }
 
   Future<void> selectDay(String dayName) async {
     // Select the circle with the day's first letter
     final letter = dayName.substring(0, 1);
-    await tester.tap(find.text(letter).last); // Might be multiple 'S' or 'T'
+    final letterFinder = find.text(letter);
+    await tester.pumpUntilFound(letterFinder);
+    await tester.tap(letterFinder.last); 
     await tester.pumpAndSettle();
   }
 
   Future<void> save() async {
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Create Event').last);
+    final buttonFinder = find.widgetWithText(ElevatedButton, 'Create Event');
+    await tester.pumpUntilFound(buttonFinder);
+    await tester.ensureVisible(buttonFinder);
+    await tester.tap(buttonFinder.last);
     await tester.pumpAndSettle();
   }
 

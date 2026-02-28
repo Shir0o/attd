@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
+import '../utils/test_utils.dart';
 
 class SettingsRobot {
   const SettingsRobot(this.tester);
@@ -24,7 +25,12 @@ class SettingsRobot {
   }
 
   Future<void> tapManageMembers() async {
-    await tester.tap(find.text('Manage Members'));
+    final settingsPage = find.byType(SettingsPage);
+    await tester.pumpUntilFound(settingsPage);
+    
+    final finder = find.descendant(of: settingsPage, matching: find.text('Manage Members'));
+    await tester.scrollUntilVisible(finder, 200);
+    await tester.tap(finder);
     await tester.pumpAndSettle();
   }
 }

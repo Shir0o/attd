@@ -570,6 +570,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        key: const ValueKey('hub_fab'),
         heroTag: 'fab',
         onPressed: _createNewSession,
         backgroundColor: colorScheme.primary,
