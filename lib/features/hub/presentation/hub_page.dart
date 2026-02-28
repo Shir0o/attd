@@ -32,15 +32,13 @@ class HubPage extends StatefulWidget {
 class _HubPageState extends State<HubPage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: HubAttendanceView(
-        sessionRepository: widget.sessionRepository,
-        eventRepository: widget.eventRepository,
-        attendanceRepository: widget.attendanceRepository,
-        themeController: widget.themeController,
-        driveService: widget.driveService,
-        localBackupService: widget.localBackupService,
-      ),
+    return HubAttendanceView(
+      sessionRepository: widget.sessionRepository,
+      eventRepository: widget.eventRepository,
+      attendanceRepository: widget.attendanceRepository,
+      themeController: widget.themeController,
+      driveService: widget.driveService,
+      localBackupService: widget.localBackupService,
     );
   }
 }

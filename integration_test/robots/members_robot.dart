@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:attendance_tracker/features/hub/presentation/members_page.dart';
 
 import '../utils/test_utils.dart';
 
@@ -9,13 +10,18 @@ class MembersRobot {
   final WidgetTester tester;
 
   Future<void> addMember(String memberName) async {
+    final membersPage = find.byType(MembersPage);
+    await tester.pumpUntilFound(membersPage);
+
     // In the new MembersPage, we use the Quick Add field
-    final textField = find.byType(TextField).last; // The second TextField is Quick Add
+    final textField = find.descendant(of: membersPage, matching: find.byType(TextField)).last;
     await tester.enterText(textField, memberName);
     await tester.pumpAndSettle();
 
     // Tap the FAB next to the TextField
-    await tester.tap(find.byType(FloatingActionButton));
+    final fabFinder = find.byKey(const ValueKey('member_add_fab'));
+    await tester.ensureVisible(fabFinder);
+    await tester.tap(fabFinder);
     await tester.pumpAndSettle();
   }
 

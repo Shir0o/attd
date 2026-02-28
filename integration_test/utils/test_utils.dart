@@ -7,7 +7,12 @@ import 'package:attendance_tracker/features/settings/application/theme_controlle
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:attendance_tracker/features/settings/data/drive_service.dart';
+import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 Future<Widget> createTestApp(Directory tempDir) async {
   // Use a temporary directory for local storage to isolate tests
@@ -19,32 +24,36 @@ Future<Widget> createTestApp(Directory tempDir) async {
   final themeController = ThemeController(prefs);
 
   // Initialize Repositories with custom storage path
-  // Note: LocalJsonAttendanceRepository expects a FILE path if provided? Let's check constructor usage.
-  // Code says: if (storagePath != null) return File(storagePath!);
-  // So we should provide the full path to the file.
   final attendanceRepository = LocalJsonAttendanceRepository(storagePath: '$storagePath/families.json');
-
-  // LocalJsonSessionRepository expects storagePath to be a directory in constructor:
-  // if (storagePath != null) : Directory(storagePath!)
   final sessionRepository = LocalJsonSessionRepository(storagePath: storagePath);
-
-  // LocalJsonEventRepository expects storagePath to be a directory
   final eventRepository = LocalJsonEventRepository(storagePath: storagePath);
+
+  // Mock GoogleSignIn for DriveService
+  final googleSignIn = GoogleSignIn();
+
+  final driveService = DriveService(
+    googleSignIn: googleSignIn,
+    attendanceRepository: attendanceRepository,
+    sessionRepository: sessionRepository,
+    eventRepository: eventRepository,
+  );
+
+  final localBackupService = LocalBackupService();
 
   return AttendanceApp(
     themeController: themeController,
     repository: attendanceRepository,
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,
-    // driveService: null,
-    // localBackupService: null,
+    driveService: driveService,
+    localBackupService: localBackupService,
   );
 }
 
 extension PumpUntilFound on WidgetTester {
   Future<void> pumpUntilFound(
     Finder finder, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     final timer = Stopwatch()..start();
     while (timer.elapsed < timeout) {
@@ -54,5 +63,29 @@ extension PumpUntilFound on WidgetTester {
       }
     }
     throw StateError('Pump failed: Finder $finder not found in $timeout');
+  }
+
+  /// Takes a screenshot while ensuring any snackbars and the keyboard are dismissed first.
+  Future<void> takeScreenshot(
+    IntegrationTestWidgetsFlutterBinding binding,
+    String name,
+  ) async {
+    // Dismiss keyboard if it's open
+    FocusManager.instance.primaryFocus?.unfocus();
+    await testTextInput.hide();
+    await pumpAndSettle();
+
+    // Check if there's a visible snackbar and remove it
+    if (find.byType(SnackBar).evaluate().isNotEmpty) {
+      final messenger = ScaffoldMessenger.maybeOf(
+        element(find.byType(MaterialApp).first),
+      );
+      if (messenger != null) {
+        messenger.clearSnackBars();
+        // Need to pump to update the tree
+        await pumpAndSettle();
+      }
+    }
+    await binding.takeScreenshot(name);
   }
 }

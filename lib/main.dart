@@ -116,6 +116,7 @@ class _AttendanceAppState extends State<AttendanceApp>
       builder: (context, child) {
         return MaterialApp(
           title: 'Attendance',
+          debugShowCheckedModeBanner: false,
           themeMode: widget.themeController.themeMode,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(

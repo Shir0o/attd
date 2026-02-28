@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 
 import '../utils/test_utils.dart';
 
@@ -17,6 +18,20 @@ class AttendanceRobot {
   Future<void> markAbsent() async {
     // Tap the cross button
     await tester.tap(find.byKey(const Key('absentButton')));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> swipeRight() async {
+    // Swipe right to mark present
+    final cardFinder = find.byType(SwipeableCard);
+    await tester.drag(cardFinder, const Offset(500, 0));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> swipeLeft() async {
+    // Swipe left to mark absent
+    final cardFinder = find.byType(SwipeableCard);
+    await tester.drag(cardFinder, const Offset(-500, 0));
     await tester.pumpAndSettle();
   }
 
