@@ -46,15 +46,15 @@ class DriveService extends ChangeNotifier {
       final String nonce = base64Url.encode(
         utf8.encode(DateTime.now().toIso8601String()),
       );
+      final plugin = AppDeviceIntegrity();
       if (Platform.isAndroid) {
-        await AppDeviceIntegrity.android.requestPlayIntegrityToken(
-          nonce: nonce,
-          cloudProjectNumber: 995280441940,
+        await plugin.getAttestationServiceSupport(
+          challengeString: nonce,
+          gcp: 995280441940,
         );
       } else if (Platform.isIOS) {
-        await AppDeviceIntegrity.ios.attestKey(
-          keyId: 'attd_ios_key',
-          clientDataHash: nonce,
+        await plugin.getAttestationServiceSupport(
+          challengeString: nonce,
         );
       }
       print('App Integrity check passed.');
@@ -714,18 +714,28 @@ class DriveService extends ChangeNotifier {
 
     await localFile.writeAsBytes(dataStore);
 
-    // Update local modified time to match remote?
-    // Or just leave it as 'now' which means local becomes newer immediately?
-    // If we leave it as 'now', next sync will think local is newer and upload it back.
-    // This is a common issue.
-    // Ideally we set local modified time to remote modified time.
-    // Dart File API setLastModified is available.
-
     final remoteFile =
         await _driveApi!.files.get(fileId, $fields: 'modifiedTime')
             as drive.File;
     if (remoteFile.modifiedTime != null) {
       await localFile.setLastModified(remoteFile.modifiedTime!);
     }
+  }
+
+  @visibleForTesting
+  List<dynamic> testMergeJsonLists(
+    List<dynamic> local,
+    List<dynamic> remote,
+    String fileName,
+  ) {
+    return _mergeJsonLists(local, remote, fileName);
+  }
+
+  @visibleForTesting
+  Map<String, dynamic> testMergeHistoryMaps(
+    Map<String, dynamic> local,
+    Map<String, dynamic> remote,
+  ) {
+    return _mergeHistoryMaps(local, remote);
   }
 }
