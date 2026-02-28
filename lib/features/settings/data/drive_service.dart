@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:archive/archive_io.dart';
-import 'package:flutter_play_integrity_wrapper/flutter_play_integrity_wrapper.dart';
+import 'package:app_device_integrity/app_device_integrity.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -42,19 +42,24 @@ class DriveService extends ChangeNotifier {
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
   Future<void> _checkIntegrity() async {
-    if (!Platform.isAndroid) return;
     try {
       final String nonce = base64Url.encode(
         utf8.encode(DateTime.now().toIso8601String()),
       );
-      await FlutterPlayIntegrityWrapper.requestIntegrityToken(
-        nonce: nonce,
-        cloudProjectNumber: YOUR_GOOGLE_PROJECT_NUMBER,
-      );
-      print('Play Integrity check passed.');
+      if (Platform.isAndroid) {
+        await AppDeviceIntegrity.android.requestPlayIntegrityToken(
+          nonce: nonce,
+          cloudProjectNumber: YOUR_GOOGLE_PROJECT_NUMBER,
+        );
+      } else if (Platform.isIOS) {
+        await AppDeviceIntegrity.ios.attestKey(
+          keyId: 'attd_ios_key',
+          clientDataHash: nonce,
+        );
+      }
+      print('App Integrity check passed.');
     } catch (e) {
-      print('Play Integrity check failed: $e');
-      // We don't block sync for now, but we could in the future for higher security.
+      print('App Integrity check failed: $e');
     }
   }
 
