@@ -1,4 +1,4 @@
-package com.attendance.tracker
+package com.attd.tracker
 
 import io.flutter.embedding.android.FlutterActivity
 
