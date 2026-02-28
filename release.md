@@ -1,3 +1,9 @@
+# 1.0.4+5
+*   **Release Stability**:
+    *   Fixed `AppDeviceIntegrity` API mismatch in `DriveService` to align with package version 1.1.0.
+    *   Resolved build errors in `GeneratedPluginRegistrant` for Android release.
+    *   Successfully verified and produced production-ready release builds for both Android (App Bundle) and iOS.
+
 # 1.0.3+4
 *   **Production Readiness**:
     *   Renamed package to `com.attd.tracker` to resolve Play Store naming conflicts.
