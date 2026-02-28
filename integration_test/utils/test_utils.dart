@@ -72,7 +72,6 @@ extension PumpUntilFound on WidgetTester {
   ) async {
     // Dismiss keyboard if it's open
     FocusManager.instance.primaryFocus?.unfocus();
-    testTextInput.hide();
     await pumpAndSettle();
 
     // Check if there's a visible snackbar and remove it
