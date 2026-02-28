@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:archive/archive_io.dart';
-import 'package:google_play_integrity/google_play_integrity.dart';
+import 'package:flutter_play_integrity_wrapper/flutter_play_integrity_wrapper.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -47,11 +47,9 @@ class DriveService extends ChangeNotifier {
       final String nonce = base64Url.encode(
         utf8.encode(DateTime.now().toIso8601String()),
       );
-      await PlayIntegrity.requestIntegrityToken(
-        RequestIntegrityTokenRequest(
-          cloudProjectNumber: YOUR_GOOGLE_PROJECT_NUMBER,
-          nonce: nonce,
-        ),
+      await FlutterPlayIntegrityWrapper.requestIntegrityToken(
+        nonce: nonce,
+        cloudProjectNumber: YOUR_GOOGLE_PROJECT_NUMBER,
       );
       print('Play Integrity check passed.');
     } catch (e) {
