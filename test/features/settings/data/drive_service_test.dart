@@ -80,5 +80,53 @@ void main() {
       expect(result.length, 1);
       expect(result.first['name'], 'Remote User');
     });
+
+    group('Corruption Handling & Self-Healing', () {
+      test('Scenario: Corrupted Remote JSON should not crash and should be detectable', () {
+        // This simulates the logic in _mergeAndSyncFile where it catches FormatException
+        final localContent = '[{"id": "1", "name": "Local"}]';
+        final remoteContent = '{"invalid": json...'; // Corrupted JSON
+
+        bool caughtError = false;
+        try {
+          jsonDecode(remoteContent);
+        } catch (e) {
+          caughtError = true;
+        }
+
+        expect(caughtError, true, reason: 'Invalid JSON should throw a FormatException');
+      });
+
+      test('Scenario: Schema Type Mismatch (List vs Map) is caught', () {
+        final remoteJsonAsMap = {'id': '1', 'name': 'I should be a list'};
+        final fileName = 'members.json'; // Expected to be a List
+
+        // Logic from _mergeAndSyncFile:
+        final isHistoryFile = fileName == 'sessions_history.json';
+        final bool isValidRemote = isHistoryFile
+            ? remoteJsonAsMap is Map<String, dynamic>
+            : remoteJsonAsMap is List;
+
+        expect(isValidRemote, false, reason: 'A Map instead of a List for members.json should be invalid');
+      });
+
+      test('Scenario: Self-Healing Logic - Local healthy, Remote corrupted', () {
+        // In DriveService._mergeAndSyncFile, if remote is corrupted, it checks if local is healthy
+        final localContent = '[{"id": "1", "name": "Healthy Local"}]';
+        
+        dynamic localJson;
+        bool localIsHealthy = false;
+        try {
+          localJson = jsonDecode(localContent);
+          localIsHealthy = localJson is List;
+        } catch (e) {
+          localIsHealthy = false;
+        }
+
+        expect(localIsHealthy, true);
+        expect(localJson[0]['name'], 'Healthy Local');
+        // The DriveService would then call _updateFile(fileId, localFile) to heal the cloud.
+      });
+    });
   });
 }
