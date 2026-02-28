@@ -634,35 +634,83 @@ class _EventCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isToday)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (isToday)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                                child: Text(
                                   'TODAY',
                                   style: TextStyle(
                                     color: onPrimaryColor,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
-                              ],
+                              ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: secondaryContainerColor,
+                                borderRadius: BorderRadius.circular(28),
+                                border: Border.all(
+                                  color: onSurfaceVariantColor.withOpacity(0.1),
+                                ),
+                              ),
+                              child: Text(
+                                event.frequency == 'One-time'
+                                    ? (event.oneTimeDate != null
+                                        ? DateFormat('MMM d')
+                                            .format(event.oneTimeDate!)
+                                        : 'Once')
+                                    : event.repeatingDays.isNotEmpty
+                                        ? (() {
+                                          final sortedDays =
+                                              List<String>.from(
+                                                event.repeatingDays,
+                                              );
+                                          final dayOrder = [
+                                            'Monday',
+                                            'Tuesday',
+                                            'Wednesday',
+                                            'Thursday',
+                                            'Friday',
+                                            'Saturday',
+                                            'Sunday',
+                                          ];
+                                          sortedDays.sort(
+                                            (a, b) => dayOrder.indexOf(a)
+                                                .compareTo(dayOrder.indexOf(b)),
+                                          );
+                                          return sortedDays
+                                              .map((d) => d.substring(0, 3))
+                                              .join(', ');
+                                        })()
+                                        : event.frequency,
+                                style: TextStyle(
+                                  color: onSurfaceVariantColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          )
-                        else
-                          const SizedBox(height: 34), // Spacer
-
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           event.title,
                           style: TextStyle(
