@@ -1,3 +1,12 @@
+# 1.0.3+4
+*   **Production Readiness**:
+    *   Renamed package to `com.attd.tracker` to resolve Play Store naming conflicts.
+    *   Purged Firebase/Google secrets and identifiers from codebase and git history.
+    *   Integrated Google Play Integrity API to enhance app security and resolve authentication issues.
+    *   Enabled R8 code shrinking and resource optimization for Android release builds.
+    *   Hosted official Privacy Policy via GitHub Pages at `https://shir0o.github.io/attd/`.
+    *   Added synchronization disclaimers to the Settings UI for better user transparency.
+
 # 1.0.2+3
 *   **Hub & Events Overhaul**:
     *   Replaced the numerical presence count on event cards with a smarter "Attendance Status" (e.g., "Taken today", "Missed (Feb 23)").
