@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:archive/archive_io.dart';
+import 'package:google_play_integrity/google_play_integrity.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -40,8 +41,28 @@ class DriveService extends ChangeNotifier {
   DateTime? get lastSyncTime => _lastSyncTime;
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
 
+  Future<void> _checkIntegrity() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final String nonce = base64Url.encode(
+        utf8.encode(DateTime.now().toIso8601String()),
+      );
+      await PlayIntegrity.requestIntegrityToken(
+        RequestIntegrityTokenRequest(
+          cloudProjectNumber: 995280441940,
+          nonce: nonce,
+        ),
+      );
+      print('Play Integrity check passed.');
+    } catch (e) {
+      print('Play Integrity check failed: $e');
+      // We don't block sync for now, but we could in the future for higher security.
+    }
+  }
+
   Future<void> signIn() async {
     try {
+      await _checkIntegrity();
       await _googleSignIn.signIn();
       await _initDriveApi();
       notifyListeners();
@@ -213,6 +234,8 @@ class DriveService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await _checkIntegrity();
+
       if (_driveApi == null) {
         // Try to initialize silently if signed in
         if (_googleSignIn.currentUser != null) {
