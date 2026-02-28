@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
 
 // No direct import of test_utils needed here if not using extension directly on tester within class methods,
 // but we will use pumpUntilFound which is an extension on WidgetTester defined in test_utils.
@@ -16,12 +17,21 @@ class HubRobot {
   }
 
   Future<void> tapFab() async {
-    await tester.tap(find.byType(FloatingActionButton));
+    final fabFinder = find.byKey(const ValueKey('hub_fab'));
+    await tester.pumpUntilFound(fabFinder);
+    
+    // Ensure the FAB is in view and settled
+    await tester.ensureVisible(fabFinder);
+    await tester.pumpAndSettle();
+    
+    await tester.tap(fabFinder);
     await tester.pumpAndSettle();
   }
 
   Future<void> tapSettings() async {
-    await tester.tap(find.byIcon(Icons.settings));
+    final finder = find.byIcon(Icons.settings);
+    await tester.pumpUntilFound(finder);
+    await tester.tap(finder);
     await tester.pumpAndSettle();
   }
 
@@ -36,8 +46,10 @@ class HubRobot {
 
   Future<void> tapEventMenu(String title) async {
     // Finding the specific menu icon for a card with 'title'
-    // We look for a Card widget that contains the text 'title', then find the menu icon inside it.
-    final cardFinder = find.widgetWithText(Card, title);
+    final textFinder = find.text(title);
+    await tester.pumpUntilFound(textFinder);
+
+    final cardFinder = find.ancestor(of: textFinder, matching: find.byType(Card));
     final menuFinder = find.descendant(of: cardFinder, matching: find.byIcon(Icons.more_vert));
 
     await tester.tap(menuFinder);
