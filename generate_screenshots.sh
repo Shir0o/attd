@@ -17,10 +17,24 @@ EMULATORS=(
 )
 
 # Order to process them
-ORDER=("Small_Phone" "Nexus_7" "Pixel_Tablet")
+# If an argument is provided, only process that emulator
+if [ -n "$1" ]; then
+  ORDER=("$1")
+else
+  ORDER=("Small_Phone" "Nexus_7" "Pixel_Tablet")
+fi
 
 for emu_id in "${ORDER[@]}"; do
-  output_dir="screenshots/${EMULATORS[$emu_id]}"
+  # In Zsh, accessing associative array is straightforward
+  dir_name="${EMULATORS[$emu_id]}"
+  
+  if [ -z "$dir_name" ]; then
+    echo "Unknown emulator ID: $emu_id"
+    continue
+  fi
+
+  output_dir="screenshots/$dir_name"
+  mkdir -p "$output_dir"
   
   echo "---------------------------------------------------"
   echo "Processing $emu_id -> $output_dir"
@@ -32,7 +46,6 @@ for emu_id in "${ORDER[@]}"; do
 
   # 2. Wait for the emulator to be detected by ADB
   echo "Waiting for device to appear in ADB..."
-  # We look for the first emulator ID (usually emulator-5554)
   device_id=""
   count=0
   while [ -z "$device_id" ]; do
@@ -40,18 +53,32 @@ for emu_id in "${ORDER[@]}"; do
     count=$((count + 5))
     echo "  Still waiting for ADB... (${count}s)"
     device_id=$(adb devices | grep 'emulator' | grep 'device$' | awk '{print $1}' | head -n 1)
+    
+    if [ $count -gt 120 ]; then
+      echo "Timeout waiting for ADB. Skipping $emu_id."
+      break
+    fi
   done
+
+  if [ -z "$device_id" ]; then continue; fi
 
   echo "Device $device_id detected. Waiting for boot to complete..."
   
-  # 3. Wait for the Android system to report boot_completed
-  # This is much more reliable than a simple sleep
   boot_completed=""
+  count=0
   while [ "$boot_completed" != "1" ]; do
     sleep 5
+    count=$((count + 5))
     boot_completed=$(adb -s "$device_id" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
     echo "  Still booting... (status: ${boot_completed:-0})"
+    
+    if [ $count -gt 180 ]; then
+      echo "Timeout waiting for boot. Skipping $emu_id."
+      break
+    fi
   done
+
+  if [ "$boot_completed" != "1" ]; then continue; fi
 
   echo "Boot complete! Giving system UI 20 seconds to fully settle..."
   sleep 20
@@ -68,7 +95,6 @@ for emu_id in "${ORDER[@]}"; do
   echo "Running integration tests on $device_id..."
   export SCREENSHOT_DIR="$output_dir"
   
-  # Use the specific device ID we found to ensure flutter drive picks the right one
   flutter drive \
     -d "$device_id" \
     --driver=test_driver/screenshot_driver.dart \

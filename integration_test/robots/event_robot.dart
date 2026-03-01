@@ -38,15 +38,16 @@ class EventRobot {
   }
 
   Future<void> save() async {
-    final buttonFinder = find.widgetWithText(ElevatedButton, 'Create Event');
+    final buttonFinder = find.byKey(const ValueKey('save_event_button'));
     await tester.pumpUntilFound(buttonFinder);
-    await tester.ensureVisible(buttonFinder);
     await tester.tap(buttonFinder.last);
     await tester.pumpAndSettle();
   }
 
   Future<void> update() async {
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Save Changes').last);
+    final buttonFinder = find.byKey(const ValueKey('save_event_button'));
+    await tester.pumpUntilFound(buttonFinder);
+    await tester.tap(buttonFinder.last);
     await tester.pumpAndSettle();
   }
 
