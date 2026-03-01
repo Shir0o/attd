@@ -236,271 +236,268 @@ class _AddEventPageState extends State<AddEventPage> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: RepaintBoundary(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 600),
-                    child: Column(
-                      key: ValueKey(_isLoading),
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Event Name
-                        _isLoading
-                            ? _buildSkeletonInput(showRequired: true)
-                            : _buildInputContainer(
-                                label: 'Event Name',
-                                child: TextFormField(
-                                  controller: _nameController,
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                    contentPadding: EdgeInsets.zero,
-                                    hintText: 'Enter event name',
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter an event name';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                backgroundColor: colorScheme.surfaceContainerHigh,
-                                onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                                textColor: colorScheme.onSurface,
-                              ),
-                        if (!_isLoading)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              left: 16,
-                              top: 4,
-                              bottom: 24,
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: RepaintBoundary(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 600),
+              child: Column(
+                key: ValueKey(_isLoading),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Event Name
+                  _isLoading
+                      ? _buildSkeletonInput(showRequired: true)
+                      : _buildInputContainer(
+                          label: 'Event Name',
+                          child: TextFormField(
+                            controller: _nameController,
+                            textCapitalization:
+                                TextCapitalization.sentences,
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: colorScheme.onSurface,
                             ),
-                            child: Text(
-                              'Required',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                              hintText: 'Enter event name',
                             ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter an event name';
+                              }
+                              return null;
+                            },
                           ),
+                          backgroundColor: colorScheme.surfaceContainerHigh,
+                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                          textColor: colorScheme.onSurface,
+                        ),
+                  if (!_isLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        top: 4,
+                        bottom: 24,
+                      ),
+                      child: Text(
+                        'Required',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
 
-                        // Event Time
-                        _isLoading
-                            ? _buildSkeletonInput()
-                            : GestureDetector(
-                                onTap: () => _selectTime(context),
-                                child: _buildInputContainer(
-                                  label: 'Event Time',
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _selectedTime.format(context),
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            color: colorScheme.onSurface,
-                                          ),
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.schedule,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ],
-                                  ),
-                                  backgroundColor: colorScheme.surfaceContainerHigh,
-                                  onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                                  textColor: colorScheme.onSurface,
-                                ),
-                              ),
-                        const SizedBox(height: 24),
-
-                        // Frequency
-                        _isLoading
-                            ? _buildSkeletonInput()
-                            : _buildInputContainer(
-                                label: 'Frequency',
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: _frequency,
-                                    isExpanded: true,
-                                    icon: Icon(
-                                      Icons.arrow_drop_down,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                  // Event Time
+                  _isLoading
+                      ? _buildSkeletonInput()
+                      : GestureDetector(
+                          onTap: () => _selectTime(context),
+                          child: _buildInputContainer(
+                            label: 'Event Time',
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _selectedTime.format(context),
                                     style: TextStyle(
                                       fontSize: 18,
                                       color: colorScheme.onSurface,
                                     ),
-                                    onChanged: (String? newValue) {
-                                      if (newValue != null) {
-                                        setState(() {
-                                          _frequency = newValue;
-                                        });
-                                      }
-                                    },
-                                    items: _frequencies
-                                        .map<DropdownMenuItem<String>>((
-                                          String value,
-                                        ) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        })
-                                        .toList(),
                                   ),
                                 ),
-                                backgroundColor: colorScheme.surfaceContainerHigh,
-                                onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                                textColor: colorScheme.onSurface,
-                              ),
-
-                        const SizedBox(height: 24),
-
-                        // Day / Date
-                        if (_isLoading)
-                          _buildSkeletonInput()
-                        else if (_frequency == 'One-time')
-                          GestureDetector(
-                            onTap: () => _selectDate(context),
-                            child: _buildInputContainer(
-                              label: 'Date',
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat(
-                                        'yyyy-MM-dd',
-                                      ).format(_selectedDate),
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        color: colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.calendar_today,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ],
-                              ),
-                              backgroundColor: colorScheme.surfaceContainerHigh,
-                              onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                              textColor: colorScheme.onSurface,
+                                Icon(
+                                  Icons.schedule,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ],
                             ),
-                          )
-                        else
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(left: 16, bottom: 8),
-                                child: Text(
-                                  'Repeats on',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: colorScheme.onSurfaceVariant,
+                            backgroundColor: colorScheme.surfaceContainerHigh,
+                            onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                            textColor: colorScheme.onSurface,
+                          ),
+                        ),
+                  const SizedBox(height: 24),
+
+                  // Frequency
+                  _isLoading
+                      ? _buildSkeletonInput()
+                      : _buildInputContainer(
+                          label: 'Frequency',
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _frequency,
+                              isExpanded: true,
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: colorScheme.onSurface,
+                              ),
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _frequency = newValue;
+                                  });
+                                }
+                              },
+                              items: _frequencies
+                                  .map<DropdownMenuItem<String>>((
+                                    String value,
+                                  ) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(value),
+                                    );
+                                  })
+                                  .toList(),
+                            ),
+                          ),
+                          backgroundColor: colorScheme.surfaceContainerHigh,
+                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                          textColor: colorScheme.onSurface,
+                        ),
+
+                  const SizedBox(height: 24),
+
+                  // Day / Date
+                  if (_isLoading)
+                    _buildSkeletonInput()
+                  else if (_frequency == 'One-time')
+                    GestureDetector(
+                      onTap: () => _selectDate(context),
+                      child: _buildInputContainer(
+                        label: 'Date',
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                DateFormat(
+                                  'yyyy-MM-dd',
+                                ).format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.calendar_today,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                        backgroundColor: colorScheme.surfaceContainerHigh,
+                        onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                        textColor: colorScheme.onSurface,
+                      ),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, bottom: 8),
+                          child: Text(
+                            'Repeats on',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceEvenly,
+                          children: List.generate(_daysOfWeek.length, (
+                            index,
+                          ) {
+                            final dayName = _daysOfWeek[index];
+                            final isSelected = _selectedDays.contains(
+                              dayName,
+                            );
+                            final label = dayName.substring(0, 1);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedDays.remove(dayName);
+                                  } else {
+                                    _selectedDays.add(dayName);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.surfaceContainerHigh,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? colorScheme.onPrimary
+                                          : colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
                               ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: List.generate(_daysOfWeek.length, (
-                                  index,
-                                ) {
-                                  final dayName = _daysOfWeek[index];
-                                  final isSelected = _selectedDays.contains(
-                                    dayName,
-                                  );
-                                  final label = dayName.substring(0, 1);
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        if (isSelected) {
-                                          _selectedDays.remove(dayName);
-                                        } else {
-                                          _selectedDays.add(dayName);
-                                        }
-                                      });
-                                    },
-                                    child: Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: isSelected
-                                            ? colorScheme.primary
-                                            : colorScheme.surfaceContainerHigh,
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          label,
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? colorScheme.onPrimary
-                                                : colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ],
-                          ),
+                            );
+                          }),
+                        ),
                       ],
                     ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: Hero(
+              tag: 'fab',
+              child: ElevatedButton(
+                key: const ValueKey('save_event_button'),
+                onPressed: _saveEvent,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                ),
+                child: Text(
+                  isEditing ? 'Save Changes' : 'Create Event',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: Hero(
-                tag: 'fab',
-                child: ElevatedButton(
-                  onPressed: _saveEvent,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: Text(
-                    isEditing ? 'Save Changes' : 'Create Event',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

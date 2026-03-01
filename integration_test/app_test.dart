@@ -33,6 +33,7 @@ void main() {
 
       // Screenshot 1: Hub (Initial Empty State)
       await tester.takeScreenshot(binding, '01_hub_empty');
+      await tester.pumpAndSettle();
 
       // 2. Add Family & Members via Settings
       // Start from Hub
@@ -43,6 +44,7 @@ void main() {
 
       // Screenshot 2: Members Page
       await tester.takeScreenshot(binding, '02_members_page');
+      await tester.pumpAndSettle();
 
       // On Members Page (Flattened)
       await members.addMember('John Doe');
@@ -64,30 +66,36 @@ void main() {
       
       // Screenshot 3: Event Creation
       await tester.takeScreenshot(binding, '03_event_creation');
+      await tester.pumpAndSettle();
 
       // Default day is today, which is fine
       await event.save();
+      await tester.pumpAndSettle();
 
       await hub.verifyEventCard('Table Meeting');
       await tester.pumpAndSettle();
 
       // Screenshot 4: Hub with Event
       await tester.takeScreenshot(binding, '04_hub_one_event');
+      await tester.pumpAndSettle();
 
       // Create Event 2: Hall Cleaning (to show a list)
       await hub.tapFab();
       await event.enterName('Hall Cleaning');
       await event.selectFrequency('Monthly');
       await event.save();
+      await tester.pumpAndSettle();
 
       await hub.verifyEventCard('Hall Cleaning');
       await tester.pumpAndSettle();
 
       // Screenshot 5: Hub with List
       await tester.takeScreenshot(binding, '05_hub_multiple_events');
+      await tester.pumpAndSettle();
 
       // 4. Start Session for Table Meeting
       await hub.tapEventCard('Table Meeting');
+      await tester.pumpAndSettle();
 
       // 5. Mark Attendance
       // Should see member cards
@@ -95,6 +103,7 @@ void main() {
 
       // Screenshot 6: Attendance Deck
       await tester.takeScreenshot(binding, '06_attendance_taking');
+      await tester.pumpAndSettle();
 
       await attendance.markPresent(); // Mark John Doe present
       await attendance.markAbsent();  // Mark Jane Smith absent
@@ -110,9 +119,11 @@ void main() {
 
       // Screenshot 7: Session Summary
       await tester.takeScreenshot(binding, '07_session_summary');
+      await tester.pumpAndSettle();
 
       // 7. Finish Session
       await attendance.finishSession(); // This goes back to Hub
+      await tester.pumpAndSettle();
 
       // 8. Verify Hub Stats
       // Should see updated stats on the card
@@ -122,6 +133,7 @@ void main() {
 
       // Screenshot 8: Hub Updated (Show stats)
       await tester.takeScreenshot(binding, '08_hub_with_stats');
+      await tester.pumpAndSettle();
 
       // Cleanup
       if (await tempDir.exists()) {
@@ -158,6 +170,7 @@ void main() {
       await members.addMember('David Miller');
 
       await tester.takeScreenshot(binding, '09_swipe_members_added');
+      await tester.pumpAndSettle();
 
       // Back to Hub
       await tester.tap(find.byType(BackButton).last);
@@ -170,19 +183,24 @@ void main() {
       await event.enterName('Community Gathering');
       await event.selectFrequency('One-time');
       await event.save();
+      await tester.pumpAndSettle();
 
       await hub.verifyEventCard('Community Gathering');
       await tester.pumpAndSettle();
       
       // Screenshot 10: Hub before swipe session
       await tester.takeScreenshot(binding, '10_hub_before_swipe');
+      await tester.pumpAndSettle();
 
       // 4. Start Session
       await hub.tapEventCard('Community Gathering');
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
       await tester.pumpUntilFound(find.text('Alice Adams'));
+      await tester.pumpAndSettle();
       
       // Screenshot 11: Swipe Deck Start
       await tester.takeScreenshot(binding, '11_swipe_start');
+      await tester.pumpAndSettle();
 
       // 5. Use swipe gestures
       // Swipe Alice present
@@ -205,18 +223,17 @@ void main() {
 
       // Screenshot 12: Swipe Summary
       await tester.takeScreenshot(binding, '12_swipe_summary');
+      await tester.pumpAndSettle();
 
       // 7. Finish
       await attendance.finishSession();
+      await tester.pumpAndSettle();
       await hub.verifyEventCard('Community Gathering');
       await tester.pumpAndSettle();
 
       // Screenshot 13: Hub Final Swipe
       await tester.takeScreenshot(binding, '13_hub_final_swipe');
-
-      // 7. Finish
-      await attendance.finishSession();
-      await hub.verifyEventCard('Community Gathering');
+      await tester.pumpAndSettle();
 
       if (await tempDir.exists()) {
           await tempDir.delete(recursive: true);
