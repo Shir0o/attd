@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
 
 // No direct import of test_utils needed here if not using extension directly on tester within class methods,
 // but we will use pumpUntilFound which is an extension on WidgetTester defined in test_utils.
