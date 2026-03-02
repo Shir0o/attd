@@ -10,6 +10,7 @@ import 'package:app_device_integrity/app_device_integrity.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
@@ -33,13 +34,29 @@ class DriveService extends ChangeNotifier {
   bool _isSyncing = false;
   String? _appFolderId;
   String? _backupFolderId;
+  bool _isDriveSyncEnabled = false;
 
   static const String _syncFolderName = 'Attendance Tracker Data';
   static const String _backupFolderName = 'Backups';
+  static const String _syncEnabledKey = 'drive_sync_enabled';
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
+  bool get isDriveSyncEnabled => _isDriveSyncEnabled;
+
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isDriveSyncEnabled = prefs.getBool(_syncEnabledKey) ?? false;
+    
+    if (_isDriveSyncEnabled) {
+      await signInSilently();
+      if (currentUser != null) {
+        // Only trigger sync if we successfully signed in
+        syncFiles().catchError((e) => print('Initial sync failed: $e'));
+      }
+    }
+  }
 
   Future<void> _checkIntegrity() async {
     try {
@@ -68,6 +85,9 @@ class DriveService extends ChangeNotifier {
       await _checkIntegrity();
       await _googleSignIn.signIn();
       await _initDriveApi();
+      _isDriveSyncEnabled = true;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_syncEnabledKey, true);
       notifyListeners();
     } catch (e) {
       print('Sign in failed: $e');
@@ -92,6 +112,9 @@ class DriveService extends ChangeNotifier {
     _driveApi = null;
     _appFolderId = null;
     _backupFolderId = null;
+    _isDriveSyncEnabled = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_syncEnabledKey, false);
     notifyListeners();
   }
 

@@ -61,11 +61,11 @@ class _AddEventPageState extends State<AddEventPage> {
       _nameController = TextEditingController();
       _selectedTime = const TimeOfDay(hour: 10, minute: 0);
       _frequency = 'Weekly';
-      _selectedDate = DateTime.now();
+      final now = DateTime.now();
+      _selectedDate = DateTime(now.year, now.month, now.day);
       _selectedDays = {};
 
       // Set default day(s) to current day
-      final now = DateTime.now();
       int index = now.weekday == 7 ? 0 : now.weekday;
       if (index >= 0 && index < _daysOfWeek.length) {
         _selectedDays.add(_daysOfWeek[index]);

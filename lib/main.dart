@@ -37,10 +37,8 @@ Future<void> main() async {
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,
   );
-  // Restore sync session silently
-  await driveService.signInSilently();
-  // Trigger automatic background sync on startup
-  driveService.syncFiles();
+  // Restore sync session and trigger initial sync if enabled
+  await driveService.init();
 
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);

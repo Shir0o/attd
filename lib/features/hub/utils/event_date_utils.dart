@@ -38,7 +38,12 @@ DateTime getLastSupposedOccurrence(Event event, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
 
   if (event.frequency == 'One-time') {
-    return event.oneTimeDate ?? today;
+    if (event.oneTimeDate == null) return today;
+    return DateTime(
+      event.oneTimeDate!.year,
+      event.oneTimeDate!.month,
+      event.oneTimeDate!.day,
+    );
   }
 
   final Map<String, int> weekdays = {

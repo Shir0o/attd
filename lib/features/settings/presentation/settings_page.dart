@@ -259,7 +259,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: Icons.sync,
                         title: 'Sync Now',
                         subtitle: isSyncing
-                            ? 'Syncing...'
+                            ? 'Syncing... this may take a while'
                             : 'Manually trigger a cloud sync',
                         trailing: isSyncing
                             ? const SizedBox(
@@ -302,15 +302,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: TextStyle(
                         fontSize: 14,
                         color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Note: Manual synchronization and data integrity verification may take a few moments to complete. Please maintain a stable network connection during the process.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ],
