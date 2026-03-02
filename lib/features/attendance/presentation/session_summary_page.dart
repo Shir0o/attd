@@ -35,7 +35,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   Future<void> _refreshLatest() async {
     final startTime = DateTime.now();
-    
+
     final latest = await widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
@@ -200,7 +200,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           leading: IconButton(
                             icon: const Icon(Icons.arrow_back),
                             color: colorScheme.onSurface,
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () =>
+                                Navigator.of(context).pop(_currentSession),
                           ),
                           title: Text(
                             _currentSession.title.trim(),
@@ -355,7 +356,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         // Present List
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final member = presentMembers[index];
                             return _MemberListItem(
                               member: member,
@@ -377,7 +381,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         // Absent List
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final member = absentMembers[index];
                             return _MemberListItem(
                               member: member,
@@ -414,24 +421,25 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
               child: Hero(
                 tag: 'fab',
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 72),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(36),
-                    ),
-                    elevation: 4,
-                  ).copyWith(
-                    overlayColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.pressed)) {
-                        return colorScheme.onPrimary.withValues(alpha: 0.2);
-                      }
-                      return null;
-                    }),
-                  ),
+                  onPressed: () => Navigator.of(context).pop(_currentSession),
+                  style:
+                      ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        minimumSize: const Size(double.infinity, 72),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(36),
+                        ),
+                        elevation: 4,
+                      ).copyWith(
+                        overlayColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.pressed)) {
+                            return colorScheme.onPrimary.withValues(alpha: 0.2);
+                          }
+                          return null;
+                        }),
+                      ),
                   child: const Text(
                     'Finalize Report',
                     style: TextStyle(
@@ -458,11 +466,32 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         // Fake AppBar
         Row(
           children: [
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+            ),
             const Spacer(),
-            Container(width: 120, height: 20, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(
+              width: 120,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
             const Spacer(),
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -489,8 +518,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(width: 180, height: 24, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
-            Container(width: 60, height: 14, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(
+              width: 180,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Container(
+              width: 60,
+              height: 14,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -566,15 +609,14 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
         ),
         width: double.infinity,
         padding: const EdgeInsets.only(bottom: 8),
-                 child: Text(
-                   title,
-                   style: TextStyle(
-                     color: color,
-                     fontSize: 16,
-                     fontWeight: FontWeight.w500,
-                   ),
-                 ),
-        
+        child: Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
