@@ -200,7 +200,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           leading: IconButton(
                             icon: const Icon(Icons.arrow_back),
                             color: colorScheme.onSurface,
-                            onPressed: () => Navigator.of(context).pop(_currentSession),
+                            onPressed: () =>
+                                Navigator.of(context).pop(_currentSession),
                           ),
                           title: Text(
                             _currentSession.title.trim(),
