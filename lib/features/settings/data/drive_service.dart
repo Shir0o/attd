@@ -39,6 +39,7 @@ class DriveService extends ChangeNotifier {
   static const String _syncFolderName = 'Attendance Tracker Data';
   static const String _backupFolderName = 'Backups';
   static const String _syncEnabledKey = 'drive_sync_enabled';
+  static const String _lastSyncTimeKey = 'drive_last_sync_time';
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
@@ -48,7 +49,11 @@ class DriveService extends ChangeNotifier {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _isDriveSyncEnabled = prefs.getBool(_syncEnabledKey) ?? false;
-    
+    final lastSyncStr = prefs.getString(_lastSyncTimeKey);
+    if (lastSyncStr != null) {
+      _lastSyncTime = DateTime.tryParse(lastSyncStr);
+    }
+
     if (_isDriveSyncEnabled) {
       await signInSilently();
       if (currentUser != null) {
@@ -70,9 +75,7 @@ class DriveService extends ChangeNotifier {
           gcp: YOUR_GOOGLE_PROJECT_NUMBER,
         );
       } else if (Platform.isIOS) {
-        await plugin.getAttestationServiceSupport(
-          challengeString: nonce,
-        );
+        await plugin.getAttestationServiceSupport(challengeString: nonce);
       }
       print('App Integrity check passed.');
     } catch (e) {
@@ -113,9 +116,17 @@ class DriveService extends ChangeNotifier {
     _appFolderId = null;
     _backupFolderId = null;
     _isDriveSyncEnabled = false;
+    _lastSyncTime = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_syncEnabledKey, false);
+    await prefs.remove(_lastSyncTimeKey);
     notifyListeners();
+  }
+
+  Future<void> _saveLastSyncTime(DateTime time) async {
+    _lastSyncTime = time;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastSyncTimeKey, time.toIso8601String());
   }
 
   Future<void> _initDriveApi() async {
@@ -208,7 +219,7 @@ class DriveService extends ChangeNotifier {
           }
         }
       }
-      _lastSyncTime = DateTime.now();
+      await _saveLastSyncTime(DateTime.now());
     } finally {
       _isSyncing = false;
       notifyListeners();
@@ -247,7 +258,7 @@ class DriveService extends ChangeNotifier {
         if (attendanceRepository != null) attendanceRepository!.refresh(),
         if (eventRepository != null) eventRepository!.refresh(),
       ]);
-      _lastSyncTime = DateTime.now();
+      await _saveLastSyncTime(DateTime.now());
     } finally {
       _isSyncing = false;
       notifyListeners();
@@ -315,7 +326,7 @@ class DriveService extends ChangeNotifier {
         }
       }
 
-      _lastSyncTime = DateTime.now();
+      await _saveLastSyncTime(DateTime.now());
       // Refresh repositories to reflect synced changes in UI
       await Future.wait([
         if (sessionRepository != null) sessionRepository!.refresh(),
@@ -325,8 +336,6 @@ class DriveService extends ChangeNotifier {
 
       // 3. Create Cloud Backup snapshot
       await _createCloudBackup(folderId, docsDir, filesToSync);
-
-      // TODO: Persist last sync time
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 403 &&
           e.message != null &&
@@ -670,7 +679,9 @@ class DriveService extends ChangeNotifier {
 
       final sortedVersions = mergedVersions.values.toList();
       // Sort newer first (descending version)
-      sortedVersions.sort((a, b) => (b['version'] as int).compareTo(a['version'] as int));
+      sortedVersions.sort(
+        (a, b) => (b['version'] as int).compareTo(a['version'] as int),
+      );
       merged[sessionId] = sortedVersions;
     }
 
