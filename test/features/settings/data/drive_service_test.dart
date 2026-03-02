@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -84,7 +83,6 @@ void main() {
     group('Corruption Handling & Self-Healing', () {
       test('Scenario: Corrupted Remote JSON should not crash and should be detectable', () {
         // This simulates the logic in _mergeAndSyncFile where it catches FormatException
-        final localContent = '[{"id": "1", "name": "Local"}]';
         final remoteContent = '{"invalid": json...'; // Corrupted JSON
 
         bool caughtError = false;
@@ -98,8 +96,8 @@ void main() {
       });
 
       test('Scenario: Schema Type Mismatch (List vs Map) is caught', () {
-        final remoteJsonAsMap = {'id': '1', 'name': 'I should be a list'};
-        final fileName = 'members.json'; // Expected to be a List
+        final dynamic remoteJsonAsMap = {'id': '1', 'name': 'I should be a list'};
+        const fileName = 'members.json'; // Expected to be a List
 
         // Logic from _mergeAndSyncFile:
         final isHistoryFile = fileName == 'sessions_history.json';

@@ -201,6 +201,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                       'This will replace all data on your Google Drive with the data currently on this device. Use this if you have deleted items that keep coming back.',
                                   confirmLabel: 'Overwrite',
                                 );
+                                if (!context.mounted) return;
                                 if (confirmed == true) {
                                   final messenger =
                                       ScaffoldMessenger.of(context);
@@ -235,6 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                       'This will replace all data on this device with the data from your Google Drive. Current local changes will be lost.',
                                   confirmLabel: 'Overwrite',
                                 );
+                                if (!context.mounted) return;
                                 if (confirmed == true) {
                                   final messenger =
                                       ScaffoldMessenger.of(context);

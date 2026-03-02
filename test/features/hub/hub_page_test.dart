@@ -155,7 +155,7 @@ void main() {
     );
 
     // Initial state
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    // (Removed expectation for CircularProgressIndicator which is now skeletons)
 
     final now = DateTime.now();
     final todayWeekday = DateFormat('EEEE').format(now);
@@ -289,7 +289,7 @@ void main() {
     );
 
     // Initial state
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    // (Removed expectation for CircularProgressIndicator which is now skeletons)
 
     final now = DateTime.now();
     final todayWeekday = DateFormat('EEEE').format(now);
