@@ -49,6 +49,7 @@ app.*.map.json
 # Integration Tests
 /screenshots/
 /test_driver/*.log
+**/failures/
 
 # Android Studio will place build artifacts here
 /android/app/debug
