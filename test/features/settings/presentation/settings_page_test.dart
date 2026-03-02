@@ -212,7 +212,13 @@ void main() {
       ),
     ));
 
-    await tester.tap(find.text('Version'));
+    // Scroll to the bottom of the list
+    final listViewFinder = find.byType(ListView);
+    await tester.drag(listViewFinder, const Offset(0, -2000));
+    await tester.pumpAndSettle();
+
+    final versionFinder = find.text('Version');
+    await tester.tap(versionFinder);
     await tester.pumpAndSettle();
 
     expect(find.byType(AboutDialog), findsOneWidget);
