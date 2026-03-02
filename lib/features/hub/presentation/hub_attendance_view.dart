@@ -224,6 +224,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         date.day == now.day;
   }
 
+  Widget _buildSkeleton(BuildContext context) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => const _EventSkeletonCard(),
+        childCount: 3,
+      ),
+    );
+  }
+
   bool _isEventToday(Event event) {
     final now = DateTime.now();
     if (event.frequency == 'One-time') {
@@ -344,9 +353,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     stream: _eventsStream,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SliverFillRemaining(
-                          child: Center(child: CircularProgressIndicator()),
-                        );
+                        return _buildSkeleton(context);
                       }
 
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -791,6 +798,89 @@ class _EventCard extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EventSkeletonCard extends StatelessWidget {
+  const _EventSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 0,
+        color: colorScheme.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          height: 200,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 80,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: colorScheme.onSurface.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: 200,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  Container(
+                    width: 120,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
                 ],
