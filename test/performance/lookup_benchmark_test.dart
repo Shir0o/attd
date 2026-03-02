@@ -29,7 +29,7 @@ class CounterSessionRepository implements SessionRepository {
     required String actor,
     required List<SessionRecord> records,
   }) async {
-    final s = Session(
+    return Session(
       id: 'session-1',
       eventId: eventId,
       title: title,
@@ -40,7 +40,6 @@ class CounterSessionRepository implements SessionRepository {
       createdBy: actor,
       currentVersion: 1,
     );
-    return s;
   }
 
   @override
@@ -151,7 +150,6 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now we should be on the AttendanceDeckPage.
-    // We need to pop it to trigger the cleanup logic.
     // The AttendanceDeckPage has a close button.
     final closeButton = find.byIcon(Icons.close);
     expect(closeButton, findsOneWidget);
@@ -159,7 +157,7 @@ void main() {
     await tester.pumpAndSettle();
 
     print('VERIFICATION: findSessionById was called ${sessionRepo.findSessionByIdCount} times');
-    // Expect 0 calls in the optimized implementation
+    // Expect 0 calls in the optimized implementation because the session is returned via pop
     expect(sessionRepo.findSessionByIdCount, 0);
   });
 }

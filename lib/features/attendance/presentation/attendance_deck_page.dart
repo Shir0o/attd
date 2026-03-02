@@ -143,17 +143,18 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddGuestSheet(
-        onAdd: (name, isPresent) {
-          _recordAttendance(
-            name,
-            isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
-          );
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('$name added')));
-        },
-      ),
+      builder:
+          (context) => AddGuestSheet(
+            onAdd: (name, isPresent) {
+              _recordAttendance(
+                name,
+                isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('$name added')));
+            },
+          ),
     );
   }
 
@@ -218,8 +219,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12, left: 16),
                     child: IconButton(
-                      onPressed: () =>
-                          Navigator.of(context).pop(_currentSession),
+                      onPressed: () => Navigator.of(context).pop(_currentSession),
                       icon: const Icon(Icons.close),
                       color: colorScheme.onSurfaceVariant,
                       tooltip: 'Cancel',
@@ -235,26 +235,21 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       onPressed: _showAddGuestSheet,
                       icon: const Icon(Icons.person_add, size: 20),
                       label: const Text('Add Guest'),
-                      style:
-                          OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.onSurfaceVariant,
-                            backgroundColor: colorScheme.surface,
-                            side: BorderSide(
-                              color: colorScheme.onSurfaceVariant.withValues(
-                                alpha: 0.2,
-                              ),
-                            ),
-                            shape: const StadiumBorder(),
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                          ).copyWith(
-                            elevation: WidgetStateProperty.all(
-                              2,
-                            ), // To mimic shadow-sm
-                            shadowColor: WidgetStateProperty.all(
-                              Colors.black12,
-                            ),
-                          ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorScheme.onSurfaceVariant,
+                        backgroundColor: colorScheme.surface,
+                        side: BorderSide(
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
+                        ),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                      ).copyWith(
+                        elevation: WidgetStateProperty.all(
+                          2,
+                        ), // To mimic shadow-sm
+                        shadowColor: WidgetStateProperty.all(Colors.black12),
+                      ),
                     ),
                   ),
                 ),
@@ -280,8 +275,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               scale: 0.9,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer
-                                      .withValues(alpha: 0.4),
+                                  color: colorScheme.surfaceContainer.withValues(
+                                    alpha: 0.4,
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: const [
                                     BoxShadow(
@@ -303,8 +299,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               scale: 0.95,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer
-                                      .withValues(alpha: 0.7),
+                                  color: colorScheme.surfaceContainer.withValues(
+                                    alpha: 0.7,
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: const [
                                     BoxShadow(
@@ -330,8 +327,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                       width: double.infinity,
                                       height: double.infinity,
                                       decoration: BoxDecoration(
-                                        color: colorScheme.surfaceContainer
-                                            .withValues(alpha: 0.5),
+                                        color: colorScheme.surfaceContainer.withValues(
+                                          alpha: 0.5,
+                                        ),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: Center(
@@ -364,9 +362,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                         height: double.infinity,
                                         decoration: BoxDecoration(
                                           color: colorScheme.surfaceContainer,
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
+                                          borderRadius: BorderRadius.circular(16),
                                           boxShadow: const [
                                             BoxShadow(
                                               color: Colors.black12,
@@ -384,8 +380,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                               width: 96,
                                               height: 96,
                                               decoration: BoxDecoration(
-                                                color: colorScheme
-                                                    .surfaceContainerHigh,
+                                                color: colorScheme.surfaceContainerHigh,
                                                 shape: BoxShape.circle,
                                                 boxShadow: const [
                                                   BoxShadow(
@@ -398,11 +393,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                               clipBehavior: Clip.antiAlias,
                                               child: Center(
                                                 child: Text(
-                                                  currentMember
-                                                          .displayName
-                                                          .isNotEmpty
-                                                      ? currentMember
-                                                            .displayName[0]
+                                                  currentMember.displayName.isNotEmpty
+                                                      ? currentMember.displayName[0]
                                                             .toUpperCase()
                                                       : '?',
                                                   style: TextStyle(
@@ -461,9 +453,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                           size: 40,
                           color: _currentIndex > 0
                               ? colorScheme.onSurfaceVariant
-                              : colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.3,
-                                ),
+                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                         ),
                       ),
                     ),

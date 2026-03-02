@@ -376,10 +376,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                           final now = DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
-                          final lastSupposed = getLastSupposedOccurrence(
-                            event,
-                            now,
-                          );
+                          final lastSupposed =
+                              getLastSupposedOccurrence(event, now);
 
                           // Find the most recent session for this event
                           final eventSessions = sessions.where((s) {
@@ -408,8 +406,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           }
 
                           final hasSession = targetSession != null;
-                          final displayDate =
-                              targetSession?.sessionDate ?? lastSupposed;
+                          final displayDate = targetSession?.sessionDate ?? lastSupposed;
 
                           String attendanceStatus;
                           if (lastSupposed.isAfter(today)) {
@@ -417,16 +414,14 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           } else {
                             final isTargetToday =
                                 displayDate.year == today.year &&
-                                displayDate.month == today.month &&
-                                displayDate.day == today.day;
+                                    displayDate.month == today.month &&
+                                    displayDate.day == today.day;
                             if (isTargetToday) {
-                              attendanceStatus = hasSession
-                                  ? 'Taken today'
-                                  : 'Not taken yet';
+                              attendanceStatus =
+                                  hasSession ? 'Taken today' : 'Not taken yet';
                             } else {
-                              final dateStr = DateFormat(
-                                'MMM d',
-                              ).format(displayDate);
+                              final dateStr =
+                                  DateFormat('MMM d').format(displayDate);
                               attendanceStatus = hasSession
                                   ? 'Taken ($dateStr)'
                                   : 'Missed ($dateStr)';
@@ -442,15 +437,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 attendanceStatus: attendanceStatus,
                                 onTap: () async {
                                   // 1. Calculate target date
-                                  final targetDate = calculateTargetDate(
-                                    event,
-                                    DateTime.now(),
-                                  );
+                                  final targetDate =
+                                      calculateTargetDate(event, DateTime.now());
 
                                   // 2. Find existing session for target date (or most recent relevant)
-                                  final eventSessionsOnTap = sessions.where((
-                                    s,
-                                  ) {
+                                  final eventSessionsOnTap = sessions.where((s) {
                                     if (s.eventId != null &&
                                         s.eventId!.isNotEmpty) {
                                       return s.eventId == event.id;
@@ -477,15 +468,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                   }
 
                                   // 3. Filter members
-                                  final sessionMembers =
-                                      event.memberIds.isNotEmpty
-                                      ? _members
-                                            .where(
-                                              (m) => event.memberIds.contains(
-                                                m.id,
-                                              ),
-                                            )
-                                            .toList()
+                                  final sessionMembers = event.memberIds.isNotEmpty
+                                      ? _members.where((m) => event.memberIds.contains(m.id)).toList()
                                       : _members;
 
                                   if (foundSession != null) {
@@ -494,39 +478,26 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                                     // If the session is "empty" or "incomplete", go to Deck to resume/start
                                     // If it's fully marked, go to Summary
-                                    final bool isIncomplete =
-                                        sessionToOpen.records.length <
-                                        sessionMembers.length;
+                                    final bool isIncomplete = sessionToOpen.records.length < sessionMembers.length;
 
                                     if (isIncomplete) {
-                                      var resultSession =
-                                          await Navigator.of(
-                                            context,
-                                          ).push<Session>(
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  AttendanceDeckPage(
-                                                    session: sessionToOpen,
-                                                    members: sessionMembers,
-                                                    sessionRepository: widget
-                                                        .sessionRepository,
-                                                  ),
-                                            ),
-                                          );
+                                      var resultSession = await Navigator.of(context).push<Session>(
+                                        MaterialPageRoute(
+                                          builder: (_) => AttendanceDeckPage(
+                                            session: sessionToOpen,
+                                            members: sessionMembers,
+                                            sessionRepository:
+                                                widget.sessionRepository,
+                                          ),
+                                        ),
+                                      );
 
-                                      // Fallback for swipe-back (null result)
-                                      resultSession ??= await widget
-                                          .sessionRepository
-                                          .findSessionById(sessionToOpen.id);
+                                      // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
+                                      resultSession ??= await widget.sessionRepository.findSessionById(sessionToOpen.id);
 
                                       // Cleanup if still empty after returning
-                                      if (resultSession != null &&
-                                          resultSession.records.isEmpty) {
-                                        await widget.sessionRepository
-                                            .deleteSession(
-                                              sessionToOpen.id,
-                                              actor: 'System (Cleanup)',
-                                            );
+                                      if (resultSession != null && resultSession.records.isEmpty) {
+                                        await widget.sessionRepository.deleteSession(sessionToOpen.id, actor: 'System (Cleanup)');
                                       }
                                     } else {
                                       await Navigator.of(context).push(
@@ -542,8 +513,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                     }
                                   } else {
                                     // Session does not exist -> Create new -> Deck
-                                    final session = await widget
-                                        .sessionRepository
+                                    final session = await widget.sessionRepository
                                         .createSession(
                                           title: event.title,
                                           eventId: event.id,
@@ -554,34 +524,24 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                                     if (!context.mounted) return;
 
-                                    var resultSession =
-                                        await Navigator.of(
-                                          context,
-                                        ).push<Session>(
-                                          MaterialPageRoute(
-                                            builder: (_) => AttendanceDeckPage(
-                                              session: session,
-                                              members: sessionMembers,
-                                              sessionRepository:
-                                                  widget.sessionRepository,
-                                            ),
-                                          ),
-                                        );
+                                    var resultSession = await Navigator.of(context).push<Session>(
+                                      MaterialPageRoute(
+                                        builder: (_) => AttendanceDeckPage(
+                                          session: session,
+                                          members: sessionMembers,
+                                          sessionRepository:
+                                              widget.sessionRepository,
+                                        ),
+                                      ),
+                                    );
 
-                                    // Fallback for swipe-back (null result)
-                                    resultSession ??= await widget
-                                        .sessionRepository
-                                        .findSessionById(session.id);
+                                    // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
+                                    resultSession ??= await widget.sessionRepository.findSessionById(session.id);
 
                                     // Check if the session was actually used/finished
-                                    if (resultSession != null &&
-                                        resultSession.records.isEmpty) {
+                                    if (resultSession != null && resultSession.records.isEmpty) {
                                       // If no records were added, assume the user cancelled/aborted
-                                      await widget.sessionRepository
-                                          .deleteSession(
-                                            session.id,
-                                            actor: 'System (Cleanup)',
-                                          );
+                                      await widget.sessionRepository.deleteSession(session.id, actor: 'System (Cleanup)');
                                     }
                                   }
 
@@ -718,34 +678,33 @@ class _EventCard extends StatelessWidget {
                               child: Text(
                                 event.frequency == 'One-time'
                                     ? (event.oneTimeDate != null
-                                          ? DateFormat(
-                                              'MMM d',
-                                            ).format(event.oneTimeDate!)
-                                          : 'Once')
+                                        ? DateFormat('MMM d')
+                                            .format(event.oneTimeDate!)
+                                        : 'Once')
                                     : event.repeatingDays.isNotEmpty
-                                    ? (() {
-                                        final sortedDays = List<String>.from(
-                                          event.repeatingDays,
-                                        );
-                                        final dayOrder = [
-                                          'Monday',
-                                          'Tuesday',
-                                          'Wednesday',
-                                          'Thursday',
-                                          'Friday',
-                                          'Saturday',
-                                          'Sunday',
-                                        ];
-                                        sortedDays.sort(
-                                          (a, b) => dayOrder
-                                              .indexOf(a)
-                                              .compareTo(dayOrder.indexOf(b)),
-                                        );
-                                        return sortedDays
-                                            .map((d) => d.substring(0, 3))
-                                            .join(', ');
-                                      })()
-                                    : event.frequency,
+                                        ? (() {
+                                          final sortedDays =
+                                              List<String>.from(
+                                                event.repeatingDays,
+                                              );
+                                          final dayOrder = [
+                                            'Monday',
+                                            'Tuesday',
+                                            'Wednesday',
+                                            'Thursday',
+                                            'Friday',
+                                            'Saturday',
+                                            'Sunday',
+                                          ];
+                                          sortedDays.sort(
+                                            (a, b) => dayOrder.indexOf(a)
+                                                .compareTo(dayOrder.indexOf(b)),
+                                          );
+                                          return sortedDays
+                                              .map((d) => d.substring(0, 3))
+                                              .join(', ');
+                                        })()
+                                        : event.frequency,
                                 style: TextStyle(
                                   color: onSurfaceVariantColor,
                                   fontSize: 14,
