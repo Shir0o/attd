@@ -67,6 +67,37 @@ def add_drop_shadow(im, rad, blur=40):
     shadow_canvas.paste(shadow, (blur * 2, blur * 2), shadow)
     return shadow_canvas.filter(ImageFilter.GaussianBlur(blur))
 
+def draw_text_with_wrapping(draw, text, font, canvas_width, top_y):
+    """Draw text centered with wrapping if it exceeds canvas width."""
+    max_width = int(canvas_width * 0.9)
+    words = text.split(' ')
+    lines = []
+    current_line = []
+
+    for word in words:
+        test_line = ' '.join(current_line + [word])
+        bbox = font.getbbox(test_line)
+        if (bbox[2] - bbox[0]) <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+    if current_line:
+        lines.append(' '.join(current_line))
+
+    # Draw each line
+    y = top_y
+    line_spacing = int(font.size * 0.2)
+    for line in lines:
+        bbox = font.getbbox(line)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+        x = (canvas_width - w) // 2
+        draw.text((x, y), line, fill=TEXT_COLOR, font=font)
+        y += h + line_spacing
+    return y
+
 def process_device(device_type):
     """Process all screenshots for a specific device type."""
     input_dir = f"screenshots/{device_type}"
@@ -109,12 +140,9 @@ def process_device(device_type):
         canvas = Image.new('RGBA', canvas_size, BG_COLOR)
         draw = ImageDraw.Draw(canvas)
 
-        # Add Marketing Text (Centered)
-        bbox = font.getbbox(text)
-        text_width = bbox[2] - bbox[0]
-        text_x = (canvas_size[0] - text_width) // 2
-        text_y = int(canvas_size[1] * 0.08)
-        draw.text((text_x, text_y), text, fill=TEXT_COLOR, font=font)
+        # Add Marketing Text (Centered with Wrapping)
+        text_y_start = int(canvas_size[1] * 0.06)
+        draw_text_with_wrapping(draw, text, font, canvas_size[0], text_y_start)
 
         # Process Raw Screenshot
         ss = Image.open(input_path).convert("RGBA")
