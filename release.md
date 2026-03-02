@@ -1,3 +1,19 @@
+# 1.0.5+6
+*   **Performance & UI Smoothness**:
+    *   Implemented non-blocking initialization: App UI now renders immediately while Drive sync and silent sign-in happen in the background.
+    *   Added professional **Skeleton Loaders** to the Hub for a more fluid initial loading experience.
+    *   Optimized perceived speed by reducing artificial "visual consistency" delays from 800ms/400ms to a snappier 250ms across the app.
+*   **Google Drive Sync Persistence**:
+    *   Drive sync state now persists across app restarts (re-signs in silently and triggers sync if previously enabled).
+    *   Refined Sync UI in Settings with more descriptive "Syncing... this may take a while" status and removed redundant manual sync notes.
+*   **Store Listing & Asset Generation**:
+    *   Built a comprehensive automated screenshot generation pipeline for Phone, 7" Tablet, and 10" Tablet.
+    *   Created professional featured graphics for the Google Play listing with matching background themes, marketing text, and soft shadows.
+*   **UI & Reliability Fixes**:
+    *   Improved layout on small screens: Moved `AddEventPage` save button to `bottomNavigationBar` and adjusted `AttendanceDeckPage` footer to prevent overflow.
+    *   Fixed date normalization bug: One-time events no longer show as "Missed" the day after attendance is taken.
+    *   Enhanced integration tests with better timing (`pumpAndSettle`) and explicit widget targeting for high-reliability automation.
+
 # 1.0.4+5
 *   **Release Stability**:
     *   Fixed `AppDeviceIntegrity` API mismatch in `DriveService` to align with package version 1.1.0.
