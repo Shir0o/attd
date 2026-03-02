@@ -201,7 +201,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                       'This will replace all data on your Google Drive with the data currently on this device. Use this if you have deleted items that keep coming back.',
                                   confirmLabel: 'Overwrite',
                                 );
-                                if (!context.mounted) return;
                                 if (confirmed == true) {
                                   final messenger =
                                       ScaffoldMessenger.of(context);
@@ -236,7 +235,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                       'This will replace all data on this device with the data from your Google Drive. Current local changes will be lost.',
                                   confirmLabel: 'Overwrite',
                                 );
-                                if (!context.mounted) return;
                                 if (confirmed == true) {
                                   final messenger =
                                       ScaffoldMessenger.of(context);
@@ -261,7 +259,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: Icons.sync,
                         title: 'Sync Now',
                         subtitle: isSyncing
-                            ? 'Syncing... this may take a while'
+                            ? 'Syncing...'
                             : 'Manually trigger a cloud sync',
                         trailing: isSyncing
                             ? const SizedBox(
@@ -304,6 +302,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: TextStyle(
                         fontSize: 14,
                         color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Note: Manual synchronization and data integrity verification may take a few moments to complete. Please maintain a stable network connection during the process.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ],
@@ -520,7 +527,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: 'Version',
                       subtitle: '2.4.0',
                       onTap: () {
-                        // TODO: Show about details
+                        showAboutDialog(
+                          context: context,
+                          applicationName: 'Attendance Tracker',
+                          applicationVersion: '2.4.0',
+                          applicationIcon: Image.asset(
+                            'assets/icon/icon.png',
+                            width: 48,
+                            height: 48,
+                          ),
+                          applicationLegalese:
+                              '© 2026 Attendance Tracker Contributors',
+                        );
                       },
                     ),
                   ],
