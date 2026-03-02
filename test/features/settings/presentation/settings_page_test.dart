@@ -84,7 +84,8 @@ class FakeGoogleSignInAccount implements GoogleSignInAccount {
   Future<Map<String, String>> get authHeaders async => {};
 
   @override
-  Future<GoogleSignInAuthentication> get authentication async => throw UnimplementedError();
+  Future<GoogleSignInAuthentication> get authentication async =>
+      throw UnimplementedError();
 
   @override
   Future<void> clearAuthCache() async {}
@@ -119,14 +120,16 @@ void main() {
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
 
-    await tester.pumpWidget(MaterialApp(
-      home: SettingsPage(
-        themeController: themeController,
-        driveService: driveService,
-        localBackupService: localBackupService,
-        attendanceRepository: attendanceRepo,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: driveService,
+          localBackupService: localBackupService,
+          attendanceRepository: attendanceRepo,
+        ),
       ),
-    ));
+    );
 
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
@@ -142,14 +145,16 @@ void main() {
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
 
-    await tester.pumpWidget(MaterialApp(
-      home: SettingsPage(
-        themeController: themeController,
-        driveService: driveService,
-        localBackupService: localBackupService,
-        attendanceRepository: attendanceRepo,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: driveService,
+          localBackupService: localBackupService,
+          attendanceRepository: attendanceRepo,
+        ),
       ),
-    ));
+    );
 
     // Initially signed out
     expect(driveService.currentUser, isNull);
@@ -180,14 +185,16 @@ void main() {
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
 
-    await tester.pumpWidget(MaterialApp(
-      home: SettingsPage(
-        themeController: themeController,
-        driveService: driveService,
-        localBackupService: localBackupService,
-        attendanceRepository: attendanceRepo,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: driveService,
+          localBackupService: localBackupService,
+          attendanceRepository: attendanceRepo,
+        ),
       ),
-    ));
+    );
 
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pump();
@@ -196,5 +203,51 @@ void main() {
     await tester.tap(find.text('Export Report'));
     await tester.pump();
     expect(localBackupService.exportCalled, isTrue);
+  });
+
+  testWidgets('SettingsPage shows about dialog on version tap', (tester) async {
+    final driveService = FakeDriveService();
+    final localBackupService = FakeLocalBackupService();
+    final attendanceRepo = MockAttendanceRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: driveService,
+          localBackupService: localBackupService,
+          attendanceRepository: attendanceRepo,
+        ),
+      ),
+    );
+
+    await tester.dragUntilVisible(
+      find.text('Version'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Version'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AboutDialog), findsOneWidget);
+    final dialogFinder = find.byType(AboutDialog);
+    expect(
+      find.descendant(
+        of: dialogFinder,
+        matching: find.text('Attendance Tracker'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialogFinder, matching: find.text('2.4.0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: dialogFinder,
+        matching: find.text('© 2026 Attendance Tracker Contributors'),
+      ),
+      findsOneWidget,
+    );
   });
 }
