@@ -200,7 +200,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           leading: IconButton(
                             icon: const Icon(Icons.arrow_back),
                             color: colorScheme.onSurface,
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () =>
+                                Navigator.of(context).pop(_currentSession),
                           ),
                           title: Text(
                             _currentSession.title.trim(),
@@ -414,7 +415,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
               child: Hero(
                 tag: 'fab',
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(context).pop(_currentSession),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,

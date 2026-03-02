@@ -224,15 +224,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         date.day == now.day;
   }
 
-  Widget _buildSkeleton(BuildContext context) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) => const _EventSkeletonCard(),
-        childCount: 3,
-      ),
-    );
-  }
-
   bool _isEventToday(Event event) {
     final now = DateTime.now();
     if (event.frequency == 'One-time') {
@@ -353,7 +344,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     stream: _eventsStream,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return _buildSkeleton(context);
+                        return const SliverFillRemaining(
+                          child: Center(child: CircularProgressIndicator()),
+                        );
                       }
 
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -488,7 +481,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                     final bool isIncomplete = sessionToOpen.records.length < sessionMembers.length;
 
                                     if (isIncomplete) {
-                                      await Navigator.of(context).push(
+                                      var resultSession = await Navigator.of(context).push<Session>(
                                         MaterialPageRoute(
                                           builder: (_) => AttendanceDeckPage(
                                             session: sessionToOpen,
@@ -498,9 +491,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                           ),
                                         ),
                                       );
-                                      
+
+                                      // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
+                                      resultSession ??= await widget.sessionRepository.findSessionById(sessionToOpen.id);
+
                                       // Cleanup if still empty after returning
-                                      final resultSession = await widget.sessionRepository.findSessionById(sessionToOpen.id);
                                       if (resultSession != null && resultSession.records.isEmpty) {
                                         await widget.sessionRepository.deleteSession(sessionToOpen.id, actor: 'System (Cleanup)');
                                       }
@@ -529,7 +524,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                                     if (!context.mounted) return;
 
-                                    await Navigator.of(context).push(
+                                    var resultSession = await Navigator.of(context).push<Session>(
                                       MaterialPageRoute(
                                         builder: (_) => AttendanceDeckPage(
                                           session: session,
@@ -540,9 +535,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                       ),
                                     );
 
+                                    // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
+                                    resultSession ??= await widget.sessionRepository.findSessionById(session.id);
+
                                     // Check if the session was actually used/finished
-                                    // We fetch the latest state from the repo
-                                    final resultSession = await widget.sessionRepository.findSessionById(session.id);
                                     if (resultSession != null && resultSession.records.isEmpty) {
                                       // If no records were added, assume the user cancelled/aborted
                                       await widget.sessionRepository.deleteSession(session.id, actor: 'System (Cleanup)');
@@ -798,89 +794,6 @@ class _EventCard extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EventSkeletonCard extends StatelessWidget {
-  const _EventSkeletonCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        elevation: 0,
-        color: colorScheme.surfaceContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          height: 200,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 80,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: 200,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  Container(
-                    width: 120,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
                 ],
