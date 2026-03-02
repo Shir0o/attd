@@ -216,9 +216,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AboutDialog), findsOneWidget);
-    expect(find.text('Attendance Tracker'), findsOneWidget);
-    // Finds twice: once in the settings tile, once in the AboutDialog
-    expect(find.text('2.4.0'), findsNWidgets(2));
-    expect(find.text('© 2026 Attendance Tracker Contributors'), findsOneWidget);
+    final dialogFinder = find.byType(AboutDialog);
+    expect(
+      find.descendant(of: dialogFinder, matching: find.text('Attendance Tracker')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialogFinder, matching: find.text('2.4.0')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: dialogFinder,
+        matching: find.text('© 2026 Attendance Tracker Contributors'),
+      ),
+      findsOneWidget,
+    );
   });
 }
