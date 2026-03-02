@@ -520,7 +520,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: 'Version',
                       subtitle: '2.4.0',
                       onTap: () {
-                        // TODO: Show about details
+                        showAboutDialog(
+                          context: context,
+                          applicationName: 'Attendance Tracker',
+                          applicationVersion: '2.4.0',
+                          applicationIcon: Image.asset(
+                            'assets/icon/icon.png',
+                            width: 48,
+                            height: 48,
+                          ),
+                          applicationLegalese:
+                              '© 2026 Attendance Tracker Contributors',
+                        );
                       },
                     ),
                   ],

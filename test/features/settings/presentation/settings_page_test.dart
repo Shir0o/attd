@@ -197,4 +197,27 @@ void main() {
     await tester.pump();
     expect(localBackupService.exportCalled, isTrue);
   });
+
+  testWidgets('SettingsPage shows about dialog on version tap', (tester) async {
+    final driveService = FakeDriveService();
+    final localBackupService = FakeLocalBackupService();
+    final attendanceRepo = MockAttendanceRepository();
+
+    await tester.pumpWidget(MaterialApp(
+      home: SettingsPage(
+        themeController: themeController,
+        driveService: driveService,
+        localBackupService: localBackupService,
+        attendanceRepository: attendanceRepo,
+      ),
+    ));
+
+    await tester.tap(find.text('Version'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AboutDialog), findsOneWidget);
+    expect(find.text('Attendance Tracker'), findsOneWidget);
+    expect(find.text('2.4.0'), findsOneWidget);
+    expect(find.text('© 2026 Attendance Tracker Contributors'), findsOneWidget);
+  });
 }
