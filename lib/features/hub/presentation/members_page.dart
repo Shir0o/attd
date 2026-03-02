@@ -52,6 +52,7 @@ class _MembersPageState extends State<MembersPage> {
       
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 250) - elapsed;
+
       if (remaining > Duration.zero) {
         await Future.delayed(remaining);
       }

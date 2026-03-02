@@ -38,7 +38,7 @@ Future<void> main() async {
     eventRepository: eventRepository,
   );
   // Restore sync session and trigger initial sync if enabled
-  await driveService.init();
+  driveService.init();
 
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
