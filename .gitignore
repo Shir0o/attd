@@ -31,6 +31,13 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+
+# Ignore generated plugin files for desktop platforms
+linux/flutter/generated_plugin_registrant.*
+linux/flutter/generated_plugins.cmake
+windows/flutter/generated_plugin_registrant.*
+windows/flutter/generated_plugins.cmake
+
 /coverage/
 key.properties
 *.bak
