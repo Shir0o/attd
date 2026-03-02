@@ -217,7 +217,8 @@ void main() {
 
     expect(find.byType(AboutDialog), findsOneWidget);
     expect(find.text('Attendance Tracker'), findsOneWidget);
-    expect(find.text('2.4.0'), findsOneWidget);
+    // Finds twice: once in the settings tile, once in the AboutDialog
+    expect(find.text('2.4.0'), findsNWidgets(2));
     expect(find.text('© 2026 Attendance Tracker Contributors'), findsOneWidget);
   });
 }
