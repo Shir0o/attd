@@ -138,4 +138,87 @@ void main() {
     expect(find.text('1 Present'), findsOneWidget);
     expect(find.text('1 Absent'), findsOneWidget);
   });
+
+  testWidgets('EventHistoryPage filters members based on event.memberIds', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    
+    // Event only includes member '1'
+    final event = Event(
+      id: 'e1',
+      title: 'Restricted Event',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'One-time',
+      memberIds: ['1'],
+      createdAt: DateTime.now(),
+    );
+
+    // Mock attendance repo returns 2 members
+    final member1 = const Member(id: '1', displayName: 'Member One');
+    final member2 = const Member(id: '2', displayName: 'Member Two');
+    
+    // Custom mock repo to return members
+    final customAttendanceRepo = _MockAttendanceRepoWithMembers([member1, member2]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventHistoryPage(
+          event: event,
+          sessionRepository: mockRepo,
+          attendanceRepository: customAttendanceRepo,
+        ),
+      ),
+    );
+
+    final session = Session(
+      id: 's1',
+      title: 'Restricted Event',
+      sessionDate: DateTime(2023, 10, 7),
+      records: [
+        SessionRecord(
+          attendee: 'Member One',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+        // Record for member 2 who is NOT assigned to this event
+        SessionRecord(
+          attendee: 'Member Two',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+      currentVersion: 1,
+    );
+
+    mockRepo.emit([session]);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    // Member One is assigned and present -> 1 Present
+    // Member Two is NOT assigned, but has a present record -> Should also count as 1 Present (visitor)
+    // So total Present should be 2
+    expect(find.text('2 Present'), findsOneWidget);
+    
+    // Only Member One is assigned. He is present. 
+    // So 0 assigned members are absent.
+    // Member Two is not assigned, so he shouldn't be counted as 'Absent' by default.
+    expect(find.text('0 Absent'), findsOneWidget);
+  });
+}
+
+class _MockAttendanceRepoWithMembers extends MockAttendanceRepository {
+  final List<Member> members;
+  _MockAttendanceRepoWithMembers(this.members);
+
+  @override
+  Future<List<Family>> fetchFamilies() async {
+    return [Family(id: 'f1', displayName: 'Family', members: members)];
+  }
 }
