@@ -461,7 +461,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               if (hasSession) {
                                 attendanceStatus = 'Taken ($dateStr)';
                               } else {
-                                attendanceStatus = 'Start ($dateStr)';
+                                attendanceStatus = 'Start';
                                 isActionable = true;
                               }
                             }

@@ -297,7 +297,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: Icons.sync,
                         title: 'Sync Now',
                         subtitle: isSyncing
-                            ? 'Syncing...'
+                            ? 'Syncing... this may take a while'
                             : 'Manually trigger a cloud sync',
                         trailing: isSyncing
                             ? const SizedBox(
@@ -350,30 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 8, left: 8, bottom: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Automatic sync occurs every 15 minutes when connected to Wi-Fi.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Note: Manual synchronization and data integrity verification may take a few moments to complete. Please maintain a stable network connection during the process.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(height: 24),
 
               // Local Storage Section
               _SectionHeader(title: 'Local Storage'),
@@ -404,7 +381,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     _SettingsTile(
                       icon: Icons.ios_share,
                       title: 'Export Report',
-                      subtitle: 'Download spreadsheet (CSV) format',
+                      subtitle: 'Download CSV',
                       onTap: () async {
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
                         try {
@@ -669,21 +646,119 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   children: [
                     _SettingsTile(
-                      icon: Icons.info,
-                      title: 'Version',
+                      icon: Icons.info_outline,
+                      title: 'App Version',
                       subtitle: '2.4.0',
                       onTap: () {
-                        showAboutDialog(
+                        showModalBottomSheet(
                           context: context,
-                          applicationName: 'Attendance Tracker',
-                          applicationVersion: '2.4.0',
-                          applicationIcon: Image.asset(
-                            'assets/icon/icon.png',
-                            width: 48,
-                            height: 48,
+                          isScrollControlled: true,
+                          useSafeArea: true,
+                          backgroundColor: colorScheme.surface,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(28),
+                            ),
                           ),
-                          applicationLegalese:
-                              '© 2026 Attendance Tracker Contributors',
+                          builder: (context) => DraggableScrollableSheet(
+                            initialChildSize: 0.6,
+                            minChildSize: 0.4,
+                            maxChildSize: 0.9,
+                            expand: false,
+                            builder: (context, scrollController) {
+                              return Column(
+                                children: [
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: 32,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.4),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: ListView(
+                                      controller: scrollController,
+                                      padding: const EdgeInsets.all(24),
+                                      children: [
+                                        Center(
+                                          child: Container(
+                                            width: 80,
+                                            height: 80,
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(20),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black.withValues(alpha: 0.1),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ],
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(20),
+                                              child: Image.asset('assets/icon/icon.png'),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        Center(
+                                          child: Text(
+                                            'Attendance Tracker',
+                                            style: theme.textTheme.headlineMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        ),
+                                        Center(
+                                          child: Text(
+                                            'Version 2.4.0',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              color: colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.copyright,
+                                          'Legalese',
+                                          '© 2026 Attendance Tracker Contributors. All rights reserved.',
+                                        ),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.code,
+                                          'Open Source',
+                                          'This application is built with Flutter and utilizes various open-source libraries. We believe in transparency and community-driven development.',
+                                        ),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.favorite,
+                                          'Mission',
+                                          'Designed to help organizations and groups track participation with ease, respecting user privacy and providing local-first reliability.',
+                                        ),
+                                        const SizedBox(height: 24),
+                                        Center(
+                                          child: OutlinedButton(
+                                            onPressed: () => showLicensePage(
+                                              context: context,
+                                              applicationName: 'Attendance Tracker',
+                                              applicationVersion: '2.4.0',
+                                            ),
+                                            child: const Text('View Licenses'),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 48),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         );
                       },
                     ),
