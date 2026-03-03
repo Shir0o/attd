@@ -518,17 +518,6 @@ function doPost(e) {
                                   _saveGoogleSheetsUrl('');
                                 },
                               ),
-                            IconButton(
-                              icon: const Icon(Icons.content_paste, size: 20),
-                              tooltip: 'Paste from Clipboard',
-                              onPressed: () async {
-                                final data = await Clipboard.getData(Clipboard.kTextPlain);
-                                if (data?.text != null) {
-                                  _sheetsUrlController.text = data!.text!;
-                                  _saveGoogleSheetsUrl(data.text!);
-                                }
-                              },
-                            ),
                             if (_isSavingUrl)
                               const SizedBox(
                                 width: 24,
