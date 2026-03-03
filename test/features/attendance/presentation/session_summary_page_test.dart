@@ -266,4 +266,61 @@ void main() {
     // Should have popped
     expect(find.text('Test Session'), findsNothing);
   });
+
+  testWidgets('SessionSummaryPage displays visitors not in member list', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    
+    // Only Alice is in the expected member list
+    final member1 = const Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Visitor Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          attendee: 'Visitor Bob',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    // Alice should be "Marked Absent" (default)
+    // Visitor Bob should be "Marked Present"
+    expect(find.widgetWithText(SliverList, 'Visitor Bob'), findsOneWidget);
+    expect(find.widgetWithText(SliverList, 'Alice'), findsOneWidget);
+
+    // Verify Bob is in "Marked Present"
+    final presentSection = find.widgetWithText(SliverList, 'Visitor Bob');
+    final bobSwitch = find.descendant(
+      of: presentSection,
+      matching: find.byType(Switch),
+    );
+    expect(tester.widget<Switch>(bobSwitch).value, isTrue);
+    
+    // Total count should be 2 (1 assigned + 1 visitor)
+    expect(find.text('2 Total'), findsOneWidget);
+  });
 }

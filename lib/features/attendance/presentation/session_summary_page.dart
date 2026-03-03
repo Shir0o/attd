@@ -170,7 +170,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final presentMembers = <Member>[];
     final absentMembers = <Member>[];
 
-    for (final member in widget.members) {
+    // Build the list of members to display
+    final displayMembers = List<Member>.from(widget.members);
+    
+    // Add any members who have records but are not in the provided list (e.g. guests/visitors)
+    final existingMemberNames = widget.members.map((m) => m.displayName).toSet();
+    for (final record in _currentSession.records) {
+      if (!existingMemberNames.contains(record.attendee)) {
+        displayMembers.add(Member(
+          id: 'visitor_${record.attendee}',
+          displayName: record.attendee,
+          isVisitor: true,
+        ));
+      }
+    }
+
+    for (final member in displayMembers) {
       if (_getStatus(member) == AttendanceStatus.present) {
         presentMembers.add(member);
       } else {
@@ -331,7 +346,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                       ),
                                     ),
                                     Text(
-                                      '${widget.members.length} Total',
+                                      '${displayMembers.length} Total',
                                       style: TextStyle(
                                         color: colorScheme.onSurfaceVariant,
                                         fontSize: 16,

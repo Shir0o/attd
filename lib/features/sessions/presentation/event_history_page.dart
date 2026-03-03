@@ -179,16 +179,36 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                               final dayTimeStr =
                                   '${DateFormat('EEEE').format(session.sessionDate)} • ${widget.event.time.format(context)}';
 
-                              final presentCount = session.records
-                                  .where(
-                                    (r) => r.status == AttendanceStatus.present,
-                                  )
-                                  .length;
-                              final absentCount = session.records
-                                  .where(
-                                    (r) => r.status == AttendanceStatus.absent,
-                                  )
-                                  .length;
+                              // Filter members to only those assigned to this event
+                              final filteredMembers = widget.event.memberIds.isNotEmpty
+                                  ? _members
+                                      .where((m) => widget.event.memberIds.contains(m.id))
+                                      .toList()
+                                  : _members;
+
+                              // Consistency check: use the same logic as SessionSummaryPage for counts
+                              final presentCount = filteredMembers.where((m) {
+                                return session.records.any(
+                                  (r) =>
+                                      r.attendee == m.displayName &&
+                                      r.status == AttendanceStatus.present,
+                                );
+                              }).length;
+                              
+                              // Any records for members NOT in the filtered list (e.g. visitors)
+                              final visitorPresentCount = session.records.where((r) {
+                                return r.status == AttendanceStatus.present &&
+                                    !filteredMembers.any((m) => m.displayName == r.attendee);
+                              }).length;
+
+                              final totalPresent = presentCount + visitorPresentCount;
+                              
+                              // SessionSummaryPage treats anyone in filteredMembers without a 'present' record as 'absent'
+                              final totalAbsent = filteredMembers.length - presentCount + 
+                                  session.records.where((r) {
+                                    return r.status == AttendanceStatus.absent &&
+                                        !filteredMembers.any((m) => m.displayName == r.attendee);
+                                  }).length;
 
                               return Card(
                                 elevation: 0,
@@ -209,7 +229,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                         builder:
                                             (_) => SessionSummaryPage(
                                               session: session,
-                                              members: _members,
+                                              members: filteredMembers,
                                               sessionRepository:
                                                   widget.sessionRepository,
                                             ),
@@ -262,7 +282,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                               context,
                                               Icons.check_circle,
                                               colorScheme.primary,
-                                              '$presentCount Present',
+                                              '$totalPresent Present',
                                             ),
                                             Container(
                                               height: 16,
@@ -277,7 +297,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                               context,
                                               Icons.cancel,
                                               colorScheme.error,
-                                              '$absentCount Absent',
+                                              '$totalAbsent Absent',
                                             ),
                                           ],
                                         ),
