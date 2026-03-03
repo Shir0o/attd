@@ -317,20 +317,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 ],
               ),
               actions: [
-                if (isSyncing)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Center(
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                  ),
                 if (widget.driveService != null &&
                     widget.localBackupService != null)
                   IconButton(
@@ -373,7 +359,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     builder: (context, snapshot) {
                       final isLoading =
                           snapshot.connectionState == ConnectionState.waiting ||
-                          isSyncing;
+                          (isSyncing &&
+                              (snapshot.data == null ||
+                                  snapshot.data!.isEmpty));
 
                       if (isLoading) {
                         return SliverList(
