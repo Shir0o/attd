@@ -422,23 +422,29 @@ function doPost(e) {
     
     if (!sheet) {
       sheet = ss.insertSheet("Raw Logs");
-      // Create 5 distinct columns for the Pivot Table
-      sheet.appendRow(["Sync Time", "Meeting Date", "Event", "Member", "Is Present"]);
-      sheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#f3f3f3");
+      // Added a "UID" column to prevent duplicates
+      sheet.appendRow(["UID", "Meeting Date", "Event", "Member", "Is Present", "Last Sync"]);
+      sheet.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#f3f3f3");
       sheet.setFrozenRows(1);
     }
 
     const data = JSON.parse(e.postData.contents);
     const syncTime = data.date; 
+    
+    // Get all existing UIDs to prevent duplicates
+    const existingData = sheet.getDataRange().getValues();
+    const uidMap = {};
+    for (let i = 1; i < existingData.length; i++) {
+      uidMap[existingData[i][0]] = i + 1; // Store row index
+    }
 
-    // Map and split the incoming records
-    const rows = data.records.map(record => {
+    const newRows = [];
+    data.records.map(record => {
       let meetingDate = "";
       let event = "";
       let member = record.name; // Fallback
 
       // Regex to split "[YYYY-MM-DD] Event Name - Member Name"
-      // It handles varying spaces and extra hyphens safely
       const match = record.name.match(/\[(.*?)\]\s*(.*?)\s*-\s*(.*)/);
       if (match) {
         meetingDate = match[1];
@@ -446,24 +452,32 @@ function doPost(e) {
         member = match[3].trim();
       }
 
-      // Convert "present" / "absent" to TRUE / FALSE
       const isPresent = (record.status.toLowerCase() === 'present');
+      
+      // Unique ID: Date + Event + Member
+      const uid = meetingDate + "_" + event + "_" + member;
+      const rowData = [uid, meetingDate, event, member, isPresent, syncTime];
 
-      return [
-        syncTime, 
-        meetingDate, 
-        event, 
-        member, 
-        isPresent
-      ];
+      if (uidMap[uid]) {
+        // Record exists -> Update the row
+        const rowIndex = uidMap[uid];
+        sheet.getRange(rowIndex, 1, 1, 6).setValues([rowData]);
+      } else {
+        // New record -> Collect to append later
+        newRows.push(rowData);
+      }
     });
 
-    if (rows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    // Batch append new rows for speed
+    if (newRows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, 6).setValues(newRows);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({"status": "success", "rowsAdded": rows.length}))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({
+      "status": "success", 
+      "added": newRows.length,
+      "updated": data.records.length - newRows.length
+    })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.message}))
