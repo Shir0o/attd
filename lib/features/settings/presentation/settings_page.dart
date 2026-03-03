@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../settings/application/theme_controller.dart';
+import '../data/google_sheets_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import '../../attendance/data/attendance_repository.dart';
@@ -28,6 +31,36 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  final _googleSheetsService = GoogleSheetsService();
+  final _sheetsUrlController = TextEditingController();
+  bool _isSavingUrl = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoogleSheetsUrl();
+  }
+
+  Future<void> _loadGoogleSheetsUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _sheetsUrlController.text = prefs.getString('googleSheetsUrl') ?? '';
+    });
+  }
+
+  Future<void> _saveGoogleSheetsUrl(String url) async {
+    setState(() => _isSavingUrl = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('googleSheetsUrl', url.trim());
+    setState(() => _isSavingUrl = false);
+  }
+
+  @override
+  void dispose() {
+    _sheetsUrlController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -103,7 +136,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                       ),
                                     ),
                                     Text(
-                                      _getThemeLabel(widget.themeController.themeMode),
+                                      _getThemeLabel(
+                                        widget.themeController.themeMode,
+                                      ),
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: colorScheme.onSurfaceVariant,
@@ -154,7 +189,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         value: isSignedIn,
                         activeThumbColor: colorScheme.primary,
                         onChanged: (value) async {
-                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                          final scaffoldMessenger = ScaffoldMessenger.of(
+                            context,
+                          );
                           try {
                             if (value) {
                               await widget.driveService.signIn();
@@ -178,10 +215,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder:
-                                  (_) => CloudBackupPage(
-                                    driveService: widget.driveService,
-                                  ),
+                              builder: (_) => CloudBackupPage(
+                                driveService: widget.driveService,
+                              ),
                             ),
                           );
                         },
@@ -202,8 +238,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                   confirmLabel: 'Overwrite',
                                 );
                                 if (confirmed == true) {
-                                  final messenger =
-                                      ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   try {
                                     await widget.driveService
                                         .overwriteCloudWithLocal();
@@ -236,8 +273,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                   confirmLabel: 'Overwrite',
                                 );
                                 if (confirmed == true) {
-                                  final messenger =
-                                      ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   try {
                                     await widget.driveService
                                         .overwriteLocalWithCloud();
@@ -265,22 +303,42 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : null,
                         onTap: isSyncing
                             ? null
                             : () async {
-                                final scaffoldMessenger =
-                                    ScaffoldMessenger.of(context);
+                                final scaffoldMessenger = ScaffoldMessenger.of(
+                                  context,
+                                );
+                                final url = _sheetsUrlController.text.trim();
+
                                 try {
-                                  await widget.driveService.syncFiles();
-                                  scaffoldMessenger.showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('Sync completed successfully'),
-                                    ),
-                                  );
+                                  if (url.isNotEmpty) {
+                                    await Future.wait([
+                                      widget.driveService.syncFiles(),
+                                      _googleSheetsService.syncAttendance(url),
+                                    ]);
+                                    scaffoldMessenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Backed up to Drive and Synced to Sheets.',
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    await widget.driveService.syncFiles();
+                                    scaffoldMessenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Sync completed successfully',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 } catch (e) {
                                   scaffoldMessenger.showSnackBar(
                                     SnackBar(content: Text('Sync failed: $e')),
@@ -363,6 +421,97 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 24),
 
+              // Google Sheets Section
+              _SectionHeader(title: 'Connect to Google Sheets'),
+              Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        const script = '''function doPost(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const data = JSON.parse(e.postData.contents);
+    
+    const rows = data.records.map(record => [
+      data.date, 
+      record.name, 
+      record.status
+    ]);
+    
+    if (rows.length > 0) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({"status": "success", "rowsAdded": rows.length}))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}''';
+                        await Clipboard.setData(
+                          const ClipboardData(text: script),
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Boilerplate copied to clipboard!'),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copy Apps Script Boilerplate'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '1. Create a Google Sheet and open Extensions > Apps Script.\n'
+                      '2. Paste the copied script, Deploy as Web App (Anyone).\n'
+                      '3. Paste the deployment URL below.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _sheetsUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'Web App URL',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: _isSavingUrl
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      onChanged: (value) => _saveGoogleSheetsUrl(value),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
               // Management Section
               _SectionHeader(title: 'Management'),
               Container(
@@ -380,11 +529,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder:
-                                (_) => MembersPage(
-                                  attendanceRepository:
-                                      widget.attendanceRepository,
-                                ),
+                            builder: (_) => MembersPage(
+                              attendanceRepository: widget.attendanceRepository,
+                            ),
                           ),
                         );
                       },
@@ -415,95 +562,94 @@ class _SettingsPageState extends State<SettingsPage> {
                           useSafeArea: true,
                           backgroundColor: colorScheme.surface,
                           shape: const RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.vertical(top: Radius.circular(28)),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(28),
+                            ),
                           ),
-                          builder:
-                              (context) => DraggableScrollableSheet(
-                                initialChildSize: 0.9,
-                                minChildSize: 0.5,
-                                maxChildSize: 0.95,
-                                expand: false,
-                                builder: (context, scrollController) {
-                                  return Column(
-                                    children: [
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: 32,
-                                        height: 4,
-                                        decoration: BoxDecoration(
-                                          color: colorScheme.onSurfaceVariant
-                                              .withValues(alpha: 0.4),
-                                          borderRadius:
-                                              BorderRadius.circular(2),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: ListView(
-                                          controller: scrollController,
-                                          padding: const EdgeInsets.all(24),
-                                          children: [
-                                            Text(
-                                              'Privacy Policy',
-                                              style: theme.textTheme.headlineMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: colorScheme.onSurface,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 24),
-                                            Text(
-                                              'Attendance Tracker is designed with privacy as a core principle. Your data belongs to you.',
-                                              style: theme.textTheme.titleMedium
-                                                  ?.copyWith(
-                                                    color: colorScheme.primary,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 32),
-                                            _buildPolicyPoint(
-                                              context,
-                                              Icons.storage,
-                                              'Local-First Storage',
-                                              'All your attendance records, member lists, and event configurations are stored locally on your device database. We do not maintain any central servers to store your information.',
-                                            ),
-                                            _buildPolicyPoint(
-                                              context,
-                                              Icons.cloud_off,
-                                              'No Third-Party Tracking',
-                                              'We do not use any analytics, tracking pixels, or advertising identifiers. Your usage of the app is completely private and anonymous.',
-                                            ),
-                                            _buildPolicyPoint(
-                                              context,
-                                              Icons.folder_shared,
-                                              'User-Controlled Sync',
-                                              'Google Drive Sync uses your personal Google account storage only. The app only accesses its own dedicated folder and does not see other files in your Drive.',
-                                            ),
-                                            _buildPolicyPoint(
-                                              context,
-                                              Icons.visibility_off,
-                                              'Developer Access',
-                                              'The application developers have no technical means to access, view, or modify your attendance data. All synchronization and backups are encrypted via your Google account.',
-                                            ),
-                                            const SizedBox(height: 48),
-                                            Center(
-                                              child: Text(
-                                                'Effective Date: February 25, 2026',
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                      color: colorScheme
-                                                          .onSurfaceVariant,
-                                                    ),
+                          builder: (context) => DraggableScrollableSheet(
+                            initialChildSize: 0.9,
+                            minChildSize: 0.5,
+                            maxChildSize: 0.95,
+                            expand: false,
+                            builder: (context, scrollController) {
+                              return Column(
+                                children: [
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: 32,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.4),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: ListView(
+                                      controller: scrollController,
+                                      padding: const EdgeInsets.all(24),
+                                      children: [
+                                        Text(
+                                          'Privacy Policy',
+                                          style: theme.textTheme.headlineMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: colorScheme.onSurface,
                                               ),
-                                            ),
-                                            const SizedBox(height: 24),
-                                          ],
                                         ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
+                                        const SizedBox(height: 24),
+                                        Text(
+                                          'Attendance Tracker is designed with privacy as a core principle. Your data belongs to you.',
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                                color: colorScheme.primary,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.storage,
+                                          'Local-First Storage',
+                                          'All your attendance records, member lists, and event configurations are stored locally on your device database. We do not maintain any central servers to store your information.',
+                                        ),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.cloud_off,
+                                          'No Third-Party Tracking',
+                                          'We do not use any analytics, tracking pixels, or advertising identifiers. Your usage of the app is completely private and anonymous.',
+                                        ),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.folder_shared,
+                                          'User-Controlled Sync',
+                                          'Google Drive Sync uses your personal Google account storage only. The app only accesses its own dedicated folder and does not see other files in your Drive.',
+                                        ),
+                                        _buildPolicyPoint(
+                                          context,
+                                          Icons.visibility_off,
+                                          'Developer Access',
+                                          'The application developers have no technical means to access, view, or modify your attendance data. All synchronization and backups are encrypted via your Google account.',
+                                        ),
+                                        const SizedBox(height: 48),
+                                        Center(
+                                          child: Text(
+                                            'Effective Date: February 25, 2026',
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         );
                       },
                     ),
@@ -584,22 +730,21 @@ class _SettingsPageState extends State<SettingsPage> {
   }) {
     return showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text(confirmLabel),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
     );
   }
 
