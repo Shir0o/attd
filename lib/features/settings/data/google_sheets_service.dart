@@ -6,19 +6,34 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class GoogleSheetsService {
+  static const String _lastSheetsSyncKey = 'last_sheets_sync_time';
+
   Future<void> syncAttendance(String webAppUrl) async {
     if (webAppUrl.trim().isEmpty) return;
 
     try {
-      final payload = await _buildPayload();
-      if (payload == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      final lastSyncStr = prefs.getString(_lastSheetsSyncKey);
+      final lastSync = lastSyncStr != null ? DateTime.parse(lastSyncStr) : DateTime.fromMillisecondsSinceEpoch(0);
+
+      final payload = await _buildPayload(lastSync);
+      if (payload == null) {
+        print('No new records to sync to Google Sheets');
+        return;
+      }
 
       final response = await http.post(
         Uri.parse(webAppUrl),
         body: jsonEncode(payload),
-        headers: {'Content-Type': 'text/plain'}, // Avoids CORS preflight
+        headers: {'Content-Type': 'text/plain'},
       );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        await prefs.setString(_lastSheetsSyncKey, DateTime.now().toIso8601String());
+      }
 
       print(
         'Google Sheets sync response: ${response.statusCode} ${response.body}',
@@ -29,7 +44,7 @@ class GoogleSheetsService {
     }
   }
 
-  Future<Map<String, dynamic>?> _buildPayload() async {
+  Future<Map<String, dynamic>?> _buildPayload(DateTime since) async {
     final docsDir = await getApplicationDocumentsDirectory();
     final sessionsFile = File(p.join(docsDir.path, 'sessions.json'));
     final familiesFile = File(p.join(docsDir.path, 'families.json'));
@@ -64,13 +79,19 @@ class GoogleSheetsService {
     final List<Map<String, dynamic>> records = [];
 
     for (final s in sessionsJson) {
-      final date = DateTime.parse(s['sessionDate']);
-      final dateStr = dateFormat.format(date);
+      final updatedAt = DateTime.parse(s['updatedAt']);
+      // If the entire session hasn't been updated since last sync, skip it
+      if (updatedAt.isBefore(since)) continue;
+
+      final sessionDate = DateTime.parse(s['sessionDate']);
+      final dateStr = dateFormat.format(sessionDate);
       final title = s['title'];
       final sessionRecords = s['records'] as List<dynamic>?;
 
       if (sessionRecords != null) {
         for (final r in sessionRecords) {
+          // If individual records had timestamps, we'd check them here.
+          // Since they don't, we sync the whole session if it's new/updated.
           final memberId = r['attendee'];
           final memberName = memberNames[memberId] ?? memberId;
           final status = r['status'];
