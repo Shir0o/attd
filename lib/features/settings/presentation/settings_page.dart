@@ -480,19 +480,44 @@ function doPost(e) {
                       controller: _sheetsUrlController,
                       decoration: InputDecoration(
                         labelText: 'Web App URL',
+                        hintText: 'https://script.google.com/macros/s/...',
                         border: const OutlineInputBorder(),
-                        suffixIcon: _isSavingUrl
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_sheetsUrlController.text.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                tooltip: 'Clear URL',
+                                onPressed: () {
+                                  _sheetsUrlController.clear();
+                                  _saveGoogleSheetsUrl('');
+                                },
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.content_paste, size: 20),
+                              tooltip: 'Paste from Clipboard',
+                              onPressed: () async {
+                                final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                if (data?.text != null) {
+                                  _sheetsUrlController.text = data!.text!;
+                                  _saveGoogleSheetsUrl(data.text!);
+                                }
+                              },
+                            ),
+                            if (_isSavingUrl)
+                              const SizedBox(
+                                width: 24,
+                                height: 24,
                                 child: Padding(
-                                  padding: EdgeInsets.all(12.0),
+                                  padding: EdgeInsets.all(4.0),
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                   ),
                                 ),
-                              )
-                            : null,
+                              ),
+                          ],
+                        ),
                       ),
                       onChanged: (value) => _saveGoogleSheetsUrl(value),
                     ),
