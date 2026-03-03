@@ -50,6 +50,19 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     super.initState();
     _eventsStream = widget.eventRepository.streamEvents().map(_processEvents);
     _loadMembers();
+
+    // Listen to DriveService for sync status updates
+    widget.driveService?.addListener(_onDriveServiceChange);
+  }
+
+  @override
+  void dispose() {
+    widget.driveService?.removeListener(_onDriveServiceChange);
+    super.dispose();
+  }
+
+  void _onDriveServiceChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadMembers() async {
@@ -262,6 +275,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isSyncing = widget.driveService?.isSyncing ?? false;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -343,14 +357,27 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   return StreamBuilder<List<Event>>(
                     stream: _eventsStream,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SliverFillRemaining(
-                          child: Center(child: CircularProgressIndicator()),
+                      final isLoading =
+                          snapshot.connectionState == ConnectionState.waiting ||
+                          (isSyncing &&
+                              (snapshot.data == null ||
+                                  snapshot.data!.isEmpty));
+
+                      if (isLoading) {
+                        return SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => const Padding(
+                              padding: EdgeInsets.only(bottom: 16),
+                              child: _EventCardSkeleton(),
+                            ),
+                            childCount: 3,
+                          ),
                         );
                       }
 
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return SliverFillRemaining(
+                          hasScrollBody: false,
                           child: Center(
                             child: Text(
                               'No events created yet',
@@ -376,8 +403,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                           final now = DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
-                          final lastSupposed =
-                              getLastSupposedOccurrence(event, now);
+                          final lastSupposed = getLastSupposedOccurrence(
+                            event,
+                            now,
+                          );
 
                           // Find the most recent session for this event
                           final eventSessions = sessions.where((s) {
@@ -406,7 +435,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           }
 
                           final hasSession = targetSession != null;
-                          final displayDate = targetSession?.sessionDate ?? lastSupposed;
+                          final displayDate =
+                              targetSession?.sessionDate ?? lastSupposed;
 
                           String attendanceStatus;
                           if (lastSupposed.isAfter(today)) {
@@ -414,14 +444,16 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           } else {
                             final isTargetToday =
                                 displayDate.year == today.year &&
-                                    displayDate.month == today.month &&
-                                    displayDate.day == today.day;
+                                displayDate.month == today.month &&
+                                displayDate.day == today.day;
                             if (isTargetToday) {
-                              attendanceStatus =
-                                  hasSession ? 'Taken today' : 'Not taken yet';
+                              attendanceStatus = hasSession
+                                  ? 'Taken today'
+                                  : 'Not taken yet';
                             } else {
-                              final dateStr =
-                                  DateFormat('MMM d').format(displayDate);
+                              final dateStr = DateFormat(
+                                'MMM d',
+                              ).format(displayDate);
                               attendanceStatus = hasSession
                                   ? 'Taken ($dateStr)'
                                   : 'Missed ($dateStr)';
@@ -437,11 +469,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 attendanceStatus: attendanceStatus,
                                 onTap: () async {
                                   // 1. Calculate target date
-                                  final targetDate =
-                                      calculateTargetDate(event, DateTime.now());
+                                  final targetDate = calculateTargetDate(
+                                    event,
+                                    DateTime.now(),
+                                  );
 
                                   // 2. Find existing session for target date (or most recent relevant)
-                                  final eventSessionsOnTap = sessions.where((s) {
+                                  final eventSessionsOnTap = sessions.where((
+                                    s,
+                                  ) {
                                     if (s.eventId != null &&
                                         s.eventId!.isNotEmpty) {
                                       return s.eventId == event.id;
@@ -468,36 +504,56 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                   }
 
                                   // 3. Filter members
-                                  final sessionMembers = event.memberIds.isNotEmpty
-                                      ? _members.where((m) => event.memberIds.contains(m.id)).toList()
+                                  final sessionMembers =
+                                      event.memberIds.isNotEmpty
+                                      ? _members
+                                            .where(
+                                              (m) => event.memberIds.contains(
+                                                m.id,
+                                              ),
+                                            )
+                                            .toList()
                                       : _members;
 
                                   if (foundSession != null) {
                                     // Session exists
                                     final sessionToOpen = foundSession;
-                                    
+
                                     // If the session is "empty" or "incomplete", go to Deck to resume/start
                                     // If it's fully marked, go to Summary
-                                    final bool isIncomplete = sessionToOpen.records.length < sessionMembers.length;
+                                    final bool isIncomplete =
+                                        sessionToOpen.records.length <
+                                        sessionMembers.length;
 
                                     if (isIncomplete) {
-                                      var resultSession = await Navigator.of(context).push<Session>(
-                                        MaterialPageRoute(
-                                          builder: (_) => AttendanceDeckPage(
-                                            session: sessionToOpen,
-                                            members: sessionMembers,
-                                            sessionRepository:
-                                                widget.sessionRepository,
-                                          ),
-                                        ),
-                                      );
+                                      var resultSession =
+                                          await Navigator.of(
+                                            context,
+                                          ).push<Session>(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  AttendanceDeckPage(
+                                                    session: sessionToOpen,
+                                                    members: sessionMembers,
+                                                    sessionRepository: widget
+                                                        .sessionRepository,
+                                                  ),
+                                            ),
+                                          );
 
                                       // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
-                                      resultSession ??= await widget.sessionRepository.findSessionById(sessionToOpen.id);
+                                      resultSession ??= await widget
+                                          .sessionRepository
+                                          .findSessionById(sessionToOpen.id);
 
                                       // Cleanup if still empty after returning
-                                      if (resultSession != null && resultSession.records.isEmpty) {
-                                        await widget.sessionRepository.deleteSession(sessionToOpen.id, actor: 'System (Cleanup)');
+                                      if (resultSession != null &&
+                                          resultSession.records.isEmpty) {
+                                        await widget.sessionRepository
+                                            .deleteSession(
+                                              sessionToOpen.id,
+                                              actor: 'System (Cleanup)',
+                                            );
                                       }
                                     } else {
                                       await Navigator.of(context).push(
@@ -513,7 +569,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                     }
                                   } else {
                                     // Session does not exist -> Create new -> Deck
-                                    final session = await widget.sessionRepository
+                                    final session = await widget
+                                        .sessionRepository
                                         .createSession(
                                           title: event.title,
                                           eventId: event.id,
@@ -524,24 +581,34 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                                     if (!context.mounted) return;
 
-                                    var resultSession = await Navigator.of(context).push<Session>(
-                                      MaterialPageRoute(
-                                        builder: (_) => AttendanceDeckPage(
-                                          session: session,
-                                          members: sessionMembers,
-                                          sessionRepository:
-                                              widget.sessionRepository,
-                                        ),
-                                      ),
-                                    );
+                                    var resultSession =
+                                        await Navigator.of(
+                                          context,
+                                        ).push<Session>(
+                                          MaterialPageRoute(
+                                            builder: (_) => AttendanceDeckPage(
+                                              session: session,
+                                              members: sessionMembers,
+                                              sessionRepository:
+                                                  widget.sessionRepository,
+                                            ),
+                                          ),
+                                        );
 
                                     // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
-                                    resultSession ??= await widget.sessionRepository.findSessionById(session.id);
+                                    resultSession ??= await widget
+                                        .sessionRepository
+                                        .findSessionById(session.id);
 
                                     // Check if the session was actually used/finished
-                                    if (resultSession != null && resultSession.records.isEmpty) {
+                                    if (resultSession != null &&
+                                        resultSession.records.isEmpty) {
                                       // If no records were added, assume the user cancelled/aborted
-                                      await widget.sessionRepository.deleteSession(session.id, actor: 'System (Cleanup)');
+                                      await widget.sessionRepository
+                                          .deleteSession(
+                                            session.id,
+                                            actor: 'System (Cleanup)',
+                                          );
                                     }
                                   }
 
@@ -585,7 +652,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   }
 }
 
-class _EventCard extends StatelessWidget {
+class _EventCard extends StatefulWidget {
   const _EventCard({
     required this.event,
     required this.isToday,
@@ -615,14 +682,191 @@ class _EventCard extends StatelessWidget {
   final String attendanceStatus;
 
   @override
+  State<_EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<_EventCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 6.0).animate(
+      CurvedAnimation(
+        parent: _pulseController,
+        // The HTML uses a 70% keyframe for max spread, we can simulate with Sine or custom timing.
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
+    );
+    if (widget.isToday) {
+      _pulseController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _EventCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isToday && !oldWidget.isToday) {
+      _pulseController.repeat();
+    } else if (!widget.isToday && oldWidget.isToday) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildRepeatingDaysRow() {
+    final days = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      ' শনিবার',
+      'রবিবার',
+      'Saturday',
+    ]; // handle dirty list
+    final dayOrder = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: dayOrder.map((day) {
+        final isActive = widget.event.repeatingDays.contains(day);
+        final bg = isActive
+            ? widget.primaryColor
+            : const Color(0xFFECE6F0); // surface-container-high approx
+        final fg = isActive
+            ? widget.onPrimaryColor
+            : widget.onSurfaceVariantColor;
+
+        return Container(
+          width: 24,
+          height: 24,
+          margin: const EdgeInsets.only(right: 4),
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: Text(
+            day.substring(0, 1),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+              color: fg,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildAttendanceStatusPill(String status) {
+    if (status == 'Not taken yet') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        decoration: BoxDecoration(
+          color: widget.primaryColor,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 3,
+              spreadRadius: 1,
+              offset: const Offset(0, 1),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 2,
+              spreadRadius: 0,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'START',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: widget.onPrimaryColor,
+                letterSpacing: 0.1,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.play_arrow, size: 18, color: widget.onPrimaryColor),
+          ],
+        ),
+      );
+    } else if (status.startsWith('Taken')) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: widget.secondaryContainerColor,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.check_circle,
+              size: 18,
+              color: widget.onSecondaryContainerColor,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'COMPLETED',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: widget.onSecondaryContainerColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Upcoming, Missed, etc. Keep plain text style as a fallback.
+      return Text(
+        status,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: widget.onSurfaceVariantColor,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 0,
-      color: surfaceContainerColor,
+      elevation: 1, // Add shadow-elevation-1 approx
+      shadowColor: Colors.black.withOpacity(0.3),
+      color: widget.surfaceContainerColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Container(
           constraints: const BoxConstraints(minHeight: 200),
           padding: const EdgeInsets.all(16),
@@ -638,170 +882,267 @@ class _EventCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (isToday)
-                              Container(
+                        if (widget.isToday)
+                          AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, child) {
+                              // Fade out the shadow as it expands based on animation value
+                              final opacity =
+                                  1.0 -
+                                  (_pulseController.value / 0.7).clamp(
+                                    0.0,
+                                    1.0,
+                                  );
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: primaryColor,
+                                  color: widget.primaryColor,
                                   borderRadius: BorderRadius.circular(28),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: widget.primaryColor.withOpacity(
+                                        opacity * 0.4,
+                                      ),
+                                      blurRadius: 0,
+                                      spreadRadius: _pulseAnimation.value,
+                                    ),
+                                  ],
                                 ),
                                 child: Text(
                                   'TODAY',
                                   style: TextStyle(
-                                    color: onPrimaryColor,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                                    color: widget.onPrimaryColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
-                              ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: secondaryContainerColor,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(
-                                  color: onSurfaceVariantColor.withOpacity(0.1),
-                                ),
-                              ),
-                              child: Text(
-                                event.frequency == 'One-time'
-                                    ? (event.oneTimeDate != null
-                                        ? DateFormat('MMM d')
-                                            .format(event.oneTimeDate!)
-                                        : 'Once')
-                                    : event.repeatingDays.isNotEmpty
-                                        ? (() {
-                                          final sortedDays =
-                                              List<String>.from(
-                                                event.repeatingDays,
-                                              );
-                                          final dayOrder = [
-                                            'Monday',
-                                            'Tuesday',
-                                            'Wednesday',
-                                            'Thursday',
-                                            'Friday',
-                                            'Saturday',
-                                            'Sunday',
-                                          ];
-                                          sortedDays.sort(
-                                            (a, b) => dayOrder.indexOf(a)
-                                                .compareTo(dayOrder.indexOf(b)),
-                                          );
-                                          return sortedDays
-                                              .map((d) => d.substring(0, 3))
-                                              .join(', ');
-                                        })()
-                                        : event.frequency,
-                                style: TextStyle(
-                                  color: onSurfaceVariantColor,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
+                              );
+                            },
+                          ),
                         Text(
-                          event.title,
+                          widget.event.title,
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w500,
-                            color: onSurfaceColor,
+                            color: widget.onSurfaceColor,
                             height: 1.1,
                           ),
-                          maxLines: 3,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 8),
+                        if (widget.event.frequency == 'One-time')
+                          Text(
+                            widget.event.oneTimeDate != null
+                                ? DateFormat(
+                                    'MMM d, yyyy',
+                                  ).format(widget.event.oneTimeDate!)
+                                : 'Once',
+                            style: TextStyle(
+                              color: widget.onSurfaceVariantColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          )
+                        else if (widget.event.repeatingDays.isNotEmpty)
+                          _buildRepeatingDaysRow(),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.more_vert, color: onSurfaceVariantColor),
-                    onPressed: onMenuTap,
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: widget.onSurfaceVariantColor,
+                    ),
+                    onPressed: widget.onMenuTap,
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 20,
-                          color: onSurfaceVariantColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            event.time.format(context),
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: onSurfaceVariantColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isToday
-                          ? secondaryContainerColor
-                          : surfaceContainerColor.withAlpha(
-                              20,
-                            ), // Less prominent
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: onSurfaceVariantColor.withOpacity(0.1),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 20,
+                        color: widget.onSurfaceVariantColor,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            attendanceStatus,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: onSurfaceVariantColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.event.time.format(context),
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: widget.onSurfaceVariantColor,
                         ),
-                      ],
-                    ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
+                  _buildAttendanceStatusPill(widget.attendanceStatus),
                 ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _EventCardSkeleton extends StatelessWidget {
+  const _EventCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final baseColor = colorScheme.surfaceContainer;
+
+    return Card(
+      elevation: 0,
+      color: baseColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 200),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _ShimmerBox(
+                            width: 60,
+                            height: 24,
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          const SizedBox(width: 8),
+                          _ShimmerBox(
+                            width: 80,
+                            height: 24,
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const _ShimmerBox(width: 200, height: 32),
+                      const SizedBox(height: 8),
+                      const _ShimmerBox(width: 140, height: 32),
+                    ],
+                  ),
+                ),
+                const _ShimmerBox(width: 24, height: 24),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    _ShimmerBox(width: 20, height: 20),
+                    SizedBox(width: 8),
+                    _ShimmerBox(width: 80, height: 20),
+                  ],
+                ),
+                _ShimmerBox(
+                  width: 120,
+                  height: 36,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  const _ShimmerBox({
+    required this.width,
+    required this.height,
+    this.borderRadius,
+  });
+
+  final double width;
+  final double height;
+  final BorderRadius? borderRadius;
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
+    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[100]!;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: widget.borderRadius ?? BorderRadius.circular(4),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [baseColor, highlightColor, baseColor],
+              stops: [
+                0.0,
+                (_animation.value + 1) / 2, // Map -2..2 to roughly 0..1
+                1.0,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
