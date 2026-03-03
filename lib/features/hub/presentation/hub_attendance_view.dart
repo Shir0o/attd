@@ -332,6 +332,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                             driveService: widget.driveService!,
                             localBackupService: widget.localBackupService!,
                             attendanceRepository: widget.attendanceRepository,
+                            eventRepository: widget.eventRepository,
+                            sessionRepository: widget.sessionRepository,
                           ),
                         ),
                       );
@@ -445,8 +447,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           } else {
                             final isTargetToday =
                                 displayDate.year == today.year &&
-                                    displayDate.month == today.month &&
-                                    displayDate.day == today.day;
+                                displayDate.month == today.month &&
+                                displayDate.day == today.day;
                             if (isTargetToday) {
                               if (hasSession) {
                                 attendanceStatus = 'Taken today';
@@ -475,7 +477,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 isToday: isToday,
                                 attendanceStatus: attendanceStatus,
                                 isActionable: isActionable,
-                                onTap: () async {                                  // 1. Calculate target date
+                                onTap: () async {
+                                  // 1. Calculate target date
                                   final targetDate = calculateTargetDate(
                                     event,
                                     DateTime.now(),

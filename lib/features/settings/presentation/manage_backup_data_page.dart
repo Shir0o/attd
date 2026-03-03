@@ -1,0 +1,570 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../attendance/data/attendance_repository.dart';
+import '../../hub/data/event_repository.dart';
+import '../../../data/session_repository.dart';
+import '../../attendance/models/family.dart';
+import '../../attendance/models/member.dart';
+import '../../hub/domain/event.dart';
+import '../../../data/session.dart';
+
+class ManageBackupDataPage extends StatefulWidget {
+  const ManageBackupDataPage({
+    super.key,
+    required this.attendanceRepository,
+    required this.eventRepository,
+    required this.sessionRepository,
+  });
+
+  final AttendanceRepository attendanceRepository;
+  final EventRepository eventRepository;
+  final SessionRepository sessionRepository;
+
+  @override
+  State<ManageBackupDataPage> createState() => _ManageBackupDataPageState();
+}
+
+class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
+  bool _isLoading = true;
+
+  List<Event> _events = [];
+  List<Family> _families = [];
+  List<Session> _sessions = [];
+
+  // To track what needs to be deleted
+  final Set<String> _eventsToDelete = {};
+  final Set<String> _membersToDelete = {}; // member id
+  final Set<String> _sessionsToDelete = {};
+
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final families = await widget.attendanceRepository.fetchFamilies();
+      final eventsStream = widget.eventRepository.streamEvents();
+      final sessionsStream = widget.sessionRepository.streamSessions();
+
+      final events = await eventsStream.first;
+      final sessions = await sessionsStream.first;
+
+      setState(() {
+        _families = families;
+        _events = events;
+        _sessions = sessions;
+        _isLoading = false;
+
+        _eventsToDelete.clear();
+        _membersToDelete.clear();
+        _sessionsToDelete.clear();
+      });
+    } catch (e) {
+      print('Failed to load backup data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  int get _totalRecords {
+    final activeEvents = _events
+        .where((e) => !_eventsToDelete.contains(e.id))
+        .length;
+    final activeMembers = _families
+        .expand((f) => f.members)
+        .where((m) => !_membersToDelete.contains(m.id))
+        .length;
+    final activeSessions = _sessions
+        .where((s) => !_sessionsToDelete.contains(s.id))
+        .length;
+    return activeEvents + activeMembers + activeSessions;
+  }
+
+  String get _approximateSize {
+    // Rough estimation based on records
+    final total = _totalRecords;
+    final kb = total * 1.5; // guesstimate
+    if (kb > 1024) {
+      return '${(kb / 1024).toStringAsFixed(1)} MB';
+    }
+    return '${kb.toStringAsFixed(1)} KB';
+  }
+
+  Future<void> _saveCleanedBackup() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isLoading = true);
+
+    try {
+      // Delete selected events
+      for (final id in _eventsToDelete) {
+        await widget.eventRepository.deleteEvent(id);
+      }
+
+      // Delete selected sessions
+      for (final id in _sessionsToDelete) {
+        await widget.sessionRepository.deleteSession(
+          id,
+          actor: 'ManageBackup Data',
+        );
+      }
+
+      // Delete selected members
+      if (_membersToDelete.isNotEmpty) {
+        final currentFamilies = await widget.attendanceRepository
+            .fetchFamilies();
+        final updatedFamilies = currentFamilies.map((f) {
+          final updatedMembers = f.members
+              .where((m) => !_membersToDelete.contains(m.id))
+              .toList();
+          return f.copyWith(members: updatedMembers);
+        }).toList();
+        await widget.attendanceRepository.saveFamilies(updatedFamilies);
+      }
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Backup cleaned successfully')),
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('Failed to save cleaned backup: $e');
+      messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+      setState(() => _isLoading = false);
+      _loadData(); // reload on error
+    }
+  }
+
+  bool _matchesSearch(String text) {
+    if (_searchQuery.isEmpty) return true;
+    return text.toLowerCase().contains(_searchQuery.toLowerCase());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // Filter out deleted items
+    final displayEvents = _events
+        .where(
+          (e) => !_eventsToDelete.contains(e.id) && _matchesSearch(e.title),
+        )
+        .toList();
+
+    final displayMembers = _families
+        .expand((f) => f.members)
+        .where(
+          (m) =>
+              !_membersToDelete.contains(m.id) && _matchesSearch(m.displayName),
+        )
+        .toList();
+
+    final displaySessions = _sessions
+        .where(
+          (s) => !_sessionsToDelete.contains(s.id) && _matchesSearch(s.title),
+        )
+        .toList();
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        title: const Text('Manage Backup Data'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                ListView(
+                  padding: const EdgeInsets.only(
+                    bottom: 100,
+                  ), // Space for bottom button
+                  children: [
+                    _buildSummaryCard(colorScheme),
+                    _buildSearchBar(colorScheme),
+                    if (displayEvents.isNotEmpty)
+                      _buildEventsSection(displayEvents, colorScheme),
+                    if (displayMembers.isNotEmpty)
+                      _buildMembersSection(displayMembers, colorScheme),
+                    if (displaySessions.isNotEmpty)
+                      _buildSessionsSection(displaySessions, colorScheme),
+                  ],
+                ),
+                if (_eventsToDelete.isNotEmpty ||
+                    _membersToDelete.isNotEmpty ||
+                    _sessionsToDelete.isNotEmpty)
+                  _buildFloatingBottomAction(colorScheme),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSummaryCard(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.1)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 120,
+              decoration: BoxDecoration(color: colorScheme.primaryContainer),
+              child: Icon(
+                Icons.storage,
+                size: 64,
+                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.5),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'BACKUP SUMMARY',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Local Records Snapshot',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'DATE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              DateFormat('MMM dd, yyyy').format(DateTime.now()),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SIZE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              _approximateSize,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'RECORDS',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              '$_totalRecords',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Icon(Icons.search, color: colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search records in backup',
+                  hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                  border: InputBorder.none,
+                ),
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          color: colorScheme.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListTile({
+    required Widget leading,
+    required String title,
+    required String subtitle,
+    required VoidCallback onDelete,
+    required ColorScheme colorScheme,
+  }) {
+    return Container(
+      color: colorScheme.surface,
+      child: ListTile(
+        leading: leading,
+        title: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
+        trailing: IconButton(
+          icon: Icon(Icons.delete, color: colorScheme.error),
+          onPressed: onDelete,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventsSection(List<Event> events, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Events', colorScheme),
+        ...events.map(
+          (e) => Column(
+            children: [
+              _buildListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.event, color: colorScheme.primary),
+                ),
+                title: e.title,
+                subtitle:
+                    '${e.frequency} • ${DateFormat('MMM dd, yyyy').format(e.createdAt)}',
+                onDelete: () {
+                  setState(() => _eventsToDelete.add(e.id));
+                },
+                colorScheme: colorScheme,
+              ),
+              Divider(
+                height: 1,
+                color: colorScheme.primary.withValues(alpha: 0.05),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMembersSection(List<Member> members, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Members & Roster', colorScheme),
+        ...members.map(
+          (m) => Column(
+            children: [
+              _buildListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      m.displayName.isNotEmpty
+                          ? m.displayName[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                title: m.displayName,
+                subtitle: 'ID: #${m.id.substring(0, 4)}',
+                onDelete: () {
+                  setState(() => _membersToDelete.add(m.id));
+                },
+                colorScheme: colorScheme,
+              ),
+              Divider(
+                height: 1,
+                color: colorScheme.primary.withValues(alpha: 0.05),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSessionsSection(
+    List<Session> sessions,
+    ColorScheme colorScheme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Attendance History', colorScheme),
+        ...sessions.map(
+          (s) => Column(
+            children: [
+              _buildListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.history,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                title: s.title,
+                subtitle: DateFormat(
+                  'MMM dd, yyyy hh:mm a',
+                ).format(s.sessionDate),
+                onDelete: () {
+                  setState(() => _sessionsToDelete.add(s.id));
+                },
+                colorScheme: colorScheme,
+              ),
+              Divider(
+                height: 1,
+                color: colorScheme.primary.withValues(alpha: 0.05),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFloatingBottomAction(ColorScheme colorScheme) {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colorScheme.surface.withValues(alpha: 0.95),
+          border: Border(
+            top: BorderSide(color: colorScheme.primary.withValues(alpha: 0.1)),
+          ),
+        ),
+        child: SafeArea(
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            onPressed: _isLoading ? null : _saveCleanedBackup,
+            icon: const Icon(Icons.save),
+            label: const Text(
+              'Save Cleaned Backup',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

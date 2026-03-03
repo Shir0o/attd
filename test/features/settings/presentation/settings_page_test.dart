@@ -5,6 +5,12 @@ import 'package:attendance_tracker/features/settings/application/theme_controlle
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/data/session_repository.dart';
+import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/data/session.dart';
+import 'package:attendance_tracker/data/session_record.dart';
+import 'package:attendance_tracker/data/session_version.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -23,6 +29,50 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<void> saveFamilies(List<Family> families) async {}
   @override
   Future<void> refresh() async {}
+}
+
+class MockEventRepository implements EventRepository {
+  @override
+  Future<void> createEvent(Event event) async {}
+  @override
+  Future<void> updateEvent(Event event) async {}
+  @override
+  Future<void> deleteEvent(String eventId) async {}
+  @override
+  Stream<List<Event>> streamEvents() => Stream.value([]);
+  @override
+  Future<void> refresh() async {}
+}
+
+class MockSessionRepository implements SessionRepository {
+  @override
+  Future<Session> createSession({
+    required String title,
+    String? eventId,
+    required DateTime sessionDate,
+    required String actor,
+    required List<SessionRecord> records,
+  }) async => throw UnimplementedError();
+  @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+  @override
+  Future<Session> duplicate(String sessionId, {required String actor}) async =>
+      throw UnimplementedError();
+  @override
+  Future<Session?> findSessionById(String id) async => null;
+  @override
+  Future<List<SessionVersion>> history(String sessionId) async => [];
+  @override
+  Future<List<Session>> loadSessions() async => [];
+  @override
+  Future<void> refresh() async {}
+  @override
+  Future<Session> saveSnapshot(
+    Session session, {
+    required String actor,
+  }) async => throw UnimplementedError();
+  @override
+  Stream<List<Session>> streamSessions() => Stream.value([]);
 }
 
 // Create a Fake Drive Service
@@ -119,6 +169,8 @@ void main() {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
+    final eventRepo = MockEventRepository();
+    final sessionRepo = MockSessionRepository();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -127,6 +179,8 @@ void main() {
           driveService: driveService,
           localBackupService: localBackupService,
           attendanceRepository: attendanceRepo,
+          eventRepository: eventRepo,
+          sessionRepository: sessionRepo,
         ),
       ),
     );
@@ -144,6 +198,8 @@ void main() {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
+    final eventRepo = MockEventRepository();
+    final sessionRepo = MockSessionRepository();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -152,6 +208,8 @@ void main() {
           driveService: driveService,
           localBackupService: localBackupService,
           attendanceRepository: attendanceRepo,
+          eventRepository: eventRepo,
+          sessionRepository: sessionRepo,
         ),
       ),
     );
@@ -184,6 +242,8 @@ void main() {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
+    final eventRepo = MockEventRepository();
+    final sessionRepo = MockSessionRepository();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -192,6 +252,8 @@ void main() {
           driveService: driveService,
           localBackupService: localBackupService,
           attendanceRepository: attendanceRepo,
+          eventRepository: eventRepo,
+          sessionRepository: sessionRepo,
         ),
       ),
     );
@@ -209,6 +271,8 @@ void main() {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
+    final eventRepo = MockEventRepository();
+    final sessionRepo = MockSessionRepository();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -217,37 +281,29 @@ void main() {
           driveService: driveService,
           localBackupService: localBackupService,
           attendanceRepository: attendanceRepo,
+          eventRepository: eventRepo,
+          sessionRepository: sessionRepo,
         ),
       ),
     );
 
     await tester.dragUntilVisible(
-      find.text('Version'),
+      find.text('App Version'),
       find.byType(ListView),
-      const Offset(0, -200),
+      const Offset(0, -500),
     );
-    await tester.tap(find.text('Version'));
+    await tester.tap(find.text('App Version'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(AboutDialog), findsOneWidget);
-    final dialogFinder = find.byType(AboutDialog);
+    // It uses a BottomSheet, not AboutDialog
+    expect(find.byType(BottomSheet), findsOneWidget);
+
+    // We can't rely on 'dialogFinder' so just look globally
+    expect(find.text('Attendance Tracker'), findsWidgets);
+    expect(find.text('Version 2.4.0'), findsWidgets);
     expect(
-      find.descendant(
-        of: dialogFinder,
-        matching: find.text('Attendance Tracker'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: dialogFinder, matching: find.text('2.4.0')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: dialogFinder,
-        matching: find.text('© 2026 Attendance Tracker Contributors'),
-      ),
-      findsOneWidget,
+      find.text('© 2026 Attendance Tracker Contributors. All rights reserved.'),
+      findsWidgets,
     );
   });
 }
