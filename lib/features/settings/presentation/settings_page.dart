@@ -411,7 +411,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () async {
-                        const script = '''function doPost(e) {
+                        const script = '''function doGet(e) {
+  return ContentService.createTextOutput("The Attendance API is running successfully.");
+}
+
+function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName("Raw Logs");
