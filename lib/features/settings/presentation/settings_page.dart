@@ -9,8 +9,11 @@ import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/presentation/members_page.dart';
+import '../../hub/data/event_repository.dart';
+import '../../../data/session_repository.dart';
 
 import 'cloud_backup_page.dart';
+import 'manage_backup_data_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -19,12 +22,16 @@ class SettingsPage extends StatefulWidget {
     required this.driveService,
     required this.localBackupService,
     required this.attendanceRepository,
+    required this.eventRepository,
+    required this.sessionRepository,
   });
 
   final ThemeController themeController;
   final DriveService driveService;
   final LocalBackupService localBackupService;
   final AttendanceRepository attendanceRepository;
+  final EventRepository eventRepository;
+  final SessionRepository sessionRepository;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -445,7 +452,7 @@ function doPost(e) {
       let member = record.name; // Fallback
 
       // Regex to split "[YYYY-MM-DD] Event Name - Member Name"
-      const match = record.name.match(/\[(.*?)\]\s*(.*?)\s*-\s*(.*)/);
+      const match = record.name.match(/[(.*?)]s*(.*?)s*-s*(.*)/);
       if (match) {
         meetingDate = match[1];
         event = match[2].trim();
@@ -572,6 +579,23 @@ function doPost(e) {
                           MaterialPageRoute(
                             builder: (_) => MembersPage(
                               attendanceRepository: widget.attendanceRepository,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    Divider(height: 1, color: colorScheme.outlineVariant),
+                    _SettingsTile(
+                      icon: Icons.cleaning_services,
+                      title: 'Manage Backup Data',
+                      subtitle: 'Clean up hidden or orphaned records',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ManageBackupDataPage(
+                              attendanceRepository: widget.attendanceRepository,
+                              eventRepository: widget.eventRepository,
+                              sessionRepository: widget.sessionRepository,
                             ),
                           ),
                         );
@@ -752,18 +776,23 @@ function doPost(e) {
                                             width: 80,
                                             height: 80,
                                             decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(20),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.1),
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.1),
                                                   blurRadius: 10,
                                                   spreadRadius: 2,
                                                 ),
                                               ],
                                             ),
                                             child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(20),
-                                              child: Image.asset('assets/icon/icon.png'),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              child: Image.asset(
+                                                'assets/icon/icon.png',
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -771,18 +800,23 @@ function doPost(e) {
                                         Center(
                                           child: Text(
                                             'Attendance Tracker',
-                                            style: theme.textTheme.headlineMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: colorScheme.onSurface,
-                                            ),
+                                            style: theme
+                                                .textTheme
+                                                .headlineMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: colorScheme.onSurface,
+                                                ),
                                           ),
                                         ),
                                         Center(
                                           child: Text(
                                             'Version 2.4.0',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              color: colorScheme.onSurfaceVariant,
-                                            ),
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
                                           ),
                                         ),
                                         const SizedBox(height: 32),
@@ -809,7 +843,8 @@ function doPost(e) {
                                           child: OutlinedButton(
                                             onPressed: () => showLicensePage(
                                               context: context,
-                                              applicationName: 'Attendance Tracker',
+                                              applicationName:
+                                                  'Attendance Tracker',
                                               applicationVersion: '2.4.0',
                                             ),
                                             child: const Text('View Licenses'),
