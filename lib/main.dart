@@ -16,6 +16,8 @@ import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'features/auth/config/google_oauth_config.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase initialization removed
@@ -25,6 +27,7 @@ Future<void> main() async {
 
   final googleSignIn = GoogleSignIn(
     scopes: ['email', 'https://www.googleapis.com/auth/drive'],
+    serverClientId: GoogleOAuthConfig.webServerClientId,
   );
 
   final attendanceRepository = LocalJsonAttendanceRepository();
