@@ -439,24 +439,31 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               targetSession?.sessionDate ?? lastSupposed;
 
                           String attendanceStatus;
+                          bool isActionable = false;
                           if (lastSupposed.isAfter(today)) {
                             attendanceStatus = 'Upcoming';
                           } else {
                             final isTargetToday =
                                 displayDate.year == today.year &&
-                                displayDate.month == today.month &&
-                                displayDate.day == today.day;
+                                    displayDate.month == today.month &&
+                                    displayDate.day == today.day;
                             if (isTargetToday) {
-                              attendanceStatus = hasSession
-                                  ? 'Taken today'
-                                  : 'Not taken yet';
+                              if (hasSession) {
+                                attendanceStatus = 'Taken today';
+                              } else {
+                                attendanceStatus = 'Start';
+                                isActionable = true;
+                              }
                             } else {
                               final dateStr = DateFormat(
                                 'MMM d',
                               ).format(displayDate);
-                              attendanceStatus = hasSession
-                                  ? 'Taken ($dateStr)'
-                                  : 'Missed ($dateStr)';
+                              if (hasSession) {
+                                attendanceStatus = 'Taken ($dateStr)';
+                              } else {
+                                attendanceStatus = 'Start ($dateStr)';
+                                isActionable = true;
+                              }
                             }
                           }
 
@@ -467,8 +474,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 event: event,
                                 isToday: isToday,
                                 attendanceStatus: attendanceStatus,
-                                onTap: () async {
-                                  // 1. Calculate target date
+                                isActionable: isActionable,
+                                onTap: () async {                                  // 1. Calculate target date
                                   final targetDate = calculateTargetDate(
                                     event,
                                     DateTime.now(),
@@ -666,6 +673,7 @@ class _EventCard extends StatefulWidget {
     required this.secondaryContainerColor,
     required this.onSecondaryContainerColor,
     required this.attendanceStatus,
+    this.isActionable = false,
   });
 
   final Event event;
@@ -680,6 +688,7 @@ class _EventCard extends StatefulWidget {
   final Color secondaryContainerColor;
   final Color onSecondaryContainerColor;
   final String attendanceStatus;
+  final bool isActionable;
 
   @override
   State<_EventCard> createState() => _EventCardState();
@@ -779,7 +788,7 @@ class _EventCardState extends State<_EventCard>
   }
 
   Widget _buildAttendanceStatusPill(String status) {
-    if (status == 'Not taken yet') {
+    if (status.startsWith('Start')) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         decoration: BoxDecoration(
@@ -804,7 +813,7 @@ class _EventCardState extends State<_EventCard>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'START',
+              status.toUpperCase(),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
