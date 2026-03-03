@@ -409,9 +409,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        const script = '''function doGet(e) {
+                    Center(
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          const script = '''function doGet(e) {
   return ContentService.createTextOutput("The Attendance API is running successfully.");
 }
 
@@ -470,77 +471,112 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 }''';
-                        await Clipboard.setData(
-                          const ClipboardData(text: script),
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Boilerplate copied to clipboard!'),
-                            ),
+                          await Clipboard.setData(
+                            const ClipboardData(text: script),
                           );
-                        }
-                      },
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copy Apps Script Boilerplate'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Boilerplate copied to clipboard!'),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.copy_all, size: 20),
+                        label: const Text('Copy Apps Script'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '1. Create a Google Sheet and open Extensions > Apps Script.\n'
-                      '2. Paste the copied script, Deploy as Web App (Anyone).\n'
-                      '3. Paste the deployment URL below.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurfaceVariant,
-                        height: 1.5,
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '1. Open Extensions > Apps Script in your Google Sheet.\n'
+                        '2. Paste the script and Deploy as Web App (Anyone).\n'
+                        '3. Paste the deployment URL below.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.5,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     TextField(
                       controller: _sheetsUrlController,
+                      style: const TextStyle(fontSize: 14),
                       decoration: InputDecoration(
                         labelText: 'Web App URL',
                         hintText: 'https://script.google.com/macros/s/...',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_sheetsUrlController.text.isNotEmpty)
+                        filled: true,
+                        fillColor: colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: colorScheme.outlineVariant),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: colorScheme.outlineVariant),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                        suffixIcon: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_sheetsUrlController.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.clear, size: 20),
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: 'Clear URL',
+                                  onPressed: () {
+                                    _sheetsUrlController.clear();
+                                    _saveGoogleSheetsUrl('');
+                                  },
+                                ),
                               IconButton(
-                                icon: const Icon(Icons.clear, size: 20),
-                                tooltip: 'Clear URL',
-                                onPressed: () {
-                                  _sheetsUrlController.clear();
-                                  _saveGoogleSheetsUrl('');
+                                icon: const Icon(Icons.paste, size: 20),
+                                visualDensity: VisualDensity.compact,
+                                tooltip: 'Paste',
+                                onPressed: () async {
+                                  final data = await Clipboard.getData(
+                                    Clipboard.kTextPlain,
+                                  );
+                                  if (data?.text != null) {
+                                    _sheetsUrlController.text = data!.text!;
+                                    _saveGoogleSheetsUrl(data.text!);
+                                  }
                                 },
                               ),
-                            IconButton(
-                              icon: const Icon(Icons.content_paste, size: 20),
-                              tooltip: 'Paste from Clipboard',
-                              onPressed: () async {
-                                final data = await Clipboard.getData(Clipboard.kTextPlain);
-                                if (data?.text != null) {
-                                  _sheetsUrlController.text = data!.text!;
-                                  _saveGoogleSheetsUrl(data.text!);
-                                }
-                              },
-                            ),
-                            if (_isSavingUrl)
-                              const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: Padding(
-                                  padding: EdgeInsets.all(4.0),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                              if (_isSavingUrl)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colorScheme.primary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       onChanged: (value) => _saveGoogleSheetsUrl(value),
