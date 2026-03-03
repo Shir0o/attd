@@ -413,11 +413,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       onPressed: () async {
                         const script = '''function doPost(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName("Raw Logs");
+    if (!sheet) {
+      sheet = ss.insertSheet("Raw Logs");
+      sheet.appendRow(["Sync Time", "Record (Date, Event, Member)", "Status"]);
+      sheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#f3f3f3");
+    }
+
     const data = JSON.parse(e.postData.contents);
+    const syncTime = data.date;
     
     const rows = data.records.map(record => [
-      data.date, 
+      syncTime, 
       record.name, 
       record.status
     ]);
