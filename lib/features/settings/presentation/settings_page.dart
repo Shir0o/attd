@@ -419,28 +419,52 @@ function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName("Raw Logs");
+    
     if (!sheet) {
       sheet = ss.insertSheet("Raw Logs");
-      sheet.appendRow(["Sync Time", "Record (Date, Event, Member)", "Status"]);
-      sheet.getRange(1, 1, 1, 3).setFontWeight("bold").setBackground("#f3f3f3");
+      // Create 5 distinct columns for the Pivot Table
+      sheet.appendRow(["Sync Time", "Meeting Date", "Event", "Member", "Is Present"]);
+      sheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#f3f3f3");
+      sheet.setFrozenRows(1);
     }
 
     const data = JSON.parse(e.postData.contents);
-    const syncTime = data.date;
-    
-    const rows = data.records.map(record => [
-      syncTime, 
-      record.name, 
-      record.status
-    ]);
-    
+    const syncTime = data.date; 
+
+    // Map and split the incoming records
+    const rows = data.records.map(record => {
+      let meetingDate = "";
+      let event = "";
+      let member = record.name; // Fallback
+
+      // Regex to split "[YYYY-MM-DD] Event Name - Member Name"
+      // It handles varying spaces and extra hyphens safely
+      const match = record.name.match(/\[(.*?)\]\s*(.*?)\s*-\s*(.*)/);
+      if (match) {
+        meetingDate = match[1];
+        event = match[2].trim();
+        member = match[3].trim();
+      }
+
+      // Convert "present" / "absent" to TRUE / FALSE
+      const isPresent = (record.status.toLowerCase() === 'present');
+
+      return [
+        syncTime, 
+        meetingDate, 
+        event, 
+        member, 
+        isPresent
+      ];
+    });
+
     if (rows.length > 0) {
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
-    
+
     return ContentService.createTextOutput(JSON.stringify({"status": "success", "rowsAdded": rows.length}))
       .setMimeType(ContentService.MimeType.JSON);
-      
+
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.message}))
       .setMimeType(ContentService.MimeType.JSON);
