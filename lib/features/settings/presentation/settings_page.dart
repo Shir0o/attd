@@ -411,12 +411,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () async {
-                        const script = '''function doGet(e) {
-  return ContentService.createTextOutput("Sync Script is LIVE! (Use POST to sync data)")
-    .setMimeType(ContentService.MimeType.TEXT);
-}
-
-function doPost(e) {
+                        const script = '''function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName("Raw Logs");
