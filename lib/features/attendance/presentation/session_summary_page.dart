@@ -41,9 +41,15 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     );
 
     if (latest != null && mounted) {
-      setState(() {
-        _currentSession = latest;
-      });
+      final isNewer = latest.currentVersion > _currentSession.currentVersion ||
+          (latest.currentVersion == _currentSession.currentVersion &&
+              latest.updatedAt.isAfter(_currentSession.updatedAt));
+
+      if (isNewer) {
+        setState(() {
+          _currentSession = latest;
+        });
+      }
     }
 
     // Ensure minimum loading duration for visual consistency
