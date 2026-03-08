@@ -439,7 +439,7 @@ function doPost(e) {
     const syncTime = data.date; 
     
     // 2. Read existing data into memory (Skip the header row)
-    const existingData = sheet.getDataRange().getValues();
+    const existingData = sheet.getDataRange().getDisplayValues();
     const headers = existingData.shift() || ["Sync Time", "Meeting Date", "Event", "Member", "Is Present"];
     
     // 3. Map existing records by a Unique Key to prevent duplicates
