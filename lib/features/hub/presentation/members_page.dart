@@ -28,14 +28,21 @@ class _MembersPageState extends State<MembersPage> {
   Object? _error;
   Event? _currentEvent; // To track local changes to the event
 
-  final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _quickAddController = TextEditingController();
+  final TextEditingController _inputController = TextEditingController();
+  final FocusNode _inputFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _currentEvent = widget.event;
     _loadFamilies(isInitial: true);
+  }
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    _inputFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFamilies({bool isInitial = false}) async {
@@ -78,11 +85,42 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Future<void> _addMember(String name) async {
-    if (name.trim().isEmpty) return;
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) return;
+
+    // Check for duplicates
+    final allMembers = _getAllMembers(_families ?? []);
+    final isDuplicate = allMembers.any(
+      (m) => m.displayName.toLowerCase() == trimmedName.toLowerCase(),
+    );
+
+    if (isDuplicate) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Duplicate Member'),
+              content: Text(
+                'A member named "$trimmedName" already exists. Do you want to add them anyway?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Add Duplicate'),
+                ),
+              ],
+            ),
+      );
+      if (confirmed != true) return;
+    }
 
     try {
-      final newFamily = await widget.attendanceRepository.addFamily(name);
-      final newMember = Member(id: const Uuid().v4(), displayName: name);
+      final newFamily = await widget.attendanceRepository.addFamily(trimmedName);
+      final newMember = Member(id: const Uuid().v4(), displayName: trimmedName);
       final updatedFamily = await widget.attendanceRepository.addMember(
         newFamily.id,
         newMember,
@@ -99,11 +137,14 @@ class _MembersPageState extends State<MembersPage> {
         }
       }
 
-      _quickAddController.clear();
+      _inputController.clear();
+      // Keep keyboard open and focus the input
+      _inputFocusNode.requestFocus();
+
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Added $name')));
+      ).showSnackBar(SnackBar(content: Text('Added $trimmedName')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -246,77 +287,45 @@ class _MembersPageState extends State<MembersPage> {
       ),
       body: Column(
         children: [
-          // Search & Quick Add Section
+          // Combined Search & Add Section
           Container(
             color: colorScheme.surface,
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Search
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (val) {
-                      setState(() {});
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Find members',
-                      hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Quick Add Label
-                Text(
-                  isEventMode
-                      ? 'QUICK ADD TO EVENT'
-                      : 'QUICK ADD MEMBER',
-                  style: TextStyle(
-                    color: colorScheme.primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
                 Row(
                   children: [
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          border: Border.all(color: colorScheme.outlineVariant),
-                          borderRadius: BorderRadius.circular(16),
+                          color: colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(28),
                         ),
                         child: TextField(
-                          controller: _quickAddController,
+                          controller: _inputController,
+                          focusNode: _inputFocusNode,
                           textCapitalization: TextCapitalization.words,
-                          style: const TextStyle(fontSize: 18),
-                          decoration: const InputDecoration(
-                            hintText: 'Enter full name',
+                          onChanged: (val) {
+                            setState(() {});
+                          },
+                          onSubmitted: (val) => _addMember(val),
+                          decoration: InputDecoration(
+                            hintText: isEventMode
+                                ? 'Find or add to event'
+                                : 'Find or add member',
+                            hintStyle:
+                                TextStyle(color: colorScheme.onSurfaceVariant),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
+                            contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 14,
                             ),
                           ),
-                          onSubmitted: (val) => _addMember(val),
                         ),
                       ),
                     ),
@@ -328,7 +337,7 @@ class _MembersPageState extends State<MembersPage> {
                       elevation: 1,
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,
-                      onPressed: () => _addMember(_quickAddController.text),
+                      onPressed: () => _addMember(_inputController.text),
                       child: const Icon(Icons.add),
                     ),
                   ],
@@ -400,7 +409,7 @@ class _MembersPageState extends State<MembersPage> {
 
     final families = _families ?? [];
     final allMembers = _getAllMembers(families);
-    final searchTerm = _searchController.text.toLowerCase();
+    final searchTerm = _inputController.text.toLowerCase();
 
     // Filter by search
     var filteredMembers =
