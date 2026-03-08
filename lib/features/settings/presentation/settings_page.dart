@@ -418,7 +418,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () async {
-                        const script = '''function doGet(e) {
+                        const script = r'''function doGet(e) {
   return ContentService.createTextOutput("The Attendance API is running successfully.");
 }
 
@@ -457,7 +457,7 @@ function doPost(e) {
       let member = record.name; 
 
       // Fixed Regex: Added backslashes for escaping brackets \[ \] and whitespace \s
-      const match = record.name.match(/\\[(.*?)\\]\\s*(.*?)\\s*-\\s*(.*)/);
+      const match = record.name.match(/\[(.*?)\]\s*(.*?)\s*-\s*(.*)/);
       if (match) {
         meetingDate = match[1].trim();
         event = match[2].trim();
