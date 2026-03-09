@@ -60,4 +60,25 @@ class HubRobot {
     await tester.tap(find.text(option));
     await tester.pumpAndSettle();
   }
+
+  Future<void> verifyEventStatus(String title, String status) async {
+    final textFinder = find.text(title);
+    await tester.pumpUntilFound(textFinder);
+
+    final cardFinder = find.ancestor(of: textFinder, matching: find.byType(Card));
+    final statusFinder = find.descendant(of: cardFinder, matching: find.text(status));
+
+    await tester.pumpUntilFound(statusFinder);
+    expect(statusFinder, findsOneWidget);
+  }
+
+  Future<void> goBack() async {
+    final backButton = find.byType(BackButton);
+    if (backButton.evaluate().isNotEmpty) {
+      await tester.tap(backButton.last);
+    } else {
+      await tester.tap(find.byIcon(Icons.arrow_back).last);
+    }
+    await tester.pumpAndSettle();
+  }
 }
