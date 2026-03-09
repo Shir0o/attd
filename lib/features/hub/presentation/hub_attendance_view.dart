@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -716,7 +717,7 @@ class _EventCardState extends State<_EventCard>
         curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
       ),
     );
-    if (widget.isToday) {
+    if (widget.isToday && !kDebugMode) {
       _pulseController.repeat();
     }
   }
@@ -724,7 +725,7 @@ class _EventCardState extends State<_EventCard>
   @override
   void didUpdateWidget(covariant _EventCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isToday && !oldWidget.isToday) {
+    if (widget.isToday && !oldWidget.isToday && !kDebugMode) {
       _pulseController.repeat();
     } else if (!widget.isToday && oldWidget.isToday) {
       _pulseController.stop();
@@ -1114,7 +1115,11 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
-    )..repeat();
+    );
+
+    if (!kDebugMode) {
+      _controller.repeat();
+    }
 
     _animation = Tween<double>(begin: -2, end: 2).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
