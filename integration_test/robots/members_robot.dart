@@ -25,6 +25,38 @@ class MembersRobot {
     await tester.pumpAndSettle();
   }
 
+  Future<void> search(String query) async {
+    final textField = find.byType(TextField).last;
+    await tester.enterText(textField, query);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> clearSearch() async {
+    final textField = find.byType(TextField).last;
+    await tester.enterText(textField, '');
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> toggleMember(String memberName) async {
+    final memberFinder = find.text(memberName);
+    await tester.pumpUntilFound(memberFinder);
+    
+    // Tap the ListTile or the Checkbox
+    await tester.tap(memberFinder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> verifyMemberSelected(String memberName, bool isSelected) async {
+    final memberFinder = find.text(memberName);
+    await tester.pumpUntilFound(memberFinder);
+
+    final tileFinder = find.ancestor(of: memberFinder, matching: find.byType(ListTile));
+    final checkboxFinder = find.descendant(of: tileFinder, matching: find.byType(Checkbox));
+    
+    final checkbox = tester.widget<Checkbox>(checkboxFinder);
+    expect(checkbox.value, isSelected);
+  }
+
   Future<void> verifyMember(String memberName) async {
     await tester.pumpUntilFound(find.text(memberName));
   }
