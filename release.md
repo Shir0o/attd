@@ -1,3 +1,13 @@
+# 1.0.6+7
+*   **Reliability & Data Integrity**:
+    *   Fixed a critical race condition in the **Session Summary**: The app now ensures that only newer session snapshots from the repository can update the local state, preventing stale data from overwriting recent attendance markings during slow saves.
+*   **Member Management UX**:
+    *   Unified the search and add member functionality into a **single intuitive input field**.
+    *   Implemented **Duplicate Prevention**: A confirmation dialog now appears if you attempt to add a member with a name that already exists.
+    *   Enhanced focus management: The input field now automatically clears and refocused after adding a member, keeping the keyboard open for seamless consecutive entries.
+*   **Boilerplate & Developer Experience**:
+    *   Fixed compilation errors in the Google Sheets Apps Script boilerplate within the Settings UI.
+
 # 1.0.5+6
 *   **Performance & UI Smoothness**:
     *   Implemented non-blocking initialization: App UI now renders immediately while Drive sync and silent sign-in happen in the background.
