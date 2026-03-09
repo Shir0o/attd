@@ -156,8 +156,8 @@ void main() {
     );
 
     // Mock attendance repo returns 2 members
-    final member1 = const Member(id: '1', displayName: 'Member One');
-    final member2 = const Member(id: '2', displayName: 'Member Two');
+    final member1 = Member(id: '1', displayName: 'Member One');
+    final member2 = Member(id: '2', displayName: 'Member Two');
     
     // Custom mock repo to return members
     final customAttendanceRepo = _MockAttendanceRepoWithMembers([member1, member2]);

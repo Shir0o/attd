@@ -30,7 +30,7 @@ void main() {
           id: 'f1',
           displayName: 'Alpha',
           labels: const LabelAssignments(manualLabels: {watchlistLabel}),
-          members: const [
+          members: [
             Member(
               id: 'm1',
               displayName: 'Avery',

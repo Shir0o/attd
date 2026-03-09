@@ -87,9 +87,9 @@ void main() {
     }
 
     final members = [
-      const Member(id: '1', displayName: 'Alice Johnson'),
-      const Member(id: '2', displayName: 'Bob Smith'),
-      const Member(id: '3', displayName: 'Charlie Brown'),
+      Member(id: '1', displayName: 'Alice Johnson'),
+      Member(id: '2', displayName: 'Bob Smith'),
+      Member(id: '3', displayName: 'Charlie Brown'),
     ];
 
     final records = [

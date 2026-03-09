@@ -89,7 +89,7 @@ class AttendeeInsight {
 }
 
 class FamilyInsight {
-  const FamilyInsight({
+  FamilyInsight({
     required this.family,
     required this.present,
     required this.absent,
@@ -347,16 +347,16 @@ String _canonicalizeAttendee(
 ) {
   final normalized = attendee.toLowerCase();
   for (final member in membersById.values) {
-    if (member.displayName.toLowerCase() == normalized ||
-        member.canonicalName.toLowerCase() == normalized) {
+    if (member.displayNameLowercase == normalized ||
+        member.canonicalNameLowercase == normalized) {
       return _resolveMember(member, membersById, visited).canonicalName;
     }
   }
 
   final familiesById = {for (final family in families) family.id: family};
   for (final family in families) {
-    if (family.displayName.toLowerCase() == normalized ||
-        family.canonicalName.toLowerCase() == normalized) {
+    if (family.displayNameLowercase == normalized ||
+        family.canonicalNameLowercase == normalized) {
       return _resolveFamily(family, familiesById, visited).canonicalName;
     }
   }

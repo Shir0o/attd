@@ -9,7 +9,10 @@ class Family {
   final List<Member> members;
   final LabelAssignments labels;
 
-  const Family({
+  late final String displayNameLowercase = displayName.toLowerCase();
+  late final String canonicalNameLowercase = canonicalName.toLowerCase();
+
+  Family({
     required this.id,
     required this.displayName,
     String? canonicalName,
