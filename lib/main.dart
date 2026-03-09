@@ -130,7 +130,6 @@ class _AttendanceAppState extends State<AttendanceApp>
               builders: {
                 TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
               },
             ),
           ),
@@ -145,7 +144,6 @@ class _AttendanceAppState extends State<AttendanceApp>
               builders: {
                 TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
                 TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
               },
             ),
           ),

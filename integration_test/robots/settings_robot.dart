@@ -25,11 +25,9 @@ class SettingsRobot {
   }
 
   Future<void> tapManageMembers() async {
-    final settingsPage = find.byType(SettingsPage);
-    await tester.pumpUntilFound(settingsPage);
-    
-    final finder = find.descendant(of: settingsPage, matching: find.text('Manage Members'));
-    await tester.scrollUntilVisible(finder, 200);
+    final finder = find.text('Manage Members');
+    await tester.pumpUntilFound(finder);
+    await tester.ensureVisible(finder);
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }
