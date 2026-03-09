@@ -26,8 +26,12 @@ class SettingsRobot {
 
   Future<void> tapManageMembers() async {
     final finder = find.text('Manage Members');
-    await tester.pumpUntilFound(finder);
-    await tester.ensureVisible(finder);
+    // We scroll inside the main ListView on SettingsPage
+    await tester.scrollUntilVisible(
+      finder,
+      100.0,
+      scrollable: find.byType(ListView),
+    );
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }
