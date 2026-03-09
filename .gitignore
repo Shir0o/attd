@@ -32,12 +32,6 @@ migrate_working_dir/
 .pub/
 /build/
 
-# Ignore generated plugin files for desktop platforms
-linux/flutter/generated_plugin_registrant.*
-linux/flutter/generated_plugins.cmake
-windows/flutter/generated_plugin_registrant.*
-windows/flutter/generated_plugins.cmake
-
 /coverage/
 key.properties
 *.bak
@@ -67,7 +61,6 @@ app.*.map.json
 # Firebase/Google Configuration
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
-macos/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 firebase.json
 .firebaserc
