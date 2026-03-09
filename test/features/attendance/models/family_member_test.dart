@@ -11,7 +11,7 @@ void main() {
       manualLabels: {'VIP'},
     );
 
-    const member = Member(
+    final member = Member(
       id: 'm1',
       displayName: 'Alice',
       defaultStatus: AttendanceStatus.present,
@@ -19,7 +19,7 @@ void main() {
       isVisitor: true,
     );
 
-    const family = Family(
+    final family = Family(
       id: 'f1',
       displayName: 'Wonderland',
       members: [member],

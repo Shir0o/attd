@@ -45,8 +45,8 @@ void main() {
   testWidgets('AttendanceDeckPage Golden Test - Initial View', (tester) async {
     setScreenSize(tester);
     final members = [
-      const Member(id: '1', displayName: 'Alice Johnson'),
-      const Member(id: '2', displayName: 'Bob Smith'),
+      Member(id: '1', displayName: 'Alice Johnson'),
+      Member(id: '2', displayName: 'Bob Smith'),
     ];
 
     final session = Session(
@@ -78,7 +78,7 @@ void main() {
   testWidgets('AttendanceDeckPage Golden Test - Swipe Action (Partial)', (tester) async {
     setScreenSize(tester);
     final members = [
-      const Member(id: '1', displayName: 'Alice Johnson'),
+      Member(id: '1', displayName: 'Alice Johnson'),
     ];
 
     final session = Session(

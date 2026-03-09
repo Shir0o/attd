@@ -77,8 +77,8 @@ void main() {
     );
 
     final members = [
-      const Member(id: '1', displayName: 'Alice'),
-      const Member(id: '2', displayName: 'Bob'),
+      Member(id: '1', displayName: 'Alice'),
+      Member(id: '2', displayName: 'Bob'),
     ];
 
     final mockRepo = MockSessionRepository();
@@ -148,8 +148,8 @@ void main() {
     );
 
     final members = [
-      const Member(id: '1', displayName: 'Alice'),
-      const Member(id: '2', displayName: 'Bob'),
+      Member(id: '1', displayName: 'Alice'),
+      Member(id: '2', displayName: 'Bob'),
     ];
 
     final mockRepo = MockSessionRepository();
@@ -203,7 +203,7 @@ void main() {
       createdBy: 'test-user',
     );
 
-    final members = [const Member(id: '1', displayName: 'Alice')];
+    final members = [Member(id: '1', displayName: 'Alice')];
 
     final mockRepo = MockSessionRepository();
 

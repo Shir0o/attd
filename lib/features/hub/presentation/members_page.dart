@@ -91,7 +91,7 @@ class _MembersPageState extends State<MembersPage> {
     // Check for duplicates
     final allMembers = _getAllMembers(_families ?? []);
     final isDuplicate = allMembers.any(
-      (m) => m.displayName.toLowerCase() == trimmedName.toLowerCase(),
+      (m) => m.displayNameLowercase == trimmedName.toLowerCase(),
     );
 
     if (isDuplicate) {
@@ -414,7 +414,7 @@ class _MembersPageState extends State<MembersPage> {
     // Filter by search
     var filteredMembers =
         allMembers.where((m) {
-          return m.displayName.toLowerCase().contains(searchTerm);
+          return m.displayNameLowercase.contains(searchTerm);
         }).toList();
 
     // In Event Mode, maybe we want to sort selected members to the top?

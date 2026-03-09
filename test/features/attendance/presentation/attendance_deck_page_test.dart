@@ -70,7 +70,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final fakeRepo = FakeSessionRepository();
-    final member = const Member(id: '1', displayName: 'Test User');
+    final member = Member(id: '1', displayName: 'Test User');
     final session = Session(
       id: 's1',
       title: 'Test Session',
@@ -121,7 +121,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final fakeRepo = FakeSessionRepository();
-    final member = const Member(id: '1', displayName: 'Test User');
+    final member = Member(id: '1', displayName: 'Test User');
     final session = Session(
       id: 's1',
       title: 'Test Session',

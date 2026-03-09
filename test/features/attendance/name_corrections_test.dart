@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('applyNameCorrection renames members and duplicates together', () {
-    const families = [
+    final families = [
       Family(
         id: 'fam-1',
         displayName: 'Kim Family',
@@ -33,7 +33,7 @@ void main() {
   });
 
   test('applyNameCorrection updates family names when provided', () {
-    const families = [
+    final families = [
       Family(id: 'fam-1', displayName: 'Patel Family', members: []),
       Family(id: 'fam-2', displayName: 'Rivera Fam', members: []),
     ];

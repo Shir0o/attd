@@ -42,7 +42,7 @@ void main() {
     Family(
       id: 'fam-1',
       displayName: 'Rivera',
-      members: const [
+      members: [
         Member(id: 'm1', displayName: 'Alana Rivera'),
         Member(id: 'm2', displayName: 'Mateo Rivera'),
       ],
@@ -50,7 +50,7 @@ void main() {
     Family(
       id: 'fam-2',
       displayName: 'Patel',
-      members: const [Member(id: 'm3', displayName: 'Priya Patel')],
+      members: [Member(id: 'm3', displayName: 'Priya Patel')],
     ),
   ];
 
@@ -150,7 +150,7 @@ void main() {
       Family(
         id: 'fam-a',
         displayName: 'Smith',
-        members: const [
+        members: [
           Member(
             id: 'm-a',
             displayName: 'Liz Smith',
@@ -165,7 +165,7 @@ void main() {
           ),
         ],
       ),
-      const Family(
+      Family(
         id: 'fam-b',
         displayName: 'Legacy Smith',
         canonicalName: 'Smith',

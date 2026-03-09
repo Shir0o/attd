@@ -90,12 +90,12 @@ void main() {
     WidgetTester tester,
   ) async {
     final mockRepo = MockAttendanceRepository();
-    final family1 = const Family(
+    final family1 = Family(
       id: '1',
       displayName: 'Doe Family',
       members: [Member(id: 'm1', displayName: 'John Doe')],
     );
-    final family2 = const Family(
+    final family2 = Family(
       id: '2',
       displayName: 'Smith Family',
       members: [],

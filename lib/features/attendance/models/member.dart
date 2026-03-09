@@ -11,7 +11,10 @@ class Member {
   final AttendanceStatus defaultStatus;
   final LabelAssignments labels;
 
-  const Member({
+  late final String displayNameLowercase = displayName.toLowerCase();
+  late final String canonicalNameLowercase = canonicalName.toLowerCase();
+
+  Member({
     required this.id,
     required this.displayName,
     String? canonicalName,

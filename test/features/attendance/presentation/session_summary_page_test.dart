@@ -86,8 +86,8 @@ void main() {
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
-    final member1 = const Member(id: '1', displayName: 'Alice');
-    final member2 = const Member(id: '2', displayName: 'Bob');
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final member2 = Member(id: '2', displayName: 'Bob');
 
     final session = Session(
       id: 's1',
@@ -162,7 +162,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
-    final member1 = const Member(id: '1', displayName: 'Alice');
+    final member1 = Member(id: '1', displayName: 'Alice');
 
     final session = Session(
       id: 's1',
@@ -210,7 +210,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
-    final member1 = const Member(id: '1', displayName: 'Alice');
+    final member1 = Member(id: '1', displayName: 'Alice');
 
     final session = Session(
       id: 's1',
@@ -273,7 +273,7 @@ void main() {
     final mockRepo = MockSessionRepository();
     
     // Only Alice is in the expected member list
-    final member1 = const Member(id: '1', displayName: 'Alice');
+    final member1 = Member(id: '1', displayName: 'Alice');
 
     final session = Session(
       id: 's1',
