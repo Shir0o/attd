@@ -82,7 +82,11 @@ class _MembersPageState extends State<MembersPage> {
 
     try {
       final newFamily = await widget.attendanceRepository.addFamily(name);
-      final newMember = Member(id: const Uuid().v4(), displayName: name);
+      final newMember = Member(
+        id: const Uuid().v4(),
+        displayName: name,
+        searchName: name.toLowerCase(),
+      );
       final updatedFamily = await widget.attendanceRepository.addMember(
         newFamily.id,
         newMember,
@@ -405,7 +409,7 @@ class _MembersPageState extends State<MembersPage> {
     // Filter by search
     var filteredMembers =
         allMembers.where((m) {
-          return m.displayName.toLowerCase().contains(searchTerm);
+          return m.searchName.contains(searchTerm);
         }).toList();
 
     // In Event Mode, maybe we want to sort selected members to the top?

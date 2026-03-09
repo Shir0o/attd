@@ -5,6 +5,7 @@ import 'label_assignments.dart';
 class Member {
   final String id;
   final String displayName;
+  final String searchName;
   final String canonicalName;
   final String? mergedIntoMemberId;
   final bool isVisitor;
@@ -14,6 +15,7 @@ class Member {
   const Member({
     required this.id,
     required this.displayName,
+    this.searchName = '',
     String? canonicalName,
     this.mergedIntoMemberId,
     this.isVisitor = false,
@@ -25,15 +27,25 @@ class Member {
   Member copyWith({
     String? id,
     String? displayName,
+    String? searchName,
     String? canonicalName,
     String? mergedIntoMemberId,
     bool? isVisitor,
     AttendanceStatus? defaultStatus,
     LabelAssignments? labels,
   }) {
+    final newDisplayName = displayName ?? this.displayName;
+    final newSearchName = searchName ??
+        (displayName != null
+            ? displayName.toLowerCase()
+            : (this.searchName.isEmpty
+                ? this.displayName.toLowerCase()
+                : this.searchName));
+
     return Member(
       id: id ?? this.id,
-      displayName: displayName ?? this.displayName,
+      displayName: newDisplayName,
+      searchName: newSearchName,
       canonicalName: canonicalName ?? this.canonicalName,
       mergedIntoMemberId: mergedIntoMemberId ?? this.mergedIntoMemberId,
       isVisitor: isVisitor ?? this.isVisitor,
@@ -43,9 +55,15 @@ class Member {
   }
 
   factory Member.fromJson(Map<String, dynamic> json) {
+    final displayName = json['displayName'] as String;
+    final searchName = json['searchName'] as String?;
+
     return Member(
       id: json['id'] as String,
-      displayName: json['displayName'] as String,
+      displayName: displayName,
+      searchName: (searchName == null || searchName.isEmpty)
+          ? displayName.toLowerCase()
+          : searchName,
       canonicalName: json['canonicalName'] as String?,
       mergedIntoMemberId: json['mergedIntoMemberId'] as String?,
       isVisitor: json['isVisitor'] as bool? ?? false,
@@ -63,6 +81,7 @@ class Member {
     return {
       'id': id,
       'displayName': displayName,
+      'searchName': searchName,
       'canonicalName': canonicalName,
       'mergedIntoMemberId': mergedIntoMemberId,
       'isVisitor': isVisitor,
