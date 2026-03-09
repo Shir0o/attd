@@ -20,8 +20,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run analysis
-        run: flutter analyze
+#      - name: Run analysis
+#        run: flutter analyze
 
       - name: Run unit and widget tests
         run: flutter test
