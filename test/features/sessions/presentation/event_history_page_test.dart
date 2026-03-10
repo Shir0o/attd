@@ -210,6 +210,44 @@ void main() {
     // Member Two is not assigned, so he shouldn't be counted as 'Absent' by default.
     expect(find.text('0 Absent'), findsOneWidget);
   });
+
+  testWidgets('EventHistoryPage displays a FAB to make up previous sessions', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+
+    final event = Event(
+      id: 'e1',
+      title: 'History Event',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: ['Monday'],
+      createdAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventHistoryPage(
+          event: event,
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1)); // Wait for _init delay
+    await tester.pumpAndSettle();
+
+    // Should have a FAB with Hero tag 'fab'
+    final fabFinder = find.byType(FloatingActionButton);
+    expect(fabFinder, findsOneWidget);
+    
+    final fab = tester.widget<FloatingActionButton>(fabFinder);
+    expect(fab.heroTag, 'fab');
+    expect(find.byIcon(Icons.add), findsOneWidget);
+  });
 }
 
 class _MockAttendanceRepoWithMembers extends MockAttendanceRepository {
