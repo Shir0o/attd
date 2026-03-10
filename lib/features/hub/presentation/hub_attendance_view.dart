@@ -739,17 +739,6 @@ class _EventCardState extends State<_EventCard>
   }
 
   Widget _buildRepeatingDaysRow() {
-    final days = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      ' শনিবার',
-      'রবিবার',
-      'Saturday',
-    ]; // handle dirty list
     final dayOrder = [
       'Sunday',
       'Monday',

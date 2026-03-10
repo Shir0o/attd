@@ -1,3 +1,15 @@
+# 1.0.7+8
+*   **Performance & Optimization**:
+    *   Optimized member search by **caching lowercase names** on Member and Family models, significantly improving responsiveness in large databases.
+    *   Streamlined the project by **removing desktop-related platforms** (macOS, Linux, Windows) to focus on a high-quality mobile experience.
+*   **Testing & Reliability**:
+    *   Reworked integration tests with a **comprehensive Full System Scenario**, ensuring robust verification of end-to-end user workflows.
+*   **Data Management & Tools**:
+    *   Introduced a **Manage Backup Data** screen in Settings, allowing users to manually clean local database records.
+    *   Enhanced the **Google Apps Script boilerplate**:
+        *   Migrated to `getDisplayValues()` for consistent key matching with formatted sheet data.
+        *   Implemented **Map-based duplicate prevention** and explicit removal support for more reliable cloud synchronization.
+
 # 1.0.6+7
 *   **Reliability & Data Integrity**:
     *   Fixed a critical race condition in the **Session Summary**: The app now ensures that only newer session snapshots from the repository can update the local state, preventing stale data from overwriting recent attendance markings during slow saves.

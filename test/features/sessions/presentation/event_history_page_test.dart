@@ -143,7 +143,6 @@ void main() {
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
-    final mockAttendanceRepo = MockAttendanceRepository();
     
     // Event only includes member '1'
     final event = Event(
