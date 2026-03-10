@@ -1,13 +1,5 @@
 # 1.0.8+9
-*   **Enhanced Attendance Deck & Member Management**:
-    *   Unified the search and add member/guest experience into a single intuitive interface.
-    *   Redesigned the **Attendance Deck Page** with improved styling and footer management.
-*   **New Event Features**:
-    *   Added a "Make-up Session" Floating Action Button (FAB) to the **Event History Page**, featuring a smooth Hero animation transition.
-*   **Reliability & Sync Fixes**:
-    *   Eliminated a session summary race condition that could lead to stale data during synchronization.
-    *   Improved historical sheets sync logic to ensure data consistency across multiple sessions.
-    *   Fixed a critical regex matching issue in the Google Sheets payload to ensure proper cloud-to-local synchronization.
+* Enhanced member management, new make-up session FAB, and critical sync reliability fixes.
 
 # 1.0.7+8
 *   **Performance & Optimization**:
