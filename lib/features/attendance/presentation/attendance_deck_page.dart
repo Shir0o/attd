@@ -115,10 +115,15 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     // Save to repo logic
     try {
-      await widget.sessionRepository.saveSnapshot(
+      final saved = await widget.sessionRepository.saveSnapshot(
         updatedSession,
         actor: 'User',
       );
+      if (mounted) {
+        setState(() {
+          _currentSession = saved;
+        });
+      }
     } catch (e) {
       // Handle error (show snackbar?)
       if (mounted) {

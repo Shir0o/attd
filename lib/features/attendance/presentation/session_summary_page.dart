@@ -33,6 +33,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     _refreshLatest();
   }
 
+  @override
+  void didUpdateWidget(covariant SessionSummaryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.session.currentVersion > _currentSession.currentVersion ||
+        (widget.session.currentVersion == _currentSession.currentVersion &&
+            widget.session.updatedAt.isAfter(_currentSession.updatedAt))) {
+      setState(() {
+        _currentSession = widget.session;
+      });
+    }
+  }
+
   Future<void> _refreshLatest() async {
     final startTime = DateTime.now();
     
