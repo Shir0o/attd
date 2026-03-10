@@ -1,6 +1,3 @@
-# 1.0.8+9
-* Enhanced member management, new make-up session FAB, and critical sync reliability fixes.
-
 # 1.0.7+8
 *   **Performance & Optimization**:
     *   Optimized member search by **caching lowercase names** on Member and Family models, significantly improving responsiveness in large databases.
