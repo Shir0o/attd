@@ -145,11 +145,14 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HubPage(
-          themeController: themeController,
-          sessionRepository: mockSessionRepo,
-          eventRepository: mockEventRepo,
-          attendanceRepository: mockAttendanceRepo,
+        home: TickerMode(
+          enabled: false,
+          child: HubPage(
+            themeController: themeController,
+            sessionRepository: mockSessionRepo,
+            eventRepository: mockEventRepo,
+            attendanceRepository: mockAttendanceRepo,
+          ),
         ),
       ),
     );
@@ -239,11 +242,14 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HubPage(
-          themeController: themeController,
-          sessionRepository: mockSessionRepo,
-          eventRepository: mockEventRepo,
-          attendanceRepository: mockAttendanceRepo,
+        home: TickerMode(
+          enabled: false,
+          child: HubPage(
+            themeController: themeController,
+            sessionRepository: mockSessionRepo,
+            eventRepository: mockEventRepo,
+            attendanceRepository: mockAttendanceRepo,
+          ),
         ),
       ),
     );
@@ -279,11 +285,14 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HubPage(
-          themeController: themeController,
-          sessionRepository: mockSessionRepo,
-          eventRepository: mockEventRepo,
-          attendanceRepository: mockAttendanceRepo,
+        home: TickerMode(
+          enabled: false,
+          child: HubPage(
+            themeController: themeController,
+            sessionRepository: mockSessionRepo,
+            eventRepository: mockEventRepo,
+            attendanceRepository: mockAttendanceRepo,
+          ),
         ),
       ),
     );
@@ -324,6 +333,6 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify we are on MembersPage (it has a title 'Manage Members' or 'Manage Event Members')
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byKey(const ValueKey('member_add_fab')), findsOneWidget);
   });
 }

@@ -34,11 +34,14 @@ void main() {
         useMaterial3: true,
         // Removed custom font family
       ),
-      home: HubPage(
-        sessionRepository: mockSessionRepository,
-        eventRepository: mockEventRepository,
-        attendanceRepository: mockAttendanceRepository,
-        themeController: themeController,
+      home: TickerMode(
+        enabled: false,
+        child: HubPage(
+          sessionRepository: mockSessionRepository,
+          eventRepository: mockEventRepository,
+          attendanceRepository: mockAttendanceRepository,
+          themeController: themeController,
+        ),
       ),
     );
   }
