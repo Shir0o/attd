@@ -1,3 +1,14 @@
+# 1.0.8+9
+*   **Enhanced Attendance Deck & Member Management**:
+    *   Unified the search and add member/guest experience into a single intuitive interface.
+    *   Redesigned the **Attendance Deck Page** with improved styling and footer management.
+*   **New Event Features**:
+    *   Added a "Make-up Session" Floating Action Button (FAB) to the **Event History Page**, featuring a smooth Hero animation transition.
+*   **Reliability & Sync Fixes**:
+    *   Eliminated a session summary race condition that could lead to stale data during synchronization.
+    *   Improved historical sheets sync logic to ensure data consistency across multiple sessions.
+    *   Fixed a critical regex matching issue in the Google Sheets payload to ensure proper cloud-to-local synchronization.
+
 # 1.0.7+8
 *   **Performance & Optimization**:
     *   Optimized member search by **caching lowercase names** on Member and Family models, significantly improving responsiveness in large databases.
@@ -14,7 +25,7 @@
 *   **Reliability & Data Integrity**:
     *   Fixed a critical race condition in the **Session Summary**: The app now ensures that only newer session snapshots from the repository can update the local state, preventing stale data from overwriting recent attendance markings during slow saves.
 *   **Member Management UX**:
-    *   Unified the search and add member functionality into a **single intuitive input field**.
+    *   Unified the search and add member functionality into a **single intuitive field**.
     *   Implemented **Duplicate Prevention**: A confirmation dialog now appears if you attempt to add a member with a name that already exists.
     *   Enhanced focus management: The input field now automatically clears and refocused after adding a member, keeping the keyboard open for seamless consecutive entries.
 *   **Boilerplate & Developer Experience**:
