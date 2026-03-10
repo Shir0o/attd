@@ -65,12 +65,21 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<Session?> findSessionById(String id) async => null;
+  Future<Session?> findSessionById(String id) async {
+    if (_savedSnapshots.isEmpty) return null;
+    return _savedSnapshots.last;
+  }
 
   @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
-    _savedSnapshots.add(session);
-    return session;
+    // Simulate network delay to expose race conditions
+    await Future.delayed(const Duration(milliseconds: 50));
+    final updated = session.copyWith(
+      currentVersion: session.currentVersion + 1,
+      updatedAt: DateTime.now(),
+    );
+    _savedSnapshots.add(updated);
+    return updated;
   }
 
   @override
@@ -270,4 +279,62 @@ void main() {
     // Verify we are still on Alice (deck didn't advance)
     expect(find.text('Alice'), findsOneWidget);
   });
+
+  testWidgets(
+    'Last member marked present is preserved in summary despite slow save',
+    (tester) async {
+      // Setup Data
+      final session = Session(
+        id: 'session-1',
+        title: 'Test Event',
+        sessionDate: DateTime.now(),
+        records: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'test-user',
+      );
+
+      final members = [
+        Member(id: '1', displayName: 'Alice'),
+        Member(id: '2', displayName: 'Bob'),
+      ];
+
+      final mockRepo = MockSessionRepository();
+
+      // build Widget
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AttendanceDeckPage(
+            session: session,
+            members: members,
+            sessionRepository: mockRepo,
+            attendanceRepository: MockAttendanceRepository(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Mark Alice as Present
+      await tester.tap(find.byKey(const Key('presentButton')));
+      await tester.pumpAndSettle();
+
+      // 2. Mark Bob (LAST MEMBER) as Present
+      await tester.tap(find.byKey(const Key('presentButton')));
+
+      // Transition to SessionSummaryPage happens immediately after tapping,
+      // but saveSnapshot is still running in background.
+      await tester.pump();
+      // Wait for Hero and AnimatedSwitcher
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+
+      // Verify Stats in Summary: 2 Present, 0 Absent
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+
+      // Verify both are present in the list
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('Bob'), findsOneWidget);
+    },
+  );
 }
