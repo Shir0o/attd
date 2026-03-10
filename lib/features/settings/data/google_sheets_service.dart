@@ -106,6 +106,7 @@ class GoogleSheetsService {
             'name': '[$dateStr] $title - $attendeeName',
             'status': status,
           });
+
         }
       }
     }
