@@ -5,6 +5,8 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
+import '../models/family.dart';
+import '../data/attendance_repository.dart';
 import 'add_guest_sheet.dart';
 import 'session_summary_page.dart';
 import 'swipeable_card.dart';
@@ -15,11 +17,13 @@ class AttendanceDeckPage extends StatefulWidget {
     required this.session,
     required this.members,
     required this.sessionRepository,
+    required this.attendanceRepository,
   });
 
   final Session session;
   final List<Member> members;
   final SessionRepository sessionRepository;
+  final AttendanceRepository attendanceRepository;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -138,21 +142,51 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     });
   }
 
-  void _showAddGuestSheet() {
+  void _showAddMemberSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder:
-          (context) => AddGuestSheet(
-            onAdd: (name, isPresent) {
+          (context) => AddMemberSheet(
+            onAdd: (name, isPresent, isGuest) async {
+              if (!isGuest) {
+                try {
+                  final families =
+                      await widget.attendanceRepository.fetchFamilies();
+                  Family targetFamily;
+                  if (families.isEmpty) {
+                    targetFamily = await widget.attendanceRepository.addFamily(
+                      'General',
+                    );
+                  } else {
+                    targetFamily = families.first;
+                  }
+
+                  final newMember = Member(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    displayName: name,
+                  );
+
+                  await widget.attendanceRepository.addMember(
+                    targetFamily.id,
+                    newMember,
+                  );
+                } catch (e) {
+                  debugPrint('Error adding regular member: $e');
+                }
+              }
+
               _recordAttendance(
                 name,
                 isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
               );
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('$name added')));
+
+              if (mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('$name added')));
+              }
             },
           ),
     );
@@ -226,30 +260,16 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     ),
                   ),
                 ),
-                // Add Guest Button
+                // Add Person Button
                 Align(
                   alignment: Alignment.topRight,
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 16, right: 16),
-                    child: OutlinedButton.icon(
-                      onPressed: _showAddGuestSheet,
-                      icon: const Icon(Icons.person_add, size: 20),
-                      label: const Text('Add Guest'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colorScheme.onSurfaceVariant,
-                        backgroundColor: colorScheme.surface,
-                        side: BorderSide(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
-                        ),
-                        shape: const StadiumBorder(),
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                      ).copyWith(
-                        elevation: WidgetStateProperty.all(
-                          2,
-                        ), // To mimic shadow-sm
-                        shadowColor: WidgetStateProperty.all(Colors.black12),
-                      ),
+                    padding: const EdgeInsets.only(top: 8, right: 8),
+                    child: IconButton(
+                      onPressed: _showAddMemberSheet,
+                      icon: const Icon(Icons.person_add),
+                      color: colorScheme.onSurfaceVariant,
+                      tooltip: 'Add Person',
                     ),
                   ),
                 ),

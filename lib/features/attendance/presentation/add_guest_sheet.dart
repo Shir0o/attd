@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
-class AddGuestSheet extends StatefulWidget {
-  const AddGuestSheet({super.key, required this.onAdd});
+class AddMemberSheet extends StatefulWidget {
+  const AddMemberSheet({super.key, required this.onAdd});
 
-  final void Function(String name, bool isPresent) onAdd;
+  final void Function(String name, bool isPresent, bool isGuest) onAdd;
 
   @override
-  State<AddGuestSheet> createState() => _AddGuestSheetState();
+  State<AddMemberSheet> createState() => _AddMemberSheetState();
 }
 
-class _AddGuestSheetState extends State<AddGuestSheet> {
+class _AddMemberSheetState extends State<AddMemberSheet> {
   final _nameController = TextEditingController();
   bool _isPresent = true;
+  bool _isGuest = false;
 
   @override
   void dispose() {
@@ -22,7 +23,7 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
   void _submit() {
     final name = _nameController.text.trim();
     if (name.isNotEmpty) {
-      widget.onAdd(name, _isPresent);
+      widget.onAdd(name, _isPresent, _isGuest);
       Navigator.of(context).pop();
     }
   }
@@ -69,7 +70,7 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
 
             // Title
             Text(
-              'Add Guest',
+              'Add Person',
               style: TextStyle(
                 fontSize: 24,
                 color: colorScheme.onSurface,
@@ -95,7 +96,7 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                     child: TextField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Guest Name',
+                        labelText: 'Name',
                         labelStyle: TextStyle(
                           color: colorScheme.onSurfaceVariant,
                           fontSize: 14,
@@ -111,11 +112,43 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                         ),
                       ),
                       style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
+                      autofocus: true,
                     ),
                   ),
                   const SizedBox(height: 24),
 
-                  // Switch
+                  // Guest Switch
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Add as Guest',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      Switch(
+                        value: _isGuest,
+                        onChanged: (value) => setState(() => _isGuest = value),
+                        thumbColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return colorScheme.primary;
+                          }
+                          return null;
+                        }),
+                        trackColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return colorScheme.primary.withValues(alpha: 0.5);
+                          }
+                          return null;
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Present Switch
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -152,14 +185,20 @@ class _AddGuestSheetState extends State<AddGuestSheet> {
                   // Button
                   SizedBox(
                     width: double.infinity,
-                    height: 40,
+                    height: 48,
                     child: FilledButton(
                       onPressed: _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: colorScheme.primary,
                         foregroundColor: colorScheme.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
-                      child: const Text('Add & Continue'),
+                      child: const Text(
+                        'Add & Continue',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 40),

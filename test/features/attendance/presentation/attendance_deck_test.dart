@@ -10,6 +10,22 @@ import 'package:attendance_tracker/features/attendance/presentation/attendance_d
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/family.dart';
+
+class MockAttendanceRepository implements AttendanceRepository {
+  @override
+  Future<List<Family>> fetchFamilies() async => [];
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
+  @override
+  Future<Family> addMember(String familyId, Member member) async => throw UnimplementedError();
+  @override
+  Future<Family> addFamily(String displayName) async => throw UnimplementedError();
+  @override
+  Future<void> refresh() async {}
+}
+
 class MockSessionRepository implements SessionRepository {
   final List<Session> _savedSnapshots = [];
   List<Session> get savedSnapshots => _savedSnapshots;
@@ -90,6 +106,7 @@ void main() {
           session: session,
           members: members,
           sessionRepository: mockRepo,
+          attendanceRepository: MockAttendanceRepository(),
         ),
       ),
     );
@@ -161,6 +178,7 @@ void main() {
           session: session,
           members: members,
           sessionRepository: mockRepo,
+          attendanceRepository: MockAttendanceRepository(),
         ),
       ),
     );
@@ -213,6 +231,7 @@ void main() {
           session: session,
           members: members,
           sessionRepository: mockRepo,
+          attendanceRepository: MockAttendanceRepository(),
         ),
       ),
     );
@@ -222,14 +241,14 @@ void main() {
     // Verify Alice is shown
     expect(find.text('Alice'), findsOneWidget);
 
-    // Tap Add Guest
-    await tester.tap(find.text('Add Guest'));
+    // Tap Add Person
+    await tester.tap(find.byTooltip('Add Person'));
     await tester.pumpAndSettle(); // Wait for bottom sheet
 
     // Verify Sheet is shown
-    expect(find.text('Guest Name'), findsOneWidget);
+    expect(find.text('Add Person'), findsOneWidget);
 
-    // Enter Guest Name
+    // Enter Name
     await tester.enterText(find.byType(TextField), 'Charlie');
     await tester.pumpAndSettle();
 

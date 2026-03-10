@@ -8,9 +8,11 @@ import '../../helpers/mocks.dart';
 
 void main() {
   late MockSessionRepository mockSessionRepository;
+  late MockAttendanceRepository mockAttendanceRepository;
 
   setUp(() {
     mockSessionRepository = MockSessionRepository();
+    mockAttendanceRepository = MockAttendanceRepository();
   });
 
   Widget buildAttendanceDeckPage({
@@ -25,12 +27,12 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        // Removed custom font family
       ),
       home: AttendanceDeckPage(
         session: session,
         members: members,
         sessionRepository: mockSessionRepository,
+        attendanceRepository: mockAttendanceRepository,
       ),
     );
   }

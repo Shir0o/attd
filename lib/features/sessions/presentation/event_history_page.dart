@@ -370,6 +370,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 session: session,
                 members: sessionMembers,
                 sessionRepository: widget.sessionRepository,
+                attendanceRepository: widget.attendanceRepository,
               ),
         ),
       );
