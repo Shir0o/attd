@@ -9,7 +9,23 @@ import 'package:attendance_tracker/features/attendance/presentation/swipeable_ca
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class FakeSessionRepository implements SessionRepository {
+import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/family.dart';
+
+class MockAttendanceRepository implements AttendanceRepository {
+  @override
+  Future<List<Family>> fetchFamilies() async => [];
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
+  @override
+  Future<Family> addMember(String familyId, Member member) async => throw UnimplementedError();
+  @override
+  Future<Family> addFamily(String displayName) async => throw UnimplementedError();
+  @override
+  Future<void> refresh() async {}
+}
+
+class MockSessionRepository implements SessionRepository {
   List<Session> savedSessions = [];
 
   @override
@@ -69,8 +85,9 @@ void main() {
   testWidgets('AttendanceDeckPage swipes right to mark present', (
     WidgetTester tester,
   ) async {
-    final fakeRepo = FakeSessionRepository();
+    final fakeRepo = MockSessionRepository();
     final member = Member(id: '1', displayName: 'Test User');
+    final members = [member];
     final session = Session(
       id: 's1',
       title: 'Test Session',
@@ -86,8 +103,9 @@ void main() {
       MaterialApp(
         home: AttendanceDeckPage(
           session: session,
-          members: [member],
+          members: members,
           sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
         ),
       ),
     );
@@ -120,8 +138,9 @@ void main() {
   testWidgets('AttendanceDeckPage swipes left to mark absent', (
     WidgetTester tester,
   ) async {
-    final fakeRepo = FakeSessionRepository();
+    final fakeRepo = MockSessionRepository();
     final member = Member(id: '1', displayName: 'Test User');
+    final members = [member];
     final session = Session(
       id: 's1',
       title: 'Test Session',
@@ -137,8 +156,9 @@ void main() {
       MaterialApp(
         home: AttendanceDeckPage(
           session: session,
-          members: [member],
+          members: members,
           sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
         ),
       ),
     );

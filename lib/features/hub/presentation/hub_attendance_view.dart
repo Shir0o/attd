@@ -541,13 +541,14 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                             context,
                                           ).push<Session>(
                                             MaterialPageRoute(
-                                              builder: (_) =>
-                                                  AttendanceDeckPage(
-                                                    session: sessionToOpen,
-                                                    members: sessionMembers,
-                                                    sessionRepository: widget
-                                                        .sessionRepository,
-                                                  ),
+                                              builder: (_) => AttendanceDeckPage(
+                                                session: sessionToOpen,
+                                                members: sessionMembers,
+                                                sessionRepository:
+                                                    widget.sessionRepository,
+                                                attendanceRepository:
+                                                    widget.attendanceRepository,
+                                              ),
                                             ),
                                           );
 
@@ -601,6 +602,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                               members: sessionMembers,
                                               sessionRepository:
                                                   widget.sessionRepository,
+                                              attendanceRepository:
+                                                  widget.attendanceRepository,
                                             ),
                                           ),
                                         );
