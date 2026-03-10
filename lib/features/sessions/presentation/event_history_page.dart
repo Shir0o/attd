@@ -8,6 +8,7 @@ import '../../../../data/session.dart';
 import '../../../../data/session_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../attendance/presentation/session_summary_page.dart';
+import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/models/attendance_status.dart';
 
 class EventHistoryPage extends StatefulWidget {
@@ -315,7 +316,76 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
           },
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab',
+        onPressed: () => _showMakeUpDatePicker(context),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Icon(Icons.add, size: 24),
+      ),
     );
+  }
+
+  Future<void> _showMakeUpDatePicker(BuildContext context) async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(2020),
+      lastDate: now,
+    );
+
+    if (pickedDate != null && mounted) {
+      // Find event time
+      final targetDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        widget.event.time.hour,
+        widget.event.time.minute,
+      );
+
+      // 1. Create session (similar to HubAttendanceView logic)
+      final session = await widget.sessionRepository.createSession(
+        title: widget.event.title,
+        eventId: widget.event.id,
+        sessionDate: targetDate,
+        actor: 'User (Manual Make-up)',
+        records: [],
+      );
+
+      if (!mounted) return;
+
+      // 2. Filter members for this event
+      final sessionMembers = widget.event.memberIds.isNotEmpty
+          ? _members.where((m) => widget.event.memberIds.contains(m.id)).toList()
+          : _members;
+
+      // 3. Navigate to AttendanceDeckPage
+      final resultSession = await Navigator.of(context).push<Session>(
+        MaterialPageRoute(
+          builder:
+              (_) => AttendanceDeckPage(
+                session: session,
+                members: sessionMembers,
+                sessionRepository: widget.sessionRepository,
+              ),
+        ),
+      );
+
+      // Cleanup if empty after returning (consistency with Hub logic)
+      final finalSession =
+          resultSession ??
+          await widget.sessionRepository.findSessionById(session.id);
+
+      if (finalSession != null && finalSession.records.isEmpty) {
+        await widget.sessionRepository.deleteSession(
+          session.id,
+          actor: 'System (Cleanup)',
+        );
+      }
+    }
   }
 
   Widget _buildSkeleton(BuildContext context) {
