@@ -26,7 +26,7 @@ Future<void> main() async {
   final themeController = ThemeController(prefs);
 
   final googleSignIn = GoogleSignIn(
-    scopes: ['email', 'https://www.googleapis.com/auth/drive'],
+    scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
     serverClientId: GoogleOAuthConfig.webServerClientId,
   );
 
