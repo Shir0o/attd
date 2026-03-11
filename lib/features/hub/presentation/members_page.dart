@@ -153,13 +153,8 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
-  Future<void> _deleteMember(Member member) async {
-    // In event mode, "Delete" might mean removing from event only,
-    // or deleting the member entirely. The prompt says "Hide or disable 'Delete Member' when in Event context".
-    // Let's hide the delete button in event mode, relying on checkboxes for "remove from event".
-    // So this function is only for global delete.
-
-    if (_families == null) return;
+  Future<bool> _confirmDelete(Member member) async {
+    if (_families == null) return false;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -183,7 +178,11 @@ class _MembersPageState extends State<MembersPage> {
           ),
     );
 
-    if (confirmed != true) return;
+    return confirmed == true;
+  }
+
+  Future<void> _performDelete(Member member) async {
+    if (_families == null) return;
 
     final originalFamilies = List<Family>.from(_families!);
     try {
@@ -215,6 +214,12 @@ class _MembersPageState extends State<MembersPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to remove member: $e')));
       }
+    }
+  }
+
+  Future<void> _deleteMember(Member member) async {
+    if (await _confirmDelete(member)) {
+      await _performDelete(member);
     }
   }
 
@@ -479,54 +484,66 @@ class _MembersPageState extends State<MembersPage> {
                   ? _currentEvent!.memberIds.contains(member.id)
                   : false;
 
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                onTap: isEventMode
-                    ? () => _toggleEventMember(member, !isSelected)
-                    : null,
-                leading: CircleAvatar(
-                  backgroundColor: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.primary.withValues(alpha: 0.1),
-                  child: Text(
-                    member.displayName.isNotEmpty
-                        ? member.displayName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
-                      fontWeight: FontWeight.bold,
+              return Dismissible(
+                key: ValueKey('dismiss_${member.id}'),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: colorScheme.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: Icon(Icons.delete, color: colorScheme.onError),
+                ),
+                confirmDismiss: (direction) => _confirmDelete(member),
+                onDismissed: (direction) => _performDelete(member),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  onTap: isEventMode
+                      ? () => _toggleEventMember(member, !isSelected)
+                      : null,
+                  leading: CircleAvatar(
+                    backgroundColor: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.primary.withValues(alpha: 0.1),
+                    child: Text(
+                      member.displayName.isNotEmpty
+                          ? member.displayName[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                title: Text(
-                  member.displayName,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                  title: Text(
+                    member.displayName,
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontSize: 18,
+                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                    ),
                   ),
+                  subtitle: isEventMode && isSelected
+                      ? Text(
+                          'Assigned',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colorScheme.primary,
+                          ),
+                        )
+                      : null,
+                  trailing: isEventMode
+                      ? Checkbox(
+                          value: isSelected,
+                          onChanged: (val) => _toggleEventMember(member, val ?? false),
+                        )
+                      : IconButton(
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () => _deleteMember(member),
+                        ),
                 ),
-                subtitle: isEventMode && isSelected
-                    ? Text(
-                        'Assigned',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.primary,
-                        ),
-                      )
-                    : null,
-                trailing: isEventMode
-                    ? Checkbox(
-                        value: isSelected,
-                        onChanged: (val) => _toggleEventMember(member, val ?? false),
-                      )
-                    : IconButton(
-                        icon: Icon(
-                          Icons.delete_outline,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: () => _deleteMember(member),
-                      ),
               );
             },
           ),
