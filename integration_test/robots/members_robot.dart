@@ -14,7 +14,7 @@ class MembersRobot {
     await tester.pumpUntilFound(membersPage);
 
     // In the new MembersPage, we use the Quick Add field
-    final textField = find.descendant(of: membersPage, matching: find.byType(TextField)).last;
+    final textField = find.descendant(of: membersPage, matching: find.byType(TextField)).first;
     await tester.enterText(textField, memberName);
     await tester.pumpAndSettle();
 
@@ -26,13 +26,13 @@ class MembersRobot {
   }
 
   Future<void> search(String query) async {
-    final textField = find.byType(TextField).last;
+    final textField = find.descendant(of: find.byType(MembersPage), matching: find.byType(TextField)).first;
     await tester.enterText(textField, query);
     await tester.pumpAndSettle();
   }
 
   Future<void> clearSearch() async {
-    final textField = find.byType(TextField).last;
+    final textField = find.descendant(of: find.byType(MembersPage), matching: find.byType(TextField)).first;
     await tester.enterText(textField, '');
     await tester.pumpAndSettle();
   }
