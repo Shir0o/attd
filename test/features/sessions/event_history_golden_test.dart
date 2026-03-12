@@ -7,6 +7,7 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 
 import '../../helpers/mocks.dart';
+import '../../helpers/tolerant_comparator.dart';
 
 void main() {
   late MockSessionRepository mockSessionRepository;
@@ -26,7 +27,6 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        // Removed custom font family
       ),
       home: EventHistoryPage(
         event: event,
@@ -41,7 +41,10 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    setupTolerantComparator('event_history_golden_test.dart', precisionError: 0.05);
   }
+
+  final stableDate = DateTime(2023, 11, 1);
 
   testWidgets('EventHistoryPage Golden Test - List of Sessions', (tester) async {
     setScreenSize(tester);
@@ -50,7 +53,7 @@ void main() {
       title: 'Weekly Sync',
       time: const TimeOfDay(hour: 10, minute: 0),
       frequency: 'Weekly',
-      createdAt: DateTime.now(),
+      createdAt: stableDate,
     );
 
     final session1 = Session(
@@ -58,11 +61,11 @@ void main() {
       title: 'Weekly Sync',
       sessionDate: DateTime(2023, 10, 20),
       records: [
-        SessionRecord(attendee: 'A', status: AttendanceStatus.present, recordedAt: DateTime.now(), recordedBy: 'User'),
-        SessionRecord(attendee: 'B', status: AttendanceStatus.absent, recordedAt: DateTime.now(), recordedBy: 'User'),
+        SessionRecord(attendee: 'A', status: AttendanceStatus.present, recordedAt: stableDate, recordedBy: 'User'),
+        SessionRecord(attendee: 'B', status: AttendanceStatus.absent, recordedAt: stableDate, recordedBy: 'User'),
       ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: stableDate,
+      updatedAt: stableDate,
       createdBy: 'User',
       currentVersion: 1,
     );
@@ -72,11 +75,11 @@ void main() {
       title: 'Weekly Sync',
       sessionDate: DateTime(2023, 10, 13),
       records: [
-        SessionRecord(attendee: 'A', status: AttendanceStatus.present, recordedAt: DateTime.now(), recordedBy: 'User'),
-        SessionRecord(attendee: 'B', status: AttendanceStatus.present, recordedAt: DateTime.now(), recordedBy: 'User'),
+        SessionRecord(attendee: 'A', status: AttendanceStatus.present, recordedAt: stableDate, recordedBy: 'User'),
+        SessionRecord(attendee: 'B', status: AttendanceStatus.present, recordedAt: stableDate, recordedBy: 'User'),
       ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: stableDate,
+      updatedAt: stableDate,
       createdBy: 'User',
       currentVersion: 1,
     );

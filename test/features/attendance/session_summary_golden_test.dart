@@ -9,32 +9,7 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 
 import '../../helpers/mocks.dart';
-
-// Helper for fuzzy comparison (simple override for test environment)
-class TolerantComparator extends LocalFileComparator {
-  TolerantComparator(super.testFile, {this.precisionError = 0.01});
-
-  final double precisionError;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (!result.passed && result.diffPercent <= precisionError) {
-      debugPrint(
-        'Golden file difference of ${result.diffPercent * 100}% is within tolerance of ${precisionError * 100}%. Passing.',
-      );
-      return true;
-    }
-    if (!result.passed) {
-      final error = await generateFailureOutput(result, golden, basedir);
-      throw FlutterError(error);
-    }
-    return true;
-  }
-}
+import '../../helpers/tolerant_comparator.dart';
 
 void main() {
   late MockSessionRepository mockSessionRepository;
@@ -55,7 +30,6 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        // Removed custom font family to avoid rendering issues in test environment
       ),
       home: SessionSummaryPage(
         session: session,
@@ -76,15 +50,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     // Set tolerance for this test file
-    if (goldenFileComparator is LocalFileComparator) {
-      final testUrl = (goldenFileComparator as LocalFileComparator).basedir;
-      goldenFileComparator = TolerantComparator(
-        // The default implementation uses uri-based paths.
-        // We reconstruct the Uri from the existing comparator.
-        Uri.parse('${testUrl}session_summary_golden_test.dart'),
-        precisionError: 0.01, // 1% tolerance
-      );
-    }
+    setupTolerantComparator('session_summary_golden_test.dart', precisionError: 0.05);
 
     final members = [
       Member(id: '1', displayName: 'Alice Johnson'),

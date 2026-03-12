@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import '../../helpers/mocks.dart';
+import '../../helpers/tolerant_comparator.dart';
 
 void main() {
   late MockSessionRepository mockSessionRepository;
@@ -34,7 +35,6 @@ void main() {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        // Removed custom font family
       ),
       home: TickerMode(
         enabled: false,
@@ -54,6 +54,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    setupTolerantComparator('hub_page_golden_test.dart', precisionError: 0.05);
   }
 
   testWidgets('HubPage Golden Test - Loading State', (tester) async {

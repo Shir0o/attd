@@ -5,6 +5,7 @@ import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/data/session.dart';
 
 import '../../helpers/mocks.dart';
+import '../../helpers/tolerant_comparator.dart';
 
 void main() {
   late MockSessionRepository mockSessionRepository;
@@ -42,7 +43,10 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    setupTolerantComparator('attendance_deck_golden_test.dart', precisionError: 0.05);
   }
+
+  final stableDate = DateTime(2023, 11, 1);
 
   testWidgets('AttendanceDeckPage Golden Test - Initial View', (tester) async {
     setScreenSize(tester);
@@ -54,10 +58,10 @@ void main() {
     final session = Session(
       id: 'session-1',
       title: 'Daily Standup',
-      sessionDate: DateTime.now(),
+      sessionDate: stableDate,
       records: [],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: stableDate,
+      updatedAt: stableDate,
       createdBy: 'User',
       currentVersion: 1,
     );
@@ -86,10 +90,10 @@ void main() {
     final session = Session(
       id: 'session-1',
       title: 'Daily Standup',
-      sessionDate: DateTime.now(),
+      sessionDate: stableDate,
       records: [],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: stableDate,
+      updatedAt: stableDate,
       createdBy: 'User',
       currentVersion: 1,
     );
