@@ -23,6 +23,8 @@ void main() {
     mockAttendanceRepository = MockAttendanceRepository();
   });
 
+  final fixedDate = DateTime(2025, 6, 2); // A Monday
+
   Widget buildHubPage() {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -41,6 +43,7 @@ void main() {
           eventRepository: mockEventRepository,
           attendanceRepository: mockAttendanceRepository,
           themeController: themeController,
+          now: fixedDate,
         ),
       ),
     );
@@ -81,7 +84,7 @@ void main() {
     setScreenSize(tester);
     await tester.pumpWidget(buildHubPage());
 
-    final now = DateTime.now();
+    final now = fixedDate;
     final todayWeekday = DateFormat('EEEE').format(now);
     final tomorrow = now.add(const Duration(days: 1));
     final tomorrowWeekday = DateFormat('EEEE').format(tomorrow);

@@ -27,6 +27,7 @@ class HubAttendanceView extends StatefulWidget {
     required this.themeController,
     this.driveService,
     this.localBackupService,
+    this.now,
   });
 
   final SessionRepository sessionRepository;
@@ -35,6 +36,7 @@ class HubAttendanceView extends StatefulWidget {
   final ThemeController themeController;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final DateTime? now;
 
   @override
   State<HubAttendanceView> createState() => _HubAttendanceViewState();
@@ -231,14 +233,14 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   }
 
   bool _isToday(DateTime date) {
-    final now = DateTime.now();
+    final now = widget.now ?? DateTime.now();
     return date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
   }
 
   bool _isEventToday(Event event) {
-    final now = DateTime.now();
+    final now = widget.now ?? DateTime.now();
     if (event.frequency == 'One-time') {
       return event.oneTimeDate != null && _isToday(event.oneTimeDate!);
     } else {
@@ -307,7 +309,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   Text(
                     DateFormat(
                       'EEE, MMM d',
-                    ).format(DateTime.now()).toUpperCase(),
+                    ).format(widget.now ?? DateTime.now()).toUpperCase(),
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w500,
@@ -403,7 +405,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           // Usually 'today', but if we are late, maybe previous week?
                           // For simplicity on the Hub card, let's stick to 'Today's session' if it exists.
 
-                          final now = DateTime.now();
+                          final now = widget.now ?? DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
                           final lastSupposed = getLastSupposedOccurrence(
                             event,
@@ -481,7 +483,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                   // 1. Calculate target date
                                   final targetDate = calculateTargetDate(
                                     event,
-                                    DateTime.now(),
+                                    widget.now ?? DateTime.now(),
                                   );
 
                                   // 2. Find existing session for target date (or most recent relevant)

@@ -16,6 +16,7 @@ class HubPage extends StatefulWidget {
     required this.themeController,
     this.driveService,
     this.localBackupService,
+    this.now,
   });
 
   final SessionRepository sessionRepository;
@@ -24,6 +25,7 @@ class HubPage extends StatefulWidget {
   final ThemeController themeController;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final DateTime? now;
 
   @override
   State<HubPage> createState() => _HubPageState();
@@ -39,6 +41,7 @@ class _HubPageState extends State<HubPage> {
       themeController: widget.themeController,
       driveService: widget.driveService,
       localBackupService: widget.localBackupService,
+      now: widget.now,
     );
   }
 }

@@ -136,6 +136,8 @@ void main() {
     themeController = ThemeController(prefs);
   });
 
+  final fixedDate = DateTime(2025, 6, 2); // A Monday
+
   testWidgets('HubPage displays events sorted by Today', (
     WidgetTester tester,
   ) async {
@@ -152,6 +154,7 @@ void main() {
             sessionRepository: mockSessionRepo,
             eventRepository: mockEventRepo,
             attendanceRepository: mockAttendanceRepo,
+            now: fixedDate,
           ),
         ),
       ),
@@ -160,7 +163,7 @@ void main() {
     // Initial state
     // (Removed expectation for CircularProgressIndicator which is now skeletons)
 
-    final now = DateTime.now();
+    final now = fixedDate;
     final todayWeekday = DateFormat('EEEE').format(now);
     final tomorrow = now.add(const Duration(days: 1));
     final tomorrowWeekday = DateFormat('EEEE').format(tomorrow);
@@ -249,6 +252,7 @@ void main() {
             sessionRepository: mockSessionRepo,
             eventRepository: mockEventRepo,
             attendanceRepository: mockAttendanceRepo,
+            now: fixedDate,
           ),
         ),
       ),
@@ -257,7 +261,7 @@ void main() {
     // Initial state check - verify it renders at all
     await tester.pump();
 
-    final now = DateTime.now();
+    final now = fixedDate;
     final todayWeekday = DateFormat('EEEE').format(now);
 
     final eventToday = Event(
@@ -292,6 +296,7 @@ void main() {
             sessionRepository: mockSessionRepo,
             eventRepository: mockEventRepo,
             attendanceRepository: mockAttendanceRepo,
+            now: fixedDate,
           ),
         ),
       ),
@@ -300,7 +305,7 @@ void main() {
     // Initial state
     // (Removed expectation for CircularProgressIndicator which is now skeletons)
 
-    final now = DateTime.now();
+    final now = fixedDate;
     final todayWeekday = DateFormat('EEEE').format(now);
 
     final eventToday = Event(
