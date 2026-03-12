@@ -74,6 +74,26 @@ void main() {
         expect(fromJson.defaultStatus, member.defaultStatus);
         expect(fromJson.labels.all, member.labels.all);
       });
+
+      test('displayName and canonicalName should be trimmed', () {
+        final untrimmed = Member(
+          id: 'm-trim',
+          displayName: '  Alice Trim  ',
+          canonicalName: '  Alice  ',
+        );
+        expect(untrimmed.displayName, 'Alice Trim');
+        expect(untrimmed.canonicalName, 'Alice');
+
+        final fromJson = Member.fromJson({
+          'id': 'm-json-trim',
+          'displayName': '  Json Alice  ',
+          'canonicalName': '  Alice  ',
+          'labels': <String, dynamic>{},
+          'defaultStatus': 'absent',
+        });
+        expect(fromJson.displayName, 'Json Alice');
+        expect(fromJson.canonicalName, 'Alice');
+      });
     });
 
     group('Family', () {
@@ -94,6 +114,27 @@ void main() {
         expect(fromJson.id, family.id);
         expect(fromJson.members.length, 1);
         expect(fromJson.members.first.displayName, 'Alice');
+      });
+
+      test('displayName and canonicalName should be trimmed', () {
+        final untrimmed = Family(
+          id: 'f-trim',
+          displayName: '  Wonderland Trim  ',
+          canonicalName: '  Oz  ',
+          members: [],
+        );
+        expect(untrimmed.displayName, 'Wonderland Trim');
+        expect(untrimmed.canonicalName, 'Oz');
+
+        final fromJson = Family.fromJson({
+          'id': 'f-json-trim',
+          'displayName': '  Json Oz  ',
+          'canonicalName': '  Oz  ',
+          'members': [],
+          'labels': <String, dynamic>{},
+        });
+        expect(fromJson.displayName, 'Json Oz');
+        expect(fromJson.canonicalName, 'Oz');
       });
     });
   });

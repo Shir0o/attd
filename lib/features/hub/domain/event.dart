@@ -14,7 +14,7 @@ class Event {
 
   Event({
     required this.id,
-    required this.title,
+    required String title,
     required this.time,
     required this.frequency,
     this.oneTimeDate,
@@ -22,7 +22,8 @@ class Event {
     this.memberIds = const [],
     required this.createdAt,
     DateTime? updatedAt,
-  }) : updatedAt = updatedAt ?? createdAt;
+  }) : title = title.trim(),
+       updatedAt = updatedAt ?? createdAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -42,7 +43,7 @@ class Event {
     final timeParts = (json['time'] as String).split(':');
     return Event(
       id: json['id'] as String,
-      title: json['title'] as String,
+      title: (json['title'] as String).trim(),
       time: TimeOfDay(
         hour: int.parse(timeParts[0]),
         minute: int.parse(timeParts[1]),

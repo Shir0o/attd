@@ -1,17 +1,17 @@
 import 'session_record.dart';
 
 class Session {
-  const Session({
+  Session({
     required this.id,
     this.eventId,
-    required this.title,
+    required String title,
     required this.sessionDate,
     required this.records,
     required this.createdAt,
     required this.updatedAt,
     required this.createdBy,
     this.currentVersion = 1,
-  });
+  }) : title = title.trim();
 
   final String id;
   final String? eventId;
@@ -37,7 +37,7 @@ class Session {
     return Session(
       id: id ?? this.id,
       eventId: eventId ?? this.eventId,
-      title: title ?? this.title,
+      title: (title ?? this.title).trim(),
       sessionDate: sessionDate ?? this.sessionDate,
       records: records ?? this.records,
       createdAt: createdAt ?? this.createdAt,
@@ -52,7 +52,7 @@ class Session {
     return Session(
       id: json['id'] as String,
       eventId: json['eventId'] as String?,
-      title: json['title'] as String,
+      title: (json['title'] as String).trim(),
       sessionDate: DateTime.parse(json['sessionDate'] as String),
       records: recordsJson
           .map(
