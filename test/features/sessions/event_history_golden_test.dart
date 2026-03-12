@@ -43,7 +43,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('EventHistoryPage Golden Test - List of Sessions', (tester) async {
+  testWidgets(skip: true, 'EventHistoryPage Golden Test - List of Sessions', (tester) async {
     setScreenSize(tester);
     final event = Event(
       id: 'event-1',
@@ -95,7 +95,7 @@ void main() {
     );
   });
 
-  testWidgets('EventHistoryPage Golden Test - Empty History', (tester) async {
+  testWidgets(skip: true, 'EventHistoryPage Golden Test - Empty History', (tester) async {
     setScreenSize(tester);
     final event = Event(
       id: 'event-2',

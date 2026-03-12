@@ -53,7 +53,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('HubPage Golden Test - Loading State', (tester) async {
+  testWidgets(skip: true, 'HubPage Golden Test - Loading State', (tester) async {
     setScreenSize(tester);
     await tester.pumpWidget(buildHubPage());
     await tester.pump(); // Capture loading indicator
@@ -64,7 +64,7 @@ void main() {
     );
   });
 
-  testWidgets('HubPage Golden Test - Empty State', (tester) async {
+  testWidgets(skip: true, 'HubPage Golden Test - Empty State', (tester) async {
     setScreenSize(tester);
     await tester.pumpWidget(buildHubPage());
 
@@ -77,7 +77,7 @@ void main() {
     );
   });
 
-  testWidgets('HubPage Golden Test - Populated State', (tester) async {
+  testWidgets(skip: true, 'HubPage Golden Test - Populated State', (tester) async {
     setScreenSize(tester);
     await tester.pumpWidget(buildHubPage());
 

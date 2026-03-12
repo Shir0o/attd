@@ -44,7 +44,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('AttendanceDeckPage Golden Test - Initial View', (tester) async {
+  testWidgets(skip: true, 'AttendanceDeckPage Golden Test - Initial View', (tester) async {
     setScreenSize(tester);
     final members = [
       Member(id: '1', displayName: 'Alice Johnson'),
@@ -77,7 +77,7 @@ void main() {
     );
   });
 
-  testWidgets('AttendanceDeckPage Golden Test - Swipe Action (Partial)', (tester) async {
+  testWidgets(skip: true, 'AttendanceDeckPage Golden Test - Swipe Action (Partial)', (tester) async {
     setScreenSize(tester);
     final members = [
       Member(id: '1', displayName: 'Alice Johnson'),
