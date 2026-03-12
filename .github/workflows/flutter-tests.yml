@@ -1,18 +1,24 @@
-name: Flutter Tests
+name: Flutter CI
 
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'screenshots/**'
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'integration_test/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'analysis_options.yaml'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'screenshots/**'
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'integration_test/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'analysis_options.yaml'
   workflow_dispatch:
 
 concurrency:
@@ -20,9 +26,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  # Fast feedback: Analysis and Unit/Widget tests
+  unit_tests:
+    name: Unit & Widget Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,17 +43,24 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed lib test integration_test
 
       - name: Run analysis
-        run: flutter analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
 
-      - name: Run unit and widget tests
-        run: flutter test
+      - name: Run tests
+        run: flutter test --no-pub --coverage
 
-  integration_test:
-    needs: test
+  # Heavy duty: Integration tests (PR only)
+  integration_tests:
+    name: Integration Tests
+    needs: unit_tests
+    # Only run integration tests on pull requests to save costs
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,10 +74,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run integration tests
+      - name: Run Integration Tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
           arch: x86_64
           disable-animations: true
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: flutter test integration_test/app_test.dart
+
