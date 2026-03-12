@@ -392,31 +392,11 @@ class DriveService extends ChangeNotifier {
       // Cleanup local ZIP
       await backupFile.delete();
 
-      // Maintain last 5 backups
-      await _cleanupOldBackups(backupFolderId);
     } catch (e) {
       print('Failed to create cloud backup: $e');
     }
   }
 
-  Future<void> _cleanupOldBackups(String folderId) async {
-    final query =
-        "'$folderId' in parents and trashed = false and name contains 'attendance_snapshot_'";
-    final fileList = await _driveApi!.files.list(
-      q: query,
-      $fields: 'files(id, name, createdTime)',
-      orderBy: 'createdTime desc',
-    );
-
-    if (fileList.files != null && fileList.files!.length > 5) {
-      final filesToDelete = fileList.files!.sublist(5);
-      for (final file in filesToDelete) {
-        if (file.id != null) {
-          await _driveApi!.files.delete(file.id!);
-        }
-      }
-    }
-  }
 
   Future<List<drive.File>> listCloudBackups() async {
     if (_driveApi == null) return [];
