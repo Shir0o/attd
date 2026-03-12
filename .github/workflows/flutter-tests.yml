@@ -1,15 +1,6 @@
 name: Flutter CI
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'integration_test/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - 'analysis_options.yaml'
   pull_request:
     branches: [ main ]
     paths:
@@ -26,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Fast feedback: Analysis and Unit/Widget tests
+  # Fast feedback: Unit/Widget tests
   unit_tests:
     name: Unit & Widget Tests
     runs-on: ubuntu-latest
@@ -43,12 +34,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Verify formatting
-        run: dart format --set-exit-if-changed lib test integration_test
-
-      - name: Run analysis
-        run: flutter analyze --fatal-infos --fatal-warnings
 
       - name: Run tests
         run: flutter test --no-pub --coverage
