@@ -63,5 +63,26 @@ void main() {
       final fromJson = Event.fromJson(json);
       expect(fromJson.updatedAt, fromJson.createdAt);
     });
+
+    test('title should be trimmed', () {
+      final untrimmed = Event(
+        id: 'event-4',
+        title: '  Trim Me  ',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      );
+      expect(untrimmed.title, 'Trim Me');
+
+      final json = {
+        'id': 'event-5',
+        'title': '  Json Trim  ',
+        'time': '10:0',
+        'frequency': 'Weekly',
+        'createdAt': now.toIso8601String(),
+      };
+      final fromJson = Event.fromJson(json);
+      expect(fromJson.title, 'Json Trim');
+    });
   });
 }

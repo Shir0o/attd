@@ -14,12 +14,13 @@ class Family {
 
   Family({
     required this.id,
-    required this.displayName,
+    required String displayName,
     String? canonicalName,
     this.mergedIntoFamilyId,
     required this.members,
     LabelAssignments? labels,
-  }) : canonicalName = canonicalName ?? displayName,
+  }) : displayName = displayName.trim(),
+       canonicalName = (canonicalName ?? displayName).trim(),
        labels = labels ?? const LabelAssignments();
 
   Family copyWith({
@@ -32,8 +33,8 @@ class Family {
   }) {
     return Family(
       id: id ?? this.id,
-      displayName: displayName ?? this.displayName,
-      canonicalName: canonicalName ?? this.canonicalName,
+      displayName: (displayName ?? this.displayName).trim(),
+      canonicalName: (canonicalName ?? this.canonicalName).trim(),
       mergedIntoFamilyId: mergedIntoFamilyId ?? this.mergedIntoFamilyId,
       members: members ?? this.members,
       labels: labels ?? this.labels,
@@ -44,8 +45,8 @@ class Family {
     final membersJson = json['members'] as List<dynamic>? ?? [];
     return Family(
       id: json['id'] as String,
-      displayName: json['displayName'] as String,
-      canonicalName: json['canonicalName'] as String?,
+      displayName: (json['displayName'] as String).trim(),
+      canonicalName: (json['canonicalName'] as String?)?.trim(),
       mergedIntoFamilyId: json['mergedIntoFamilyId'] as String?,
       members: membersJson
           .map((member) => Member.fromJson(member as Map<String, dynamic>))

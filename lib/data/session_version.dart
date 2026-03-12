@@ -1,7 +1,7 @@
 import 'session.dart';
 
 class SessionVersion {
-  const SessionVersion({
+  SessionVersion({
     required this.sessionId,
     required this.version,
     required this.snapshot,

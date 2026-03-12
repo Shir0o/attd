@@ -64,5 +64,28 @@ void main() {
       expect(fromJson.records, isEmpty);
       expect(fromJson.currentVersion, 1);
     });
+
+    test('title should be trimmed', () {
+      final untrimmed = Session(
+        id: 'session-3',
+        title: '  Trim Me  ',
+        sessionDate: now,
+        records: [],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'Admin',
+      );
+      expect(untrimmed.title, 'Trim Me');
+
+      final fromJson = Session.fromJson({
+        'id': 'session-4',
+        'title': '  Json Trim  ',
+        'sessionDate': now.toIso8601String(),
+        'createdAt': now.toIso8601String(),
+        'updatedAt': now.toIso8601String(),
+        'createdBy': 'Admin',
+      });
+      expect(fromJson.title, 'Json Trim');
+    });
   });
 }

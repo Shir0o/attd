@@ -132,7 +132,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
       final event = Event(
         id: eventId,
-        title: _nameController.text,
+        title: _nameController.text.trim(),
         time: _selectedTime,
         frequency: _frequency,
         oneTimeDate: _frequency == 'One-time' ? _selectedDate : null,
@@ -266,7 +266,7 @@ class _AddEventPageState extends State<AddEventPage> {
                               hintText: 'Enter event name',
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Please enter an event name';
                               }
                               return null;

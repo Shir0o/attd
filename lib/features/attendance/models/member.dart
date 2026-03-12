@@ -16,13 +16,14 @@ class Member {
 
   Member({
     required this.id,
-    required this.displayName,
+    required String displayName,
     String? canonicalName,
     this.mergedIntoMemberId,
     this.isVisitor = false,
     this.defaultStatus = AttendanceStatus.absent,
     LabelAssignments? labels,
-  }) : canonicalName = canonicalName ?? displayName,
+  }) : displayName = displayName.trim(),
+       canonicalName = (canonicalName ?? displayName).trim(),
        labels = labels ?? const LabelAssignments();
 
   Member copyWith({
@@ -36,8 +37,8 @@ class Member {
   }) {
     return Member(
       id: id ?? this.id,
-      displayName: displayName ?? this.displayName,
-      canonicalName: canonicalName ?? this.canonicalName,
+      displayName: (displayName ?? this.displayName).trim(),
+      canonicalName: (canonicalName ?? this.canonicalName).trim(),
       mergedIntoMemberId: mergedIntoMemberId ?? this.mergedIntoMemberId,
       isVisitor: isVisitor ?? this.isVisitor,
       defaultStatus: defaultStatus ?? this.defaultStatus,
@@ -48,8 +49,8 @@ class Member {
   factory Member.fromJson(Map<String, dynamic> json) {
     return Member(
       id: json['id'] as String,
-      displayName: json['displayName'] as String,
-      canonicalName: json['canonicalName'] as String?,
+      displayName: (json['displayName'] as String).trim(),
+      canonicalName: (json['canonicalName'] as String?)?.trim(),
       mergedIntoMemberId: json['mergedIntoMemberId'] as String?,
       isVisitor: json['isVisitor'] as bool? ?? false,
       defaultStatus: AttendanceStatus.values.firstWhere(
