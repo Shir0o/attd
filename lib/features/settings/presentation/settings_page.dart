@@ -662,7 +662,7 @@ function doPost(e) {
                                     height: 4,
                                     decoration: BoxDecoration(
                                       color: colorScheme.onSurfaceVariant
-                                          .withValues(alpha: 0.4),
+                                          .withOpacity(0.4),
                                       borderRadius: BorderRadius.circular(2),
                                     ),
                                   ),
@@ -779,7 +779,7 @@ function doPost(e) {
                                     height: 4,
                                     decoration: BoxDecoration(
                                       color: colorScheme.onSurfaceVariant
-                                          .withValues(alpha: 0.4),
+                                          .withOpacity(0.4),
                                       borderRadius: BorderRadius.circular(2),
                                     ),
                                   ),
@@ -798,7 +798,7 @@ function doPost(e) {
                                               boxShadow: [
                                                 BoxShadow(
                                                   color: Colors.black
-                                                      .withValues(alpha: 0.1),
+                                                      .withOpacity(0.1),
                                                   blurRadius: 10,
                                                   spreadRadius: 2,
                                                 ),
@@ -954,7 +954,7 @@ function doPost(e) {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.1),
+              color: colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: colorScheme.primary, size: 20),

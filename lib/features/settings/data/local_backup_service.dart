@@ -33,13 +33,12 @@ class LocalBackupService {
 
       final backupFile = File(backupPath);
       if (await backupFile.exists()) {
-        final result = await Share.shareXFiles(
-          [XFile(backupPath)],
-          text: 'Attendance Tracker Backup',
-        );
+        final result = await Share.shareXFiles([
+          XFile(backupPath),
+        ], text: 'Attendance Tracker Backup');
 
         if (result.status == ShareResultStatus.success) {
-           print('Backup shared successfully');
+          print('Backup shared successfully');
         }
       } else {
         throw Exception('Backup file creation failed');
@@ -102,9 +101,12 @@ class LocalBackupService {
             final memberName = _escapeCsv(memberNames[memberId] ?? memberId);
             final status = r['status'];
             final recordedAt = DateTime.parse(r['recordedAt']);
-            final recordedAtStr = '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
+            final recordedAtStr =
+                '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
 
-            buffer.writeln('$dateStr,$title,$memberName,$status,$recordedAtStr');
+            buffer.writeln(
+              '$dateStr,$title,$memberName,$status,$recordedAtStr',
+            );
           }
         }
       }
@@ -113,11 +115,9 @@ class LocalBackupService {
       final csvFile = File(csvPath);
       await csvFile.writeAsString(buffer.toString());
 
-      await Share.shareXFiles(
-        [XFile(csvPath)],
-        text: 'Attendance Data Export (CSV)',
-      );
-
+      await Share.shareXFiles([
+        XFile(csvPath),
+      ], text: 'Attendance Data Export (CSV)');
     } catch (e) {
       print('Export failed: $e');
       rethrow;

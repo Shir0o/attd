@@ -56,7 +56,7 @@ class _MembersPageState extends State<MembersPage> {
 
     try {
       final families = await widget.attendanceRepository.fetchFamilies();
-      
+
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 600) - elapsed;
 
@@ -97,29 +97,30 @@ class _MembersPageState extends State<MembersPage> {
     if (isDuplicate) {
       final confirmed = await showDialog<bool>(
         context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Duplicate Member'),
-              content: Text(
-                'A member named "$trimmedName" already exists. Do you want to add them anyway?',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Add Duplicate'),
-                ),
-              ],
+        builder: (context) => AlertDialog(
+          title: const Text('Duplicate Member'),
+          content: Text(
+            'A member named "$trimmedName" already exists. Do you want to add them anyway?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
             ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Add Duplicate'),
+            ),
+          ],
+        ),
       );
       if (confirmed != true) return;
     }
 
     try {
-      final newFamily = await widget.attendanceRepository.addFamily(trimmedName);
+      final newFamily = await widget.attendanceRepository.addFamily(
+        trimmedName,
+      );
       final newMember = Member(id: const Uuid().v4(), displayName: trimmedName);
       final updatedFamily = await widget.attendanceRepository.addMember(
         newFamily.id,
@@ -158,24 +159,23 @@ class _MembersPageState extends State<MembersPage> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Remove Member'),
-            content: Text(
-              'Are you sure you want to remove "${member.displayName}"? This will not delete their historical attendance records.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Remove'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Member'),
+        content: Text(
+          'Are you sure you want to remove "${member.displayName}"? This will not delete their historical attendance records.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
     );
 
     return confirmed == true;
@@ -188,8 +188,9 @@ class _MembersPageState extends State<MembersPage> {
     try {
       final updatedFamilies = _families!
           .map((f) {
-            final updatedMembers =
-                f.members.where((m) => m.id != member.id).toList();
+            final updatedMembers = f.members
+                .where((m) => m.id != member.id)
+                .toList();
             return f.copyWith(members: updatedMembers);
           })
           .where((f) => f.members.isNotEmpty)
@@ -260,9 +261,9 @@ class _MembersPageState extends State<MembersPage> {
       await widget.eventRepository!.updateEvent(updatedEvent);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update event: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update event: $e')));
       }
     }
   }
@@ -279,9 +280,7 @@ class _MembersPageState extends State<MembersPage> {
         backgroundColor: colorScheme.surface,
         surfaceTintColor: colorScheme.surface,
         title: Text(
-          isEventMode
-              ? 'Manage Event Members'
-              : 'Manage Members',
+          isEventMode ? 'Manage Event Members' : 'Manage Members',
           style: TextStyle(color: colorScheme.onSurface),
         ),
         iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
@@ -319,8 +318,9 @@ class _MembersPageState extends State<MembersPage> {
                             hintText: isEventMode
                                 ? 'Find or add to event'
                                 : 'Find or add member',
-                            hintStyle:
-                                TextStyle(color: colorScheme.onSurfaceVariant),
+                            hintStyle: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                             prefixIcon: Icon(
                               Icons.search,
                               color: colorScheme.onSurfaceVariant,
@@ -374,20 +374,19 @@ class _MembersPageState extends State<MembersPage> {
         key: const ValueKey('loading'),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: 10,
-        separatorBuilder:
-            (ctx, i) =>
-                Divider(color: colorScheme.outlineVariant, height: 1),
+        separatorBuilder: (ctx, i) =>
+            Divider(color: colorScheme.outlineVariant, height: 1),
         itemBuilder: (context, index) {
           return ListTile(
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(
-              backgroundColor: colorScheme.primary.withValues(alpha: 0.05),
+              backgroundColor: colorScheme.primary.withOpacity(0.05),
             ),
             title: Container(
               width: 150,
               height: 16,
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
+                color: Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -396,7 +395,7 @@ class _MembersPageState extends State<MembersPage> {
               height: 12,
               margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
+                color: Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -417,10 +416,9 @@ class _MembersPageState extends State<MembersPage> {
     final searchTerm = _inputController.text.toLowerCase();
 
     // Filter by search
-    var filteredMembers =
-        allMembers.where((m) {
-          return m.displayNameLowercase.contains(searchTerm);
-        }).toList();
+    var filteredMembers = allMembers.where((m) {
+      return m.displayNameLowercase.contains(searchTerm);
+    }).toList();
 
     // In Event Mode, maybe we want to sort selected members to the top?
     if (isEventMode) {
@@ -444,9 +442,7 @@ class _MembersPageState extends State<MembersPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isEventMode
-                    ? 'Assigned Members'
-                    : 'Regular Members',
+                isEventMode ? 'Assigned Members' : 'Regular Members',
                 style: TextStyle(
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
@@ -476,8 +472,8 @@ class _MembersPageState extends State<MembersPage> {
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: filteredMembers.length,
-            separatorBuilder:
-                (ctx, i) => Divider(color: colorScheme.outlineVariant, height: 1),
+            separatorBuilder: (ctx, i) =>
+                Divider(color: colorScheme.outlineVariant, height: 1),
             itemBuilder: (context, index) {
               final member = filteredMembers[index];
               final isSelected = isEventMode
@@ -503,13 +499,15 @@ class _MembersPageState extends State<MembersPage> {
                   leading: CircleAvatar(
                     backgroundColor: isSelected
                         ? colorScheme.primary
-                        : colorScheme.primary.withValues(alpha: 0.1),
+                        : colorScheme.primary.withOpacity(0.1),
                     child: Text(
                       member.displayName.isNotEmpty
                           ? member.displayName[0].toUpperCase()
                           : '?',
                       style: TextStyle(
-                        color: isSelected ? colorScheme.onPrimary : colorScheme.primary,
+                        color: isSelected
+                            ? colorScheme.onPrimary
+                            : colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -519,7 +517,9 @@ class _MembersPageState extends State<MembersPage> {
                     style: TextStyle(
                       color: colorScheme.onSurface,
                       fontSize: 18,
-                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w500
+                          : FontWeight.normal,
                     ),
                   ),
                   subtitle: isEventMode && isSelected
@@ -534,7 +534,8 @@ class _MembersPageState extends State<MembersPage> {
                   trailing: isEventMode
                       ? Checkbox(
                           value: isSelected,
-                          onChanged: (val) => _toggleEventMember(member, val ?? false),
+                          onChanged: (val) =>
+                              _toggleEventMember(member, val ?? false),
                         )
                       : IconButton(
                           icon: Icon(

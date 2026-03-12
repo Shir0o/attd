@@ -31,6 +31,36 @@ void main() {
       expect(result.any((m) => m['id'] == 'member_3'), true);
     });
 
+    test('Scenario: Local family name changes should be preserved even without updatedAt', () {
+      final local = [
+        {
+          'id': 'fam_1',
+          'displayName': 'Kim Household', // Local change
+          'members': [
+            {'id': 'm1', 'displayName': 'Alex Kim'}
+          ]
+        },
+      ];
+      final remote = [
+        {
+          'id': 'fam_1',
+          'displayName': 'Kim Family', // Old remote name
+          'members': [
+            {'id': 'm1', 'displayName': 'Alex Kim'}
+          ]
+        },
+      ];
+
+      final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+
+      expect(result.length, 1);
+      expect(
+        result.first['displayName'],
+        'Kim Household',
+        reason: 'Local change should be preferred over remote if no updatedAt is present',
+      );
+    });
+
     test('Scenario: Conflict resolution favors the most recent change (UpdatedAt)', () {
       final local = [
         {'id': 'member_1', 'name': 'Member A (Local Edit)', 'updatedAt': '2025-02-27T11:00:00Z'},

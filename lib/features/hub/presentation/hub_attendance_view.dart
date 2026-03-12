@@ -302,7 +302,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme.onSurface,
                       letterSpacing: 1.0,
                     ),
                   ),
@@ -543,14 +543,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                             context,
                                           ).push<Session>(
                                             MaterialPageRoute(
-                                              builder: (_) => AttendanceDeckPage(
-                                                session: sessionToOpen,
-                                                members: sessionMembers,
-                                                sessionRepository:
-                                                    widget.sessionRepository,
-                                                attendanceRepository:
-                                                    widget.attendanceRepository,
-                                              ),
+                                              builder: (_) =>
+                                                  AttendanceDeckPage(
+                                                    session: sessionToOpen,
+                                                    members: sessionMembers,
+                                                    sessionRepository: widget
+                                                        .sessionRepository,
+                                                    attendanceRepository: widget
+                                                        .attendanceRepository,
+                                                  ),
                                             ),
                                           );
 
@@ -965,6 +966,7 @@ class _EventCardState extends State<_EventCard>
                       Icons.more_vert,
                       color: widget.onSurfaceVariantColor,
                     ),
+                    tooltip: 'Event Menu',
                     onPressed: widget.onMenuTap,
                   ),
                 ],

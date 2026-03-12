@@ -714,13 +714,17 @@ class DriveService extends ChangeNotifier {
                 merged[id] = item;
               }
             } else if (fileName == 'families.json') {
-              // For families, merge member lists
+              // For families, merge member lists and prefer current (local) for other fields
               final mergedMembers = _mergeJsonLists(
                 existing['members'] as List? ?? [],
                 current['members'] as List? ?? [],
                 'members',
               );
-              merged[id] = {...existing, 'members': mergedMembers};
+              merged[id] = {...existing, ...current, 'members': mergedMembers};
+            } else {
+              // Fallback for types without updatedAt (like Members):
+              // Prefer current (local) over existing (remote) if IDs match
+              merged[id] = item;
             }
           }
         }

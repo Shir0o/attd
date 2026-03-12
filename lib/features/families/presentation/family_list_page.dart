@@ -43,10 +43,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
   void _openFamily(Family family) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => FamilyDetailsPage(
-          family: family,
-          repository: widget.repository,
-        ),
+        builder: (context) =>
+            FamilyDetailsPage(family: family, repository: widget.repository),
       ),
     );
     _loadFamilies();
@@ -86,7 +84,9 @@ class _FamilyListPageState extends State<FamilyListPage> {
               final memberCount = family.members.length;
               return ListTile(
                 leading: CircleAvatar(
-                  child: Text(family.displayName.characters.first.toUpperCase()),
+                  child: Text(
+                    family.displayName.characters.first.toUpperCase(),
+                  ),
                 ),
                 title: Text(
                   family.displayName,

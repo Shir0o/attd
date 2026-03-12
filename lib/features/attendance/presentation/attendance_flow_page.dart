@@ -287,7 +287,7 @@ class _FamilyAttendanceView extends StatelessWidget {
                     leading: CircleAvatar(
                       backgroundColor: Theme.of(
                         context,
-                      ).colorScheme.surfaceTint.withValues(alpha: 0.14),
+                      ).colorScheme.surfaceTint.withOpacity(0.14),
                       child: Text(
                         member.displayName.characters.first.toUpperCase(),
                       ),

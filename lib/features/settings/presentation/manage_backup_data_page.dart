@@ -216,7 +216,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.1)),
+          border: Border.all(color: colorScheme.primary.withOpacity(0.1)),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -228,7 +228,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
               child: Icon(
                 Icons.storage,
                 size: 64,
-                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.5),
+                color: colorScheme.onPrimaryContainer.withOpacity(0.5),
               ),
             ),
             Padding(
@@ -337,7 +337,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+          border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
@@ -434,10 +434,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 },
                 colorScheme: colorScheme,
               ),
-              Divider(
-                height: 1,
-                color: colorScheme.primary.withValues(alpha: 0.05),
-              ),
+              Divider(height: 1, color: colorScheme.primary.withOpacity(0.05)),
             ],
           ),
         ),
@@ -480,10 +477,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 },
                 colorScheme: colorScheme,
               ),
-              Divider(
-                height: 1,
-                color: colorScheme.primary.withValues(alpha: 0.05),
-              ),
+              Divider(height: 1, color: colorScheme.primary.withOpacity(0.05)),
             ],
           ),
         ),
@@ -524,10 +518,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 },
                 colorScheme: colorScheme,
               ),
-              Divider(
-                height: 1,
-                color: colorScheme.primary.withValues(alpha: 0.05),
-              ),
+              Divider(height: 1, color: colorScheme.primary.withOpacity(0.05)),
             ],
           ),
         ),
@@ -543,9 +534,9 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: colorScheme.surface.withValues(alpha: 0.95),
+          color: colorScheme.surface.withOpacity(0.95),
           border: Border(
-            top: BorderSide(color: colorScheme.primary.withValues(alpha: 0.1)),
+            top: BorderSide(color: colorScheme.primary.withOpacity(0.1)),
           ),
         ),
         child: SafeArea(

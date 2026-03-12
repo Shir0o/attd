@@ -17,7 +17,9 @@ class GoogleSheetsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastSyncStr = prefs.getString(_lastSheetsSyncKey);
-      final lastSync = lastSyncStr != null ? DateTime.parse(lastSyncStr) : DateTime.fromMillisecondsSinceEpoch(0);
+      final lastSync = lastSyncStr != null
+          ? DateTime.parse(lastSyncStr)
+          : DateTime.fromMillisecondsSinceEpoch(0);
 
       final payload = await _buildPayload(lastSync);
       if (payload == null) {
@@ -32,7 +34,10 @@ class GoogleSheetsService {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        await prefs.setString(_lastSheetsSyncKey, DateTime.now().toIso8601String());
+        await prefs.setString(
+          _lastSheetsSyncKey,
+          DateTime.now().toIso8601String(),
+        );
       }
 
       print(
@@ -81,7 +86,7 @@ class GoogleSheetsService {
     for (final s in sessionsJson) {
       final updatedAtStr = s['updatedAt'];
       if (updatedAtStr == null) continue;
-      
+
       final updatedAt = DateTime.parse(updatedAtStr);
       // We sync if the session was UPDATED since the last sync.
       // This includes newly added historical sessions (since their updatedAt will be 'now').
@@ -89,7 +94,7 @@ class GoogleSheetsService {
 
       final sessionDateStr = s['sessionDate'];
       if (sessionDateStr == null) continue;
-      
+
       final sessionDate = DateTime.parse(sessionDateStr);
       final dateStr = dateFormat.format(sessionDate);
       final title = s['title'] ?? 'Untitled';
@@ -106,7 +111,6 @@ class GoogleSheetsService {
             'name': '[$dateStr] $title - $attendeeName',
             'status': status,
           });
-
         }
       }
     }

@@ -64,13 +64,15 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // Actually, maybe we just want to iterate through everyone regardless.
     // But if I back out and return, I probably want to resume.
     int firstUnrecorded = 0;
+    bool found = false;
     for (int i = 0; i < widget.members.length; i++) {
       if (!recordedIds.contains(widget.members[i].displayName)) {
         firstUnrecorded = i;
+        found = true;
         break;
       }
     }
-    _currentIndex = firstUnrecorded;
+    _currentIndex = found ? firstUnrecorded : widget.members.length;
 
     // Snappier delay to allow Hero to finish without making the app feel slow
     Future.delayed(const Duration(milliseconds: 250), () {
@@ -152,48 +154,47 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) => AddMemberSheet(
-            onAdd: (name, isPresent, isGuest) async {
-              if (!isGuest) {
-                try {
-                  final families =
-                      await widget.attendanceRepository.fetchFamilies();
-                  Family targetFamily;
-                  if (families.isEmpty) {
-                    targetFamily = await widget.attendanceRepository.addFamily(
-                      'General',
-                    );
-                  } else {
-                    targetFamily = families.first;
-                  }
-
-                  final newMember = Member(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    displayName: name,
-                  );
-
-                  await widget.attendanceRepository.addMember(
-                    targetFamily.id,
-                    newMember,
-                  );
-                } catch (e) {
-                  debugPrint('Error adding regular member: $e');
-                }
+      builder: (context) => AddMemberSheet(
+        onAdd: (name, isPresent, isGuest) async {
+          if (!isGuest) {
+            try {
+              final families = await widget.attendanceRepository
+                  .fetchFamilies();
+              Family targetFamily;
+              if (families.isEmpty) {
+                targetFamily = await widget.attendanceRepository.addFamily(
+                  'General',
+                );
+              } else {
+                targetFamily = families.first;
               }
 
-              _recordAttendance(
-                name,
-                isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+              final newMember = Member(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                displayName: name,
               );
 
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('$name added')));
-              }
-            },
-          ),
+              await widget.attendanceRepository.addMember(
+                targetFamily.id,
+                newMember,
+              );
+            } catch (e) {
+              debugPrint('Error adding regular member: $e');
+            }
+          }
+
+          _recordAttendance(
+            name,
+            isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('$name added')));
+          }
+        },
+      ),
     );
   }
 
@@ -258,7 +259,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12, left: 16),
                     child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(_currentSession),
+                      onPressed: () =>
+                          Navigator.of(context).pop(_currentSession),
                       icon: const Icon(Icons.close),
                       color: colorScheme.onSurfaceVariant,
                       tooltip: 'Cancel',
@@ -300,9 +302,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               scale: 0.9,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer.withValues(
-                                    alpha: 0.4,
-                                  ),
+                                  color: colorScheme.surfaceContainer
+                                      .withOpacity(0.4),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: const [
                                     BoxShadow(
@@ -324,9 +325,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               scale: 0.95,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer.withValues(
-                                    alpha: 0.7,
-                                  ),
+                                  color: colorScheme.surfaceContainer
+                                      .withOpacity(0.7),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: const [
                                     BoxShadow(
@@ -352,9 +352,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                       width: double.infinity,
                                       height: double.infinity,
                                       decoration: BoxDecoration(
-                                        color: colorScheme.surfaceContainer.withValues(
-                                          alpha: 0.5,
-                                        ),
+                                        color: colorScheme.surfaceContainer
+                                            .withOpacity(0.5),
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                       child: Center(
@@ -362,9 +361,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                           width: 96,
                                           height: 96,
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.withValues(
-                                              alpha: 0.1,
-                                            ),
+                                            color: Colors.grey.withOpacity(0.1),
                                             shape: BoxShape.circle,
                                           ),
                                         ),
@@ -387,7 +384,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                         height: double.infinity,
                                         decoration: BoxDecoration(
                                           color: colorScheme.surfaceContainer,
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           boxShadow: const [
                                             BoxShadow(
                                               color: Colors.black12,
@@ -405,7 +404,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                               width: 96,
                                               height: 96,
                                               decoration: BoxDecoration(
-                                                color: colorScheme.surfaceContainerHigh,
+                                                color: colorScheme
+                                                    .surfaceContainerHigh,
                                                 shape: BoxShape.circle,
                                                 boxShadow: const [
                                                   BoxShadow(
@@ -418,8 +418,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                               clipBehavior: Clip.antiAlias,
                                               child: Center(
                                                 child: Text(
-                                                  currentMember.displayName.isNotEmpty
-                                                      ? currentMember.displayName[0]
+                                                  currentMember
+                                                          .displayName
+                                                          .isNotEmpty
+                                                      ? currentMember
+                                                            .displayName[0]
                                                             .toUpperCase()
                                                       : '?',
                                                   style: TextStyle(
@@ -478,7 +481,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                           size: 40,
                           color: _currentIndex > 0
                               ? colorScheme.onSurfaceVariant
-                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                              : colorScheme.onSurfaceVariant.withOpacity(0.3),
                         ),
                       ),
                     ),

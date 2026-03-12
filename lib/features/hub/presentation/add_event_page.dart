@@ -77,7 +77,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
   Future<void> _loadData() async {
     final startTime = DateTime.now();
-    
+
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 250) - elapsed;
@@ -165,22 +165,21 @@ class _AddEventPageState extends State<AddEventPage> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Event'),
-            content: Text('Are you sure you want to delete "${event.title}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text('Are you sure you want to delete "${event.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true && mounted) {
@@ -254,8 +253,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           label: 'Event Name',
                           child: TextFormField(
                             controller: _nameController,
-                            textCapitalization:
-                                TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             style: TextStyle(
                               fontSize: 18,
                               color: colorScheme.onSurface,
@@ -347,16 +345,14 @@ class _AddEventPageState extends State<AddEventPage> {
                                   });
                                 }
                               },
-                              items: _frequencies
-                                  .map<DropdownMenuItem<String>>((
-                                    String value,
-                                  ) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(value),
-                                    );
-                                  })
-                                  .toList(),
+                              items: _frequencies.map<DropdownMenuItem<String>>(
+                                (String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                },
+                              ).toList(),
                             ),
                           ),
                           backgroundColor: colorScheme.surfaceContainerHigh,
@@ -378,9 +374,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                DateFormat(
-                                  'yyyy-MM-dd',
-                                ).format(_selectedDate),
+                                DateFormat('yyyy-MM-dd').format(_selectedDate),
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: colorScheme.onSurface,
@@ -414,15 +408,10 @@ class _AddEventPageState extends State<AddEventPage> {
                           ),
                         ),
                         Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceEvenly,
-                          children: List.generate(_daysOfWeek.length, (
-                            index,
-                          ) {
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(_daysOfWeek.length, (index) {
                             final dayName = _daysOfWeek[index];
-                            final isSelected = _selectedDays.contains(
-                              dayName,
-                            );
+                            final isSelected = _selectedDays.contains(dayName);
                             final label = dayName.substring(0, 1);
                             return GestureDetector(
                               onTap: () {
@@ -435,8 +424,8 @@ class _AddEventPageState extends State<AddEventPage> {
                                 });
                               },
                               child: Container(
-                                width: 44,
-                                height: 44,
+                                width: 48,
+                                height: 48,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: isSelected
@@ -510,7 +499,7 @@ class _AddEventPageState extends State<AddEventPage> {
           width: double.infinity,
           height: 64,
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
         ),
@@ -547,12 +536,15 @@ class _AddEventPageState extends State<AddEventPage> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: textColor.withAlpha(179), // ~70% opacity
+              color: textColor.withOpacity(
+                0.85,
+              ), // Increased opacity for better contrast
             ),
           ),
           child,
         ],
       ),
     );
+
   }
 }

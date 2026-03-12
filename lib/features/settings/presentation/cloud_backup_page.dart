@@ -76,10 +76,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
         title: const Text('Cloud Version History'),
         backgroundColor: colorScheme.surface,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
       ),
       body: FutureBuilder<List<drive.File>>(
@@ -103,7 +100,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   Icon(
                     Icons.cloud_off_outlined,
                     size: 64,
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
                   ),
                   const SizedBox(height: 16),
                   const Text('No cloud backups found'),
@@ -118,22 +115,33 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final backup = backups[index];
-              final dateStr = DateFormat('EEEE, MMM d, yyyy').format(backup.createdTime!);
+              final dateStr = DateFormat(
+                'EEEE, MMM d, yyyy',
+              ).format(backup.createdTime!);
               final timeStr = DateFormat('HH:mm').format(backup.createdTime!);
-              final size = (int.parse(backup.size ?? '0') / 1024).toStringAsFixed(1);
+              final size = (int.parse(backup.size ?? '0') / 1024)
+                  .toStringAsFixed(1);
 
               return Card(
                 elevation: 0,
                 color: colorScheme.surfaceContainer,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withOpacity(0.5),
+                  ),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   leading: CircleAvatar(
                     backgroundColor: colorScheme.primaryContainer,
-                    child: Icon(Icons.cloud_download, color: colorScheme.onPrimaryContainer),
+                    child: Icon(
+                      Icons.cloud_download,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
                   ),
                   title: Text(
                     dateStr,

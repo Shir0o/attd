@@ -90,10 +90,9 @@ class _ReportExportPageState extends State<ReportExportPage> {
       );
       setState(() {
         _lastResult = result;
-        _statusMessage =
-            result.sheetSync?.success == true
-                ? 'Uploaded to Sheets'
-                : result.sheetSync?.error ?? _statusMessage;
+        _statusMessage = result.sheetSync?.success == true
+            ? 'Uploaded to Sheets'
+            : result.sheetSync?.error ?? _statusMessage;
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,10 +116,9 @@ class _ReportExportPageState extends State<ReportExportPage> {
     if (path == null) return;
 
     final file = XFile(path);
-    await Share.shareXFiles(
-      [file],
-      text: 'Attendance Report (${_lastResult!.format.name.toUpperCase()})',
-    );
+    await Share.shareXFiles([
+      file,
+    ], text: 'Attendance Report (${_lastResult!.format.name.toUpperCase()})');
   }
 
   Future<void> _copyPath() async {
@@ -220,25 +218,22 @@ class _ReportExportPageState extends State<ReportExportPage> {
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
-                      children:
-                          _availableEventTitles.map((title) {
-                            final isSelected = _selectedEventTitles.contains(
-                              title,
-                            );
-                            return FilterChip(
-                              label: Text(title),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  if (selected) {
-                                    _selectedEventTitles.add(title);
-                                  } else {
-                                    _selectedEventTitles.remove(title);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
+                      children: _availableEventTitles.map((title) {
+                        final isSelected = _selectedEventTitles.contains(title);
+                        return FilterChip(
+                          label: Text(title),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedEventTitles.add(title);
+                              } else {
+                                _selectedEventTitles.remove(title);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
@@ -259,15 +254,14 @@ class _ReportExportPageState extends State<ReportExportPage> {
                       Text('Output format', style: theme.textTheme.titleMedium),
                       DropdownButton<ReportFormat>(
                         value: _format,
-                        items:
-                            ReportFormat.values
-                                .map(
-                                  (format) => DropdownMenuItem(
-                                    value: format,
-                                    child: Text(format.name.toUpperCase()),
-                                  ),
-                                )
-                                .toList(),
+                        items: ReportFormat.values
+                            .map(
+                              (format) => DropdownMenuItem(
+                                value: format,
+                                child: Text(format.name.toUpperCase()),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (format) {
                           if (format == null) return;
                           setState(() => _format = format);
@@ -290,10 +284,9 @@ class _ReportExportPageState extends State<ReportExportPage> {
                           : 'Sheets sync is disabled for this build target.',
                     ),
                     value: _syncSheets,
-                    onChanged:
-                        supportsSheets
-                            ? (value) => setState(() => _syncSheets = value)
-                            : null,
+                    onChanged: supportsSheets
+                        ? (value) => setState(() => _syncSheets = value)
+                        : null,
                   ),
                 ],
               ),
@@ -326,21 +319,17 @@ class _ReportExportPageState extends State<ReportExportPage> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                _error!,
-                style: TextStyle(color: colorScheme.error),
-              ),
+              child: Text(_error!, style: TextStyle(color: colorScheme.error)),
             ),
           FilledButton.icon(
             onPressed: _isProcessing ? null : _export,
-            icon:
-                _isProcessing
-                    ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.analytics_outlined),
+            icon: _isProcessing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.analytics_outlined),
             label: Text(
               _isProcessing ? 'Preparing report…' : 'Generate report',
             ),
@@ -355,7 +344,10 @@ class _ReportExportPageState extends State<ReportExportPage> {
                   children: [
                     Text('Last export', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 8),
-                    Text(_lastResult!.filePath, style: theme.textTheme.bodySmall),
+                    Text(
+                      _lastResult!.filePath,
+                      style: theme.textTheme.bodySmall,
+                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -402,12 +394,11 @@ class _ReportExportPageState extends State<ReportExportPage> {
                         style: theme.textTheme.labelMedium,
                       ),
                       InkWell(
-                        onTap:
-                            () => Clipboard.setData(
-                              ClipboardData(
-                                text: _lastResult!.sheetSync!.shareLink!,
-                              ),
-                            ),
+                        onTap: () => Clipboard.setData(
+                          ClipboardData(
+                            text: _lastResult!.sheetSync!.shareLink!,
+                          ),
+                        ),
                         child: Text(
                           _lastResult!.sheetSync!.shareLink!,
                           style: theme.textTheme.bodyMedium?.copyWith(
@@ -427,4 +418,3 @@ class _ReportExportPageState extends State<ReportExportPage> {
     );
   }
 }
-

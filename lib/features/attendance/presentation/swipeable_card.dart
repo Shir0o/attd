@@ -191,11 +191,10 @@ class _SwipeableCardState extends State<SwipeableCard>
                         16,
                       ), // Match card radius
                       color: offset.dx > 0
-                          ? (widget.rightSwipeColor ?? Colors.green).withValues(
-                              alpha: min(0.3, offset.dx.abs() / 400),
-                            )
-                          : (widget.leftSwipeColor ?? Colors.red).withValues(
-                              alpha: min(0.3, offset.dx.abs() / 400),
+                          ? (widget.rightSwipeColor ?? Colors.green)
+                                .withOpacity(min(0.3, offset.dx.abs() / 400))
+                          : (widget.leftSwipeColor ?? Colors.red).withOpacity(
+                              min(0.3, offset.dx.abs() / 400),
                             ),
                     ),
                   ),

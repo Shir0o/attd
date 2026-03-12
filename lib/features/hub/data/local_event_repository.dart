@@ -19,10 +19,9 @@ class LocalJsonEventRepository implements EventRepository {
   Future<File> get _storageFile async {
     if (_file != null) return _file!;
 
-    final directory =
-        storagePath != null
-            ? Directory(storagePath!)
-            : await getApplicationDocumentsDirectory();
+    final directory = storagePath != null
+        ? Directory(storagePath!)
+        : await getApplicationDocumentsDirectory();
 
     _file = File('${directory.path}/events.json');
     return _file!;
@@ -70,6 +69,15 @@ class LocalJsonEventRepository implements EventRepository {
   @override
   Future<void> createEvent(Event event) async {
     await _init();
+
+    // Ensure ID uniqueness
+    final existingIndex = _cache.indexWhere((e) => e.id == event.id);
+    if (existingIndex != -1) {
+      // If it exists, update it instead of inserting a duplicate
+      await updateEvent(event);
+      return;
+    }
+
     final now = DateTime.now();
     final newEvent = Event(
       id: event.id,

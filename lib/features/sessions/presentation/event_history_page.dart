@@ -41,7 +41,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
   Future<void> _init() async {
     final startTime = DateTime.now();
-    
+
     try {
       // Parallelize member loading and initial session load
       await Future.wait([
@@ -170,21 +170,25 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
                             itemCount: eventSessions.length,
-                            separatorBuilder:
-                                (context, index) => const SizedBox(height: 12),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final session = eventSessions[index];
-                              final dateStr = DateFormat('MMM d, yyyy').format(
-                                session.sessionDate,
-                              );
+                              final dateStr = DateFormat(
+                                'MMM d, yyyy',
+                              ).format(session.sessionDate);
                               final dayTimeStr =
                                   '${DateFormat('EEEE').format(session.sessionDate)} • ${widget.event.time.format(context)}';
 
                               // Filter members to only those assigned to this event
-                              final filteredMembers = widget.event.memberIds.isNotEmpty
+                              final filteredMembers =
+                                  widget.event.memberIds.isNotEmpty
                                   ? _members
-                                      .where((m) => widget.event.memberIds.contains(m.id))
-                                      .toList()
+                                        .where(
+                                          (m) => widget.event.memberIds
+                                              .contains(m.id),
+                                        )
+                                        .toList()
                                   : _members;
 
                               // Consistency check: use the same logic as SessionSummaryPage for counts
@@ -195,20 +199,30 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                       r.status == AttendanceStatus.present,
                                 );
                               }).length;
-                              
-                              // Any records for members NOT in the filtered list (e.g. visitors)
-                              final visitorPresentCount = session.records.where((r) {
-                                return r.status == AttendanceStatus.present &&
-                                    !filteredMembers.any((m) => m.displayName == r.attendee);
-                              }).length;
 
-                              final totalPresent = presentCount + visitorPresentCount;
-                              
+                              // Any records for members NOT in the filtered list (e.g. visitors)
+                              final visitorPresentCount = session.records.where(
+                                (r) {
+                                  return r.status == AttendanceStatus.present &&
+                                      !filteredMembers.any(
+                                        (m) => m.displayName == r.attendee,
+                                      );
+                                },
+                              ).length;
+
+                              final totalPresent =
+                                  presentCount + visitorPresentCount;
+
                               // SessionSummaryPage treats anyone in filteredMembers without a 'present' record as 'absent'
-                              final totalAbsent = filteredMembers.length - presentCount + 
+                              final totalAbsent =
+                                  filteredMembers.length -
+                                  presentCount +
                                   session.records.where((r) {
-                                    return r.status == AttendanceStatus.absent &&
-                                        !filteredMembers.any((m) => m.displayName == r.attendee);
+                                    return r.status ==
+                                            AttendanceStatus.absent &&
+                                        !filteredMembers.any(
+                                          (m) => m.displayName == r.attendee,
+                                        );
                                   }).length;
 
                               return Card(
@@ -227,13 +241,12 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder:
-                                            (_) => SessionSummaryPage(
-                                              session: session,
-                                              members: filteredMembers,
-                                              sessionRepository:
-                                                  widget.sessionRepository,
-                                            ),
+                                        builder: (_) => SessionSummaryPage(
+                                          session: session,
+                                          members: filteredMembers,
+                                          sessionRepository:
+                                              widget.sessionRepository,
+                                        ),
                                       ),
                                     );
                                   },
@@ -256,7 +269,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                   style: TextStyle(
                                                     fontSize: 22,
                                                     fontWeight: FontWeight.w500,
-                                                    color: colorScheme.onSurface,
+                                                    color:
+                                                        colorScheme.onSurface,
                                                   ),
                                                 ),
                                                 Text(
@@ -359,19 +373,20 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
       // 2. Filter members for this event
       final sessionMembers = widget.event.memberIds.isNotEmpty
-          ? _members.where((m) => widget.event.memberIds.contains(m.id)).toList()
+          ? _members
+                .where((m) => widget.event.memberIds.contains(m.id))
+                .toList()
           : _members;
 
       // 3. Navigate to AttendanceDeckPage
       final resultSession = await Navigator.of(context).push<Session>(
         MaterialPageRoute(
-          builder:
-              (_) => AttendanceDeckPage(
-                session: session,
-                members: sessionMembers,
-                sessionRepository: widget.sessionRepository,
-                attendanceRepository: widget.attendanceRepository,
-              ),
+          builder: (_) => AttendanceDeckPage(
+            session: session,
+            members: sessionMembers,
+            sessionRepository: widget.sessionRepository,
+            attendanceRepository: widget.attendanceRepository,
+          ),
         ),
       );
 
@@ -411,7 +426,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 width: 140,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
+                  color: Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -420,7 +435,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 width: 200,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
+                  color: Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -431,7 +446,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                     width: 100,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.1),
+                      color: Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -440,7 +455,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                     width: 100,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.1),
+                      color: Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),

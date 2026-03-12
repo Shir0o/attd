@@ -342,9 +342,9 @@ int _streak(List<_RecordEvent> entries, AttendanceStatus status) {
 String _canonicalizeAttendee(
   String attendee,
   Map<String, Member> membersById,
-  List<Family> families,
-  [Set<String>? visited,]
-) {
+  List<Family> families, [
+  Set<String>? visited,
+]) {
   final normalized = attendee.toLowerCase();
   for (final member in membersById.values) {
     if (member.displayNameLowercase == normalized ||
@@ -366,9 +366,9 @@ String _canonicalizeAttendee(
 
 Family _resolveFamily(
   Family family,
-  Map<String, Family> familiesById,
-  [Set<String>? visited,]
-) {
+  Map<String, Family> familiesById, [
+  Set<String>? visited,
+]) {
   var current = family;
   final usedVisited = visited ?? <String>{};
   if (visited != null) visited.clear();
@@ -385,9 +385,9 @@ Family _resolveFamily(
 
 Member _resolveMember(
   Member member,
-  Map<String, Member> membersById,
-  [Set<String>? visited,]
-) {
+  Map<String, Member> membersById, [
+  Set<String>? visited,
+]) {
   var current = member;
   final usedVisited = visited ?? <String>{};
   if (visited != null) visited.clear();
@@ -405,9 +405,9 @@ Member _resolveMember(
 Map<String, String> _attendeeFamilyIndex(
   List<Family> families,
   Map<String, Family> familiesById,
-  Map<String, Member> membersById,
-  [Set<String>? visited,]
-) {
+  Map<String, Member> membersById, [
+  Set<String>? visited,
+]) {
   final index = <String, String>{};
   for (final family in families) {
     final canonicalFamily = _resolveFamily(family, familiesById, visited);
@@ -421,9 +421,9 @@ Map<String, String> _attendeeFamilyIndex(
 
 Map<String, LabelAssignments> _memberLabelIndex(
   List<Family> families,
-  Map<String, Member> membersById,
-  [Set<String>? visited,]
-) {
+  Map<String, Member> membersById, [
+  Set<String>? visited,
+]) {
   final index = <String, LabelAssignments>{};
   for (final family in families) {
     for (final member in family.members) {
@@ -439,9 +439,9 @@ Map<String, LabelAssignments> _memberLabelIndex(
 
 Map<String, LabelAssignments> _familyLabelIndex(
   List<Family> families,
-  Map<String, Family> familiesById,
-  [Set<String>? visited,]
-) {
+  Map<String, Family> familiesById, [
+  Set<String>? visited,
+]) {
   final index = <String, LabelAssignments>{};
   for (final family in families) {
     final canonical = _resolveFamily(family, familiesById, visited);
@@ -455,9 +455,9 @@ Map<String, LabelAssignments> _familyLabelIndex(
 
 Map<String, Family> _canonicalFamilies(
   List<Family> families,
-  Map<String, Family> familiesById,
-  [Set<String>? visited,]
-) {
+  Map<String, Family> familiesById, [
+  Set<String>? visited,
+]) {
   final canonical = <String, Family>{};
   for (final family in families) {
     final resolved = _resolveFamily(family, familiesById, visited);

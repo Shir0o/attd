@@ -62,7 +62,7 @@ class Event {
               .toList() ??
           [],
       createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: json['updatedAt'] != null 
+      updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : DateTime.parse(json['createdAt'] as String),
     );

@@ -42,11 +42,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
           topRight: Radius.circular(28),
         ),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       child: Padding(
@@ -62,7 +58,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                color: colorScheme.onSurfaceVariant.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -103,15 +99,21 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         ),
                         contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                         border: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: colorScheme.onSurfaceVariant),
+                          borderSide: BorderSide(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: colorScheme.primary, width: 2),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary,
+                            width: 2,
+                          ),
                         ),
                       ),
-                      style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
+                        fontSize: 18,
+                      ),
                       autofocus: true,
                     ),
                   ),
@@ -139,7 +141,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         }),
                         trackColor: WidgetStateProperty.resolveWith((states) {
                           if (states.contains(WidgetState.selected)) {
-                            return colorScheme.primary.withValues(alpha: 0.5);
+                            return colorScheme.primary.withOpacity(0.5);
                           }
                           return null;
                         }),
@@ -163,20 +165,18 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         value: _isPresent,
                         onChanged: (value) =>
                             setState(() => _isPresent = value),
-                        thumbColor:
-                            WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) {
-                                return colorScheme.primary;
-                              }
-                              return null;
-                            }),
-                        trackColor:
-                            WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) {
-                                return colorScheme.primary.withValues(alpha: 0.5);
-                              }
-                              return null;
-                            }),
+                        thumbColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return colorScheme.primary;
+                          }
+                          return null;
+                        }),
+                        trackColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return colorScheme.primary.withOpacity(0.5);
+                          }
+                          return null;
+                        }),
                       ),
                     ],
                   ),
@@ -197,7 +197,10 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                       ),
                       child: const Text(
                         'Add & Continue',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),

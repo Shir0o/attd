@@ -47,13 +47,14 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   Future<void> _refreshLatest() async {
     final startTime = DateTime.now();
-    
+
     final latest = await widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
 
     if (latest != null && mounted) {
-      final isNewer = latest.currentVersion > _currentSession.currentVersion ||
+      final isNewer =
+          latest.currentVersion > _currentSession.currentVersion ||
           (latest.currentVersion == _currentSession.currentVersion &&
               latest.updatedAt.isAfter(_currentSession.updatedAt));
 
@@ -190,16 +191,20 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     // Build the list of members to display
     final displayMembers = List<Member>.from(widget.members);
-    
+
     // Add any members who have records but are not in the provided list (e.g. guests/visitors)
-    final existingMemberNames = widget.members.map((m) => m.displayName).toSet();
+    final existingMemberNames = widget.members
+        .map((m) => m.displayName)
+        .toSet();
     for (final record in _currentSession.records) {
       if (!existingMemberNames.contains(record.attendee)) {
-        displayMembers.add(Member(
-          id: 'visitor_${record.attendee}',
-          displayName: record.attendee,
-          isVisitor: true,
-        ));
+        displayMembers.add(
+          Member(
+            id: 'visitor_${record.attendee}',
+            displayName: record.attendee,
+            isVisitor: true,
+          ),
+        );
       }
     }
 
@@ -225,13 +230,12 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                       slivers: [
                         // Header
                         SliverAppBar(
-                          backgroundColor: colorScheme.surface.withValues(
-                            alpha: 0.95,
-                          ),
+                          backgroundColor: colorScheme.surface,
                           surfaceTintColor: Colors.transparent,
                           pinned: true,
                           leading: IconButton(
                             icon: const Icon(Icons.arrow_back),
+                            tooltip: 'Back',
                             color: colorScheme.onSurface,
                             onPressed: () =>
                                 Navigator.of(context).pop(_currentSession),
@@ -278,9 +282,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                     borderRadius: BorderRadius.circular(16),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.15,
-                                        ),
+                                        color: Colors.black.withOpacity(0.15),
                                         blurRadius: 3,
                                         offset: const Offset(0, 1),
                                       ),
@@ -318,7 +320,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                         width: 1,
                                         height: 60,
                                         color: colorScheme.onPrimaryContainer
-                                            .withValues(alpha: 0.2),
+                                            .withOpacity(0.2),
                                       ),
                                       Expanded(
                                         child: Column(
@@ -389,7 +391,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         // Present List
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final member = presentMembers[index];
                             return _MemberListItem(
                               member: member,
@@ -411,7 +416,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         // Absent List
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final member = absentMembers[index];
                             return _MemberListItem(
                               member: member,
@@ -439,9 +447,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 color: colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.3,
-                    ),
+                    color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
                   ),
                 ),
               ),
@@ -449,23 +455,24 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 tag: 'fab',
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(_currentSession),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 72),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(36),
-                    ),
-                    elevation: 4,
-                  ).copyWith(
-                    overlayColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.pressed)) {
-                        return colorScheme.onPrimary.withValues(alpha: 0.2);
-                      }
-                      return null;
-                    }),
-                  ),
+                  style:
+                      ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        minimumSize: const Size(double.infinity, 72),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(36),
+                        ),
+                        elevation: 4,
+                      ).copyWith(
+                        overlayColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.pressed)) {
+                            return colorScheme.onPrimary.withOpacity(0.2);
+                          }
+                          return null;
+                        }),
+                      ),
                   child: const Text(
                     'Finalize Report',
                     style: TextStyle(
@@ -492,11 +499,32 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         // Fake AppBar
         Row(
           children: [
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+            ),
             const Spacer(),
-            Container(width: 120, height: 20, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(
+              width: 120,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
             const Spacer(),
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -505,7 +533,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           width: 150,
           height: 16,
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -523,8 +551,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(width: 180, height: 24, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
-            Container(width: 60, height: 14, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(
+              width: 180,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Container(
+              width: 60,
+              height: 14,
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -539,7 +581,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
+                    color: Colors.grey.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -548,7 +590,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   width: 120,
                   height: 16,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
+                    color: Colors.grey.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -557,7 +599,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   width: 40,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
+                    color: Colors.grey.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
@@ -584,9 +626,7 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
   ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.surface.withValues(
-        alpha: 0.95,
-      ), // Surface color with opacity
+      color: colorScheme.surface, // Surface color fully opaque
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       alignment: Alignment.centerLeft,
       child: Container(
@@ -600,15 +640,14 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
         ),
         width: double.infinity,
         padding: const EdgeInsets.only(bottom: 8),
-                 child: Text(
-                   title,
-                   style: TextStyle(
-                     color: color,
-                     fontSize: 16,
-                     fontWeight: FontWeight.w500,
-                   ),
-                 ),
-        
+        child: Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
