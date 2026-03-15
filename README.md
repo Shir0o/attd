@@ -1,8 +1,27 @@
 # Attendance Tracker
 
-A Flutter app for taking attendance, checking people in, and reviewing quick stats on sessions.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Setup Prerequisites
+A modern, fast, and privacy-focused Flutter application for tracking attendance, managing member engagement, and syncing data seamlessly with Google Sheets and Drive.
+
+## 📱 Screenshots
+
+<div align="center">
+  <img src="screenshots/phone/05_hub_multiple_events.png" width="250" alt="Hub View" />
+  <img src="screenshots/phone/06_attendance_taking.png" width="250" alt="Taking Attendance" />
+  <img src="screenshots/phone/07_session_summary.png" width="250" alt="Session Summary" />
+</div>
+
+## ✨ Features
+
+- **Hub Dashboard**: Quick overview of all events and recent attendance sessions.
+- **Member Management**: Easily add, search, and edit member records with duplicate prevention.
+- **Event Tracking**: Support for one-time and recurring events with smart "Last Missed" detection.
+- **Google Drive Sync**: Secure, manual, and automatic backups of your attendance data to your personal Google Drive.
+- **Sheets Export**: Integration with Google Sheets for advanced reporting and data analysis.
+- **Privacy First**: No third-party servers; your data stays in your local storage and your Google account.
+
+## 🚀 Setup Prerequisites
 
 To use Google Drive Sync, you must enable the Google Drive API in the Google Cloud Console for your project:
 
@@ -24,8 +43,25 @@ This project requires Google OAuth Client IDs to be passed at build time via `--
       --dart-define=GOOGLE_WEB_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
     ```
 
-## Features
+## 🛠 Development
 
-- Platform-ready app name and package identifiers
-- Home screen with attendance overview, quick actions, and recent sessions
-- Placeholder actions wired for future workflows
+### Running Tests
+Ensure the project's health by running the test suite:
+
+```bash
+# Static Analysis
+flutter analyze
+
+# Unit and Widget Tests
+flutter test
+```
+
+### Folder Structure
+- `lib/data/`: Core data models and local repository logic.
+- `lib/features/`: Feature-sliced architecture (Attendance, Auth, Hub, Settings, etc.).
+- `lib/features/auth/`: Google OAuth configuration and services.
+- `integration_test/`: Comprehensive E2E system scenarios.
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
