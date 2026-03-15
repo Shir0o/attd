@@ -1,3 +1,12 @@
+# 1.0.9+10
+*   **New Feature**: **Member Editing** functionality, allowing users to update member names directly.
+*   **UX Improvements**: 
+    *   **Auto-trimming** whitespace for event and member names to ensure clean data entry.
+    *   Optimized CI workflow for faster verification.
+*   **Bug Fixes & Maintenance**:
+    *   Updated integration test robots for reliable member page verification.
+    *   Removed redundant cloud backup caps to improve data synchronization scalability.
+
 # 1.0.7+8
 *   **Performance & Optimization**:
     *   Optimized member search by **caching lowercase names** on Member and Family models, significantly improving responsiveness in large databases.
