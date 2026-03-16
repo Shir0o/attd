@@ -206,19 +206,21 @@ class DriveService extends ChangeNotifier {
 
       final remoteFiles = await _listRemoteFiles(folderId);
 
-      for (final fileName in filesToSync) {
-        final localFile = File(p.join(docsDir.path, fileName));
-        if (localFile.existsSync()) {
-          final remoteFile = remoteFiles[fileName];
-          if (remoteFile != null) {
-            print('Overwriting remote $fileName...');
-            await _updateFile(remoteFile.id!, localFile);
-          } else {
-            print('Uploading new remote $fileName...');
-            await _uploadFile(localFile, fileName, folderId);
+      await Future.wait(
+        filesToSync.map((fileName) async {
+          final localFile = File(p.join(docsDir.path, fileName));
+          if (localFile.existsSync()) {
+            final remoteFile = remoteFiles[fileName];
+            if (remoteFile != null) {
+              print('Overwriting remote $fileName...');
+              await _updateFile(remoteFile.id!, localFile);
+            } else {
+              print('Uploading new remote $fileName...');
+              await _uploadFile(localFile, fileName, folderId);
+            }
           }
-        }
-      }
+        }),
+      );
       await _saveLastSyncTime(DateTime.now());
     } finally {
       _isSyncing = false;
@@ -244,14 +246,16 @@ class DriveService extends ChangeNotifier {
 
       final remoteFiles = await _listRemoteFiles(folderId);
 
-      for (final fileName in filesToSync) {
-        final remoteFile = remoteFiles[fileName];
-        if (remoteFile != null) {
-          final localFile = File(p.join(docsDir.path, fileName));
-          print('Overwriting local $fileName...');
-          await _downloadFile(remoteFile.id!, localFile);
-        }
-      }
+      await Future.wait(
+        filesToSync.map((fileName) async {
+          final remoteFile = remoteFiles[fileName];
+          if (remoteFile != null) {
+            final localFile = File(p.join(docsDir.path, fileName));
+            print('Overwriting local $fileName...');
+            await _downloadFile(remoteFile.id!, localFile);
+          }
+        }),
+      );
 
       await Future.wait([
         if (sessionRepository != null) sessionRepository!.refresh(),
@@ -302,29 +306,31 @@ class DriveService extends ChangeNotifier {
       final remoteFiles = await _listRemoteFiles(folderId);
 
       // 2. Process each file
-      for (final fileName in filesToSync) {
-        final localFile = File(p.join(docsDir.path, fileName));
-        final remoteFile = remoteFiles[fileName];
+      await Future.wait(
+        filesToSync.map((fileName) async {
+          final localFile = File(p.join(docsDir.path, fileName));
+          final remoteFile = remoteFiles[fileName];
 
-        if (!localFile.existsSync() && remoteFile != null) {
-          // Remote exists, local doesn't -> Download
-          print('Downloading $fileName...');
-          await _downloadFile(remoteFile.id!, localFile);
-        } else if (localFile.existsSync() && remoteFile == null) {
-          // Local exists, remote doesn't -> Upload
-          print('Uploading $fileName...');
-          await _uploadFile(localFile, fileName, folderId);
-        } else if (localFile.existsSync() && remoteFile != null) {
-          // Both exist -> MERGE data
-          print('Merging $fileName...');
-          await _mergeAndSyncFile(
-            remoteFile.id!,
-            localFile,
-            folderId,
-            fileName,
-          );
-        }
-      }
+          if (!localFile.existsSync() && remoteFile != null) {
+            // Remote exists, local doesn't -> Download
+            print('Downloading $fileName...');
+            await _downloadFile(remoteFile.id!, localFile);
+          } else if (localFile.existsSync() && remoteFile == null) {
+            // Local exists, remote doesn't -> Upload
+            print('Uploading $fileName...');
+            await _uploadFile(localFile, fileName, folderId);
+          } else if (localFile.existsSync() && remoteFile != null) {
+            // Both exist -> MERGE data
+            print('Merging $fileName...');
+            await _mergeAndSyncFile(
+              remoteFile.id!,
+              localFile,
+              folderId,
+              fileName,
+            );
+          }
+        }),
+      );
 
       await _saveLastSyncTime(DateTime.now());
       // Refresh repositories to reflect synced changes in UI
