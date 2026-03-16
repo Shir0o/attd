@@ -77,7 +77,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
   Future<void> _loadData() async {
     final startTime = DateTime.now();
-    
+
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 250) - elapsed;
@@ -166,22 +166,21 @@ class _AddEventPageState extends State<AddEventPage> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Event'),
-            content: Text('Are you sure you want to delete "${event.title}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text('Are you sure you want to delete "${event.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true && mounted) {
@@ -255,8 +254,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           label: 'Event Name',
                           child: TextFormField(
                             controller: _nameController,
-                            textCapitalization:
-                                TextCapitalization.sentences,
+                            textCapitalization: TextCapitalization.sentences,
                             style: TextStyle(
                               fontSize: 18,
                               color: colorScheme.onSurface,
@@ -348,16 +346,14 @@ class _AddEventPageState extends State<AddEventPage> {
                                   });
                                 }
                               },
-                              items: _frequencies
-                                  .map<DropdownMenuItem<String>>((
-                                    String value,
-                                  ) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(value),
-                                    );
-                                  })
-                                  .toList(),
+                              items: _frequencies.map<DropdownMenuItem<String>>(
+                                (String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                },
+                              ).toList(),
                             ),
                           ),
                           backgroundColor: colorScheme.surfaceContainerHigh,
@@ -379,9 +375,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                DateFormat(
-                                  'yyyy-MM-dd',
-                                ).format(_selectedDate),
+                                DateFormat('yyyy-MM-dd').format(_selectedDate),
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: colorScheme.onSurface,
@@ -414,16 +408,13 @@ class _AddEventPageState extends State<AddEventPage> {
                             ),
                           ),
                         ),
-                        Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceEvenly,
-                          children: List.generate(_daysOfWeek.length, (
-                            index,
-                          ) {
+                        Wrap(
+                          alignment: WrapAlignment.spaceEvenly,
+                          spacing: 4.0,
+                          runSpacing: 8.0,
+                          children: List.generate(_daysOfWeek.length, (index) {
                             final dayName = _daysOfWeek[index];
-                            final isSelected = _selectedDays.contains(
-                              dayName,
-                            );
+                            final isSelected = _selectedDays.contains(dayName);
                             final label = dayName.substring(0, 1);
                             return GestureDetector(
                               onTap: () {
