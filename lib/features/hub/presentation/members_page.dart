@@ -27,6 +27,7 @@ class _MembersPageState extends State<MembersPage> {
   bool _isLoading = true;
   Object? _error;
   Event? _currentEvent; // To track local changes to the event
+  bool _isAdding = false;
 
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -86,38 +87,43 @@ class _MembersPageState extends State<MembersPage> {
 
   Future<void> _addMember(String name) async {
     final trimmedName = name.trim();
-    if (trimmedName.isEmpty) return;
+    if (trimmedName.isEmpty || _isAdding) return;
 
-    // Check for duplicates
-    final allMembers = _getAllMembers(_families ?? []);
-    final isDuplicate = allMembers.any(
-      (m) => m.displayNameLowercase == trimmedName.toLowerCase(),
-    );
-
-    if (isDuplicate) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Duplicate Member'),
-          content: Text(
-            'A member named "$trimmedName" already exists. Do you want to add them anyway?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Add Duplicate'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
-
+    setState(() => _isAdding = true);
+    
     try {
+      // Check for duplicates
+      final allMembers = _getAllMembers(_families ?? []);
+      final isDuplicate = allMembers.any(
+        (m) => m.displayNameLowercase == trimmedName.toLowerCase(),
+      );
+
+      if (isDuplicate) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Duplicate Member'),
+            content: Text(
+              'A member named "$trimmedName" already exists. Do you want to add them anyway?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Add Duplicate'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) {
+          setState(() => _isAdding = false);
+          return;
+        }
+      }
+
       final newFamily = await widget.attendanceRepository.addFamily(
         trimmedName,
       );
@@ -151,6 +157,10 @@ class _MembersPageState extends State<MembersPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to add member: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isAdding = false);
+      }
     }
   }
 
@@ -442,8 +452,17 @@ class _MembersPageState extends State<MembersPage> {
                       elevation: 1,
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,
-                      onPressed: () => _addMember(_inputController.text),
-                      child: const Icon(Icons.add),
+                      onPressed: _isAdding ? null : () => _addMember(_inputController.text),
+                      child: _isAdding 
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: colorScheme.onPrimary,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.add),
                     ),
                   ],
                 ),

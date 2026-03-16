@@ -41,6 +41,9 @@ class DriveService extends ChangeNotifier {
   static const String _syncEnabledKey = 'drive_sync_enabled';
   static const String _lastSyncTimeKey = 'drive_last_sync_time';
 
+  // FIXME: Replace with your actual Google Project Number
+  static const int yourGoogleProjectNumber = 0;
+
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
@@ -72,7 +75,7 @@ class DriveService extends ChangeNotifier {
       if (Platform.isAndroid) {
         await plugin.getAttestationServiceSupport(
           challengeString: nonce,
-          gcp: YOUR_GOOGLE_PROJECT_NUMBER,
+          gcp: yourGoogleProjectNumber,
         );
       } else if (Platform.isIOS) {
         await plugin.getAttestationServiceSupport(challengeString: nonce);
@@ -343,7 +346,7 @@ class DriveService extends ChangeNotifier {
         print('Sync failed: Google Drive API is not enabled.');
         throw Exception(
           'Google Drive API is disabled. Enable it here: '
-          'https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=YOUR_GOOGLE_PROJECT_NUMBER',
+          'https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=$yourGoogleProjectNumber',
         );
       }
       print('Sync failed: DetailedApiRequestError(${e.status}, ${e.message})');

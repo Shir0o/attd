@@ -137,6 +137,7 @@ class _AddEventPageState extends State<AddEventPage> {
         frequency: _frequency,
         oneTimeDate: _frequency == 'One-time' ? _selectedDate : null,
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
+        memberIds: widget.eventToEdit?.memberIds ?? [],
         createdAt: createdAt,
       );
 

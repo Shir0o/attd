@@ -693,15 +693,6 @@ class _MemberListItem extends StatelessWidget {
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  if (member.isVisitor)
-                    Text(
-                      'Added today',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
                 ],
               ),
             ),
