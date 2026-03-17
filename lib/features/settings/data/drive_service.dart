@@ -71,6 +71,10 @@ class DriveService extends ChangeNotifier {
 
   Future<void> _checkIntegrity() async {
     try {
+      if (Platform.isAndroid && yourGoogleProjectNumber == 0) {
+        print('CRITICAL: GOOGLE_CLOUD_PROJECT_NUMBER is not set. Play Integrity API will fail.');
+        return; // Fail gracefully
+      }
       final String nonce = base64Url.encode(
         utf8.encode(DateTime.now().toIso8601String()),
       );
