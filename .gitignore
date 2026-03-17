@@ -66,4 +66,15 @@ firebase.json
 .firebaserc
 firestore.rules
 firestore.indexes.json
-\n# IDE and Environment files\n.vscode/\n.idea/\n.DS_Store\n.flutter-plugins-dependencies\n.dart_tool/\n.flutter-plugins\n.pub-cache/\n.pub/\n/build/\n
+
+# IDE and Environment files
+.env
+.vscode/
+.idea/
+.DS_Store
+.flutter-plugins-dependencies
+.dart_tool/
+.flutter-plugins
+.pub-cache/
+.pub/
+/build/

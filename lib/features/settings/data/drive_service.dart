@@ -41,8 +41,11 @@ class DriveService extends ChangeNotifier {
   static const String _syncEnabledKey = 'drive_sync_enabled';
   static const String _lastSyncTimeKey = 'drive_last_sync_time';
 
-  // FIXME: Replace with your actual Google Project Number
-  static const int yourGoogleProjectNumber = 0;
+  // Read Google Project Number from environment variable via --dart-define or --dart-define-from-file
+  static const int yourGoogleProjectNumber = int.fromEnvironment(
+    'GOOGLE_CLOUD_PROJECT_NUMBER',
+    defaultValue: 0,
+  );
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
