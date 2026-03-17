@@ -238,8 +238,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           ),
                           title: Text(
                             _currentSession.title.trim(),
-                            style: theme.textTheme.titleLarge?.copyWith(
+                            style: TextStyle(
                               color: colorScheme.onSurface,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           centerTitle: true,
@@ -291,16 +293,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                           children: [
                                             Text(
                                               'PRESENT',
-                                              style: theme.textTheme.titleSmall?.copyWith(
+                                              style: TextStyle(
                                                 color: colorScheme
                                                     .onPrimaryContainer,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
                                                 letterSpacing: 1.0,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
                                               '${presentMembers.length}',
-                                              style: theme.textTheme.displayLarge?.copyWith(
+                                              style: TextStyle(
                                                 color: colorScheme.primary,
                                                 fontSize: 48,
                                                 fontWeight: FontWeight.w500,
@@ -321,16 +325,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                           children: [
                                             Text(
                                               'ABSENT',
-                                              style: theme.textTheme.titleSmall?.copyWith(
+                                              style: TextStyle(
                                                 color: colorScheme
                                                     .onPrimaryContainer,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
                                                 letterSpacing: 1.0,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
                                             Text(
                                               '${absentMembers.length}',
-                                              style: theme.textTheme.displayLarge?.copyWith(
+                                              style: TextStyle(
                                                 color: colorScheme.error,
                                                 fontSize: 40,
                                                 fontWeight: FontWeight.w500,
@@ -351,14 +357,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                   children: [
                                     Text(
                                       'Attendance Roster',
-                                      style: theme.textTheme.headlineMedium?.copyWith(
+                                      style: TextStyle(
                                         color: colorScheme.onSurface,
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                     Text(
                                       '${displayMembers.length} Total',
-                                      style: theme.textTheme.titleSmall?.copyWith(
+                                      style: TextStyle(
                                         color: colorScheme.onSurfaceVariant,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
@@ -456,10 +466,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                       return null;
                     }),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Finalize Report',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: colorScheme.onPrimary,
+                    style: TextStyle(
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),
@@ -572,8 +582,7 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       color: colorScheme.surface.withValues(
         alpha: 0.95,
@@ -591,12 +600,15 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
         ),
         width: double.infinity,
         padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: color,
-          ),
-        ),
+                 child: Text(
+                   title,
+                   style: TextStyle(
+                     color: color,
+                     fontSize: 16,
+                     fontWeight: FontWeight.w500,
+                   ),
+                 ),
+        
       ),
     );
   }
@@ -658,7 +670,9 @@ class _MemberListItem extends StatelessWidget {
                   member.displayName.isNotEmpty
                       ? member.displayName[0].toUpperCase()
                       : '?',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                     color: member.isVisitor
                         ? colorScheme.onSecondaryContainer
                         : colorScheme.onSurfaceVariant,
@@ -674,7 +688,8 @@ class _MemberListItem extends StatelessWidget {
                 children: [
                   Text(
                     member.displayName,
-                    style: theme.textTheme.bodyLarge?.copyWith(
+                    style: TextStyle(
+                      fontSize: 18,
                       color: colorScheme.onSurface,
                     ),
                   ),

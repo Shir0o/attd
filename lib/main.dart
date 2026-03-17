@@ -130,22 +130,6 @@ class _AttendanceAppState extends State<AttendanceApp>
             ),
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
-            textTheme: const TextTheme(
-              displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w500),
-              headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w500),
-              headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w500),
-              headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-              titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-              titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              titleSmall: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              bodyLarge: TextStyle(fontSize: 18),
-              bodyMedium: TextStyle(fontSize: 16),
-              bodySmall: TextStyle(fontSize: 14),
-              labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-              labelSmall: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-            ),
             pageTransitionsTheme: PageTransitionsTheme(
               builders: widget.disableAnimations
                   ? {
@@ -166,22 +150,6 @@ class _AttendanceAppState extends State<AttendanceApp>
             ),
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
-            textTheme: const TextTheme(
-              displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w500),
-              headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w500),
-              headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w500),
-              headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-              titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-              titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              titleSmall: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              bodyLarge: TextStyle(fontSize: 18),
-              bodyMedium: TextStyle(fontSize: 16),
-              bodySmall: TextStyle(fontSize: 14),
-              labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-              labelSmall: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-            ),
             pageTransitionsTheme: PageTransitionsTheme(
               builders: widget.disableAnimations
                   ? {

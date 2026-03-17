@@ -391,9 +391,7 @@ class _MembersPageState extends State<MembersPage> {
         surfaceTintColor: colorScheme.surface,
         title: Text(
           isEventMode ? 'Manage Event Members' : 'Manage Members',
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: colorScheme.onSurface,
-          ),
+          style: TextStyle(color: colorScheme.onSurface),
         ),
         iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
         bottom: PreferredSize(
@@ -564,7 +562,7 @@ class _MembersPageState extends State<MembersPage> {
             children: [
               Text(
                 isEventMode ? 'Assigned Members' : 'Regular Members',
-                style: theme.textTheme.labelLarge?.copyWith(
+                style: TextStyle(
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
@@ -579,8 +577,9 @@ class _MembersPageState extends State<MembersPage> {
                   isEventMode
                       ? '${_currentEvent!.memberIds.length} / ${filteredMembers.length}'
                       : '${filteredMembers.length}',
-                  style: theme.textTheme.labelMedium?.copyWith(
+                  style: TextStyle(
                     color: colorScheme.onPrimaryContainer,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -623,8 +622,9 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 title: Text(
                   member.displayName,
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  style: TextStyle(
                     color: colorScheme.onSurface,
+                    fontSize: 18,
                     fontWeight: isSelected
                         ? FontWeight.w500
                         : FontWeight.normal,
@@ -633,7 +633,8 @@ class _MembersPageState extends State<MembersPage> {
                 subtitle: isEventMode && isSelected
                     ? Text(
                         'Assigned',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        style: TextStyle(
+                          fontSize: 14,
                           color: colorScheme.primary,
                         ),
                       )

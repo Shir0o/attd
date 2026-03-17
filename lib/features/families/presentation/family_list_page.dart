@@ -54,12 +54,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Manage Families',
-          style: theme.textTheme.headlineSmall,
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
         ),
       ),
       body: FutureBuilder<List<Family>>(
@@ -91,11 +90,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 ),
                 title: Text(
                   family.displayName,
-                  style: theme.textTheme.titleMedium,
+                  style: const TextStyle(fontSize: 18),
                 ),
                 subtitle: Text(
                   '$memberCount members',
-                  style: theme.textTheme.bodySmall,
+                  style: const TextStyle(fontSize: 14),
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _openFamily(family),

@@ -422,7 +422,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                                       ? currentMember.displayName[0]
                                                             .toUpperCase()
                                                       : '?',
-                                                  style: theme.textTheme.displayLarge?.copyWith(
+                                                  style: TextStyle(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
                                                     color: colorScheme.primary,
                                                   ),
                                                 ),
@@ -431,7 +433,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                             const SizedBox(height: 24),
                                             Text(
                                               currentMember.displayName,
-                                              style: theme.textTheme.headlineLarge?.copyWith(
+                                              style: TextStyle(
+                                                fontSize: 32,
+                                                fontWeight: FontWeight.w500,
                                                 color: colorScheme.onSurface,
                                                 height: 1.25, // leading-tight
                                               ),
