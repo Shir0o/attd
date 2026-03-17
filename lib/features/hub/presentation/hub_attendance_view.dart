@@ -145,6 +145,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   }
 
   void _showEventMenu(BuildContext context, Event event) async {
+    final theme = Theme.of(context);
     final action = await showModalBottomSheet<String>(
       context: context,
       useSafeArea: true,
@@ -162,9 +163,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 width: 32,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant.withOpacity(0.4),
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -192,9 +191,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text(
+                title: Text(
                   'Delete Event',
-                  style: TextStyle(color: Colors.red),
+                  style: theme.textTheme.bodyLarge?.copyWith(color: Colors.red),
                 ),
                 onTap: () {
                   Navigator.pop(context, 'delete');
@@ -304,9 +303,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 children: [
                   Text(
                     'TODAY',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.titleSmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                       letterSpacing: 1.0,
                     ),
@@ -315,9 +312,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     DateFormat(
                       'EEE, MMM d',
                     ).format(DateTime.now()).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w500,
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       color: colorScheme.onSurface,
                     ),
                   ),
@@ -392,7 +387,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           child: Center(
                             child: Text(
                               'No events created yet',
-                              style: TextStyle(
+                              style: theme.textTheme.bodyLarge?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
                             ),
@@ -753,7 +748,8 @@ class _EventCardState extends State<_EventCard>
     super.dispose();
   }
 
-  Widget _buildRepeatingDaysRow() {
+  Widget _buildRepeatingDaysRow(BuildContext context) {
+    final theme = Theme.of(context);
     final dayOrder = [
       'Sunday',
       'Monday',
@@ -783,8 +779,7 @@ class _EventCardState extends State<_EventCard>
           alignment: Alignment.center,
           child: Text(
             day.substring(0, 1),
-            style: TextStyle(
-              fontSize: 10,
+            style: theme.textTheme.labelSmall?.copyWith(
               fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
               color: fg,
             ),
@@ -794,7 +789,8 @@ class _EventCardState extends State<_EventCard>
     );
   }
 
-  Widget _buildAttendanceStatusPill(String status) {
+  Widget _buildAttendanceStatusPill(BuildContext context, String status) {
+    final theme = Theme.of(context);
     if (status.startsWith('Start')) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -821,9 +817,7 @@ class _EventCardState extends State<_EventCard>
           children: [
             Text(
               status.toUpperCase(),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: theme.textTheme.labelLarge?.copyWith(
                 color: widget.onPrimaryColor,
                 letterSpacing: 0.1,
               ),
@@ -851,9 +845,7 @@ class _EventCardState extends State<_EventCard>
             const SizedBox(width: 8),
             Text(
               'COMPLETED',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: theme.textTheme.labelLarge?.copyWith(
                 color: widget.onSecondaryContainerColor,
               ),
             ),
@@ -864,9 +856,7 @@ class _EventCardState extends State<_EventCard>
       // Upcoming, Missed, etc. Keep plain text style as a fallback.
       return Text(
         status,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
+        style: theme.textTheme.labelLarge?.copyWith(
           color: widget.onSurfaceVariantColor,
         ),
       );
@@ -875,6 +865,7 @@ class _EventCardState extends State<_EventCard>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
       elevation: 1, // Add shadow-elevation-1 approx
       shadowColor: Colors.black.withOpacity(0.3),
@@ -930,10 +921,8 @@ class _EventCardState extends State<_EventCard>
                                 ),
                                 child: Text(
                                   'TODAY',
-                                  style: TextStyle(
+                                  style: theme.textTheme.labelMedium?.copyWith(
                                     color: widget.onPrimaryColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
@@ -942,9 +931,7 @@ class _EventCardState extends State<_EventCard>
                           ),
                         Text(
                           widget.event.title,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w500,
+                          style: theme.textTheme.headlineLarge?.copyWith(
                             color: widget.onSurfaceColor,
                             height: 1.1,
                           ),
@@ -959,14 +946,12 @@ class _EventCardState extends State<_EventCard>
                                     'MMM d, yyyy',
                                   ).format(widget.event.oneTimeDate!)
                                 : 'Once',
-                            style: TextStyle(
+                            style: theme.textTheme.labelLarge?.copyWith(
                               color: widget.onSurfaceVariantColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
                             ),
                           )
                         else if (widget.event.repeatingDays.isNotEmpty)
-                          _buildRepeatingDaysRow(),
+                          _buildRepeatingDaysRow(context),
                       ],
                     ),
                   ),
@@ -995,15 +980,14 @@ class _EventCardState extends State<_EventCard>
                       const SizedBox(width: 4),
                       Text(
                         widget.event.time.format(context),
-                        style: TextStyle(
-                          fontSize: 18,
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           color: widget.onSurfaceVariantColor,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                  _buildAttendanceStatusPill(widget.attendanceStatus),
+                  _buildAttendanceStatusPill(context, widget.attendanceStatus),
                 ],
               ),
             ],

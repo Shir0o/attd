@@ -225,10 +225,8 @@ class _AddEventPageState extends State<AddEventPage> {
         ),
         title: Text(
           isEditing ? 'Edit Event' : 'New Event',
-          style: TextStyle(
+          style: theme.textTheme.headlineSmall?.copyWith(
             color: colorScheme.onSurface,
-            fontSize: 24,
-            fontWeight: FontWeight.w500,
           ),
         ),
         actions: [
@@ -261,8 +259,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           child: TextFormField(
                             controller: _nameController,
                             textCapitalization: TextCapitalization.sentences,
-                            style: TextStyle(
-                              fontSize: 18,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               color: colorScheme.onSurface,
                             ),
                             decoration: const InputDecoration(
@@ -290,8 +287,7 @@ class _AddEventPageState extends State<AddEventPage> {
                       ),
                       child: Text(
                         'Required',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -309,8 +305,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                 Expanded(
                                   child: Text(
                                     _selectedTime.format(context),
-                                    style: TextStyle(
-                                      fontSize: 18,
+                                    style: theme.textTheme.titleMedium?.copyWith(
                                       color: colorScheme.onSurface,
                                     ),
                                   ),
@@ -341,8 +336,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                 Icons.arrow_drop_down,
                                 color: colorScheme.onSurfaceVariant,
                               ),
-                              style: TextStyle(
-                                fontSize: 18,
+                              style: theme.textTheme.titleMedium?.copyWith(
                                 color: colorScheme.onSurface,
                               ),
                               onChanged: (String? newValue) {
@@ -382,8 +376,7 @@ class _AddEventPageState extends State<AddEventPage> {
                             Expanded(
                               child: Text(
                                 DateFormat('yyyy-MM-dd').format(_selectedDate),
-                                style: TextStyle(
-                                  fontSize: 18,
+                                style: theme.textTheme.titleMedium?.copyWith(
                                   color: colorScheme.onSurface,
                                 ),
                               ),
@@ -407,9 +400,7 @@ class _AddEventPageState extends State<AddEventPage> {
                           padding: const EdgeInsets.only(left: 16, bottom: 8),
                           child: Text(
                             'Repeats on',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                            style: theme.textTheme.titleSmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -444,12 +435,11 @@ class _AddEventPageState extends State<AddEventPage> {
                                 child: Center(
                                   child: Text(
                                     label,
-                                    style: TextStyle(
+                                    style: theme.textTheme.titleSmall?.copyWith(
                                       color: isSelected
                                           ? colorScheme.onPrimary
                                           : colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.w500,
-                                      fontSize: 16,
                                     ),
                                   ),
                                 ),
@@ -486,9 +476,8 @@ class _AddEventPageState extends State<AddEventPage> {
                 ),
                 child: Text(
                   isEditing ? 'Save Changes' : 'Create Event',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: colorScheme.onPrimary,
                     letterSpacing: 0.1,
                   ),
                 ),
@@ -531,6 +520,7 @@ class _AddEventPageState extends State<AddEventPage> {
     required Color onSurfaceVariantColor,
     required Color textColor,
   }) {
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -543,8 +533,7 @@ class _AddEventPageState extends State<AddEventPage> {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.bodySmall?.copyWith(
               color: textColor.withAlpha(179), // ~70% opacity
             ),
           ),

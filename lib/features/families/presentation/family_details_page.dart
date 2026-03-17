@@ -93,11 +93,12 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _family.displayName,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+          style: theme.textTheme.headlineSmall,
         ),
       ),
       body: ListView(
@@ -106,32 +107,30 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             padding: const EdgeInsets.all(16.0),
             child: Text(
               'Members',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: theme.textTheme.titleLarge,
             ),
           ),
           if (_family.members.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'No members yet.',
-                style: TextStyle(fontSize: 16),
+                style: theme.textTheme.bodyMedium,
               ),
             ),
           ..._family.members.map((member) {
             return ListTile(
               leading: CircleAvatar(
                 backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                    theme.colorScheme.surfaceContainerHighest,
                 child: Text(member.displayName.characters.first.toUpperCase()),
               ),
               title: Text(
                 member.displayName,
-                style: const TextStyle(fontSize: 18),
+                style: theme.textTheme.titleMedium,
               ),
               subtitle: member.isVisitor
-                  ? const Text('Visitor', style: TextStyle(fontSize: 14))
+                  ? Text('Visitor', style: theme.textTheme.bodySmall)
                   : null,
             );
           }),
