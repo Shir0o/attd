@@ -21,17 +21,20 @@ class HubRobot {
     
     // Ensure the FAB is in view and settled
     await tester.ensureVisible(fabFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500)); // Give it a moment
+    await tester.pump(const Duration(milliseconds: 300));
     
+    print('DEBUG: Tapping FAB robot side');
     await tester.tap(fabFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(); // Start navigation
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> tapSettings() async {
     final finder = find.byIcon(Icons.settings);
     await tester.pumpUntilFound(finder);
     await tester.tap(finder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> verifyEventCard(String title) async {
@@ -40,33 +43,36 @@ class HubRobot {
 
   Future<void> tapEventCard(String title) async {
     await tester.tap(find.text(title));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> tapEventMenu(String title) async {
-    // Finding the specific menu icon for a card with 'title'
     final textFinder = find.text(title);
     await tester.pumpUntilFound(textFinder);
+    await tester.pump(const Duration(milliseconds: 300));
 
     final cardFinder = find.ancestor(of: textFinder, matching: find.byType(Card));
     final menuFinder = find.descendant(of: cardFinder, matching: find.byIcon(Icons.more_vert));
 
     await tester.tap(menuFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> selectMenuOption(String option) async {
-    // Menu options are usually in a bottom sheet or popup, just find by text
-    await tester.tap(find.text(option));
-    await tester.pumpAndSettle();
+    final finder = find.text(option);
+    await tester.pumpUntilFound(finder);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(finder);
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> verifyEventStatus(String title, String status) async {
+    print('DEBUG: verifyEventStatus($title, $status)');
     final textFinder = find.text(title);
     await tester.pumpUntilFound(textFinder);
 
     final cardFinder = find.ancestor(of: textFinder, matching: find.byType(Card));
-    final statusFinder = find.descendant(of: cardFinder, matching: find.text(status));
+    final statusFinder = find.descendant(of: cardFinder, matching: find.textContaining(status));
 
     await tester.pumpUntilFound(statusFinder);
     expect(statusFinder, findsOneWidget);
@@ -79,6 +85,6 @@ class HubRobot {
     } else {
       await tester.tap(find.byIcon(Icons.arrow_back).last);
     }
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 }

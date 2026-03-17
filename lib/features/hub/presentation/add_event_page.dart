@@ -9,10 +9,12 @@ class AddEventPage extends StatefulWidget {
     super.key,
     required this.eventRepository,
     this.eventToEdit,
+    this.disableAnimations = false,
   });
 
   final EventRepository eventRepository;
   final Event? eventToEdit;
+  final bool disableAnimations;
 
   @override
   State<AddEventPage> createState() => _AddEventPageState();
@@ -76,16 +78,18 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 
   Future<void> _loadData() async {
+    debugPrint('DEBUG: AddEventPage _loadData started');
     final startTime = DateTime.now();
 
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 250) - elapsed;
-    if (remaining > Duration.zero) {
+    if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }
 
     if (mounted) {
+      debugPrint('DEBUG: AddEventPage _loadData finished, setting isLoading = false');
       setState(() => _isLoading = false);
     }
   }
@@ -242,7 +246,9 @@ class _AddEventPageState extends State<AddEventPage> {
           padding: const EdgeInsets.all(16.0),
           child: RepaintBoundary(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
+              duration: widget.disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 600),
               child: Column(
                 key: ValueKey(_isLoading),
                 crossAxisAlignment: CrossAxisAlignment.start,

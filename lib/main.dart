@@ -14,6 +14,7 @@ import 'features/auth/data/google_sign_in_service.dart';
 import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
+import 'core/presentation/no_transitions_builder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/auth/config/google_oauth_config.dart';
@@ -55,6 +56,7 @@ Future<void> main() async {
       repository: attendanceRepository,
       sessionRepository: sessionRepository,
       eventRepository: eventRepository,
+      disableAnimations: false,
     ),
   );
 }
@@ -70,6 +72,7 @@ class AttendanceApp extends StatefulWidget {
     this.googleAuthService,
     this.driveService,
     this.localBackupService,
+    this.disableAnimations = false,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository = sessionRepository ?? LocalJsonSessionRepository(),
        eventRepository = eventRepository ?? LocalJsonEventRepository();
@@ -82,6 +85,7 @@ class AttendanceApp extends StatefulWidget {
   final GoogleAuthService? googleAuthService;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final bool disableAnimations;
 
   @override
   State<AttendanceApp> createState() => _AttendanceAppState();
@@ -126,12 +130,17 @@ class _AttendanceAppState extends State<AttendanceApp>
             ),
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
-            pageTransitionsTheme: const PageTransitionsTheme(
-              builders: {
-                TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
-              },
+            pageTransitionsTheme: PageTransitionsTheme(
+              builders: widget.disableAnimations
+                  ? {
+                      for (var platform in TargetPlatform.values)
+                        platform: const NoTransitionsBuilder(),
+                    }
+                  : {
+                      TargetPlatform.android: const FadeUpwardsPageTransitionsBuilder(),
+                      TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+                      TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+                    },
             ),
           ),
           darkTheme: ThemeData(
@@ -141,12 +150,17 @@ class _AttendanceAppState extends State<AttendanceApp>
             ),
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
-            pageTransitionsTheme: const PageTransitionsTheme(
-              builders: {
-                TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-                TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
-              },
+            pageTransitionsTheme: PageTransitionsTheme(
+              builders: widget.disableAnimations
+                  ? {
+                      for (var platform in TargetPlatform.values)
+                        platform: const NoTransitionsBuilder(),
+                    }
+                  : {
+                      TargetPlatform.android: const FadeUpwardsPageTransitionsBuilder(),
+                      TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+                      TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
+                    },
             ),
           ),
           home: HubPage(
@@ -156,6 +170,7 @@ class _AttendanceAppState extends State<AttendanceApp>
             attendanceRepository: widget.repository,
             driveService: widget.driveService,
             localBackupService: widget.localBackupService,
+            disableAnimations: widget.disableAnimations,
           ),
         );
       },

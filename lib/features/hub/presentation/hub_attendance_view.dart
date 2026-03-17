@@ -27,6 +27,7 @@ class HubAttendanceView extends StatefulWidget {
     required this.themeController,
     this.driveService,
     this.localBackupService,
+    this.disableAnimations = false,
   });
 
   final SessionRepository sessionRepository;
@@ -35,6 +36,7 @@ class HubAttendanceView extends StatefulWidget {
   final ThemeController themeController;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final bool disableAnimations;
 
   @override
   State<HubAttendanceView> createState() => _HubAttendanceViewState();
@@ -79,9 +81,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   }
 
   void _createNewSession() async {
+    debugPrint('DEBUG: _createNewSession called');
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddEventPage(eventRepository: widget.eventRepository),
+        builder: (_) => AddEventPage(
+          eventRepository: widget.eventRepository,
+          disableAnimations: widget.disableAnimations,
+        ),
       ),
     );
     if (mounted) _loadMembers();
@@ -93,6 +99,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         builder: (_) => AddEventPage(
           eventRepository: widget.eventRepository,
           eventToEdit: event,
+          disableAnimations: widget.disableAnimations,
         ),
       ),
     );
@@ -368,9 +375,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       if (isLoading) {
                         return SliverList(
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) => const Padding(
-                              padding: EdgeInsets.only(bottom: 16),
-                              child: _EventCardSkeleton(),
+                            (context, index) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _EventCardSkeleton(
+                                disableAnimations: widget.disableAnimations,
+                              ),
                             ),
                             childCount: 3,
                           ),
@@ -639,6 +648,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                     colorScheme.secondaryContainer,
                                 onSecondaryContainerColor:
                                     colorScheme.onSecondaryContainer,
+                                disableAnimations: widget.disableAnimations,
                               ),
                             ),
                           );
@@ -680,6 +690,7 @@ class _EventCard extends StatefulWidget {
     required this.onSecondaryContainerColor,
     required this.attendanceStatus,
     this.isActionable = false,
+    this.disableAnimations = false,
   });
 
   final Event event;
@@ -695,6 +706,7 @@ class _EventCard extends StatefulWidget {
   final Color onSecondaryContainerColor;
   final String attendanceStatus;
   final bool isActionable;
+  final bool disableAnimations;
 
   @override
   State<_EventCard> createState() => _EventCardState();
@@ -719,7 +731,7 @@ class _EventCardState extends State<_EventCard>
         curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
       ),
     );
-    if (widget.isToday) {
+    if (widget.isToday && !widget.disableAnimations) {
       _pulseController.repeat();
     }
   }
@@ -727,7 +739,7 @@ class _EventCardState extends State<_EventCard>
   @override
   void didUpdateWidget(covariant _EventCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isToday && !oldWidget.isToday) {
+    if (widget.isToday && !oldWidget.isToday && !widget.disableAnimations) {
       _pulseController.repeat();
     } else if (!widget.isToday && oldWidget.isToday) {
       _pulseController.stop();
@@ -1003,7 +1015,9 @@ class _EventCardState extends State<_EventCard>
 }
 
 class _EventCardSkeleton extends StatelessWidget {
-  const _EventCardSkeleton();
+  const _EventCardSkeleton({this.disableAnimations = false});
+
+  final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
@@ -1036,40 +1050,63 @@ class _EventCardSkeleton extends StatelessWidget {
                             width: 60,
                             height: 24,
                             borderRadius: BorderRadius.circular(28),
+                            disableAnimations: disableAnimations,
                           ),
                           const SizedBox(width: 8),
                           _ShimmerBox(
                             width: 80,
                             height: 24,
                             borderRadius: BorderRadius.circular(28),
+                            disableAnimations: disableAnimations,
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      const _ShimmerBox(width: 200, height: 32),
+                      _ShimmerBox(
+                        width: 200,
+                        height: 32,
+                        disableAnimations: disableAnimations,
+                      ),
                       const SizedBox(height: 8),
-                      const _ShimmerBox(width: 140, height: 32),
+                      _ShimmerBox(
+                        width: 140,
+                        height: 32,
+                        disableAnimations: disableAnimations,
+                      ),
                     ],
                   ),
                 ),
-                const _ShimmerBox(width: 24, height: 24),
+                _ShimmerBox(
+                  width: 24,
+                  height: 24,
+                  disableAnimations: disableAnimations,
+                ),
               ],
             ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    _ShimmerBox(width: 20, height: 20),
-                    SizedBox(width: 8),
-                    _ShimmerBox(width: 80, height: 20),
+                    _ShimmerBox(
+                      width: 20,
+                      height: 20,
+                      disableAnimations: disableAnimations,
+                    ),
+                    const SizedBox(width: 8),
+                    _ShimmerBox(
+                      width: 80,
+                      height: 20,
+                      disableAnimations: disableAnimations,
+                    ),
                   ],
                 ),
                 _ShimmerBox(
                   width: 120,
                   height: 36,
                   borderRadius: BorderRadius.circular(28),
+                  disableAnimations: disableAnimations,
                 ),
               ],
             ),
@@ -1085,11 +1122,13 @@ class _ShimmerBox extends StatefulWidget {
     required this.width,
     required this.height,
     this.borderRadius,
+    this.disableAnimations = false,
   });
 
   final double width;
   final double height;
   final BorderRadius? borderRadius;
+  final bool disableAnimations;
 
   @override
   State<_ShimmerBox> createState() => _ShimmerBoxState();
@@ -1106,7 +1145,11 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
-    )..repeat();
+    );
+
+    if (!widget.disableAnimations) {
+      _controller.repeat();
+    }
 
     _animation = Tween<double>(begin: -2, end: 2).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),

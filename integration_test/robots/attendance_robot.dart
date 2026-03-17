@@ -10,49 +10,52 @@ class AttendanceRobot {
   final WidgetTester tester;
 
   Future<void> markPresent() async {
-    // Tap the checkmark button
-    await tester.tap(find.byKey(const Key('presentButton')));
-    await tester.pumpAndSettle();
+    print('DEBUG: markPresent');
+    final finder = find.byKey(const Key('presentButton'));
+    await tester.pumpUntilFound(finder);
+    await tester.tap(finder);
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> markAbsent() async {
-    // Tap the cross button
-    await tester.tap(find.byKey(const Key('absentButton')));
-    await tester.pumpAndSettle();
+    print('DEBUG: markAbsent');
+    final finder = find.byKey(const Key('absentButton'));
+    await tester.pumpUntilFound(finder);
+    await tester.tap(finder);
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> swipeRight() async {
-    // Swipe right to mark present
+    print('DEBUG: swipeRight');
     final cardFinder = find.byType(SwipeableCard);
     await tester.drag(cardFinder, const Offset(500, 0));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> swipeLeft() async {
-    // Swipe left to mark absent
+    print('DEBUG: swipeLeft');
     final cardFinder = find.byType(SwipeableCard);
     await tester.drag(cardFinder, const Offset(-500, 0));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> verifyDeckComplete() async {
-    // Should see "Finalize Report" on summary page
+    print('DEBUG: verifyDeckComplete');
     await tester.pumpUntilFound(find.text('Finalize Report'));
   }
 
   Future<void> verifyMemberStatus(String memberName, String status) async {
-    // On Summary Page, find member row and check status icon/text
-    // This is tricky without specific keys, but we can look for the member name
-    // and a nearby icon.
+    print('DEBUG: verifyMemberStatus($memberName, $status)');
     final memberFinder = find.text(memberName);
     await tester.pumpUntilFound(memberFinder);
-
-    // For now just verify member is present in list
     expect(memberFinder, findsOneWidget);
   }
 
   Future<void> finishSession() async {
-    await tester.tap(find.text('Finalize Report'));
-    await tester.pumpAndSettle();
+    print('DEBUG: finishSession');
+    final button = find.text('Finalize Report');
+    await tester.pumpUntilFound(button);
+    await tester.tap(button);
+    await tester.pump(const Duration(milliseconds: 500));
   }
 }

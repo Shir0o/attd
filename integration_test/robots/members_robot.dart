@@ -10,43 +10,50 @@ class MembersRobot {
   final WidgetTester tester;
 
   Future<void> addMember(String memberName) async {
+    print('DEBUG: addMember($memberName)');
     final membersPage = find.byType(MembersPage);
     await tester.pumpUntilFound(membersPage);
 
-    // In the new MembersPage, we use the Quick Add field
     final textField = find.descendant(of: membersPage, matching: find.byType(TextField)).first;
+    await tester.tap(textField);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(textField, memberName);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    // Tap the FAB next to the TextField
     final fabFinder = find.byKey(const ValueKey('member_add_fab'));
     await tester.ensureVisible(fabFinder);
     await tester.tap(fabFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 800));
   }
 
   Future<void> search(String query) async {
+    print('DEBUG: search($query)');
     final textField = find.descendant(of: find.byType(MembersPage), matching: find.byType(TextField)).first;
+    await tester.tap(textField);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(textField, query);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> clearSearch() async {
+    print('DEBUG: clearSearch');
     final textField = find.descendant(of: find.byType(MembersPage), matching: find.byType(TextField)).first;
+    await tester.tap(textField);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(textField, '');
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> toggleMember(String memberName) async {
+    print('DEBUG: toggleMember($memberName)');
     final memberFinder = find.text(memberName);
     await tester.pumpUntilFound(memberFinder);
-    
-    // Tap the ListTile or the Checkbox
     await tester.tap(memberFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> verifyMemberSelected(String memberName, bool isSelected) async {
+    print('DEBUG: verifyMemberSelected($memberName, $isSelected)');
     final memberFinder = find.text(memberName);
     await tester.pumpUntilFound(memberFinder);
 
@@ -58,6 +65,7 @@ class MembersRobot {
   }
 
   Future<void> verifyMember(String memberName) async {
+    print('DEBUG: verifyMember($memberName)');
     await tester.pumpUntilFound(find.text(memberName));
   }
 

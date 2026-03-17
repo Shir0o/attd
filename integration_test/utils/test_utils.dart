@@ -47,6 +47,7 @@ Future<Widget> createTestApp(Directory tempDir) async {
     eventRepository: eventRepository,
     driveService: driveService,
     localBackupService: localBackupService,
+    disableAnimations: true,
   );
 }
 
@@ -72,7 +73,7 @@ extension PumpUntilFound on WidgetTester {
   ) async {
     // Dismiss keyboard if it's open
     FocusManager.instance.primaryFocus?.unfocus();
-    await pumpAndSettle();
+    await pump(const Duration(milliseconds: 500));
 
     // Check if there's a visible snackbar and remove it
     if (find.byType(SnackBar).evaluate().isNotEmpty) {
@@ -82,7 +83,7 @@ extension PumpUntilFound on WidgetTester {
       if (messenger != null) {
         messenger.clearSnackBars();
         // Need to pump to update the tree
-        await pumpAndSettle();
+        await pump(const Duration(milliseconds: 500));
       }
     }
     await binding.takeScreenshot(name);

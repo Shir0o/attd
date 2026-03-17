@@ -11,103 +11,117 @@ class EventRobot {
   Future<void> enterName(String name) async {
     final finder = find.byType(TextFormField);
     await tester.pumpUntilFound(finder);
+    await tester.ensureVisible(finder);
+    await tester.pump();
+    
+    print('DEBUG: Tapping name field to ensure focus');
+    await tester.tap(finder);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    
+    print('DEBUG: Entering text "$name"');
     await tester.enterText(finder, name);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> tapTime() async {
     final timeFinder = find.text('Event Time');
+    await tester.pumpUntilFound(timeFinder);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.ancestor(of: timeFinder, matching: find.byType(GestureDetector)));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> selectTime(int hour, int minute) async {
+    print('DEBUG: selectTime($hour, $minute)');
     await tapTime();
-    // This part is tricky with Flutter's time picker in integration tests.
-    // Usually, you can find the hour/minute widgets or use tester.tap at specific offsets.
-    // For simplicity, let's assume we just tap OK for now, but we should try to change it.
-    // In many environments, the time picker can be interacted with via find.text.
     
-    // A more reliable way for integration tests without custom keys is to just tap OK 
-    // to confirm a change happened (it defaults to now or initial).
-    // If we want to CHANGE it, we can try finding the input mode button.
     final inputModeIcon = find.byIcon(Icons.keyboard_outlined);
     if (inputModeIcon.evaluate().isNotEmpty) {
+      print('DEBUG: Switching to text input mode in time picker');
       await tester.tap(inputModeIcon);
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
       
       final hourField = find.byType(TextField).first;
       final minuteField = find.byType(TextField).last;
       
       await tester.enterText(hourField, hour.toString());
       await tester.enterText(minuteField, minute.toString());
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
     }
     
+    print('DEBUG: Tapping OK on time picker');
     await tester.tap(find.text('OK'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> selectFrequency(String frequency) async {
+    print('DEBUG: selectFrequency($frequency)');
     final dropdownFinder = find.byIcon(Icons.arrow_drop_down);
     await tester.pumpUntilFound(dropdownFinder);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(dropdownFinder);
     await tester.tap(dropdownFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     
     final itemFinder = find.text(frequency).last;
     await tester.pumpUntilFound(itemFinder);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(itemFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> tapDate() async {
+    print('DEBUG: tapDate');
     final dateFinder = find.text('Date');
+    await tester.pumpUntilFound(dateFinder);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.ancestor(of: dateFinder, matching: find.byType(GestureDetector)));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> selectDate(int day) async {
+    print('DEBUG: selectDate($day)');
     await tapDate();
-    // Tapping a day in the date picker
     final dayFinder = find.text(day.toString());
     await tester.tap(dayFinder);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
+    print('DEBUG: Tapping OK on date picker');
     await tester.tap(find.text('OK'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> selectDay(String dayName) async {
-    // Select the circle with the day's first letter
+    print('DEBUG: selectDay($dayName)');
     final letter = dayName.substring(0, 1);
     final letterFinder = find.text(letter);
     await tester.pumpUntilFound(letterFinder);
-    
-    // For the test, we can just tap the letter.
-    // If there are multiple, we pick the last one or a specific one if possible.
     await tester.tap(letterFinder.last); 
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> save() async {
+    print('DEBUG: robot save()');
     final buttonFinder = find.byKey(const ValueKey('save_event_button'));
     await tester.pumpUntilFound(buttonFinder);
     await tester.tap(buttonFinder.last);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 800));
   }
 
   Future<void> update() async {
+    print('DEBUG: robot update()');
     final buttonFinder = find.byKey(const ValueKey('save_event_button'));
     await tester.pumpUntilFound(buttonFinder);
     await tester.tap(buttonFinder.last);
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 800));
   }
 
   Future<void> delete() async {
     await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     // Confirm dialog
     await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 }
