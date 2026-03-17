@@ -427,36 +427,34 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sheet = ss.getSheetByName("Raw Logs");
     
-    // 1. Setup Sheet if it doesn't exist
+    // 1. Setup Sheet if it doesn't exist (Changed 5 columns to 6)
     if (!sheet) {
       sheet = ss.insertSheet("Raw Logs");
-      sheet.appendRow(["Sync Time", "Meeting Date", "Event", "Member", "Is Present"]);
-      sheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#f3f3f3");
+      sheet.appendRow(["Sync Time", "Meeting Date", "Event", "Member", "Is Present", "Points"]);
+      sheet.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#f3f3f3");
       sheet.setFrozenRows(1);
     }
 
     const data = JSON.parse(e.postData.contents);
     const syncTime = data.date; 
     
-    // 2. Read existing data into memory (Skip the header row)
+    // 2. Read existing data into memory 
     const existingData = sheet.getDataRange().getDisplayValues();
-    const headers = existingData.shift() || ["Sync Time", "Meeting Date", "Event", "Member", "Is Present"];
+    const headers = existingData.shift() || ["Sync Time", "Meeting Date", "Event", "Member", "Is Present", "Points"];
     
-    // 3. Map existing records by a Unique Key to prevent duplicates
-    // Key format: "MeetingDate|Event|Member"
+    // 3. Map existing records by a Unique Key
     let rowMap = new Map();
     existingData.forEach(row => {
       const key = `${row[1]}|${row[2]}|${row[3]}`; 
       rowMap.set(key, row);
     });
 
-    // 4. Process incoming app records (Add, Edit, Remove)
+    // 4. Process incoming app records
     data.records.forEach(record => {
       let meetingDate = "";
       let event = "";
       let member = record.name; 
 
-      // Fixed Regex: Added backslashes for escaping brackets \[ \] and whitespace \s
       const match = record.name.match(/\[(.*?)\]\s*(.*?)\s*-\s*(.*)/);
       if (match) {
         meetingDate = match[1].trim();
@@ -464,21 +462,20 @@ function doPost(e) {
         member = match[3].trim();
       }
 
-      // Create the same Unique Key for the incoming record
       const key = match ? `${meetingDate}|${event}|${member}` : record.name;
 
-      // Check if the app is telling us to delete/remove this record
-      // (Adjust this condition based on how your app flags removals)
       const isDeleted = (record.status && record.status.toLowerCase() === 'deleted') || 
                         (record.action && record.action.toLowerCase() === 'delete');
 
       if (isDeleted) {
-        // REMOVE: Drop it from our map so it doesn't get written back
         rowMap.delete(key);
       } else {
-        // ADD / EDIT: Update existing row or insert a new one
+        // ADD / EDIT: Generate the boolean AND the numeric point
         const isPresent = (record.status && record.status.toLowerCase() === 'present');
-        rowMap.set(key, [syncTime, meetingDate, event, member, isPresent]);
+        const points = isPresent ? 1 : 0; // The magic fix for your Pivot Table
+        
+        // Push 6 items to the array instead of 5
+        rowMap.set(key, [syncTime, meetingDate, event, member, isPresent, points]);
       }
     });
 
@@ -486,14 +483,14 @@ function doPost(e) {
     const newData = Array.from(rowMap.values());
     
     // 6. Write back to the sheet
-    // Clear old data first (keeping the header untouched)
+    // Clear old data first (Changed 5 to 6 to clear the new column too)
     if (sheet.getLastRow() > 1) {
-      sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).clearContent();
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).clearContent();
     }
     
-    // Write the cleanly synced data
+    // Write the cleanly synced data (Changed 5 to 6)
     if (newData.length > 0) {
-      sheet.getRange(2, 1, newData.length, 5).setValues(newData);
+      sheet.getRange(2, 1, newData.length, 6).setValues(newData);
     }
 
     return ContentService.createTextOutput(JSON.stringify({
