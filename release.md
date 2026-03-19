@@ -1,4 +1,4 @@
-# 1.0.10+11
+# 1.0.10+12
 *   **Member Management Enhancements**:
     *   **Editing in Event Context**: Renaming members is now possible directly from the event management screen, improving flexibility.
     *   Added **loading states** for member creation to prevent duplicate entries during slow operations.
