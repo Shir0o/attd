@@ -1,3 +1,13 @@
+# 1.0.10+11
+*   **Member Management Enhancements**:
+    *   **Editing in Event Context**: Renaming members is now possible directly from the event management screen, improving flexibility.
+    *   Added **loading states** for member creation to prevent duplicate entries during slow operations.
+*   **Event & Session Improvements**:
+    *   Fixed a bug where **assigned members were lost** when editing existing events.
+    *   Cleaned up the **Session Summary** UI by removing redundant status labels.
+*   **Reliability**:
+    *   Resolved a potential race condition and compilation error in Google Drive synchronization.
+
 # 1.0.9+10
 *   **New Feature**: **Member Editing** functionality, allowing users to update member names directly.
 *   **UX Improvements**: 

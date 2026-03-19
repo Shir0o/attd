@@ -639,31 +639,32 @@ class _MembersPageState extends State<MembersPage> {
                         ),
                       )
                     : null,
-                trailing: isEventMode
-                    ? Checkbox(
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () => _editMember(member),
+                    ),
+                    if (isEventMode)
+                      Checkbox(
                         value: isSelected,
                         onChanged: (val) =>
                             _toggleEventMember(member, val ?? false),
                       )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.edit_outlined,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            onPressed: () => _editMember(member),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.delete_outline,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            onPressed: () => _deleteMember(member),
-                          ),
-                        ],
+                    else
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        onPressed: () => _deleteMember(member),
                       ),
+                  ],
+                ),
               );
             },
           ),
