@@ -166,12 +166,19 @@ AttendanceAnalytics calculateAttendanceAnalytics({
 
   for (final session in filteredSessions) {
     for (final record in session.records) {
-      final canonicalName = _canonicalizeAttendee(
-        record.attendee,
-        membersById,
-        families,
-        visited,
-      );
+      String canonicalName;
+      if (record.memberId != null && membersById.containsKey(record.memberId)) {
+        final member = membersById[record.memberId]!;
+        canonicalName = _resolveMember(member, membersById, visited).canonicalName;
+      } else {
+        canonicalName = _canonicalizeAttendee(
+          record.attendee,
+          membersById,
+          families,
+          visited,
+        );
+      }
+      
       switch (record.status) {
         case AttendanceStatus.present:
           present++;

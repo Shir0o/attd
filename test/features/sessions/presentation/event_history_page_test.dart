@@ -77,6 +77,9 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {}
+
+  @override
   Future<void> refresh() async {}
 }
 
@@ -111,12 +114,14 @@ void main() {
       sessionDate: DateTime(2023, 10, 7),
       records: [
         SessionRecord(
+          memberId: 'm1',
           attendee: 'A',
           status: AttendanceStatus.present,
           recordedAt: DateTime.now(),
           recordedBy: 'User',
         ),
         SessionRecord(
+          memberId: 'm2',
           attendee: 'B',
           status: AttendanceStatus.absent,
           recordedAt: DateTime.now(),
@@ -177,6 +182,7 @@ void main() {
       sessionDate: DateTime(2023, 10, 7),
       records: [
         SessionRecord(
+          memberId: '1',
           attendee: 'Member One',
           status: AttendanceStatus.present,
           recordedAt: DateTime.now(),
@@ -184,6 +190,7 @@ void main() {
         ),
         // Record for member 2 who is NOT assigned to this event
         SessionRecord(
+          memberId: '2',
           attendee: 'Member Two',
           status: AttendanceStatus.present,
           recordedAt: DateTime.now(),

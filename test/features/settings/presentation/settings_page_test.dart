@@ -65,6 +65,8 @@ class MockSessionRepository implements SessionRepository {
   @override
   Future<List<Session>> loadSessions() async => [];
   @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {}
+  @override
   Future<void> refresh() async {}
   @override
   Future<Session> saveSnapshot(

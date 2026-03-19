@@ -189,17 +189,21 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
                               // Consistency check: use the same logic as SessionSummaryPage for counts
                               final presentCount = filteredMembers.where((m) {
-                                return session.records.any(
-                                  (r) =>
-                                      r.attendee == m.displayName &&
-                                      r.status == AttendanceStatus.present,
-                                );
+                                return session.records.any((r) {
+                                  if (r.status != AttendanceStatus.present) return false;
+                                  if (r.memberId != null) return r.memberId == m.id;
+                                  return r.attendee == m.displayName;
+                                });
                               }).length;
                               
                               // Any records for members NOT in the filtered list (e.g. visitors)
                               final visitorPresentCount = session.records.where((r) {
-                                return r.status == AttendanceStatus.present &&
-                                    !filteredMembers.any((m) => m.displayName == r.attendee);
+                                if (r.status != AttendanceStatus.present) return false;
+                                final isRegularMember = filteredMembers.any((m) => 
+                                  (r.memberId != null && m.id == r.memberId) || 
+                                  (r.memberId == null && m.displayName == r.attendee)
+                                );
+                                return !isRegularMember;
                               }).length;
 
                               final totalPresent = presentCount + visitorPresentCount;
@@ -207,8 +211,12 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                               // SessionSummaryPage treats anyone in filteredMembers without a 'present' record as 'absent'
                               final totalAbsent = filteredMembers.length - presentCount + 
                                   session.records.where((r) {
-                                    return r.status == AttendanceStatus.absent &&
-                                        !filteredMembers.any((m) => m.displayName == r.attendee);
+                                    if (r.status != AttendanceStatus.absent) return false;
+                                    final isRegularMember = filteredMembers.any((m) => 
+                                      (r.memberId != null && m.id == r.memberId) || 
+                                      (r.memberId == null && m.displayName == r.attendee)
+                                    );
+                                    return !isRegularMember;
                                   }).length;
 
                               return Card(

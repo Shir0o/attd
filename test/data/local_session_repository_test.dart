@@ -30,6 +30,7 @@ void main() {
       final now = DateTime.now();
       final records = [
         SessionRecord(
+          memberId: 'm1',
           attendee: 'John',
           status: AttendanceStatus.present,
           recordedAt: now,
@@ -100,6 +101,7 @@ void main() {
         actor: 'Admin',
         records: [
            SessionRecord(
+            memberId: 'm1',
             attendee: 'John',
             status: AttendanceStatus.present,
             recordedAt: now,

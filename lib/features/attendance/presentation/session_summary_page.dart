@@ -83,6 +83,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final attendeeName = member.displayName;
 
     final newRecord = SessionRecord(
+      memberId: member.id,
       attendee: attendeeName,
       status: status,
       recordedAt: DateTime.now(),
@@ -92,7 +93,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     // Update session locally
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     final existingIndex = updatedRecords.indexWhere(
-      (r) => r.attendee == attendeeName,
+      (r) => (r.memberId != null && r.memberId == member.id) || 
+             (r.memberId == null && r.attendee == attendeeName),
     );
     if (existingIndex != -1) {
       updatedRecords[existingIndex] = newRecord;
@@ -125,14 +127,19 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 
   AttendanceStatus _getStatus(Member member) {
-    // Check if member has a record in the session
+    // Check if member has a record in the session by ID first
     for (final record in _currentSession.records) {
-      if (record.attendee == member.displayName) {
+      if (record.memberId != null && record.memberId == member.id) {
         return record.status;
       }
     }
-    // If no record, default to absent? Or defaultStatus?
-    // Since deck flow forces a choice, we assume Absent if not found for summary.
+    // Fallback to name-based lookup for legacy records
+    for (final record in _currentSession.records) {
+      if (record.memberId == null && record.attendee == member.displayName) {
+        return record.status;
+      }
+    }
+    // If no record, default to absent
     return AttendanceStatus.absent;
   }
 
@@ -192,11 +199,24 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final displayMembers = List<Member>.from(widget.members);
     
     // Add any members who have records but are not in the provided list (e.g. guests/visitors)
+    final existingMemberIds = widget.members.map((m) => m.id).toSet();
     final existingMemberNames = widget.members.map((m) => m.displayName).toSet();
+    
     for (final record in _currentSession.records) {
-      if (!existingMemberNames.contains(record.attendee)) {
+      bool isKnown = false;
+      if (record.memberId != null) {
+        if (existingMemberIds.contains(record.memberId)) {
+          isKnown = true;
+        }
+      } else {
+        if (existingMemberNames.contains(record.attendee)) {
+          isKnown = true;
+        }
+      }
+      
+      if (!isKnown) {
         displayMembers.add(Member(
-          id: 'visitor_${record.attendee}',
+          id: record.memberId ?? 'visitor_${record.attendee}',
           displayName: record.attendee,
           isVisitor: true,
         ));

@@ -97,6 +97,20 @@ class _AttendanceAppState extends State<AttendanceApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _runMigration();
+  }
+
+  Future<void> _runMigration() async {
+    try {
+      final families = await widget.repository.fetchFamilies();
+      final allMembers = families.expand((f) => f.members).toList();
+      final nameToIdMap = {for (var m in allMembers) m.displayName: m.id};
+      if (nameToIdMap.isNotEmpty) {
+        await widget.sessionRepository.migrateRecords(nameToIdMap);
+      }
+    } catch (e) {
+      debugPrint('Migration failed: $e');
+    }
   }
 
   @override

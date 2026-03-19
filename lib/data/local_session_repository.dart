@@ -186,6 +186,65 @@ class LocalJsonSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {
+    final sessions = await _loadFromFile();
+    bool changed = false;
+
+    List<Session> migrateSessionList(List<Session> list) {
+      return list.map((session) {
+        final updatedRecords = session.records.map((record) {
+          if (record.memberId == null && nameToIdMap.containsKey(record.attendee)) {
+            changed = true;
+            return record.copyWith(memberId: nameToIdMap[record.attendee]);
+          }
+          return record;
+        }).toList();
+        return session.copyWith(records: updatedRecords);
+      }).toList();
+    }
+
+    final updatedSessions = migrateSessionList(sessions);
+    if (changed) {
+      await _saveToFile(updatedSessions);
+    }
+
+    // Also migrate history
+    await _loadHistory();
+    bool historyChanged = false;
+    _historyCache.forEach((sessionId, versions) {
+      for (int i = 0; i < versions.length; i++) {
+        final version = versions[i];
+        final session = version.snapshot;
+        final updatedRecords = session.records.map((record) {
+          if (record.memberId == null && nameToIdMap.containsKey(record.attendee)) {
+            historyChanged = true;
+            return record.copyWith(memberId: nameToIdMap[record.attendee]);
+          }
+          return record;
+        }).toList();
+
+        if (historyChanged) {
+          versions[i] = SessionVersion(
+            sessionId: version.sessionId,
+            version: version.version,
+            snapshot: session.copyWith(records: updatedRecords),
+            recordedAt: version.recordedAt,
+            actor: version.actor,
+          );
+        }
+      }
+    });
+
+    if (historyChanged) {
+      await _saveHistory();
+    }
+
+    if (changed || historyChanged) {
+      await refresh();
+    }
+  }
+
+  @override
   Future<void> refresh() async {
     _historyCache.clear();
     final sessions = await loadSessions();

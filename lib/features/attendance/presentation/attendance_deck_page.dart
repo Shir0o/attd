@@ -52,20 +52,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     // Remove members already present in the session records if we want to resume?
     // The design shows a linear flow. Let's find the first member without a record.
-    final recordedIds = _currentSession.records.map((r) => r.attendee).toSet();
-    // Assuming member.displayName matches attendee for now (basic string matching as per current data/model)
-    // Wait, the Member model has an ID, but SessionRecord stores 'attendee' as String (name?).
-    // Checking SessionRecord in previous turn... it has 'attendee' string.
-    // Checking SessionRepository seed... 'Alana Rivera'. It uses names.
-    // WE SHOULD probably use IDs if possible, but the existing code uses names.
-    // For now, I will match by displayName.
-
-    // Logic: Find first index where member.displayName is NOT in recordedIds.
-    // Actually, maybe we just want to iterate through everyone regardless.
-    // But if I back out and return, I probably want to resume.
+    final recordedIds = _currentSession.records.map((r) => r.memberId).toSet();
+    final recordedNames = _currentSession.records.map((r) => r.attendee).toSet();
+    
     int firstUnrecorded = 0;
     for (int i = 0; i < widget.members.length; i++) {
-      if (!recordedIds.contains(widget.members[i].displayName)) {
+      final member = widget.members[i];
+      if (!recordedIds.contains(member.id) && !recordedNames.contains(member.displayName)) {
         firstUnrecorded = i;
         break;
       }
@@ -81,11 +74,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Future<void> _recordAttendance(
+    String? memberId,
     String attendeeName,
     AttendanceStatus status,
   ) async {
     // Create new record
     final newRecord = SessionRecord(
+      memberId: memberId,
       attendee: attendeeName,
       status: status,
       recordedAt: DateTime.now(),
@@ -96,7 +91,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // If record exists, replace it. If not, add it.
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     final existingIndex = updatedRecords.indexWhere(
-      (r) => r.attendee == attendeeName,
+      (r) => (r.memberId != null && r.memberId == memberId) || 
+             (r.memberId == null && r.attendee == attendeeName),
     );
     if (existingIndex != -1) {
       updatedRecords[existingIndex] = newRecord;
@@ -140,7 +136,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final member = widget.members[_currentIndex];
 
     // Fire and forget attendance recording
-    _recordAttendance(member.displayName, status);
+    _recordAttendance(member.id, member.displayName, status);
 
     setState(() {
       _currentIndex++;
@@ -155,6 +151,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       builder:
           (context) => AddMemberSheet(
             onAdd: (name, isPresent, isGuest) async {
+              String? finalMemberId;
               if (!isGuest) {
                 try {
                   final families =
@@ -168,8 +165,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     targetFamily = families.first;
                   }
 
+                  finalMemberId = DateTime.now().millisecondsSinceEpoch.toString();
                   final newMember = Member(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    id: finalMemberId,
                     displayName: name,
                   );
 
@@ -183,6 +181,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               }
 
               _recordAttendance(
+                finalMemberId,
                 name,
                 isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
               );

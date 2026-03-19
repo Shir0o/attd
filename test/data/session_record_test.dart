@@ -6,6 +6,7 @@ void main() {
   group('SessionRecord', () {
     final now = DateTime.now();
     final record = SessionRecord(
+      memberId: 'm1',
       attendee: 'John Doe',
       status: AttendanceStatus.present,
       recordedAt: now,
@@ -14,6 +15,7 @@ void main() {
 
     test('supports value equality', () {
       final record2 = SessionRecord(
+        memberId: 'm1',
         attendee: 'John Doe',
         status: AttendanceStatus.present,
         recordedAt: now,
@@ -21,9 +23,7 @@ void main() {
       );
       // Since SessionRecord doesn't override ==, this checks identity by default unless using equatable or similar.
       // Checking field equality manually if == is not overridden.
-      // However, usually data classes should override ==. Let's check if they do.
-      // Based on read_file output, it does NOT use Equatable or override ==.
-      // So we test field correctness.
+      expect(record.memberId, record2.memberId);
       expect(record.attendee, record2.attendee);
       expect(record.status, record2.status);
       expect(record.recordedAt, record2.recordedAt);
@@ -35,6 +35,7 @@ void main() {
         attendee: 'Jane Doe',
         status: AttendanceStatus.absent,
       );
+      expect(updated.memberId, record.memberId);
       expect(updated.attendee, 'Jane Doe');
       expect(updated.status, AttendanceStatus.absent);
       expect(updated.recordedAt, record.recordedAt);
@@ -43,22 +44,23 @@ void main() {
 
     test('toJson and fromJson work correctly', () {
       final json = record.toJson();
+      expect(json['memberId'], 'm1');
       expect(json['attendee'], 'John Doe');
       expect(json['status'], 'present');
       expect(json['recordedAt'], now.toIso8601String());
       expect(json['recordedBy'], 'Admin');
 
       final fromJson = SessionRecord.fromJson(json);
+      expect(fromJson.memberId, record.memberId);
       expect(fromJson.attendee, record.attendee);
       expect(fromJson.status, record.status);
-      // DateTimes from JSON might lose precision or be in different timezone format if not careful,
-      // but toIso8601String is usually safe for equality after parsing back if we stick to string comparison or tolerance.
       expect(fromJson.recordedAt.toIso8601String(), record.recordedAt.toIso8601String());
       expect(fromJson.recordedBy, record.recordedBy);
     });
 
     test('fromJson handles invalid status gracefully (defaults to absent)', () {
       final json = {
+        'memberId': 'm1',
         'attendee': 'John Doe',
         'status': 'invalid_status',
         'recordedAt': now.toIso8601String(),
@@ -66,6 +68,7 @@ void main() {
       };
       final fromJson = SessionRecord.fromJson(json);
       expect(fromJson.status, AttendanceStatus.absent);
+      expect(fromJson.memberId, 'm1');
     });
   });
 }

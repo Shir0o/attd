@@ -25,5 +25,7 @@ abstract class SessionRepository {
 
   Future<List<SessionVersion>> history(String sessionId);
 
+  Future<void> migrateRecords(Map<String, String> nameToIdMap);
+
   Future<void> refresh();
 }

@@ -7,6 +7,7 @@ void main() {
   group('Session', () {
     final now = DateTime.now();
     final record = SessionRecord(
+      memberId: 'm1',
       attendee: 'John Doe',
       status: AttendanceStatus.present,
       recordedAt: now,

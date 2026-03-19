@@ -60,6 +60,9 @@ class _FakeSessionRepository implements SessionRepository {
   Future<List<SessionVersion>> history(String sessionId) async => [];
 
   @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {}
+
+  @override
   Future<void> refresh() async {}
 }
 
@@ -100,12 +103,14 @@ void main() {
       sessionDate: DateTime(2024, 1, 9),
       records: [
         SessionRecord(
+          memberId: 'm1',
           attendee: 'Alex',
           status: AttendanceStatus.present,
           recordedAt: now,
           recordedBy: 'test',
         ),
         SessionRecord(
+          memberId: 'm2',
           attendee: 'Jordan',
           status: AttendanceStatus.absent,
           recordedAt: now,

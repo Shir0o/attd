@@ -28,9 +28,11 @@ void main() {
   SessionRecord record(
     String attendee,
     AttendanceStatus status,
-    DateTime when,
-  ) {
+    DateTime when, {
+    String? memberId,
+  }) {
     return SessionRecord(
+      memberId: memberId,
       attendee: attendee,
       status: status,
       recordedAt: when,
@@ -62,8 +64,8 @@ void main() {
         title: 'Check-in',
         date: DateTime(2024, 1, 10),
         records: [
-          record('Alana Rivera', AttendanceStatus.absent, now),
-          record('Mateo Rivera', AttendanceStatus.present, now),
+          record('Alana Rivera', AttendanceStatus.absent, now, memberId: 'm1'),
+          record('Mateo Rivera', AttendanceStatus.present, now, memberId: 'm2'),
         ],
       ),
       buildSession(
@@ -71,16 +73,16 @@ void main() {
         title: 'Check-in',
         date: DateTime(2024, 1, 8),
         records: [
-          record('Alana Rivera', AttendanceStatus.absent, now),
-          record('Mateo Rivera', AttendanceStatus.present, now),
-          record('Priya Patel', AttendanceStatus.present, now),
+          record('Alana Rivera', AttendanceStatus.absent, now, memberId: 'm1'),
+          record('Mateo Rivera', AttendanceStatus.present, now, memberId: 'm2'),
+          record('Priya Patel', AttendanceStatus.present, now, memberId: 'm3'),
         ],
       ),
       buildSession(
         id: 's3',
         title: 'Earlier',
         date: DateTime(2023, 12, 20),
-        records: [record('Priya Patel', AttendanceStatus.absent, now)],
+        records: [record('Priya Patel', AttendanceStatus.absent, now, memberId: 'm3')],
       ),
     ];
 
@@ -108,8 +110,8 @@ void main() {
         title: 'Session',
         date: DateTime(2024, 1, 31),
         records: [
-          record('Priya Patel', AttendanceStatus.absent, now),
-          record('Mateo Rivera', AttendanceStatus.present, now),
+          record('Priya Patel', AttendanceStatus.absent, now, memberId: 'm3'),
+          record('Mateo Rivera', AttendanceStatus.present, now, memberId: 'm2'),
         ],
       ),
       buildSession(
@@ -117,8 +119,8 @@ void main() {
         title: 'Session',
         date: DateTime(2024, 1, 29),
         records: [
-          record('Priya Patel', AttendanceStatus.absent, now),
-          record('Mateo Rivera', AttendanceStatus.present, now),
+          record('Priya Patel', AttendanceStatus.absent, now, memberId: 'm3'),
+          record('Mateo Rivera', AttendanceStatus.present, now, memberId: 'm2'),
         ],
       ),
       buildSession(
@@ -126,8 +128,8 @@ void main() {
         title: 'Session',
         date: DateTime(2024, 1, 27),
         records: [
-          record('Priya Patel', AttendanceStatus.absent, now),
-          record('Mateo Rivera', AttendanceStatus.present, now),
+          record('Priya Patel', AttendanceStatus.absent, now, memberId: 'm3'),
+          record('Mateo Rivera', AttendanceStatus.present, now, memberId: 'm2'),
         ],
       ),
     ];
@@ -179,7 +181,7 @@ void main() {
         id: 's-merge',
         title: 'Merge Sample',
         date: now,
-        records: [record('Lizzie Smith', AttendanceStatus.absent, now)],
+        records: [record('Lizzie Smith', AttendanceStatus.absent, now, memberId: 'm-b')],
       ),
     ];
 
