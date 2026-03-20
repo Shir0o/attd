@@ -1,3 +1,12 @@
+# 1.0.11+12
+*   **Data Integrity & Member Management**:
+    *   Implemented **hybrid ID-based session records**, allowing for reliable member renames while maintaining backward compatibility with legacy name-based records.
+*   **Security & Integrity**:
+    *   Enhanced **Google Play Integrity** configuration with environment variable support for Google Cloud Project Number.
+    *   Added a fail-safe mechanism to handle missing project configuration gracefully.
+*   **Reporting & Sheets Integration**:
+    *   Updated the **Google Sheets Apps Script boilerplate** to include a "Points" column, enabling more detailed engagement analysis in exported reports.
+
 # 1.0.10+11
 *   **Member Management Enhancements**:
     *   **Editing in Event Context**: Renaming members is now possible directly from the event management screen, improving flexibility.
