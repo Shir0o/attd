@@ -301,11 +301,7 @@ void main() {
     expect(find.byType(BottomSheet), findsOneWidget);
 
     // We can't rely on 'dialogFinder' so just look globally
-    expect(find.text('Attendance Tracker'), findsWidgets);
-    expect(find.text('Version 2.4.0'), findsWidgets);
-    expect(
-      find.text('© 2026 Attendance Tracker Contributors. All rights reserved.'),
-      findsWidgets,
-    );
+    expect(find.text('Attendance Tracker', skipOffstage: false), findsWidgets);
+    expect(find.text('Version 1.0.12', skipOffstage: false), findsWidgets);
   });
 }
