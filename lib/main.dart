@@ -145,16 +145,10 @@ class _AttendanceAppState extends State<AttendanceApp>
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
             pageTransitionsTheme: PageTransitionsTheme(
-              builders: widget.disableAnimations
-                  ? {
-                      for (var platform in TargetPlatform.values)
-                        platform: const NoTransitionsBuilder(),
-                    }
-                  : {
-                      TargetPlatform.android: const FadeUpwardsPageTransitionsBuilder(),
-                      TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
-                      TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
-                    },
+              builders: {
+                for (var platform in TargetPlatform.values)
+                  platform: const NoTransitionsBuilder(),
+              },
             ),
           ),
           darkTheme: ThemeData(
@@ -165,16 +159,10 @@ class _AttendanceAppState extends State<AttendanceApp>
             useMaterial3: true,
             fontFamily: 'IBM Plex Sans',
             pageTransitionsTheme: PageTransitionsTheme(
-              builders: widget.disableAnimations
-                  ? {
-                      for (var platform in TargetPlatform.values)
-                        platform: const NoTransitionsBuilder(),
-                    }
-                  : {
-                      TargetPlatform.android: const FadeUpwardsPageTransitionsBuilder(),
-                      TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
-                      TargetPlatform.macOS: const FadeUpwardsPageTransitionsBuilder(),
-                    },
+              builders: {
+                for (var platform in TargetPlatform.values)
+                  platform: const NoTransitionsBuilder(),
+              },
             ),
           ),
           home: HubPage(

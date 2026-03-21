@@ -18,3 +18,14 @@
 - **Static Analysis:** `flutter analyze`
 - **Unit and Widget Tests:** `flutter test`
 - **Integration Tests:** `flutter test integration_test/app_test.dart` (requires a running emulator or device)
+
+## Architecture Patterns
+
+### Instant Transitions & Skeleton Loaders
+- **Instant Transitions**: The app uses `NoTransitionsBuilder` globally to ensure page switches are immediate. Avoid adding artificial delays or complex animations between main screens.
+- **Skeleton Loaders**: Every new page must implement a "Skeleton" or "Loading" state. This state should:
+    - Render immediately upon navigation.
+    - Use `_ShimmerBox` or similar components to match the final layout's structure.
+    - Be replaced by the actual content as soon as initial data (e.g., from `SharedPreferences` or local database) is available.
+- **Implementation**: See `SettingsPage` or `HubAttendanceView` for reference implementations of the skeleton pattern.
+

@@ -1,4 +1,8 @@
 # 1.0.12+13
+*   **Performance & UI Smoothness**:
+    *   Implemented **Instant Transitions** globally: All page switches are now immediate, removing artificial animation delays for a snappier feel.
+    *   Introduced **System-wide Skeleton Loaders**: Pages now render a structural skeleton immediately while background data loads.
+    *   Refactored **Settings Page** with a full skeleton state and instant entry.
 *   **Settings & About Page Refactor**:
     *   Simplified the "App Version" bottom sheet to focus on core app metadata (name, version, legalese).
     *   Removed redundant **Open Source** declarations and **View Licenses** functionality for a cleaner user experience.

@@ -41,6 +41,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _googleSheetsService = GoogleSheetsService();
   final _sheetsUrlController = TextEditingController();
   bool _isSavingUrl = false;
+  bool _isInitialLoading = true;
 
   @override
   void initState() {
@@ -49,9 +50,13 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadGoogleSheetsUrl() async {
+    setState(() => _isInitialLoading = true);
     final prefs = await SharedPreferences.getInstance();
+    // Simulate a brief delay to ensure skeleton is visible on first load
+    await Future.delayed(const Duration(milliseconds: 300));
     setState(() {
       _sheetsUrlController.text = prefs.getString('googleSheetsUrl') ?? '';
+      _isInitialLoading = false;
     });
   }
 
@@ -91,16 +96,19 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ),
-      body: ListenableBuilder(
-        listenable: widget.driveService,
-        builder: (context, _) {
-          final isSyncing = widget.driveService.isSyncing;
-          final isSignedIn = widget.driveService.currentUser != null;
-          final lastSync = widget.driveService.lastSyncTime;
+      body: _isInitialLoading
+          ? _buildSkeleton(context)
+          : ListenableBuilder(
+              listenable: widget.driveService,
+              builder: (context, _) {
+                final isSyncing = widget.driveService.isSyncing;
+                final isSignedIn = widget.driveService.currentUser != null;
+                final lastSync = widget.driveService.lastSyncTime;
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            children: [
+                return ListView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  children: [
               // Appearance Section
               _SectionHeader(title: 'Appearance'),
               Container(
@@ -882,8 +890,74 @@ function doPost(e) {
     } else if (diff.inHours < 24) {
       return '${diff.inHours} hours ago';
     } else {
-      return DateFormat('MMM d').format(dateTime);
+      return DateFormat.yMMMd().format(dateTime);
     }
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return ListView(
+      key: const ValueKey('settings_skeleton'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      children: [
+        const SizedBox(height: 16),
+        _ShimmerBox(
+            width: 100, height: 20, borderRadius: BorderRadius.circular(4)),
+        const SizedBox(height: 12),
+        Container(
+          height: 160,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _ShimmerBox(
+                      width: 40,
+                      height: 40,
+                      borderRadius: BorderRadius.circular(20)),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ShimmerBox(
+                          width: 120,
+                          height: 16,
+                          borderRadius: BorderRadius.circular(4)),
+                      const SizedBox(height: 8),
+                      _ShimmerBox(
+                          width: 80,
+                          height: 14,
+                          borderRadius: BorderRadius.circular(4)),
+                    ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+              _ShimmerBox(
+                  width: double.infinity,
+                  height: 40,
+                  borderRadius: BorderRadius.circular(8)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        _ShimmerBox(
+            width: 120, height: 20, borderRadius: BorderRadius.circular(4)),
+        const SizedBox(height: 12),
+        Container(
+          height: 240,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.all(16),
+        ),
+      ],
+    );
   }
 
   Future<bool?> _showConfirmDialog(
@@ -958,6 +1032,82 @@ function doPost(e) {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  const _ShimmerBox({
+    required this.width,
+    required this.height,
+    this.borderRadius,
+    this.disableAnimations = false,
+  });
+
+  final double width;
+  final double height;
+  final BorderRadius? borderRadius;
+  final bool disableAnimations;
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+
+    if (!widget.disableAnimations) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final baseColor = colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
+    final highlightColor =
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.1);
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: widget.borderRadius ?? BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment(_animation.value - 1, -1),
+              end: Alignment(_animation.value + 1, 1),
+              colors: [
+                baseColor,
+                highlightColor,
+                baseColor,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

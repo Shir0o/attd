@@ -167,6 +167,36 @@ void main() {
     themeController = ThemeController(prefs);
   });
 
+  testWidgets('SettingsPage shows skeleton loader while loading', (tester) async {
+    final driveService = FakeDriveService();
+    final localBackupService = FakeLocalBackupService();
+    final attendanceRepo = MockAttendanceRepository();
+    final eventRepo = MockEventRepository();
+    final sessionRepo = MockSessionRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: driveService,
+          localBackupService: localBackupService,
+          attendanceRepository: attendanceRepo,
+          eventRepository: eventRepo,
+          sessionRepository: sessionRepo,
+        ),
+      ),
+    );
+
+    // Should show skeleton initially (before pumpAndSettle)
+    expect(find.byKey(const ValueKey('settings_skeleton')), findsOneWidget);
+
+    await tester.pumpAndSettle();
+
+    // Should show actual content after loading
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.byKey(const ValueKey('settings_skeleton')), findsNothing);
+  });
+
   testWidgets('SettingsPage renders correctly', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
@@ -186,6 +216,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
@@ -215,6 +246,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     // Initially signed out
     expect(driveService.currentUser, isNull);
@@ -259,6 +291,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pump();
@@ -288,6 +321,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
       find.text('App Version'),
