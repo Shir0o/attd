@@ -836,24 +836,6 @@ function doPost(e) {
                                         const SizedBox(height: 32),
                                         _buildPolicyPoint(
                                           context,
-                                          Icons.info_outline,
-                                          'About the App',
-                                          'Attendance Tracker is a comprehensive tool designed for organizations and groups to manage participation efficiently. It features a centralized dashboard, robust member management, and event tracking with intelligent insights.',
-                                        ),
-                                        _buildPolicyPoint(
-                                          context,
-                                          Icons.sync,
-                                          'Cloud Integration',
-                                          'Seamlessly backup your data to Google Drive and export reports directly to Google Sheets for advanced analysis and record-keeping.',
-                                        ),
-                                        _buildPolicyPoint(
-                                          context,
-                                          Icons.favorite,
-                                          'Mission & Privacy',
-                                          'Our mission is to empower communities with reliable, local-first tools that respect user privacy. We believe your data belongs to you, which is why it stays on your device and in your own Google account, with no third-party servers involved.',
-                                        ),
-                                        _buildPolicyPoint(
-                                          context,
                                           Icons.copyright,
                                           'Legalese',
                                           '© 2026 Attendance Tracker Contributors. All rights reserved.',

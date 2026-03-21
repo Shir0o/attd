@@ -1,8 +1,6 @@
 # 1.0.12+13
 *   **Settings & About Page Refactor**:
-    *   Completely redesigned the "App Version" bottom sheet with expanded application information.
-    *   Updated the **Mission Statement** to reflect the app's privacy-first, local-first reliability.
-    *   Added dedicated sections for **Cloud Integration** and **General App Info**.
+    *   Simplified the "App Version" bottom sheet to focus on core app metadata (name, version, legalese).
     *   Removed redundant **Open Source** declarations and **View Licenses** functionality for a cleaner user experience.
 
 # 1.0.11+12

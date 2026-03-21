@@ -303,5 +303,6 @@ void main() {
     // We can't rely on 'dialogFinder' so just look globally
     expect(find.text('Attendance Tracker', skipOffstage: false), findsWidgets);
     expect(find.text('Version 1.0.12', skipOffstage: false), findsWidgets);
+    expect(find.text('Legalese', skipOffstage: false), findsWidgets);
   });
 }
