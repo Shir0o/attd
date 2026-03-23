@@ -47,13 +47,14 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   Future<void> _refreshLatest() async {
     final startTime = DateTime.now();
-    
+
     final latest = await widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
 
     if (latest != null && mounted) {
-      final isNewer = latest.currentVersion > _currentSession.currentVersion ||
+      final isNewer =
+          latest.currentVersion > _currentSession.currentVersion ||
           (latest.currentVersion == _currentSession.currentVersion &&
               latest.updatedAt.isAfter(_currentSession.updatedAt));
 
@@ -93,8 +94,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     // Update session locally
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     final existingIndex = updatedRecords.indexWhere(
-      (r) => (r.memberId != null && r.memberId == member.id) || 
-             (r.memberId == null && r.attendee == attendeeName),
+      (r) =>
+          (r.memberId != null && r.memberId == member.id) ||
+          (r.memberId == null && r.attendee == attendeeName),
     );
     if (existingIndex != -1) {
       updatedRecords[existingIndex] = newRecord;
@@ -124,23 +126,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
       }
     }
-  }
-
-  AttendanceStatus _getStatus(Member member) {
-    // Check if member has a record in the session by ID first
-    for (final record in _currentSession.records) {
-      if (record.memberId != null && record.memberId == member.id) {
-        return record.status;
-      }
-    }
-    // Fallback to name-based lookup for legacy records
-    for (final record in _currentSession.records) {
-      if (record.memberId == null && record.attendee == member.displayName) {
-        return record.status;
-      }
-    }
-    // If no record, default to absent
-    return AttendanceStatus.absent;
   }
 
   Future<void> _deleteSession() async {
@@ -197,11 +182,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     // Build the list of members to display
     final displayMembers = List<Member>.from(widget.members);
-    
+
     // Add any members who have records but are not in the provided list (e.g. guests/visitors)
     final existingMemberIds = widget.members.map((m) => m.id).toSet();
-    final existingMemberNames = widget.members.map((m) => m.displayName).toSet();
-    
+    final existingMemberNames = widget.members
+        .map((m) => m.displayName)
+        .toSet();
+
     for (final record in _currentSession.records) {
       bool isKnown = false;
       if (record.memberId != null) {
@@ -213,18 +200,45 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           isKnown = true;
         }
       }
-      
+
       if (!isKnown) {
-        displayMembers.add(Member(
-          id: record.memberId ?? 'visitor_${record.attendee}',
-          displayName: record.attendee,
-          isVisitor: true,
-        ));
+        displayMembers.add(
+          Member(
+            id: record.memberId ?? 'visitor_${record.attendee}',
+            displayName: record.attendee,
+            isVisitor: true,
+          ),
+        );
+      }
+    }
+
+    // Pre-calculate maps for efficient attendance status lookup
+    // recordByMemberId: priority 1
+    // recordByAttendee: priority 2 (fallback)
+    final recordByMemberId = <String, SessionRecord>{};
+    final recordByAttendee = <String, SessionRecord>{};
+
+    for (final record in _currentSession.records) {
+      if (record.memberId != null) {
+        recordByMemberId.putIfAbsent(record.memberId!, () => record);
+      } else {
+        recordByAttendee.putIfAbsent(record.attendee, () => record);
       }
     }
 
     for (final member in displayMembers) {
-      if (_getStatus(member) == AttendanceStatus.present) {
+      AttendanceStatus? status;
+
+      // Check if member has a record in the session by ID first
+      status = recordByMemberId[member.id]?.status;
+
+      // Fallback to name-based lookup for legacy records
+      status ??= recordByAttendee[member.displayName]?.status;
+
+      // If no record, default to absent
+      status ??= AttendanceStatus.absent;
+
+      if (status == AttendanceStatus.present) {
         presentMembers.add(member);
       } else {
         absentMembers.add(member);
@@ -409,7 +423,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         // Present List
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final member = presentMembers[index];
                             return _MemberListItem(
                               member: member,
@@ -431,7 +448,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         // Absent List
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final member = absentMembers[index];
                             return _MemberListItem(
                               member: member,
@@ -469,23 +489,24 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 tag: 'fab',
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(_currentSession),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 72),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(36),
-                    ),
-                    elevation: 4,
-                  ).copyWith(
-                    overlayColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.pressed)) {
-                        return colorScheme.onPrimary.withValues(alpha: 0.2);
-                      }
-                      return null;
-                    }),
-                  ),
+                  style:
+                      ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        minimumSize: const Size(double.infinity, 72),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(36),
+                        ),
+                        elevation: 4,
+                      ).copyWith(
+                        overlayColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.pressed)) {
+                            return colorScheme.onPrimary.withValues(alpha: 0.2);
+                          }
+                          return null;
+                        }),
+                      ),
                   child: const Text(
                     'Finalize Report',
                     style: TextStyle(
@@ -512,11 +533,32 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         // Fake AppBar
         Row(
           children: [
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+            ),
             const Spacer(),
-            Container(width: 120, height: 20, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(
+              width: 120,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
             const Spacer(),
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -543,8 +585,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(width: 180, height: 24, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
-            Container(width: 60, height: 14, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(
+              width: 180,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Container(
+              width: 60,
+              height: 14,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -620,15 +676,14 @@ class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
         ),
         width: double.infinity,
         padding: const EdgeInsets.only(bottom: 8),
-                 child: Text(
-                   title,
-                   style: TextStyle(
-                     color: color,
-                     fontSize: 16,
-                     fontWeight: FontWeight.w500,
-                   ),
-                 ),
-        
+        child: Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
