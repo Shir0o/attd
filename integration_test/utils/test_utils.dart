@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/hub/data/local_event_repository.dart';
+import 'package:attendance_tracker/features/onboarding/application/onboarding_controller.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +19,11 @@ Future<Widget> createTestApp(Directory tempDir) async {
   // Use a temporary directory for local storage to isolate tests
   final storagePath = tempDir.path;
 
-  // Initialize SharedPreferences with empty values
-  SharedPreferences.setMockInitialValues({});
+  // Initialize SharedPreferences with onboarding completed
+  SharedPreferences.setMockInitialValues({'onboarding_completed': false});
   final prefs = await SharedPreferences.getInstance();
   final themeController = ThemeController(prefs);
+  final onboardingController = OnboardingController(prefs);
 
   // Initialize Repositories with custom storage path
   final attendanceRepository = LocalJsonAttendanceRepository(storagePath: '$storagePath/families.json');
@@ -42,6 +44,7 @@ Future<Widget> createTestApp(Directory tempDir) async {
 
   return AttendanceApp(
     themeController: themeController,
+    onboardingController: onboardingController,
     repository: attendanceRepository,
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,

@@ -219,11 +219,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('APPEARANCE'), findsOneWidget);
     expect(find.text('Theme Mode'), findsOneWidget);
-    expect(find.text('Cloud Sync'), findsOneWidget);
-    expect(find.text('Google Drive Sync'), findsOneWidget);
+    // Section header is now uppercased "CLOUD SYNC (GOOGLE DRIVE)"
+    expect(find.textContaining('CLOUD SYNC'), findsOneWidget);
+    // When not signed in the "Not Signed In" card is shown
+    expect(find.text('Not Signed In'), findsOneWidget);
+    // Data Management section contains backup and export (may need scroll)
+    await tester.dragUntilVisible(
+      find.text('Backup to Local Storage'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
     expect(find.text('Backup to Local Storage'), findsOneWidget);
+    await tester.dragUntilVisible(
+      find.text('Export Report'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
     expect(find.text('Export Report'), findsOneWidget);
   });
 
@@ -248,27 +261,30 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Initially signed out
+    // Initially signed out – no Switch visible, "Not Signed In" card shown
     expect(driveService.currentUser, isNull);
-    // There are now multiple switches (one for theme, one for sync?)
-    // Wait, theme uses DropdownButton, only Sync uses Switch.
-    final switchFinder = find.byType(Switch);
-    expect(switchFinder, findsOneWidget);
+    expect(find.text('Not Signed In'), findsOneWidget);
+    expect(find.byType(Switch), findsNothing);
 
-    // Toggle on
-    await tester.tap(switchFinder);
+    // Sign in via the button in the card
+    await tester.tap(find.text('Sign in with Google'));
     await tester.pumpAndSettle();
 
     expect(driveService.currentUser, isNotNull);
+    // Switch should now be visible (inside the signed-in card)
+    final switchFinder = find.byType(Switch);
+    expect(switchFinder, findsOneWidget);
 
-    // "Sync Now" button should appear
+    // "Sync Now" button should appear (inline FilledButton)
     expect(find.text('Sync Now'), findsOneWidget);
 
-    // Toggle off
+    // Toggle off via the switch
     await tester.tap(switchFinder);
     await tester.pumpAndSettle();
 
     expect(driveService.currentUser, isNull);
+    // Not signed in – card shown, Sync Now hidden
+    expect(find.text('Not Signed In'), findsOneWidget);
     expect(find.text('Sync Now'), findsNothing);
   });
 
@@ -293,10 +309,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.dragUntilVisible(
+      find.text('Backup to Local Storage'),
+      find.byType(ListView),
+      const Offset(0, -400),
+    );
+    await tester.ensureVisible(find.text('Backup to Local Storage'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pump();
     expect(localBackupService.backupCalled, isTrue);
 
+    await tester.dragUntilVisible(
+      find.text('Export Report'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.ensureVisible(find.text('Export Report'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Export Report'));
     await tester.pump();
     expect(localBackupService.exportCalled, isTrue);
@@ -324,11 +354,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('App Version'),
+      find.text('About'),
       find.byType(ListView),
       const Offset(0, -500),
     );
-    await tester.tap(find.text('App Version'));
+    await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
 
     // It uses a BottomSheet, not AboutDialog
@@ -336,7 +366,7 @@ void main() {
 
     // We can't rely on 'dialogFinder' so just look globally
     expect(find.text('Attendance Tracker', skipOffstage: false), findsWidgets);
-    expect(find.text('Version 1.0.12', skipOffstage: false), findsWidgets);
+    expect(find.text('Version 2.4.0', skipOffstage: false), findsWidgets);
     expect(find.text('Legalese', skipOffstage: false), findsWidgets);
   });
 }

@@ -8,6 +8,8 @@ import 'features/attendance/data/attendance_repository.dart';
 import 'features/hub/data/event_repository.dart';
 import 'features/hub/data/local_event_repository.dart';
 import 'features/hub/presentation/hub_page.dart';
+import 'features/onboarding/application/onboarding_controller.dart';
+import 'features/onboarding/presentation/onboarding_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'features/auth/data/google_sign_in_service.dart';
@@ -25,6 +27,7 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final themeController = ThemeController(prefs);
+  final onboardingController = OnboardingController(prefs);
 
   final googleSignIn = GoogleSignIn(
     scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
@@ -50,6 +53,7 @@ Future<void> main() async {
   runApp(
     AttendanceApp(
       themeController: themeController,
+      onboardingController: onboardingController,
       driveService: driveService,
       localBackupService: localBackupService,
       googleAuthService: googleAuthService,
@@ -65,6 +69,7 @@ class AttendanceApp extends StatefulWidget {
   AttendanceApp({
     super.key,
     required this.themeController,
+    required this.onboardingController,
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
     EventRepository? eventRepository,
@@ -78,6 +83,7 @@ class AttendanceApp extends StatefulWidget {
        eventRepository = eventRepository ?? LocalJsonEventRepository();
 
   final ThemeController themeController;
+  final OnboardingController onboardingController;
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
@@ -131,7 +137,10 @@ class _AttendanceAppState extends State<AttendanceApp>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: widget.themeController,
+      listenable: Listenable.merge([
+        widget.themeController,
+        widget.onboardingController,
+      ]),
       builder: (context, child) {
         return MaterialApp(
           title: 'Attendance',
@@ -165,17 +174,20 @@ class _AttendanceAppState extends State<AttendanceApp>
               },
             ),
           ),
-          home: HubPage(
-            themeController: widget.themeController,
-            sessionRepository: widget.sessionRepository,
-            eventRepository: widget.eventRepository,
-            attendanceRepository: widget.repository,
-            driveService: widget.driveService,
-            localBackupService: widget.localBackupService,
-            disableAnimations: widget.disableAnimations,
-          ),
+          home: widget.onboardingController.shouldShowOnboarding
+              ? OnboardingPage(onboardingController: widget.onboardingController)
+              : HubPage(
+                  themeController: widget.themeController,
+                  sessionRepository: widget.sessionRepository,
+                  eventRepository: widget.eventRepository,
+                  attendanceRepository: widget.repository,
+                  driveService: widget.driveService,
+                  localBackupService: widget.localBackupService,
+                  disableAnimations: widget.disableAnimations,
+                ),
         );
       },
     );
   }
 }
+

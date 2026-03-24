@@ -13,6 +13,7 @@ import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/onboarding/application/onboarding_controller.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
@@ -132,15 +133,17 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<User> signup(Credentials credentials) async =>
       throw UnimplementedError();
-}
+  }
 
-void main() {
+  void main() {
+
   testWidgets('AttendanceApp loads HubPage without BottomNavigationBar', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
     final prefs = await SharedPreferences.getInstance();
     final themeController = ThemeController(prefs);
+    final onboardingController = OnboardingController(prefs);
 
     final mockEventRepo = MockEventRepository();
     final mockSessionRepo = MockSessionRepository();
@@ -153,6 +156,7 @@ void main() {
     await tester.pumpWidget(
       AttendanceApp(
         themeController: themeController,
+        onboardingController: onboardingController,
         repository: mockAttendanceRepo,
         sessionRepository: mockSessionRepo,
         eventRepository: mockEventRepo,
