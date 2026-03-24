@@ -301,7 +301,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                           try {
                                             if (url.isNotEmpty) {
                                               await Future.wait([
-                                                widget.driveService.syncFiles(),
+                                                widget.driveService.syncFiles(
+                                                  actionTitle: 'Synced with Google Sheets',
+                                                  tags: ['+ Manual Sync'],
+                                                ),
                                                 _googleSheetsService
                                                     .syncAttendance(url),
                                               ]);
@@ -314,7 +317,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                               );
                                             } else {
                                               await widget.driveService
-                                                  .syncFiles();
+                                                  .syncFiles(
+                                                    actionTitle: 'Manual Sync',
+                                                    tags: ['+ Manual Sync'],
+                                                  );
                                               scaffoldMessenger.showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
