@@ -541,9 +541,10 @@ class _MembersPageState extends State<MembersPage> {
 
     // In Event Mode, maybe we want to sort selected members to the top?
     if (isEventMode) {
+      final selectedIds = _currentEvent!.memberIds.toSet();
       filteredMembers.sort((a, b) {
-        final aSelected = _currentEvent!.memberIds.contains(a.id);
-        final bSelected = _currentEvent!.memberIds.contains(b.id);
+        final aSelected = selectedIds.contains(a.id);
+        final bSelected = selectedIds.contains(b.id);
         if (aSelected && !bSelected) return -1;
         if (!aSelected && bSelected) return 1;
         return a.displayName.compareTo(b.displayName);

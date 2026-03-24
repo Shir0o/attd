@@ -80,8 +80,8 @@ void main() {
       print('DEBUG: Step 5a - Search members');
       await members.search('Ali');
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Alice'), findsOneWidget);
-      expect(find.text('Bob'), findsNothing);
+      expect(find.descendant(of: find.byType(ListView), matching: find.text('Alice')), findsOneWidget);
+      expect(find.descendant(of: find.byType(ListView), matching: find.text('Bob')), findsNothing);
       await members.clearSearch();
       
       // User checks/unchecks member
