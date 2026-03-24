@@ -508,7 +508,7 @@ class _AddEventPageState extends State<AddEventPage> {
           width: double.infinity,
           height: 64,
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
         ),

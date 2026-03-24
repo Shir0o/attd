@@ -101,17 +101,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     height: 56,
                     child: FilledButton(
                       onPressed: _nextPage,
-                      style: FilledButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
                       child: Text(
                         _currentPage == _slides.length - 1 ? 'Get Started' : 'Next',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
                       ),
                     ),
                   ),
@@ -135,16 +126,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Widget _buildPageIndicator(int index) {
+    final isActive = _currentPage == index;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       margin: const EdgeInsets.symmetric(horizontal: 4.0),
       height: 8.0,
-      width: _currentPage == index ? 24.0 : 8.0,
+      width: isActive ? 24.0 : 8.0,
       decoration: BoxDecoration(
-        color: _currentPage == index
+        color: isActive
             ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.primary.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(4),
+            : Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(24),
       ),
     );
   }

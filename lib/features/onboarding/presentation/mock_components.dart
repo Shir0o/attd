@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/design/app_colors.dart';
+
 class MockAttendanceSwipe extends StatelessWidget {
   const MockAttendanceSwipe({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return _MockContainer(
       child: Column(
         children: [
@@ -15,23 +18,23 @@ class MockAttendanceSwipe extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.chevron_left, color: Colors.red),
+                Icon(Icons.chevron_left, color: colorScheme.error),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    color: AppColors.tertiary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Text('PRESENT', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                  child: Text('PRESENT', style: TextStyle(color: AppColors.tertiary, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
-                const Icon(Icons.chevron_right, color: Colors.green),
+                Icon(Icons.chevron_right, color: AppColors.tertiary),
               ],
             ),
           ),
           const SizedBox(height: 8),
           _MockListItem(
             label: 'Jane Smith',
-            trailing: const Icon(Icons.swipe, color: Colors.grey),
+            trailing: Icon(Icons.swipe, color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           _MockListItem(
@@ -39,16 +42,16 @@ class MockAttendanceSwipe extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.chevron_left, color: Colors.red),
+                Icon(Icons.chevron_left, color: colorScheme.error),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    color: colorScheme.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Text('ABSENT', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+                  child: Text('ABSENT', style: TextStyle(color: colorScheme.error, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
-                const Icon(Icons.chevron_right, color: Colors.green),
+                Icon(Icons.chevron_right, color: AppColors.tertiary),
               ],
             ),
           ),
@@ -101,24 +104,25 @@ class MockCloudBackup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return _MockContainer(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.cloud_done_outlined, size: 64, color: Colors.blue),
+          Icon(Icons.cloud_done_outlined, size: 64, color: colorScheme.primary),
           const SizedBox(height: 24),
-          const Text('Google Drive Sync', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          Text('Google Drive Sync', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          const Text('Status: Synced', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500)),
+          Text('Status: Synced', style: TextStyle(color: AppColors.tertiary, fontWeight: FontWeight.w500)),
           const SizedBox(height: 16),
           LinearProgressIndicator(
             value: 1.0,
-            backgroundColor: Colors.blue.withOpacity(0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-            borderRadius: BorderRadius.circular(4),
+            backgroundColor: colorScheme.primary.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+            borderRadius: BorderRadius.circular(24),
           ),
           const SizedBox(height: 12),
-          const Text('Last synced: Just now', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          Text('Last synced: Just now', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -130,14 +134,15 @@ class MockManageBackup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return _MockContainer(
       child: Column(
         children: [
           _MockHeader(title: 'Data & Backups'),
           const SizedBox(height: 16),
-          _MockBackupAction(icon: Icons.download_rounded, label: 'Export to CSV', color: Colors.green),
-          _MockBackupAction(icon: Icons.backup_rounded, label: 'Create Local Backup', color: Colors.blue),
-          _MockBackupAction(icon: Icons.restore_rounded, label: 'Restore from File', color: Colors.orange),
+          _MockBackupAction(icon: Icons.download_rounded, label: 'Export to CSV', color: AppColors.tertiary),
+          _MockBackupAction(icon: Icons.backup_rounded, label: 'Create Local Backup', color: colorScheme.primary),
+          _MockBackupAction(icon: Icons.restore_rounded, label: 'Restore from File', color: AppColors.secondary),
         ],
       ),
     );
@@ -150,18 +155,18 @@ class _MockContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: AppColors.primaryDim.withOpacity(0.04),
+            blurRadius: 32,
+            offset: Offset.zero,
           ),
         ],
       ),
@@ -176,11 +181,12 @@ class _MockHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const Icon(Icons.more_vert_rounded, size: 20, color: Colors.grey),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        Icon(Icons.more_vert_rounded, size: 20, color: colorScheme.onSurfaceVariant),
       ],
     );
   }
@@ -193,16 +199,17 @@ class _MockListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(label, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
           if (trailing != null) trailing!,
         ],
       ),
@@ -218,6 +225,7 @@ class _MockHistoryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -225,20 +233,23 @@ class _MockHistoryItem extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.history_rounded, color: Colors.blue, size: 20),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Icon(Icons.history_rounded, color: colorScheme.primary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(date, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(title, style: Theme.of(context).textTheme.titleSmall),
+                Text(date, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
-          Text(count, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+          Text(count, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colorScheme.primary)),
         ],
       ),
     );
@@ -252,17 +263,21 @@ class _MockFamilyItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
           const CircleAvatar(radius: 18, child: Icon(Icons.group_rounded, size: 20)),
           const SizedBox(width: 12),
-          Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.w500))),
+          Expanded(child: Text(name, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Text('$count', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Text('$count', style: Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -278,15 +293,16 @@ class _MockBackupAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(width: 16),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(label, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
           const Spacer(),
-          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+          Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: 20),
         ],
       ),
     );

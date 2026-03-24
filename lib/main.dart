@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/design/app_theme.dart';
 import 'data/local_session_repository.dart';
 import 'data/session_repository.dart';
 import 'features/auth/application/google_auth_service.dart';
@@ -16,7 +17,6 @@ import 'features/auth/data/google_sign_in_service.dart';
 import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
-import 'core/presentation/no_transitions_builder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/auth/config/google_oauth_config.dart';
@@ -146,34 +146,8 @@ class _AttendanceAppState extends State<AttendanceApp>
           title: 'Attendance',
           debugShowCheckedModeBanner: false,
           themeMode: widget.themeController.themeMode,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.indigo,
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-            fontFamily: 'IBM Plex Sans',
-            pageTransitionsTheme: PageTransitionsTheme(
-              builders: {
-                for (var platform in TargetPlatform.values)
-                  platform: const NoTransitionsBuilder(),
-              },
-            ),
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.indigo,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-            fontFamily: 'IBM Plex Sans',
-            pageTransitionsTheme: PageTransitionsTheme(
-              builders: {
-                for (var platform in TargetPlatform.values)
-                  platform: const NoTransitionsBuilder(),
-              },
-            ),
-          ),
+          theme: AppTheme.lightTheme(),
+          darkTheme: AppTheme.darkTheme(),
           home: widget.onboardingController.shouldShowOnboarding
               ? OnboardingPage(onboardingController: widget.onboardingController)
               : HubPage(

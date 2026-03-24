@@ -669,7 +669,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         onPressed: _createNewSession,
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Icon(Icons.add, size: 24),
       ),
     );
@@ -771,7 +771,7 @@ class _EventCardState extends State<_EventCard>
         final isActive = widget.event.repeatingDays.contains(day);
         final bg = isActive
             ? widget.primaryColor
-            : const Color(0xFFECE6F0); // surface-container-high approx
+            : Theme.of(context).colorScheme.surfaceContainerHigh;
         final fg = isActive
             ? widget.onPrimaryColor
             : widget.onSurfaceVariantColor;
@@ -804,16 +804,10 @@ class _EventCardState extends State<_EventCard>
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 3,
-              spreadRadius: 1,
-              offset: const Offset(0, 1),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 2,
+              color: widget.primaryColor.withOpacity(0.3),
+              blurRadius: 8,
               spreadRadius: 0,
-              offset: const Offset(0, 1),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -877,10 +871,9 @@ class _EventCardState extends State<_EventCard>
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 1, // Add shadow-elevation-1 approx
-      shadowColor: Colors.black.withOpacity(0.3),
+      elevation: 0,
       color: widget.surfaceContainerColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: widget.onTap,
@@ -1029,7 +1022,7 @@ class _EventCardSkeleton extends StatelessWidget {
     return Card(
       elevation: 0,
       color: baseColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
         constraints: const BoxConstraints(minHeight: 200),
         padding: const EdgeInsets.all(16),
@@ -1166,9 +1159,9 @@ class _ShimmerBoxState extends State<_ShimmerBox>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
-    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[100]!;
+    final colorScheme = theme.colorScheme;
+    final baseColor = colorScheme.surfaceContainerHigh;
+    final highlightColor = colorScheme.surfaceContainerLowest;
 
     return AnimatedBuilder(
       animation: _animation,
@@ -1177,7 +1170,7 @@ class _ShimmerBoxState extends State<_ShimmerBox>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(4),
+            borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

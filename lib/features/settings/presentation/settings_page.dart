@@ -118,7 +118,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     Container(
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Column(
@@ -212,7 +212,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       Container(
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(24),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: Column(
@@ -473,7 +473,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     Container(
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Column(
@@ -568,7 +568,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     Container(
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Column(
@@ -852,7 +852,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _ShimmerBox(
           width: 100,
           height: 20,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(24),
           disableAnimations: widget.disableAnimations,
         ),
         const SizedBox(height: 12),
@@ -860,7 +860,7 @@ class _SettingsPageState extends State<SettingsPage> {
           height: 160,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -880,14 +880,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       _ShimmerBox(
                         width: 120,
                         height: 16,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(24),
                         disableAnimations: widget.disableAnimations,
                       ),
                       const SizedBox(height: 8),
                       _ShimmerBox(
                         width: 80,
                         height: 14,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(24),
                         disableAnimations: widget.disableAnimations,
                       ),
                     ],
@@ -898,7 +898,7 @@ class _SettingsPageState extends State<SettingsPage> {
               _ShimmerBox(
                 width: double.infinity,
                 height: 40,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(24),
                 disableAnimations: widget.disableAnimations,
               ),
             ],
@@ -908,7 +908,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _ShimmerBox(
           width: 120,
           height: 20,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(24),
           disableAnimations: widget.disableAnimations,
         ),
         const SizedBox(height: 12),
@@ -916,7 +916,7 @@ class _SettingsPageState extends State<SettingsPage> {
           height: 240,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
           padding: const EdgeInsets.all(16),
         ),
@@ -966,7 +966,7 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(24),
             ),
             child: Icon(icon, color: colorScheme.primary, size: 20),
           ),
@@ -1013,7 +1013,7 @@ class _NotSignedInCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Column(
@@ -1329,7 +1329,7 @@ class _ShimmerBoxState extends State<_ShimmerBox>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(8),
+            borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, -1),
               end: Alignment(_animation.value + 1, 1),

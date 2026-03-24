@@ -295,7 +295,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                   padding: const EdgeInsets.all(24),
                                   decoration: BoxDecoration(
                                     color: colorScheme.primaryContainer,
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(24),
                                     boxShadow: [
                                       BoxShadow(
                                         color: Colors.black.withValues(
@@ -514,7 +514,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           children: [
             Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
             const Spacer(),
-            Container(width: 120, height: 20, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(width: 120, height: 20, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24))),
             const Spacer(),
             Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
           ],
@@ -525,8 +525,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           width: 150,
           height: 16,
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(4),
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(24),
           ),
         ),
         const SizedBox(height: 12),
@@ -535,7 +535,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           height: 140,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
         ),
         const SizedBox(height: 32),
@@ -543,8 +543,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(width: 180, height: 24, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
-            Container(width: 60, height: 14, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4))),
+            Container(width: 180, height: 24, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24))),
+            Container(width: 60, height: 14, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24))),
           ],
         ),
         const SizedBox(height: 24),
@@ -559,7 +559,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -568,8 +568,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   width: 120,
                   height: 16,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(24),
                   ),
                 ),
                 const Spacer(),
@@ -577,8 +577,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   width: 40,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(24),
                   ),
                 ),
               ],

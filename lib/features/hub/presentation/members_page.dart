@@ -505,8 +505,8 @@ class _MembersPageState extends State<MembersPage> {
               width: 150,
               height: 16,
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
             subtitle: Container(
@@ -514,8 +514,8 @@ class _MembersPageState extends State<MembersPage> {
               height: 12,
               margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
           );
@@ -571,7 +571,7 @@ class _MembersPageState extends State<MembersPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: Text(
                   isEventMode

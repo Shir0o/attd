@@ -224,7 +224,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                 color: colorScheme.secondaryContainer
                                     .withOpacity(0.4),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(24),
                                   side: BorderSide(
                                     color: colorScheme.surfaceContainerHighest
                                         .withOpacity(0.5),
@@ -329,7 +329,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
         onPressed: () => _showMakeUpDatePicker(context),
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Icon(Icons.add, size: 24),
       ),
     );
@@ -409,7 +409,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
           height: 140,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -419,8 +419,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 width: 140,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(24),
                 ),
               ),
               const SizedBox(height: 10),
@@ -428,8 +428,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 width: 200,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(24),
                 ),
               ),
               const Spacer(),
@@ -439,8 +439,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                     width: 100,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(24),
                     ),
                   ),
                   const SizedBox(width: 32),
@@ -448,8 +448,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                     width: 100,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(24),
                     ),
                   ),
                 ],

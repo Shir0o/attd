@@ -215,7 +215,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       child: Container(
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: colorScheme.primary.withValues(alpha: 0.1)),
         ),
         clipBehavior: Clip.antiAlias,
@@ -336,7 +336,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       child: Container(
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -422,7 +422,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                   height: 40,
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(Icons.event, color: colorScheme.primary),
                 ),
@@ -508,7 +508,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                   height: 40,
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Icon(
                     Icons.history,
@@ -553,7 +553,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
             onPressed: _isLoading ? null : _saveCleanedBackup,

@@ -126,7 +126,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                 elevation: 0,
                 color: colorScheme.surfaceContainer,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(24),
                   side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
                 ),
                 child: ListTile(

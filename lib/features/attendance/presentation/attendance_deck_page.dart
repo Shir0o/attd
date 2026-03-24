@@ -302,7 +302,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                   color: colorScheme.surfaceContainer.withValues(
                                     alpha: 0.4,
                                   ),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(24),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black12,
@@ -326,7 +326,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                   color: colorScheme.surfaceContainer.withValues(
                                     alpha: 0.7,
                                   ),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(24),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black12,
@@ -354,16 +354,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                         color: colorScheme.surfaceContainer.withValues(
                                           alpha: 0.5,
                                         ),
-                                        borderRadius: BorderRadius.circular(16),
+                                        borderRadius: BorderRadius.circular(24),
                                       ),
                                       child: Center(
                                         child: Container(
                                           width: 96,
                                           height: 96,
                                           decoration: BoxDecoration(
-                                            color: Colors.grey.withValues(
-                                              alpha: 0.1,
-                                            ),
+                                            color: colorScheme.surfaceContainerHigh,
                                             shape: BoxShape.circle,
                                           ),
                                         ),
@@ -386,7 +384,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                         height: double.infinity,
                                         decoration: BoxDecoration(
                                           color: colorScheme.surfaceContainer,
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(24),
                                           boxShadow: const [
                                             BoxShadow(
                                               color: Colors.black12,
