@@ -26,6 +26,13 @@
 - **Skeleton Loaders**: Every new page must implement a "Skeleton" or "Loading" state. This state should:
     - Render immediately upon navigation.
     - Use `_ShimmerBox` or similar components to match the final layout's structure.
-    - Be replaced by the actual content as soon as initial data (e.g., from `SharedPreferences` or local database) is available.
+    - **Minimum Duration**: Maintain the loading state for a minimum of **800ms** (using `Future.delayed`) to prevent flickering and ensure the transition feels intentional and "fluid."
+    - Be replaced by the actual content as soon as initial data (e.g., from `SharedPreferences` or local database) is available and the minimum duration has elapsed.
 - **Implementation**: See `SettingsPage` or `HubAttendanceView` for reference implementations of the skeleton pattern.
+
+## Design Principles
+
+- **Visual Standards**: Strictly adhere to the "Fluid Humanist" design system defined in `DESIGN_SPEC.md`.
+- **No-Line Rule**: Avoid 1px solid borders; use tonal background shifts for sectioning.
+- **Fluidity**: Prioritize pill-shaped components and smooth transitions.
 

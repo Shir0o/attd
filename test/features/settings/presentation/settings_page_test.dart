@@ -90,15 +90,26 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   GoogleSignInAccount? currentUser;
 
   @override
+  bool isDriveSyncEnabled = false;
+
+  @override
   Future<void> signIn() async {
     // Mock sign in
     currentUser = FakeGoogleSignInAccount();
+    isDriveSyncEnabled = true;
     notifyListeners();
   }
 
   @override
   Future<void> signOut() async {
     currentUser = null;
+    isDriveSyncEnabled = false;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> setDriveSyncEnabled(bool enabled) async {
+    isDriveSyncEnabled = enabled;
     notifyListeners();
   }
 
@@ -284,6 +295,25 @@ void main() {
 
     // Toggle off via the switch
     await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    // Still signed in, but sync disabled
+    expect(driveService.currentUser, isNotNull);
+    expect(driveService.isDriveSyncEnabled, isFalse);
+    expect(find.text('Sync Now'), findsOneWidget);
+
+    // Sign out via the dedicated button (need to scroll to find it if necessary)
+    await tester.dragUntilVisible(
+      find.text('Sign Out'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Sign Out'));
+    await tester.pumpAndSettle();
+
+    // Should show confirm dialog
+    expect(find.text('Sign Out?'), findsOneWidget);
+    await tester.tap(find.text('Sign Out').last); // The confirm button
     await tester.pumpAndSettle();
 
     expect(driveService.currentUser, isNull);

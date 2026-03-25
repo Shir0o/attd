@@ -46,15 +46,36 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   // Using Stream for real-time updates
   late Stream<List<Event>> _eventsStream;
   List<Member> _members = [];
+  bool _isInitialLoading = true;
 
   @override
   void initState() {
     super.initState();
     _eventsStream = widget.eventRepository.streamEvents().map(_processEvents);
-    _loadMembers();
+    _loadInitialData();
 
     // Listen to DriveService for sync status updates
     widget.driveService?.addListener(_onDriveServiceChange);
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isInitialLoading = true);
+    final startTime = DateTime.now();
+
+    await Future.wait([
+      _loadMembers(),
+      // Add any other necessary initial loads here
+    ]);
+
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = const Duration(milliseconds: 800) - elapsed;
+    if (remaining > Duration.zero && !widget.disableAnimations) {
+      await Future.delayed(remaining);
+    }
+
+    if (mounted) {
+      setState(() => _isInitialLoading = false);
+    }
   }
 
   @override
@@ -332,7 +353,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       color: colorScheme.onSurfaceVariant,
                     ),
                     onPressed: () async {
-                      await Navigator.of(context).push(
+                      final dataModified = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(
                           builder: (_) => SettingsPage(
                             themeController: widget.themeController,
@@ -345,12 +366,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                           ),
                         ),
                       );
-                      // Refresh after returning from Settings
-                      if (mounted) {
-                        await widget.eventRepository.refresh();
-                        await widget.sessionRepository.refresh();
-                        await widget.attendanceRepository.refresh();
-                        await _loadMembers();
+
+                      // Only refresh if data was actually modified
+                      if (mounted && dataModified == true) {
+                        await Future.wait([
+                          widget.eventRepository.refresh(),
+                          widget.sessionRepository.refresh(),
+                          widget.attendanceRepository.refresh(),
+                          _loadInitialData(),
+                        ]);
                       }
                     },
                   ),
@@ -368,6 +392,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     stream: _eventsStream,
                     builder: (context, snapshot) {
                       final isLoading =
+                          _isInitialLoading ||
                           snapshot.connectionState == ConnectionState.waiting ||
                           (isSyncing &&
                               (snapshot.data == null ||
@@ -375,6 +400,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                       if (isLoading) {
                         return SliverList(
+                          key: const ValueKey('hub_skeleton'),
                           delegate: SliverChildBuilderDelegate(
                             (context, index) => Padding(
                               padding: const EdgeInsets.only(bottom: 16),
@@ -765,33 +791,37 @@ class _EventCardState extends State<_EventCard>
       'Saturday',
     ];
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: dayOrder.map((day) {
-        final isActive = widget.event.repeatingDays.contains(day);
-        final bg = isActive
-            ? widget.primaryColor
-            : Theme.of(context).colorScheme.surfaceContainerHigh;
-        final fg = isActive
-            ? widget.onPrimaryColor
-            : widget.onSurfaceVariantColor;
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: dayOrder.map((day) {
+          final isActive = widget.event.repeatingDays.contains(day);
+          final bg = isActive
+              ? widget.primaryColor
+              : Theme.of(context).colorScheme.surfaceContainerHigh;
+          final fg = isActive
+              ? widget.onPrimaryColor
+              : widget.onSurfaceVariantColor;
 
-        return Container(
-          width: 24,
-          height: 24,
-          margin: const EdgeInsets.only(right: 4),
-          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          alignment: Alignment.center,
-          child: Text(
-            day.substring(0, 1),
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-              color: fg,
+          return Container(
+            width: 30,
+            height: 30,
+            margin: const EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text(
+              day.substring(0, 1),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                color: fg,
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -947,17 +977,27 @@ class _EventCardState extends State<_EventCard>
                         ),
                         const SizedBox(height: 8),
                         if (widget.event.frequency == 'One-time')
-                          Text(
-                            widget.event.oneTimeDate != null
-                                ? DateFormat(
-                                    'MMM d, yyyy',
-                                  ).format(widget.event.oneTimeDate!)
-                                : 'Once',
-                            style: TextStyle(
-                              color: widget.onSurfaceVariantColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: 16,
+                                color: widget.onSurfaceVariantColor,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.event.oneTimeDate != null
+                                    ? DateFormat(
+                                        'EEEE, MMM d, yyyy',
+                                      ).format(widget.event.oneTimeDate!)
+                                    : 'One-time Event',
+                                style: TextStyle(
+                                  color: widget.onSurfaceVariantColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           )
                         else if (widget.event.repeatingDays.isNotEmpty)
                           _buildRepeatingDaysRow(),

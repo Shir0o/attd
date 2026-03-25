@@ -129,8 +129,10 @@ class _AttendanceAppState extends State<AttendanceApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      // Trigger sync when app is backgrounded or closed
-      widget.driveService?.syncFiles();
+      // Trigger sync when app is backgrounded or closed, if enabled
+      if (widget.driveService?.isDriveSyncEnabled ?? false) {
+        widget.driveService?.syncFiles();
+      }
     }
   }
 

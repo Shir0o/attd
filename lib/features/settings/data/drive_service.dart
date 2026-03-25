@@ -52,6 +52,16 @@ class DriveService extends ChangeNotifier {
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
   bool get isDriveSyncEnabled => _isDriveSyncEnabled;
 
+  Future<void> setDriveSyncEnabled(bool enabled) async {
+    _isDriveSyncEnabled = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_syncEnabledKey, enabled);
+    notifyListeners();
+    if (enabled) {
+      syncFiles().catchError((e) => print('Sync failed after enabling: $e'));
+    }
+  }
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _isDriveSyncEnabled = prefs.getBool(_syncEnabledKey) ?? false;

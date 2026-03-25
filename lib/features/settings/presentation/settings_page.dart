@@ -44,6 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _sheetsUrlController = TextEditingController();
   bool _isSavingUrl = false;
   bool _isInitialLoading = true;
+  bool _dataModified = false;
 
   @override
   void initState() {
@@ -51,11 +52,17 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadGoogleSheetsUrl();
   }
 
+  void _markDataModified() {
+    if (!_dataModified) {
+      setState(() => _dataModified = true);
+    }
+  }
+
   Future<void> _loadGoogleSheetsUrl() async {
     setState(() => _isInitialLoading = true);
     final prefs = await SharedPreferences.getInstance();
     // Simulate a brief delay to ensure skeleton is visible on first load
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 800));
     setState(() {
       _sheetsUrlController.text = prefs.getString('googleSheetsUrl') ?? '';
       _isInitialLoading = false;
@@ -80,14 +87,22 @@ class _SettingsPageState extends State<SettingsPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && result == null) {
+          // If popped without a result (e.g. system back), return our flag
+          Navigator.of(context).pop(_dataModified);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(_dataModified),
         ),
         title: Text(
           'Settings',
@@ -262,24 +277,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                     ),
                                   ),
                                   Switch(
-                                    value: isSignedIn,
+                                    value: widget.driveService.isDriveSyncEnabled,
                                     activeThumbColor: colorScheme.primary,
                                     onChanged: (value) async {
-                                      final scaffoldMessenger =
-                                          ScaffoldMessenger.of(context);
-                                      try {
-                                        if (value) {
-                                          await widget.driveService.signIn();
-                                        } else {
-                                          await widget.driveService.signOut();
-                                        }
-                                      } catch (e) {
-                                        scaffoldMessenger.showSnackBar(
-                                          SnackBar(
-                                            content: Text('Error: $e'),
-                                          ),
-                                        );
-                                      }
+                                      await widget.driveService.setDriveSyncEnabled(value);
                                     },
                                   ),
                                 ],
@@ -308,6 +309,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                                 _googleSheetsService
                                                     .syncAttendance(url),
                                               ]);
+                                              _markDataModified();
                                               scaffoldMessenger.showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
@@ -321,6 +323,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                                     actionTitle: 'Manual Sync',
                                                     tags: ['+ Manual Sync'],
                                                   );
+                                              _markDataModified();
+
                                               scaffoldMessenger.showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
@@ -359,18 +363,39 @@ class _SettingsPageState extends State<SettingsPage> {
                               color: colorScheme.outlineVariant,
                             ),
                             _SettingsTile(
+                              icon: Icons.logout,
+                              title: 'Sign Out',
+                              subtitle: widget.driveService.currentUser?.email ?? 'Logged in',
+                              onTap: () async {
+                                final confirmed = await _showConfirmDialog(
+                                  context,
+                                  title: 'Sign Out?',
+                                  message: 'You will no longer be able to sync with Google Drive until you sign in again.',
+                                  confirmLabel: 'Sign Out',
+                                );
+                                if (confirmed == true) {
+                                  await widget.driveService.signOut();
+                                }
+                              },
+                            ),
+                            Divider(
+                              height: 1,
+                              color: colorScheme.outlineVariant,
+                            ),
+                            _SettingsTile(
                               icon: Icons.history,
                               title: 'Cloud Version History',
                               subtitle:
                                   'View and restore previous cloud snapshots',
-                              onTap: () {
-                                Navigator.of(context).push(
+                              onTap: () async {
+                                await Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => CloudBackupPage(
                                       driveService: widget.driveService,
                                     ),
                                   ),
                                 );
+                                _markDataModified();
                               },
                             ),
                             Divider(
@@ -399,6 +424,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         try {
                                           await widget.driveService
                                               .overwriteCloudWithLocal();
+                                          _markDataModified();
                                           messenger.showSnackBar(
                                             const SnackBar(
                                               content: Text(
@@ -442,6 +468,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         try {
                                           await widget.driveService
                                               .overwriteLocalWithCloud();
+                                          _markDataModified();
                                           messenger.showSnackBar(
                                             const SnackBar(
                                               content: Text(
@@ -488,8 +515,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             icon: Icons.people_outline,
                             title: 'Manage Members',
                             subtitle: 'Add, edit, or remove members',
-                            onTap: () {
-                              Navigator.of(context).push(
+                            onTap: () async {
+                              await Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => MembersPage(
                                     attendanceRepository:
@@ -497,6 +524,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                 ),
                               );
+                              _markDataModified();
                             },
                           ),
                           Divider(
@@ -507,8 +535,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             icon: Icons.cleaning_services,
                             title: 'Manage Backup Data',
                             subtitle: 'Clean up hidden or orphaned records',
-                            onTap: () {
-                              Navigator.of(context).push(
+                            onTap: () async {
+                              await Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => ManageBackupDataPage(
                                     attendanceRepository:
@@ -518,6 +546,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                 ),
                               );
+                              _markDataModified();
                             },
                           ),
                           Divider(
@@ -821,6 +850,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
             ),
+      ),
     );
   }
 
@@ -1061,14 +1091,9 @@ class _NotSignedInCard extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: onSignIn,
-              icon: Image.asset(
-                'assets/icon/google_logo.png',
-                width: 20,
-                height: 20,
-                errorBuilder: (context2, error, stackTrace) =>
-                    const Icon(Icons.login, size: 20),
-              ),
+              icon: const Icon(Icons.login, size: 20),
               label: const Text('Sign in with Google'),
+
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -1300,7 +1325,7 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2000),
     );
 
     _animation = Tween<double>(begin: -2, end: 2).animate(

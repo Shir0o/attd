@@ -155,12 +155,15 @@ void main() {
             sessionRepository: mockSessionRepo,
             eventRepository: mockEventRepo,
             attendanceRepository: mockAttendanceRepo,
+            disableAnimations: true,
           ),
         ),
       ),
     );
 
     // Initial state
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
     // (Removed expectation for CircularProgressIndicator which is now skeletons)
 
     final now = DateTime.now();
@@ -252,12 +255,17 @@ void main() {
             sessionRepository: mockSessionRepo,
             eventRepository: mockEventRepo,
             attendanceRepository: mockAttendanceRepo,
+            disableAnimations: true,
           ),
         ),
       ),
     );
 
     // Initial state check - verify it renders at all
+    expect(find.byKey(const ValueKey('hub_skeleton')), findsWidgets);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
     await tester.pump();
 
     final now = DateTime.now();
@@ -295,12 +303,15 @@ void main() {
             sessionRepository: mockSessionRepo,
             eventRepository: mockEventRepo,
             attendanceRepository: mockAttendanceRepo,
+            disableAnimations: true,
           ),
         ),
       ),
     );
 
     // Initial state
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
     // (Removed expectation for CircularProgressIndicator which is now skeletons)
 
     final now = DateTime.now();

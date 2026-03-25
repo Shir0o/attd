@@ -8,8 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTypography {
   AppTypography._();
 
-  static TextTheme get textTheme {
-    final base = GoogleFonts.ibmPlexSansTextTheme();
+  static TextTheme textTheme(TextTheme baseTheme) {
+    final base = GoogleFonts.ibmPlexSansTextTheme(baseTheme);
     return base.copyWith(
       // ── Display ────────────────────────────────────────────────────
       // 3.5rem (56px) – high-impact onboarding welcomes

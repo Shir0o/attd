@@ -24,7 +24,7 @@ class AppTheme {
   // ── Light theme ───────────────────────────────────────────────────
   static ThemeData lightTheme() {
     final colorScheme = AppColors.lightColorScheme;
-    final textTheme = AppTypography.textTheme;
+    final textTheme = AppTypography.textTheme(ThemeData.light().textTheme);
 
     return ThemeData(
       useMaterial3: true,
@@ -195,7 +195,7 @@ class AppTheme {
   // ── Dark theme ────────────────────────────────────────────────────
   static ThemeData darkTheme() {
     final colorScheme = AppColors.darkColorScheme;
-    final textTheme = AppTypography.textTheme;
+    final textTheme = AppTypography.textTheme(ThemeData.dark().textTheme);
 
     return ThemeData(
       useMaterial3: true,
