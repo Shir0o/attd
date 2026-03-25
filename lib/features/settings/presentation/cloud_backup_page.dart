@@ -20,6 +20,7 @@ class CloudBackupPage extends StatefulWidget {
 class _CloudBackupPageState extends State<CloudBackupPage> {
   late Future<List<drive.File>> _backupsFuture;
   bool _isInitialLoading = true;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
@@ -27,31 +28,57 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
     _loadInitialData();
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() => _isInitialLoading = true);
+  Future<void> _loadInitialData({bool isRefresh = false}) async {
+    if (isRefresh) {
+      setState(() => _isRefreshing = true);
+    } else {
+      setState(() => _isInitialLoading = true);
+    }
+
     final startTime = DateTime.now();
 
-    _backupsFuture = widget.driveService.listCloudBackups();
-    await _backupsFuture;
+    try {
+      _backupsFuture = widget.driveService.listCloudBackups();
+      await _backupsFuture;
+    } catch (e) {
+      // Error handled by FutureBuilder
+    }
 
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 1200) - elapsed;
+    final minDuration = isRefresh
+        ? const Duration(milliseconds: 800)
+        : const Duration(milliseconds: 1200);
+
+    final remaining = minDuration - elapsed;
     if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }
 
     if (mounted) {
-      setState(() => _isInitialLoading = false);
+      setState(() {
+        _isInitialLoading = false;
+        _isRefreshing = false;
+      });
     }
   }
 
   Future<void> _restore(drive.File backup) async {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Restore from Cloud'),
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        title: Text(
+          'Restore from Cloud',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Text(
           'Are you sure you want to restore the backup from ${DateFormat('MMM d, HH:mm').format(backup.createdTime!)}?\n\nThis will replace all current data on this device.',
+          style: theme.textTheme.bodyLarge,
         ),
         actions: [
           TextButton(
@@ -60,7 +87,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
             child: const Text('Restore'),
           ),
         ],
@@ -77,12 +104,18 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
           backupDateLabel: backupDate,
         );
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('Restoration successful')),
+          const SnackBar(
+            content: Text('Restoration successful'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
         if (mounted) Navigator.pop(context);
       } catch (e) {
         scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('Restoration failed: $e')),
+          SnackBar(
+            content: Text('Restoration failed: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -96,9 +129,11 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Cloud Version History',
-          style: TextStyle(fontWeight: FontWeight.normal),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
         ),
         backgroundColor: colorScheme.surface,
         elevation: 0,
@@ -109,75 +144,160 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
           : FutureBuilder<List<drive.File>>(
               future: _backupsFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting && !_isRefreshing) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Failed to load history',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          FilledButton.icon(
+                            onPressed: () => _loadInitialData(),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Try Again'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
                 final backups = snapshot.data ?? [];
 
                 if (backups.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.history,
-                          size: 64,
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.5,
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHigh,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.cloud_off_outlined,
+                              size: 64,
+                              color: colorScheme.primary.withValues(alpha: 0.5),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text('No cloud version history found'),
-                      ],
+                          const SizedBox(height: 32),
+                          Text(
+                            'No Cloud Backups',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Previous snapshots of your data will appear here once you enable Cloud Sync.',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
 
                 return ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                   itemCount: backups.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final backup = backups[index];
-                    final dateStr = DateFormat('EEEE, MMM d, yyyy').format(
+                    final dateStr = DateFormat('EEEE, MMM d').format(
                       backup.createdTime!,
                     );
-                    final timeStr = DateFormat('hh:mm a').format(
+                    final yearStr = DateFormat('yyyy').format(
                       backup.createdTime!,
                     );
-                    final size = (int.parse(backup.size ?? '0') / 1024)
-                        .toStringAsFixed(1);
+                    final timeStr = DateFormat('h:mm a').format(
+                      backup.createdTime!,
+                    );
 
-                    return Card(
-                      elevation: 0,
-                      color: colorScheme.surfaceContainer,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        side: BorderSide(
-                          color: colorScheme.outlineVariant.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(28),
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 18,
                         ),
-                        title: Text(
-                          dateStr,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text('Snapshot at $timeStr • $size KB'),
-                        trailing: TextButton(
-                          onPressed: () => _restore(backup),
-                          child: const Text('Restore'),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Icon(
+                                Icons.backup_rounded,
+                                color: colorScheme.primary,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$dateStr, $yearStr',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurface,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Saved at $timeStr',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            FilledButton(
+                              onPressed: () => _restore(backup),
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                shape: const StadiumBorder(),
+                              ),
+                              child: const Text('Restore'),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -192,21 +312,25 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
     final colorScheme = Theme.of(context).colorScheme;
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: 6,
+      itemCount: 8,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         return Container(
           height: 88,
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-            ),
+            color: colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(28),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
+              _ShimmerBox(
+                width: 52,
+                height: 52,
+                borderRadius: BorderRadius.circular(18),
+                disableAnimations: widget.disableAnimations,
+              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,9 +342,9 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                       borderRadius: BorderRadius.circular(4),
                       disableAnimations: widget.disableAnimations,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     _ShimmerBox(
-                      width: 140,
+                      width: 100,
                       height: 14,
                       borderRadius: BorderRadius.circular(4),
                       disableAnimations: widget.disableAnimations,
@@ -228,10 +352,11 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   ],
                 ),
               ),
+              const SizedBox(width: 24),
               _ShimmerBox(
-                width: 60,
-                height: 32,
-                borderRadius: BorderRadius.circular(8),
+                width: 88,
+                height: 40,
+                borderRadius: BorderRadius.circular(100),
                 disableAnimations: widget.disableAnimations,
               ),
             ],

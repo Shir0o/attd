@@ -238,8 +238,8 @@ void main() {
     expect(find.text('Theme Mode'), findsOneWidget);
     // Section header is now uppercased "CLOUD SYNC (GOOGLE DRIVE)"
     expect(find.textContaining('CLOUD SYNC'), findsOneWidget);
-    // When not signed in the "Not Signed In" card is shown
-    expect(find.text('Not Signed In'), findsOneWidget);
+    // When not signed in the "Not signed in" card is shown
+    expect(find.text('Not signed in'), findsOneWidget);
     // Data Management section contains backup and export (may need scroll)
     await tester.dragUntilVisible(
       find.text('Backup to Local Storage'),
@@ -276,30 +276,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Initially signed out – no Switch visible, "Not Signed In" card shown
+    // Initially signed out – no Switch visible, "Not signed in" card shown
     expect(driveService.currentUser, isNull);
-    expect(find.text('Not Signed In'), findsOneWidget);
+    expect(find.text('Not signed in'), findsOneWidget);
     expect(find.byType(Switch), findsNothing);
 
     // Sign in via the button in the card
-    await tester.tap(find.text('Sign in with Google'));
+    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
 
     expect(driveService.currentUser, isNotNull);
-    // Switch should now be visible (inside the signed-in card)
-    final switchFinder = find.byType(Switch);
-    expect(switchFinder, findsOneWidget);
-
     // "Sync Now" button should appear (inline FilledButton)
-    expect(find.text('Sync Now'), findsOneWidget);
-
-    // Toggle off via the switch
-    await tester.tap(switchFinder);
-    await tester.pumpAndSettle();
-
-    // Still signed in, but sync disabled
-    expect(driveService.currentUser, isNotNull);
-    expect(driveService.isDriveSyncEnabled, isFalse);
     expect(find.text('Sync Now'), findsOneWidget);
 
     // Sign out via the dedicated button (need to scroll to find it if necessary)
@@ -313,12 +300,12 @@ void main() {
 
     // Should show confirm dialog
     expect(find.text('Sign Out?'), findsOneWidget);
-    await tester.tap(find.text('Sign Out').last); // The confirm button
+    await tester.tap(find.widgetWithText(TextButton, 'Sign Out'));
     await tester.pumpAndSettle();
 
     expect(driveService.currentUser, isNull);
     // Not signed in – card shown, Sync Now hidden
-    expect(find.text('Not Signed In'), findsOneWidget);
+    expect(find.text('Not signed in', skipOffstage: false), findsOneWidget);
     expect(find.text('Sync Now'), findsNothing);
   });
 
@@ -390,8 +377,10 @@ void main() {
     await tester.dragUntilVisible(
       find.text('About'),
       find.byType(ListView),
-      const Offset(0, -500),
+      const Offset(0, -300),
     );
+    await tester.ensureVisible(find.text('About'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
 

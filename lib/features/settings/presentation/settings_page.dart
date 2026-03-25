@@ -903,72 +903,111 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildSkeleton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return ListView(
       key: const ValueKey('settings_skeleton'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       children: [
-        const SizedBox(height: 16),
-        _ShimmerBox(
-          width: 100,
-          height: 20,
-          borderRadius: BorderRadius.circular(24),
-          disableAnimations: widget.disableAnimations,
-        ),
-        const SizedBox(height: 12),
+        _buildSkeletonSection(context, 'Appearance', 1),
+        const SizedBox(height: 24),
+        _buildSkeletonSection(context, 'Cloud Sync (Google Drive)', 1,
+            hasButtons: true),
+        const SizedBox(height: 24),
+        _buildSkeletonSection(context, 'Data Management', 4),
+        const SizedBox(height: 24),
+        _buildSkeletonSection(context, 'Information', 2),
+        const SizedBox(height: 48),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonSection(BuildContext context, String title, int tileCount,
+      {bool hasButtons = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: title),
         Container(
-          height: 160,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(24),
           ),
-          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Row(
-                children: [
-                  _ShimmerBox(
-                    width: 40,
-                    height: 40,
-                    borderRadius: BorderRadius.circular(20),
-                    disableAnimations: widget.disableAnimations,
+              for (int i = 0; i < tileCount; i++) ...[
+                _buildSkeletonTile(context),
+                if (i < tileCount - 1)
+                  Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(width: 16),
-                  _ShimmerBox(
-                    width: 120,
-                    height: 16,
-                    borderRadius: BorderRadius.circular(24),
-                    disableAnimations: widget.disableAnimations,
+              ],
+              if (hasButtons)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ShimmerBox(
+                          height: 44,
+                          width: double.infinity,
+                          borderRadius: BorderRadius.circular(24),
+                          disableAnimations: widget.disableAnimations,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ShimmerBox(
+                          height: 44,
+                          width: double.infinity,
+                          borderRadius: BorderRadius.circular(24),
+                          disableAnimations: widget.disableAnimations,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const Spacer(),
-              _ShimmerBox(
-                width: double.infinity,
-                height: 40,
-                borderRadius: BorderRadius.circular(24),
-                disableAnimations: widget.disableAnimations,
-              ),
+                ),
             ],
           ),
         ),
-        const SizedBox(height: 32),
-        _ShimmerBox(
-          width: 120,
-          height: 20,
-          borderRadius: BorderRadius.circular(24),
-          disableAnimations: widget.disableAnimations,
-        ),
-        const SizedBox(height: 12),
-        Container(
-          height: 240,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          padding: const EdgeInsets.all(16),
-        ),
       ],
+    );
+  }
+
+  Widget _buildSkeletonTile(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          _ShimmerBox(
+            width: 40,
+            height: 40,
+            borderRadius: BorderRadius.circular(20),
+            disableAnimations: widget.disableAnimations,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ShimmerBox(
+                  width: 140,
+                  height: 16,
+                  borderRadius: BorderRadius.circular(4),
+                  disableAnimations: widget.disableAnimations,
+                ),
+                const SizedBox(height: 8),
+                _ShimmerBox(
+                  width: 200,
+                  height: 12,
+                  borderRadius: BorderRadius.circular(4),
+                  disableAnimations: widget.disableAnimations,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
