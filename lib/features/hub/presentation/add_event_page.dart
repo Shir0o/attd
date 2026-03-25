@@ -510,29 +510,50 @@ class _AddEventPageState extends State<AddEventPage> {
           child: SizedBox(
             width: double.infinity,
             height: 56,
-            child: Hero(
-              tag: 'fab',
-              child: ElevatedButton(
-                key: const ValueKey('save_event_button'),
-                onPressed: _saveEvent,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
-                  elevation: 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
+            child: widget.disableAnimations 
+                ? ElevatedButton(
+                    key: const ValueKey('save_event_button'),
+                    onPressed: _saveEvent,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                    ),
+                    child: Text(
+                      isEditing ? 'Save Changes' : 'Create Event',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  )
+                : Hero(
+                    tag: 'fab',
+                    child: ElevatedButton(
+                      key: const ValueKey('save_event_button'),
+                      onPressed: _saveEvent,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      child: Text(
+                        isEditing ? 'Save Changes' : 'Create Event',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: Text(
-                  isEditing ? 'Save Changes' : 'Create Event',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.1,
-                  ),
-                ),
-              ),
-            ),
           ),
         ),
       ),

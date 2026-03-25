@@ -12,11 +12,6 @@ class EventRobot {
     final finder = find.byType(TextFormField);
     await tester.pumpUntilFound(finder);
     await tester.ensureVisible(finder);
-    await tester.pump();
-    
-    print('DEBUG: Tapping name field to ensure focus');
-    await tester.tap(finder);
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     
     print('DEBUG: Entering text "$name"');
@@ -105,16 +100,22 @@ class EventRobot {
     print('DEBUG: robot save()');
     final buttonFinder = find.byKey(const ValueKey('save_event_button'));
     await tester.pumpUntilFound(buttonFinder);
-    await tester.tap(buttonFinder.last);
-    await tester.pump(const Duration(milliseconds: 800));
+    await tester.tap(buttonFinder);
+    
+    // Use pump instead of pumpAndSettle to avoid hangs
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
   }
 
   Future<void> update() async {
     print('DEBUG: robot update()');
     final buttonFinder = find.byKey(const ValueKey('save_event_button'));
     await tester.pumpUntilFound(buttonFinder);
-    await tester.tap(buttonFinder.last);
-    await tester.pump(const Duration(milliseconds: 800));
+    await tester.tap(buttonFinder);
+    
+    // Use pump instead of pumpAndSettle to avoid hangs
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
   }
 
   Future<void> delete() async {

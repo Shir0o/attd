@@ -54,6 +54,15 @@ Future<Widget> createTestApp(Directory tempDir) async {
   );
 }
 
+/// Call once at the start of the test to enable screenshot support on Android.
+Future<void> setupScreenshots(IntegrationTestWidgetsFlutterBinding binding) async {
+  try {
+    await binding.convertFlutterSurfaceToImage();
+  } catch (_) {
+    // Ignore if not supported on this platform (e.g. iOS)
+  }
+}
+
 extension PumpUntilFound on WidgetTester {
   Future<void> pumpUntilFound(
     Finder finder, {

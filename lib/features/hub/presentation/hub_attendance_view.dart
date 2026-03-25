@@ -249,6 +249,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             attendanceRepository: widget.attendanceRepository,
             event: event,
             eventRepository: widget.eventRepository,
+            disableAnimations: widget.disableAnimations,
           ),
         ),
       );
@@ -584,6 +585,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                     widget.sessionRepository,
                                                 attendanceRepository:
                                                     widget.attendanceRepository,
+                                                disableAnimations: widget.disableAnimations,
                                               ),
                                             ),
                                           );
@@ -640,6 +642,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                   widget.sessionRepository,
                                               attendanceRepository:
                                                   widget.attendanceRepository,
+                                              disableAnimations: widget.disableAnimations,
                                             ),
                                           ),
                                         );
@@ -691,7 +694,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       ),
       floatingActionButton: FloatingActionButton(
         key: const ValueKey('hub_fab'),
-        heroTag: 'fab',
+        heroTag: widget.disableAnimations ? null : 'fab',
         onPressed: _createNewSession,
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,

@@ -18,12 +18,14 @@ class AttendanceDeckPage extends StatefulWidget {
     required this.members,
     required this.sessionRepository,
     required this.attendanceRepository,
+    this.disableAnimations = false,
   });
 
   final Session session;
   final List<Member> members;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
+  final bool disableAnimations;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -66,7 +68,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _currentIndex = firstUnrecorded;
 
     // Snappier delay to allow Hero to finish without making the app feel slow
-    Future.delayed(const Duration(milliseconds: 250), () {
+    final delay = widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 250);
+    Future.delayed(delay, () {
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -344,7 +347,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         Positioned.fill(
                           child: RepaintBoundary(
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 600),
+                              duration: widget.disableAnimations
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 600),
                               child: _isLoading
                                   ? Container(
                                       key: const ValueKey('skeleton'),

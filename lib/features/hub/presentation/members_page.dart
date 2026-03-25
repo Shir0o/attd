@@ -12,11 +12,13 @@ class MembersPage extends StatefulWidget {
     required this.attendanceRepository,
     this.event,
     this.eventRepository,
+    this.disableAnimations = false,
   });
 
   final AttendanceRepository attendanceRepository;
   final Event? event;
   final EventRepository? eventRepository;
+  final bool disableAnimations;
 
   @override
   State<MembersPage> createState() => _MembersPageState();
@@ -61,7 +63,7 @@ class _MembersPageState extends State<MembersPage> {
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 600) - elapsed;
 
-      if (remaining > Duration.zero) {
+      if (remaining > Duration.zero && !widget.disableAnimations) {
         await Future.delayed(remaining);
       }
 
@@ -508,7 +510,9 @@ class _MembersPageState extends State<MembersPage> {
           Expanded(
             child: RepaintBoundary(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 600),
+                duration: widget.disableAnimations
+                    ? Duration.zero
+                    : const Duration(milliseconds: 600),
                 child: _buildBodyContent(context),
               ),
             ),

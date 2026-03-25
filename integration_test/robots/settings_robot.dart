@@ -16,11 +16,13 @@ class SettingsRobot {
   Future<void> toggleTheme() async {
     // Find dropdown for theme
     await tester.tap(find.byType(DropdownButton<ThemeMode>));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Select Dark
     await tester.tap(find.text('Dark').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> verifyDarkTheme() async {
@@ -39,7 +41,8 @@ class SettingsRobot {
     );
     await tester.scrollUntilVisible(finder, 200);
     await tester.tap(finder);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> tapManageBackupData() async {

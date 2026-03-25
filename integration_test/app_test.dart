@@ -14,13 +14,22 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Attendance App Integration Tests', () {
+    // Accessing environment variables from .env via --dart-define-from-file
+    // Note: The keys must match exactly what is in your .env file
+    const projectNumber = String.fromEnvironment('GOOGLE_CLOUD_PROJECT_NUMBER', defaultValue: 'unknown');
+    const isTest = bool.fromEnvironment('IS_TEST_MODE');
+
     testWidgets('Full System Scenario', (tester) async {
+      print('DEBUG: Running test for Project Number: $projectNumber');
+      print('DEBUG: Test Mode Enabled: $isTest');
+
       // 1. Initial State: User downloads app and opens for the first time (no existing data)
       final tempDir = await Directory.systemTemp.createTemp('attendance_full_scenario_');
       final app = await createTestApp(tempDir);
 
       print('--- Starting Test ---');
       await tester.pumpWidget(app);
+      await setupScreenshots(binding);
       await tester.pump(const Duration(milliseconds: 500));
 
       final hub = HubRobot(tester);
@@ -44,6 +53,7 @@ void main() {
       // 2. User adds a new event
       print('DEBUG: Step 2 - Add new event');
       await hub.tapFab();
+      await tester.takeScreenshot(binding, '02b_add_event_initial');
 
       print('DEBUG: Step 2a - Enter event name');
       await event.enterName('Original Event');

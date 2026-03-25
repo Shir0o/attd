@@ -16,19 +16,25 @@ class HubRobot {
   }
 
   Future<void> tapFab() async {
+    print('DEBUG: HubRobot.tapFab() start');
     final fabFinder = find.byKey(const ValueKey('hub_fab'));
     await tester.pumpUntilFound(fabFinder);
-    
-    // Ensure the FAB is in view and settled
+
+    // Ensure visibility before tapping
     await tester.ensureVisible(fabFinder);
-    await tester.pump(const Duration(milliseconds: 500)); // Give it a moment
     await tester.pump(const Duration(milliseconds: 300));
-    
-    print('DEBUG: Tapping FAB robot side');
+
+    print('DEBUG: Tapping FAB');
+    // Enforce uniqueness to ensure we're hitting the intended button
     await tester.tap(fabFinder);
-    await tester.pump(); // Start navigation
+
+    // Use pump and pumpUntilFound instead of pumpAndSettle which can hang
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-  }
+
+    // Verify we have navigated to AddEventPage
+    await tester.pumpUntilFound(find.text('New Event'));
+    print('DEBUG: Successfully navigated to AddEventPage');  }
 
   Future<void> tapSettings() async {
     final finder = find.byIcon(Icons.settings);
@@ -51,8 +57,14 @@ class HubRobot {
     await tester.pumpUntilFound(textFinder);
     await tester.pump(const Duration(milliseconds: 300));
 
-    final cardFinder = find.ancestor(of: textFinder, matching: find.byType(Card));
-    final menuFinder = find.descendant(of: cardFinder, matching: find.byIcon(Icons.more_vert));
+    final cardFinder = find.ancestor(
+      of: textFinder,
+      matching: find.byType(Card),
+    );
+    final menuFinder = find.descendant(
+      of: cardFinder,
+      matching: find.byIcon(Icons.more_vert),
+    );
 
     await tester.tap(menuFinder);
     await tester.pump(const Duration(milliseconds: 500));
@@ -71,8 +83,14 @@ class HubRobot {
     final textFinder = find.text(title);
     await tester.pumpUntilFound(textFinder);
 
-    final cardFinder = find.ancestor(of: textFinder, matching: find.byType(Card));
-    final statusFinder = find.descendant(of: cardFinder, matching: find.textContaining(status));
+    final cardFinder = find.ancestor(
+      of: textFinder,
+      matching: find.byType(Card),
+    );
+    final statusFinder = find.descendant(
+      of: cardFinder,
+      matching: find.textContaining(status),
+    );
 
     await tester.pumpUntilFound(statusFinder);
     expect(statusFinder, findsOneWidget);
