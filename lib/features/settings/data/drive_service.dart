@@ -279,7 +279,11 @@ class DriveService extends ChangeNotifier {
     }
   }
 
-  Future<void> syncFiles() async {
+  Future<void> syncFiles({
+    String actionTitle = 'Manual Sync',
+    List<String> tags = const [],
+    bool isInitialSetup = false,
+  }) async {
     if (_isSyncing) return;
     _isSyncing = true;
     notifyListeners();
@@ -351,7 +355,14 @@ class DriveService extends ChangeNotifier {
       ]);
 
       // 3. Create Cloud Backup snapshot
-      await _createCloudBackup(folderId, docsDir, filesToSync);
+      await _createCloudBackup(
+        folderId,
+        docsDir,
+        filesToSync,
+        actionTitle: actionTitle,
+        tags: tags,
+        isInitialSetup: isInitialSetup,
+      );
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 403 &&
           e.message != null &&
@@ -376,8 +387,11 @@ class DriveService extends ChangeNotifier {
   Future<void> _createCloudBackup(
     String parentId,
     Directory docsDir,
-    List<String> filesToBackup,
-  ) async {
+    List<String> filesToBackup, {
+    String actionTitle = 'Snapshot',
+    List<String> tags = const [],
+    bool isInitialSetup = false,
+  }) async {
     try {
       final backupFolderId = await _getOrCreateBackupFolder(parentId);
 
@@ -399,8 +413,18 @@ class DriveService extends ChangeNotifier {
       // Upload ZIP
       final backupFile = File(backupPath);
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
+
+      final String user = currentUser?.displayName ?? 'System';
+      final Map<String, dynamic> metadata = {
+        'title': actionTitle,
+        'user': user,
+        'tags': tags,
+        'isInitialSetup': isInitialSetup,
+      };
+
       final driveFile = drive.File()
         ..name = backupName
+        ..description = jsonEncode(metadata)
         ..parents = [backupFolderId];
 
       await _driveApi!.files.create(driveFile, uploadMedia: media);
@@ -421,7 +445,7 @@ class DriveService extends ChangeNotifier {
         "'$backupFolderId' in parents and trashed = false and name contains 'attendance_snapshot_'";
     final fileList = await _driveApi!.files.list(
       q: query,
-      $fields: 'files(id, name, createdTime, size)',
+      $fields: 'files(id, name, description, createdTime, size)',
       orderBy: 'createdTime desc',
       pageSize: 1000,
     );

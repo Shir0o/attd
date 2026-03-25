@@ -103,7 +103,11 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   }
 
   @override
-  Future<void> syncFiles() async {
+  Future<void> syncFiles({
+    String actionTitle = 'Manual Sync',
+    List<String> tags = const [],
+    bool isInitialSetup = false,
+  }) async {
     isSyncing = true;
     notifyListeners();
     await Future.delayed(const Duration(milliseconds: 100));
