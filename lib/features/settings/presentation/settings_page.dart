@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../settings/application/theme_controller.dart';
@@ -120,7 +119,6 @@ class _SettingsPageState extends State<SettingsPage> {
               builder: (context, _) {
                 final isSyncing = widget.driveService.isSyncing;
                 final isSignedIn = widget.driveService.currentUser != null;
-                final lastSync = widget.driveService.lastSyncTime;
 
                 return ListView(
                   padding: const EdgeInsets.symmetric(
@@ -159,43 +157,53 @@ class _SettingsPageState extends State<SettingsPage> {
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Theme Mode',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          Text(
-                                            _getThemeLabel(
-                                              widget.themeController.themeMode,
-                                            ),
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color:
-                                                  colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
+                                      child: const Text(
+                                        'Theme Mode',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ),
-                                    DropdownButton<ThemeMode>(
-                                      value: widget.themeController.themeMode,
-                                      items: ThemeMode.values.map((mode) {
-                                        return DropdownMenuItem(
-                                          value: mode,
-                                          child: Text(_getThemeLabel(mode)),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) {
-                                        widget.themeController.updateThemeMode(
-                                          value,
-                                        );
-                                      },
+                                    DropdownButtonHideUnderline(
+                                      child: DropdownButton<ThemeMode>(
+                                        value: widget.themeController.themeMode,
+                                        alignment: Alignment.centerRight,
+                                        icon: Icon(
+                                          Icons.arrow_drop_down,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: colorScheme.onSurfaceVariant,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        selectedItemBuilder: (BuildContext context) {
+                                          return ThemeMode.values.map((ThemeMode mode) {
+                                            return Container(
+                                              alignment: Alignment.centerRight,
+                                              child: Text(
+                                                _getThemeLabel(mode),
+                                                textAlign: TextAlign.right,
+                                              ),
+                                            );
+                                          }).toList();
+                                        },
+                                        items: ThemeMode.values.map((mode) {
+                                          return DropdownMenuItem(
+                                            value: mode,
+                                            alignment: Alignment.centerRight,
+                                            child: Text(_getThemeLabel(mode)),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            widget.themeController.updateThemeMode(
+                                              value,
+                                            );
+                                          }
+                                        },
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -209,174 +217,192 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     // ── Cloud Sync (Google Drive) ─────────────────────────────
                     _SectionHeader(title: 'Cloud Sync (Google Drive)'),
-                    if (!isSignedIn)
-                      _NotSignedInCard(
-                        onSignIn: () async {
-                          final scaffoldMessenger =
-                              ScaffoldMessenger.of(context);
-                          try {
-                            await widget.driveService.signIn();
-                          } catch (e) {
-                            scaffoldMessenger.showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
-                          }
-                        },
-                      )
-                    else
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          children: [
-                            // Google Drive Sync toggle row + Sync Now button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          // Google Drive Sync row
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.cloud_sync,
+                                    color: colorScheme.onPrimaryContainer,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Google Drive Sync',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        isSignedIn
+                                            ? (widget.driveService.currentUser?.email ?? 'Signed in')
+                                            : 'Not signed in',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (!isSignedIn)
+                                  OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                      try {
+                                        await widget.driveService.signIn();
+                                        if (widget.driveService.currentUser != null) {
+                                          await widget.driveService.setDriveSyncEnabled(true);
+                                        }
+                                      } catch (e) {
+                                        scaffoldMessenger.showSnackBar(
+                                          SnackBar(content: Text('Sign in failed: $e')),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.login, size: 18),
+                                    label: const Text('Sign In'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (isSignedIn) ...[
+                            // Action buttons row (Sign Out + Sync Now)
                             Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               child: Row(
                                 children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.primaryContainer,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.cloud_sync,
-                                      color: colorScheme.onPrimaryContainer,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Google Drive Sync',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                    child: OutlinedButton.icon(
+                                      onPressed: () async {
+                                        final confirmed = await _showConfirmDialog(
+                                          context,
+                                          title: 'Sign Out?',
+                                          message: 'You will no longer be able to sync with Google Drive until you sign in again.',
+                                          confirmLabel: 'Sign Out',
+                                        );
+                                        if (confirmed == true) {
+                                          await widget.driveService.signOut();
+                                        }
+                                      },
+                                      icon: const Icon(Icons.logout, size: 18),
+                                      label: const Text('Sign Out'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(color: Colors.red),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(24),
                                         ),
-                                        Text(
-                                          lastSync != null
-                                              ? 'Last synced: ${_formatTimeAgo(lastSync)}'
-                                              : 'Not synced yet',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color:
-                                                colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
-                                  Switch(
-                                    value: widget.driveService.isDriveSyncEnabled,
-                                    activeThumbColor: colorScheme.primary,
-                                    onChanged: (value) async {
-                                      await widget.driveService.setDriveSyncEnabled(value);
-                                    },
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: FilledButton.icon(
+                                      onPressed: isSyncing
+                                          ? null
+                                          : () async {
+                                              final scaffoldMessenger =
+                                                  ScaffoldMessenger.of(context);
+                                              final url = _sheetsUrlController.text
+                                                  .trim();
+                                              try {
+                                                if (url.isNotEmpty) {
+                                                  await Future.wait([
+                                                    widget.driveService.syncFiles(
+                                                      actionTitle: 'Sheets & Drive Sync',
+                                                      tags: ['Manual', 'Sheets'],
+                                                    ),
+                                                    _googleSheetsService
+                                                        .syncAttendance(url),
+                                                  ]);
+                                                  _markDataModified();
+                                                  scaffoldMessenger.showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Backed up to Drive and Synced to Sheets.',
+                                                      ),
+                                                    ),
+                                                  );
+                                                } else {
+                                                  await widget.driveService
+                                                      .syncFiles(
+                                                        actionTitle: 'Manual Drive Sync',
+                                                        tags: ['Manual'],
+                                                      );
+                                                  _markDataModified();
+
+                                                  scaffoldMessenger.showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Sync completed successfully',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                scaffoldMessenger.showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('Sync failed: $e'),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                      icon: isSyncing
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Icon(Icons.sync, size: 18),
+                                      label: Text(
+                                        isSyncing
+                                            ? 'Syncing…'
+                                            : 'Sync Now',
+                                      ),
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(24),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                            // Sync Now button row
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: FilledButton.icon(
-                                  onPressed: isSyncing
-                                      ? null
-                                      : () async {
-                                          final scaffoldMessenger =
-                                              ScaffoldMessenger.of(context);
-                                          final url = _sheetsUrlController.text
-                                              .trim();
-                                          try {
-                                            if (url.isNotEmpty) {
-                                              await Future.wait([
-                                                widget.driveService.syncFiles(
-                                                  actionTitle: 'Sheets & Drive Sync',
-                                                  tags: ['Manual', 'Sheets'],
-                                                ),
-                                                _googleSheetsService
-                                                    .syncAttendance(url),
-                                              ]);
-                                              _markDataModified();
-                                              scaffoldMessenger.showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Backed up to Drive and Synced to Sheets.',
-                                                  ),
-                                                ),
-                                              );
-                                            } else {
-                                              await widget.driveService
-                                                  .syncFiles(
-                                                    actionTitle: 'Manual Drive Sync',
-                                                    tags: ['Manual'],
-                                                  );
-                                              _markDataModified();
-
-                                              scaffoldMessenger.showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Sync completed successfully',
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            scaffoldMessenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text('Sync failed: $e'),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                  icon: isSyncing
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.sync, size: 18),
-                                  label: Text(
-                                    isSyncing
-                                        ? 'Syncing… this may take a while'
-                                        : 'Sync Now',
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant,
-                            ),
-                            _SettingsTile(
-                              icon: Icons.logout,
-                              title: 'Sign Out',
-                              subtitle: widget.driveService.currentUser?.email ?? 'Logged in',
-                              onTap: () async {
-                                final confirmed = await _showConfirmDialog(
-                                  context,
-                                  title: 'Sign Out?',
-                                  message: 'You will no longer be able to sync with Google Drive until you sign in again.',
-                                  confirmLabel: 'Sign Out',
-                                );
-                                if (confirmed == true) {
-                                  await widget.driveService.signOut();
-                                }
-                              },
                             ),
                             Divider(
                               height: 1,
@@ -415,7 +441,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         context,
                                         title: 'Overwrite Cloud Data?',
                                         message:
-                                            'This will replace all data on your Google Drive with the data currently on this device. Use this if you have deleted items that keep coming back.',
+                                            'This will replace all data on your Google Drive with the data currently on this device.',
                                         confirmLabel: 'Overwrite',
                                       );
                                       if (confirmed == true) {
@@ -459,7 +485,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         context,
                                         title: 'Overwrite Local Data?',
                                         message:
-                                            'This will replace all data on this device with the data from your Google Drive. Current local changes will be lost.',
+                                            'This will replace all data on this device with the data from your Google Drive.',
                                         confirmLabel: 'Overwrite',
                                       );
                                       if (confirmed == true) {
@@ -486,19 +512,30 @@ class _SettingsPageState extends State<SettingsPage> {
                                       }
                                     },
                             ),
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant,
-                            ),
-                            // ── Connect to Google Sheets (inside Cloud Sync) ──
-                            _GoogleSheetsSection(
-                              isSavingUrl: _isSavingUrl,
-                              sheetsUrlController: _sheetsUrlController,
-                              onSave: _saveGoogleSheetsUrl,
-                            ),
                           ],
-                        ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Google Sheets ───────────────────────────────────────────
+                    _SectionHeader(title: 'Google Sheets Integration'),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          _GoogleSheetsSection(
+                            isSavingUrl: _isSavingUrl,
+                            sheetsUrlController: _sheetsUrlController,
+                            onSave: _saveGoogleSheetsUrl,
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
                     // ── Data Management ───────────────────────────────────────
@@ -865,19 +902,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  String _formatTimeAgo(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 1) {
-      return 'Just now';
-    } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes} mins ago';
-    } else if (diff.inHours < 24) {
-      return '${diff.inHours} hours ago';
-    } else {
-      return DateFormat.yMMMd().format(dateTime);
-    }
-  }
-
   Widget _buildSkeleton(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return ListView(
@@ -910,23 +934,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     disableAnimations: widget.disableAnimations,
                   ),
                   const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _ShimmerBox(
-                        width: 120,
-                        height: 16,
-                        borderRadius: BorderRadius.circular(24),
-                        disableAnimations: widget.disableAnimations,
-                      ),
-                      const SizedBox(height: 8),
-                      _ShimmerBox(
-                        width: 80,
-                        height: 14,
-                        borderRadius: BorderRadius.circular(24),
-                        disableAnimations: widget.disableAnimations,
-                      ),
-                    ],
+                  _ShimmerBox(
+                    width: 120,
+                    height: 16,
+                    borderRadius: BorderRadius.circular(24),
+                    disableAnimations: widget.disableAnimations,
                   ),
                 ],
               ),
@@ -1036,79 +1048,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-// ── Not Signed In Card ────────────────────────────────────────────────────────
-
-class _NotSignedInCard extends StatelessWidget {
-  const _NotSignedInCard({required this.onSignIn});
-
-  final VoidCallback onSignIn;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.cloud_off,
-              color: colorScheme.onSurfaceVariant,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Not Signed In',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Sign in to Google Drive to backup your data safely and sync your progress across all your devices.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurfaceVariant,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onSignIn,
-              icon: const Icon(Icons.login, size: 20),
-              label: const Text('Sign in with Google'),
-
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                side: BorderSide(color: colorScheme.outline),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Google Sheets Section (inside Cloud Sync card) ────────────────────────────
 
 class _GoogleSheetsSection extends StatelessWidget {
@@ -1209,25 +1148,6 @@ function doPost(e) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.table_chart_outlined,
-                color: colorScheme.onSurfaceVariant,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Connect to Google Sheets',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () async {
               await Clipboard.setData(const ClipboardData(text: script));
@@ -1417,7 +1337,19 @@ class _SettingsTile extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(icon, color: colorScheme.onSurfaceVariant),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: colorScheme.onPrimaryContainer,
+                size: 20,
+              ),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

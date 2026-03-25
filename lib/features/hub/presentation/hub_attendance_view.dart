@@ -68,7 +68,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     ]);
 
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 800) - elapsed;
+    final remaining = const Duration(milliseconds: 1200) - elapsed;
     if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }
@@ -1181,17 +1181,17 @@ class _ShimmerBoxState extends State<_ShimmerBox>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
       vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
 
     if (!widget.disableAnimations) {
       _controller.repeat();
     }
-
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
   }
 
   @override
@@ -1204,8 +1204,12 @@ class _ShimmerBoxState extends State<_ShimmerBox>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final baseColor = colorScheme.surfaceContainerHigh;
-    final highlightColor = colorScheme.surfaceContainerLowest;
+    final baseColor = colorScheme.surfaceContainerHigh.withValues(
+      alpha: 0.3,
+    );
+    final highlightColor = colorScheme.surfaceContainerHigh.withValues(
+      alpha: 0.1,
+    );
 
     return AnimatedBuilder(
       animation: _animation,
@@ -1216,14 +1220,9 @@ class _ShimmerBoxState extends State<_ShimmerBox>
           decoration: BoxDecoration(
             borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment(_animation.value - 1, -1),
+              end: Alignment(_animation.value + 1, 1),
               colors: [baseColor, highlightColor, baseColor],
-              stops: [
-                0.0,
-                (_animation.value + 1) / 2, // Map -2..2 to roughly 0..1
-                1.0,
-              ],
             ),
           ),
         );

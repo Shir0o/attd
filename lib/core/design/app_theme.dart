@@ -180,6 +180,12 @@ class AppTheme {
           }
           return colorScheme.surfaceContainerHighest;
         }),
+        thumbIcon: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Icon(Icons.check, color: colorScheme.onPrimary);
+          }
+          return null;
+        }),
       ),
 
       // ── Snack bar ─────────────────────────────────────────────────
@@ -322,6 +328,12 @@ class AppTheme {
             return colorScheme.primary;
           }
           return colorScheme.surfaceContainerHighest;
+        }),
+        thumbIcon: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Icon(Icons.check, color: colorScheme.onPrimary);
+          }
+          return null;
         }),
       ),
       snackBarTheme: SnackBarThemeData(

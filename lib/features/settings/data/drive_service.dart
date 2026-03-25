@@ -486,11 +486,10 @@ class DriveService extends ChangeNotifier {
     return fileList.files ?? [];
   }
 
-  Future<void> restoreFromBackup(String fileId) async {
+  Future<void> restoreFromBackup(String fileId, {String? backupDateLabel}) async {
     if (_driveApi == null) return;
 
     final docsDir = await getApplicationDocumentsDirectory();
-    final tempBackup = File(p.join(docsDir.path, 'restore_temp.zip'));
 
     // 1. Download ZIP
     final media =
@@ -502,29 +501,69 @@ class DriveService extends ChangeNotifier {
 
     final List<int> bytes = [];
     await media.stream.forEach(bytes.addAll);
-    await tempBackup.writeAsBytes(bytes);
 
-    // 2. Extract
-    final archive = ZipDecoder().decodeBytes(await tempBackup.readAsBytes());
+    // 2. Extract and Merge
+    final archive = ZipDecoder().decodeBytes(bytes);
     for (final file in archive) {
       final filename = file.name;
       if (file.isFile) {
         final data = file.content as List<int>;
-        File(p.join(docsDir.path, filename))
-          ..createSync(recursive: true)
-          ..writeAsBytesSync(data);
+        final localFile = File(p.join(docsDir.path, filename));
+
+        if (localFile.existsSync() && filename.endsWith('.json')) {
+          try {
+            final backupContent = utf8.decode(data);
+            final localContent = await localFile.readAsString();
+
+            final backupJson = jsonDecode(backupContent);
+            final localJson = jsonDecode(localContent);
+
+            final isHistoryFile = filename == 'sessions_history.json';
+            dynamic mergedJson;
+
+            if (isHistoryFile) {
+              if (backupJson is Map<String, dynamic> &&
+                  localJson is Map<String, dynamic>) {
+                mergedJson = _mergeHistoryMaps(localJson, backupJson);
+              }
+            } else {
+              if (backupJson is List && localJson is List) {
+                mergedJson = _mergeJsonLists(localJson, backupJson, filename);
+              }
+            }
+
+            if (mergedJson != null) {
+              await localFile.writeAsString(jsonEncode(mergedJson));
+            } else {
+              // Fallback to overwrite if merge fails or types mismatch
+              await localFile.writeAsBytes(data);
+            }
+          } catch (e) {
+            print('Merge failed for $filename during restore: $e');
+            await localFile.writeAsBytes(data);
+          }
+        } else {
+          // New file or non-json (though we only expect json)
+          await localFile.create(recursive: true);
+          await localFile.writeAsBytes(data);
+        }
       }
     }
 
-    // 3. Cleanup
-    await tempBackup.delete();
-
-    // 4. Refresh
+    // 3. Refresh repositories
     await Future.wait([
       if (sessionRepository != null) sessionRepository!.refresh(),
       if (attendanceRepository != null) attendanceRepository!.refresh(),
       if (eventRepository != null) eventRepository!.refresh(),
     ]);
+
+    // 4. Trigger a full sync to create a NEW version on the cloud
+    final label = backupDateLabel ?? 'previous backup';
+    await syncFiles(
+      actionTitle: 'Restored from $label',
+      tags: ['Restore'],
+    );
+
     notifyListeners();
   }
 

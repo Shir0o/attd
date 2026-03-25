@@ -78,7 +78,6 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 
   Future<void> _loadData() async {
-    debugPrint('DEBUG: AddEventPage _loadData started');
     final startTime = DateTime.now();
 
     // Ensure minimum loading duration for visual consistency
@@ -89,7 +88,6 @@ class _AddEventPageState extends State<AddEventPage> {
     }
 
     if (mounted) {
-      debugPrint('DEBUG: AddEventPage _loadData finished, setting isLoading = false');
       setState(() => _isLoading = false);
     }
   }
@@ -130,9 +128,8 @@ class _AddEventPageState extends State<AddEventPage> {
     if (_formKey.currentState!.validate()) {
       final isEditing = widget.eventToEdit != null;
       final eventId = isEditing ? widget.eventToEdit!.id : const Uuid().v4();
-      final createdAt = isEditing
-          ? widget.eventToEdit!.createdAt
-          : DateTime.now();
+      final createdAt =
+          isEditing ? widget.eventToEdit!.createdAt : DateTime.now();
 
       final event = Event(
         id: eventId,
@@ -208,7 +205,6 @@ class _AddEventPageState extends State<AddEventPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ... rest of build method
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -255,55 +251,71 @@ class _AddEventPageState extends State<AddEventPage> {
                 children: [
                   // Event Name
                   _isLoading
-                      ? _buildSkeletonInput(showRequired: true)
-                      : _buildInputContainer(
-                          label: 'Event Name',
-                          child: TextFormField(
-                            controller: _nameController,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: colorScheme.onSurface,
-                            ),
-                            decoration: const InputDecoration(
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                              hintText: 'Enter event name',
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter an event name';
-                              }
-                              return null;
-                            },
+                      ? _buildSkeletonInput()
+                      : TextFormField(
+                          controller: _nameController,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: colorScheme.onSurface,
                           ),
-                          backgroundColor: colorScheme.surfaceContainerHigh,
-                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                          textColor: colorScheme.onSurface,
+                          decoration: InputDecoration(
+                            labelText: 'Event Name',
+                            labelStyle: TextStyle(
+                              color: colorScheme.onSurface.withAlpha(179),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerLow,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding:
+                                const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter an event name';
+                            }
+                            return null;
+                          },
                         ),
-                  if (!_isLoading)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 16,
-                        top: 4,
-                        bottom: 24,
-                      ),
-                      child: Text(
-                        'Required',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 20),
 
                   // Event Time
                   _isLoading
                       ? _buildSkeletonInput()
                       : GestureDetector(
                           onTap: () => _selectTime(context),
-                          child: _buildInputContainer(
-                            label: 'Event Time',
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Event Time',
+                              labelStyle: TextStyle(
+                                color: colorScheme.onSurface.withAlpha(179),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              filled: true,
+                              fillColor: colorScheme.surfaceContainerLow,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding:
+                                  const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                            ),
                             child: Row(
                               children: [
                                 Expanded(
@@ -321,18 +333,33 @@ class _AddEventPageState extends State<AddEventPage> {
                                 ),
                               ],
                             ),
-                            backgroundColor: colorScheme.surfaceContainerHigh,
-                            onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                            textColor: colorScheme.onSurface,
                           ),
                         ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Frequency
                   _isLoading
                       ? _buildSkeletonInput()
-                      : _buildInputContainer(
-                          label: 'Frequency',
+                      : InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Frequency',
+                            labelStyle: TextStyle(
+                              color: colorScheme.onSurface.withAlpha(179),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            filled: true,
+                            fillColor: colorScheme.surfaceContainerLow,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding:
+                                const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                          ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: _frequency,
@@ -362,12 +389,9 @@ class _AddEventPageState extends State<AddEventPage> {
                               ).toList(),
                             ),
                           ),
-                          backgroundColor: colorScheme.surfaceContainerHigh,
-                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                          textColor: colorScheme.onSurface,
                         ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Day / Date
                   if (_isLoading)
@@ -375,8 +399,26 @@ class _AddEventPageState extends State<AddEventPage> {
                   else if (_frequency == 'One-time')
                     GestureDetector(
                       onTap: () => _selectDate(context),
-                      child: _buildInputContainer(
-                        label: 'Date',
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Date',
+                          labelStyle: TextStyle(
+                            color: colorScheme.onSurface.withAlpha(179),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerLow,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                              const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                        ),
                         child: Row(
                           children: [
                             Expanded(
@@ -394,9 +436,6 @@ class _AddEventPageState extends State<AddEventPage> {
                             ),
                           ],
                         ),
-                        backgroundColor: colorScheme.surfaceContainerHigh,
-                        onSurfaceVariantColor: colorScheme.onSurfaceVariant,
-                        textColor: colorScheme.onSurface,
                       ),
                     )
                   else
@@ -404,7 +443,7 @@ class _AddEventPageState extends State<AddEventPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 16, bottom: 8),
+                          padding: const EdgeInsets.only(left: 16, bottom: 12),
                           child: Text(
                             'Repeats on',
                             style: TextStyle(
@@ -416,8 +455,8 @@ class _AddEventPageState extends State<AddEventPage> {
                         ),
                         Wrap(
                           alignment: WrapAlignment.spaceEvenly,
-                          spacing: 4.0,
-                          runSpacing: 8.0,
+                          spacing: 8.0,
+                          runSpacing: 12.0,
                           children: List.generate(_daysOfWeek.length, (index) {
                             final dayName = _daysOfWeek[index];
                             final isSelected = _selectedDays.contains(dayName);
@@ -439,7 +478,7 @@ class _AddEventPageState extends State<AddEventPage> {
                                   shape: BoxShape.circle,
                                   color: isSelected
                                       ? colorScheme.primary
-                                      : colorScheme.surfaceContainerHigh,
+                                      : colorScheme.surfaceContainerLow,
                                 ),
                                 child: Center(
                                   child: Text(
@@ -500,7 +539,7 @@ class _AddEventPageState extends State<AddEventPage> {
     );
   }
 
-  Widget _buildSkeletonInput({bool showRequired = false}) {
+  Widget _buildSkeletonInput() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -508,49 +547,11 @@ class _AddEventPageState extends State<AddEventPage> {
           width: double.infinity,
           height: 64,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(24),
           ),
         ),
-        if (showRequired)
-          const Padding(
-            padding: EdgeInsets.only(left: 16, top: 4, bottom: 24),
-            child: SizedBox(
-              width: 60,
-              height: 16,
-            ), // Spacer to match 'Required' text height and padding
-          ),
       ],
-    );
-  }
-
-  Widget _buildInputContainer({
-    required String label,
-    required Widget child,
-    required Color backgroundColor,
-    required Color onSurfaceVariantColor,
-    required Color textColor,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-        border: Border(bottom: BorderSide(color: onSurfaceVariantColor)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: textColor.withAlpha(179), // ~70% opacity
-            ),
-          ),
-          child,
-        ],
-      ),
     );
   }
 }

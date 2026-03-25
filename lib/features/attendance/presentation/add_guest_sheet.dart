@@ -88,31 +88,33 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                   Container(
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHigh,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4),
-                        topRight: Radius.circular(4),
-                      ),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Name',
-                        labelStyle: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 14,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Name',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colorScheme.onSurface.withAlpha(179),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                        border: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: colorScheme.onSurfaceVariant),
+                        TextField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            hintText: 'Enter name',
+                          ),
+                          style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
+                          autofocus: true,
                         ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: colorScheme.primary, width: 2),
-                        ),
-                      ),
-                      style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
-                      autofocus: true,
+                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -131,18 +133,6 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                       Switch(
                         value: _isGuest,
                         onChanged: (value) => setState(() => _isGuest = value),
-                        thumbColor: WidgetStateProperty.resolveWith((states) {
-                          if (states.contains(WidgetState.selected)) {
-                            return colorScheme.primary;
-                          }
-                          return null;
-                        }),
-                        trackColor: WidgetStateProperty.resolveWith((states) {
-                          if (states.contains(WidgetState.selected)) {
-                            return colorScheme.primary.withValues(alpha: 0.5);
-                          }
-                          return null;
-                        }),
                       ),
                     ],
                   ),
@@ -163,20 +153,6 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         value: _isPresent,
                         onChanged: (value) =>
                             setState(() => _isPresent = value),
-                        thumbColor:
-                            WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) {
-                                return colorScheme.primary;
-                              }
-                              return null;
-                            }),
-                        trackColor:
-                            WidgetStateProperty.resolveWith((states) {
-                              if (states.contains(WidgetState.selected)) {
-                                return colorScheme.primary.withValues(alpha: 0.5);
-                              }
-                              return null;
-                            }),
                       ),
                     ],
                   ),

@@ -720,7 +720,6 @@ class _MemberListItem extends StatelessWidget {
             Switch(
               value: isPresent,
               onChanged: onToggle,
-              activeThumbColor: colorScheme.primary,
             ),
           ],
         ),
