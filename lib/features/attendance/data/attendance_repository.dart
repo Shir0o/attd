@@ -63,6 +63,10 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
     final families = decoded
         .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+        .where((f) => f.deletedAt == null)
+        .map((f) => f.copyWith(
+          members: f.members.where((m) => m.deletedAt == null).toList(),
+        ))
         .toList();
 
     _cachedFamilies = families;
@@ -71,19 +75,32 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   @override
   Future<void> saveFamilies(List<Family> families) async {
-    _cachedFamilies = List<Family>.from(families);
+    _cachedFamilies = families
+        .where((f) => f.deletedAt == null)
+        .map((f) => f.copyWith(
+          members: f.members.where((m) => m.deletedAt == null).toList(),
+        ))
+        .toList();
     final file = await _file;
     await file.create(recursive: true);
     final payload = families.map((family) => family.toJson()).toList();
-    await file.writeAsString(jsonEncode(payload));
+    // Atomic write: write to tmp file first, then rename
+    final tmpFile = File('${file.path}.tmp');
+    await tmpFile.writeAsString(jsonEncode(payload));
+    await tmpFile.rename(file.path);
   }
 
   @override
   Future<Family> addMember(String familyId, Member member) async {
     final families = await fetchFamilies();
+    final now = DateTime.now();
+    final memberWithTimestamp = member.copyWith(updatedAt: now);
     final updated = families.map((family) {
       if (family.id != familyId) return family;
-      return family.copyWith(members: [...family.members, member]);
+      return family.copyWith(
+        members: [...family.members, memberWithTimestamp],
+        updatedAt: now,
+      );
     }).toList();
     await saveFamilies(updated);
     return updated.firstWhere((family) => family.id == familyId);
@@ -91,10 +108,12 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   @override
   Future<Family> addFamily(String displayName) async {
+    final now = DateTime.now();
     final family = Family(
       id: const Uuid().v4(),
       displayName: displayName,
       members: const [],
+      updatedAt: now,
     );
     final families = await fetchFamilies();
     await saveFamilies([...families, family]);

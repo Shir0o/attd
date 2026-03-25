@@ -10,6 +10,8 @@ class Member {
   final bool isVisitor;
   final AttendanceStatus defaultStatus;
   final LabelAssignments labels;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
 
   late final String displayNameLowercase = displayName.toLowerCase();
   late final String canonicalNameLowercase = canonicalName.toLowerCase();
@@ -22,9 +24,12 @@ class Member {
     this.isVisitor = false,
     this.defaultStatus = AttendanceStatus.absent,
     LabelAssignments? labels,
+    DateTime? updatedAt,
+    this.deletedAt,
   }) : displayName = displayName.trim(),
        canonicalName = (canonicalName ?? displayName).trim(),
-       labels = labels ?? const LabelAssignments();
+       labels = labels ?? const LabelAssignments(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   Member copyWith({
     String? id,
@@ -34,6 +39,9 @@ class Member {
     bool? isVisitor,
     AttendanceStatus? defaultStatus,
     LabelAssignments? labels,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
   }) {
     return Member(
       id: id ?? this.id,
@@ -43,6 +51,8 @@ class Member {
       isVisitor: isVisitor ?? this.isVisitor,
       defaultStatus: defaultStatus ?? this.defaultStatus,
       labels: labels ?? this.labels,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
     );
   }
 
@@ -60,6 +70,12 @@ class Member {
       labels: LabelAssignments.fromJson(
         json['labels'] as Map<String, dynamic>?,
       ),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.fromMillisecondsSinceEpoch(0),
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'] as String)
+          : null,
     );
   }
 
@@ -72,6 +88,8 @@ class Member {
       'isVisitor': isVisitor,
       'defaultStatus': defaultStatus.name,
       'labels': labels.toJson(),
+      'updatedAt': updatedAt.toIso8601String(),
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
     };
   }
 }

@@ -11,6 +11,7 @@ class Session {
     required this.updatedAt,
     required this.createdBy,
     this.currentVersion = 1,
+    this.deletedAt,
   }) : title = title.trim();
 
   final String id;
@@ -22,6 +23,7 @@ class Session {
   final DateTime updatedAt;
   final String createdBy;
   final int currentVersion;
+  final DateTime? deletedAt;
 
   Session copyWith({
     String? id,
@@ -33,6 +35,8 @@ class Session {
     DateTime? updatedAt,
     String? createdBy,
     int? currentVersion,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
   }) {
     return Session(
       id: id ?? this.id,
@@ -44,6 +48,7 @@ class Session {
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,
       currentVersion: currentVersion ?? this.currentVersion,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
     );
   }
 
@@ -63,6 +68,9 @@ class Session {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       createdBy: json['createdBy'] as String,
       currentVersion: json['currentVersion'] as int? ?? 1,
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'] as String)
+          : null,
     );
   }
 
@@ -77,6 +85,7 @@ class Session {
       'updatedAt': updatedAt.toIso8601String(),
       'createdBy': createdBy,
       'currentVersion': currentVersion,
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
     };
   }
 }

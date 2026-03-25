@@ -11,6 +11,7 @@ class Event {
   final List<String> memberIds; // Members associated with this event
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
 
   Event({
     required this.id,
@@ -22,6 +23,7 @@ class Event {
     this.memberIds = const [],
     required this.createdAt,
     DateTime? updatedAt,
+    this.deletedAt,
   }) : title = title.trim(),
        updatedAt = updatedAt ?? createdAt;
 
@@ -36,6 +38,7 @@ class Event {
       'memberIds': memberIds,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
     };
   }
 
@@ -66,6 +69,9 @@ class Event {
       updatedAt: json['updatedAt'] != null 
           ? DateTime.parse(json['updatedAt'] as String)
           : DateTime.parse(json['createdAt'] as String),
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'] as String)
+          : null,
     );
   }
 }

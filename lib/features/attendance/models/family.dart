@@ -8,6 +8,8 @@ class Family {
   final String? mergedIntoFamilyId;
   final List<Member> members;
   final LabelAssignments labels;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
 
   late final String displayNameLowercase = displayName.toLowerCase();
   late final String canonicalNameLowercase = canonicalName.toLowerCase();
@@ -19,9 +21,12 @@ class Family {
     this.mergedIntoFamilyId,
     required this.members,
     LabelAssignments? labels,
+    DateTime? updatedAt,
+    this.deletedAt,
   }) : displayName = displayName.trim(),
        canonicalName = (canonicalName ?? displayName).trim(),
-       labels = labels ?? const LabelAssignments();
+       labels = labels ?? const LabelAssignments(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   Family copyWith({
     String? id,
@@ -30,6 +35,9 @@ class Family {
     String? mergedIntoFamilyId,
     List<Member>? members,
     LabelAssignments? labels,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
   }) {
     return Family(
       id: id ?? this.id,
@@ -38,6 +46,8 @@ class Family {
       mergedIntoFamilyId: mergedIntoFamilyId ?? this.mergedIntoFamilyId,
       members: members ?? this.members,
       labels: labels ?? this.labels,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
     );
   }
 
@@ -54,6 +64,12 @@ class Family {
       labels: LabelAssignments.fromJson(
         json['labels'] as Map<String, dynamic>?,
       ),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.fromMillisecondsSinceEpoch(0),
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'] as String)
+          : null,
     );
   }
 
@@ -65,6 +81,8 @@ class Family {
       'mergedIntoFamilyId': mergedIntoFamilyId,
       'members': members.map((member) => member.toJson()).toList(),
       'labels': labels.toJson(),
+      'updatedAt': updatedAt.toIso8601String(),
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
     };
   }
 }

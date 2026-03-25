@@ -241,8 +241,14 @@ class _MembersPageState extends State<MembersPage> {
         if (index == -1) return f;
 
         final updatedMembers = List<Member>.from(f.members);
-        updatedMembers[index] = member.copyWith(displayName: trimmedName);
-        return f.copyWith(members: updatedMembers);
+        updatedMembers[index] = member.copyWith(
+          displayName: trimmedName,
+          updatedAt: DateTime.now(),
+        );
+        return f.copyWith(
+          members: updatedMembers,
+          updatedAt: DateTime.now(),
+        );
       }).toList();
 
       setState(() {
@@ -302,21 +308,50 @@ class _MembersPageState extends State<MembersPage> {
 
     final originalFamilies = List<Family>.from(_families!);
     try {
+      final now = DateTime.now();
       final updatedFamilies = _families!
           .map((f) {
-            final updatedMembers = f.members
-                .where((m) => m.id != member.id)
+            final index = f.members.indexWhere((m) => m.id == member.id);
+            if (index == -1) return f;
+            final updatedMembers = List<Member>.from(f.members);
+            updatedMembers[index] = member.copyWith(
+              deletedAt: now,
+              updatedAt: now,
+            );
+            // Filter out soft-deleted members for display
+            final visibleMembers = updatedMembers
+                .where((m) => m.deletedAt == null)
                 .toList();
-            return f.copyWith(members: updatedMembers);
+            return f.copyWith(
+              members: visibleMembers,
+              updatedAt: now,
+            );
           })
-          .where((f) => f.members.isNotEmpty)
+          .where((f) => f.members.isNotEmpty || f.deletedAt != null)
+          .toList();
+
+      // Save the full list including soft-deleted for sync
+      final familiesForPersistence = _families!
+          .map((f) {
+            final index = f.members.indexWhere((m) => m.id == member.id);
+            if (index == -1) return f;
+            final updatedMembers = List<Member>.from(f.members);
+            updatedMembers[index] = member.copyWith(
+              deletedAt: now,
+              updatedAt: now,
+            );
+            return f.copyWith(
+              members: updatedMembers,
+              updatedAt: now,
+            );
+          })
           .toList();
 
       setState(() {
         _families = updatedFamilies;
       });
 
-      await widget.attendanceRepository.saveFamilies(updatedFamilies);
+      await widget.attendanceRepository.saveFamilies(familiesForPersistence);
 
       if (!mounted) return;
       ScaffoldMessenger.of(

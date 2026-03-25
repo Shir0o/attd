@@ -108,22 +108,137 @@ void main() {
         expect(isValidRemote, false, reason: 'A Map instead of a List for members.json should be invalid');
       });
 
-      test('Scenario: Self-Healing Logic - Local healthy, Remote corrupted', () {
-        // In DriveService._mergeAndSyncFile, if remote is corrupted, it checks if local is healthy
+      test('Scenario: Self-Healing Logic - Local healthy List, Remote corrupted', () {
         final localContent = '[{"id": "1", "name": "Healthy Local"}]';
         
         dynamic localJson;
         bool localIsHealthy = false;
         try {
           localJson = jsonDecode(localContent);
-          localIsHealthy = localJson is List;
+          localIsHealthy = localJson is List || localJson is Map;
         } catch (e) {
           localIsHealthy = false;
         }
 
         expect(localIsHealthy, true);
         expect(localJson[0]['name'], 'Healthy Local');
-        // The DriveService would then call _updateFile(fileId, localFile) to heal the cloud.
+      });
+
+      test('Scenario: Self-Healing Logic - Local healthy Map, Remote corrupted', () {
+        final localContent = '{"session_1": [{"version": 1}]}';
+        
+        dynamic localJson;
+        bool localIsHealthy = false;
+        try {
+          localJson = jsonDecode(localContent);
+          localIsHealthy = localJson is List || localJson is Map;
+        } catch (e) {
+          localIsHealthy = false;
+        }
+
+        expect(localIsHealthy, true);
+        expect(localJson['session_1'], isNotNull);
+      });
+    });
+
+    group('Family/Member updatedAt Conflict Resolution', () {
+      test('Scenario: Family conflict resolved by updatedAt (latest wins)', () {
+        final local = [
+          {
+            'id': 'f1',
+            'displayName': 'Smith (local edit)',
+            'members': [],
+            'updatedAt': '2025-03-25T12:00:00Z',
+          },
+        ];
+        final remote = [
+          {
+            'id': 'f1',
+            'displayName': 'Smith (remote edit)',
+            'members': [],
+            'updatedAt': '2025-03-25T14:00:00Z',
+          },
+        ];
+
+        final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+
+        expect(result.length, 1);
+        expect(result.first['displayName'], 'Smith (remote edit)');
+      });
+
+      test('Scenario: Family conflict resolved by updatedAt (local is newer)', () {
+        final local = [
+          {
+            'id': 'f1',
+            'displayName': 'Smith (local edit)',
+            'members': [],
+            'updatedAt': '2025-03-25T16:00:00Z',
+          },
+        ];
+        final remote = [
+          {
+            'id': 'f1',
+            'displayName': 'Smith (remote edit)',
+            'members': [],
+            'updatedAt': '2025-03-25T14:00:00Z',
+          },
+        ];
+
+        final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+
+        expect(result.length, 1);
+        expect(result.first['displayName'], 'Smith (local edit)');
+      });
+
+      test('Scenario: Legacy families without updatedAt still merge member lists', () {
+        final local = [
+          {
+            'id': 'f1',
+            'displayName': 'Smith',
+            'members': [
+              {'id': 'm1', 'displayName': 'Alice'},
+            ],
+          },
+        ];
+        final remote = [
+          {
+            'id': 'f1',
+            'displayName': 'Smith',
+            'members': [
+              {'id': 'm2', 'displayName': 'Bob'},
+            ],
+          },
+        ];
+
+        final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+
+        expect(result.length, 1);
+        final members = result.first['members'] as List;
+        expect(members.length, 2);
+        expect(members.any((m) => m['id'] == 'm1'), true);
+        expect(members.any((m) => m['id'] == 'm2'), true);
+      });
+
+      test('Scenario: Member with updatedAt conflict is resolved correctly', () {
+        final local = [
+          {
+            'id': 'm1',
+            'displayName': 'John (local)',
+            'updatedAt': '2025-03-25T15:00:00Z',
+          },
+        ];
+        final remote = [
+          {
+            'id': 'm1',
+            'displayName': 'John (remote)',
+            'updatedAt': '2025-03-25T10:00:00Z',
+          },
+        ];
+
+        final result = driveService.testMergeJsonLists(local, remote, 'members');
+
+        expect(result.length, 1);
+        expect(result.first['displayName'], 'John (local)');
       });
     });
   });

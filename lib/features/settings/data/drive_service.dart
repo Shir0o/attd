@@ -576,20 +576,38 @@ class DriveService extends ChangeNotifier {
     );
 
     final map = <String, drive.File>{};
+    final duplicatesToTrash = <String>[];
     if (fileList.files != null) {
       for (final file in fileList.files!) {
         if (file.name != null) {
-          // Handle duplicates? Just take the first one or latest.
-          // drive.file scope limits visibility, so we might not see duplicates from other apps.
-          // But if we uploaded multiple times, we might have duplicates.
-          // Let's assume we handle duplicates by taking the most recent one.
-          if (!map.containsKey(file.name) ||
-              map[file.name]!.modifiedTime!.isBefore(file.modifiedTime!)) {
+          if (!map.containsKey(file.name)) {
             map[file.name!] = file;
+          } else {
+            // Keep the most recent, trash the older duplicate
+            final existing = map[file.name]!;
+            if (existing.modifiedTime != null &&
+                file.modifiedTime != null &&
+                file.modifiedTime!.isAfter(existing.modifiedTime!)) {
+              duplicatesToTrash.add(existing.id!);
+              map[file.name!] = file;
+            } else {
+              duplicatesToTrash.add(file.id!);
+            }
           }
         }
       }
     }
+
+    // Clean up duplicates in background
+    for (final id in duplicatesToTrash) {
+      try {
+        await _driveApi!.files.update(drive.File()..trashed = true, id);
+        print('Trashed duplicate remote file: $id');
+      } catch (e) {
+        print('Failed to trash duplicate: $e');
+      }
+    }
+
     return map;
   }
 
@@ -669,8 +687,10 @@ class DriveService extends ChangeNotifier {
         }
         final mergedContent = jsonEncode(mergedJson);
 
-        // 3. Update local
-        await localFile.writeAsString(mergedContent);
+        // 3. Update local (atomic write)
+        final tmpFile = File('${localFile.path}.tmp');
+        await tmpFile.writeAsString(mergedContent);
+        await tmpFile.rename(localFile.path);
 
         // 4. Update remote
         final updatedMedia = drive.Media(
@@ -702,7 +722,7 @@ class DriveService extends ChangeNotifier {
       // Only do this if local is healthy.
       try {
         final localCheck = jsonDecode(localContent);
-        if (localCheck is List) {
+        if (localCheck is List || localCheck is Map) {
           print('Local data is healthy. Healing cloud with local copy.');
           await _updateFile(fileId, localFile);
         }
@@ -724,11 +744,15 @@ class DriveService extends ChangeNotifier {
             as drive.File;
     final remoteModTime = remoteFile.modifiedTime;
 
-    if (remoteModTime != null &&
-        remoteModTime.isAfter(localModTime.add(const Duration(seconds: 5)))) {
+    if (remoteModTime == null) {
+      // Remote has no modification time — upload local to be safe
+      await _updateFile(fileId, localFile);
+    } else if (remoteModTime.isAfter(
+      localModTime.add(const Duration(seconds: 5)),
+    )) {
       await _downloadFile(fileId, localFile);
     } else if (localModTime.isAfter(
-      remoteModTime!.add(const Duration(seconds: 5)),
+      remoteModTime.add(const Duration(seconds: 5)),
     )) {
       await _updateFile(fileId, localFile);
     }
@@ -806,15 +830,20 @@ class DriveService extends ChangeNotifier {
             final existing = merged[id] as Map;
             final current = item;
 
-            if (current.containsKey('updatedAt') &&
-                existing.containsKey('updatedAt')) {
-              final currentUpdate = DateTime.parse(current['updatedAt']);
-              final existingUpdate = DateTime.parse(existing['updatedAt']);
-              if (currentUpdate.isAfter(existingUpdate)) {
+            final currentUpdatedAt = current.containsKey('updatedAt')
+                ? DateTime.tryParse(current['updatedAt'])
+                : null;
+            final existingUpdatedAt = existing.containsKey('updatedAt')
+                ? DateTime.tryParse(existing['updatedAt'])
+                : null;
+
+            if (currentUpdatedAt != null && existingUpdatedAt != null) {
+              if (currentUpdatedAt.isAfter(existingUpdatedAt)) {
                 merged[id] = item;
               }
+              // If same timestamp, keep existing (first-wins)
             } else if (fileName == 'families.json') {
-              // For families, merge member lists
+              // Legacy families without updatedAt: merge member lists
               final mergedMembers = _mergeJsonLists(
                 existing['members'] as List? ?? [],
                 current['members'] as List? ?? [],

@@ -77,7 +77,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
           ),
         ),
         content: Text(
-          'Are you sure you want to restore the backup from ${DateFormat('MMM d, HH:mm').format(backup.createdTime!)}?\n\nThis will replace all current data on this device.',
+          'Are you sure you want to restore the backup from ${DateFormat('MMM d, HH:mm').format(backup.createdTime!)}?\n\nThis will merge the backup data with your current data on this device.',
           style: theme.textTheme.bodyLarge,
         ),
         actions: [
