@@ -89,7 +89,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('History & Restore', style: TextStyle(fontWeight: FontWeight.normal)),
+        title: const Text('Cloud Version History', style: TextStyle(fontWeight: FontWeight.normal)),
         backgroundColor: colorScheme.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -124,7 +124,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
-                  const Text('No cloud history found'),
+                  const Text('No cloud version history found'),
                 ],
               ),
             );
@@ -168,7 +168,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   final dateStr = _formatDate(createdTime);
 
                   // Parse properties or description for metadata
-                  String title = 'Snapshot';
+                  String title = 'Auto Sync';
                   String user = 'System';
                   List<Widget> tags = [];
                   bool isInitialSetup = false;
@@ -184,16 +184,24 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                           final text = tag.toString();
                           final isPositive = text.startsWith('+');
                           final isNegative = text.startsWith('-');
+                          final isManual = text == 'Manual';
+                          final isSheets = text == 'Sheets';
 
                           Color bgColor = colorScheme.surfaceContainerHighest;
                           Color textColor = colorScheme.onSurfaceVariant;
 
                           if (isPositive) {
-                            bgColor = Colors.green.shade100;
-                            textColor = Colors.green.shade800;
+                            bgColor = Colors.green.withValues(alpha: 0.1);
+                            textColor = Colors.green.shade700;
                           } else if (isNegative) {
-                            bgColor = Colors.red.shade100;
-                            textColor = Colors.red.shade800;
+                            bgColor = Colors.red.withValues(alpha: 0.1);
+                            textColor = Colors.red.shade700;
+                          } else if (isManual) {
+                            bgColor = colorScheme.primaryContainer.withValues(alpha: 0.5);
+                            textColor = colorScheme.onPrimaryContainer;
+                          } else if (isSheets) {
+                            bgColor = Colors.blue.withValues(alpha: 0.1);
+                            textColor = Colors.blue.shade700;
                           }
 
                           tags.add(
@@ -201,13 +209,13 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
                                 color: bgColor,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 text,
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                   color: textColor,
                                 ),
                               ),

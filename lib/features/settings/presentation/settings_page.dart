@@ -303,8 +303,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                             if (url.isNotEmpty) {
                                               await Future.wait([
                                                 widget.driveService.syncFiles(
-                                                  actionTitle: 'Synced with Google Sheets',
-                                                  tags: ['+ Manual Sync'],
+                                                  actionTitle: 'Sheets & Drive Sync',
+                                                  tags: ['Manual', 'Sheets'],
                                                 ),
                                                 _googleSheetsService
                                                     .syncAttendance(url),
@@ -320,8 +320,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                             } else {
                                               await widget.driveService
                                                   .syncFiles(
-                                                    actionTitle: 'Manual Sync',
-                                                    tags: ['+ Manual Sync'],
+                                                    actionTitle: 'Manual Drive Sync',
+                                                    tags: ['Manual'],
                                                   );
                                               _markDataModified();
 

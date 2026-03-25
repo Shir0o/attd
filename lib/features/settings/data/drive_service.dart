@@ -16,6 +16,25 @@ import '../../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 
+class SyncStats {
+  int newSessions = 0;
+  int newEvents = 0;
+  int newMembers = 0;
+  int newFamilies = 0;
+
+  bool get hasChanges =>
+      newSessions > 0 || newEvents > 0 || newMembers > 0 || newFamilies > 0;
+
+  List<String> toTags() {
+    final tags = <String>[];
+    if (newSessions > 0) tags.add('+$newSessions Sessions');
+    if (newEvents > 0) tags.add('+$newEvents Events');
+    if (newMembers > 0) tags.add('+$newMembers Members');
+    if (newFamilies > 0) tags.add('+$newFamilies Families');
+    return tags;
+  }
+}
+
 class DriveService extends ChangeNotifier {
   DriveService({
     required GoogleSignIn googleSignIn,
@@ -328,6 +347,7 @@ class DriveService extends ChangeNotifier {
 
       // 1. Get remote files in our folder
       final remoteFiles = await _listRemoteFiles(folderId);
+      final stats = SyncStats();
 
       // 2. Process each file
       await Future.wait(
@@ -351,6 +371,7 @@ class DriveService extends ChangeNotifier {
               localFile,
               folderId,
               fileName,
+              stats: stats,
             );
           }
         }),
@@ -364,13 +385,15 @@ class DriveService extends ChangeNotifier {
         if (eventRepository != null) eventRepository!.refresh(),
       ]);
 
+      final List<String> combinedTags = [...tags, ...stats.toTags()];
+
       // 3. Create Cloud Backup snapshot
       await _createCloudBackup(
         folderId,
         docsDir,
         filesToSync,
         actionTitle: actionTitle,
-        tags: tags,
+        tags: combinedTags,
         isInitialSetup: isInitialSetup,
       );
     } on drive.DetailedApiRequestError catch (e) {
@@ -550,8 +573,9 @@ class DriveService extends ChangeNotifier {
     String fileId,
     File localFile,
     String folderId,
-    String fileName,
-  ) async {
+    String fileName, {
+    SyncStats? stats,
+  }) async {
     // 1. Download remote data
     final media =
         await _driveApi!.files.get(
@@ -601,6 +625,7 @@ class DriveService extends ChangeNotifier {
             localJson as List,
             remoteJson as List,
             fileName,
+            stats: stats,
           );
         }
         final mergedContent = jsonEncode(mergedJson);
@@ -720,16 +745,23 @@ class DriveService extends ChangeNotifier {
   List<dynamic> _mergeJsonLists(
     List<dynamic> local,
     List<dynamic> remote,
-    String fileName,
-  ) {
+    String fileName, {
+    SyncStats? stats,
+  }) {
     final Map<String, dynamic> merged = {};
 
-    void process(List<dynamic> list) {
+    void process(List<dynamic> list, {bool isRemote = false}) {
       for (final item in list) {
         if (item is Map && item.containsKey('id')) {
           final id = item['id'] as String;
           if (!merged.containsKey(id)) {
             merged[id] = item;
+            if (isRemote && stats != null) {
+              if (fileName == 'sessions.json') stats.newSessions++;
+              if (fileName == 'events.json') stats.newEvents++;
+              if (fileName == 'families.json') stats.newFamilies++;
+              if (fileName == 'members') stats.newMembers++;
+            }
           } else {
             // Tie-break: Use updatedAt if available
             final existing = merged[id] as Map;
@@ -748,6 +780,7 @@ class DriveService extends ChangeNotifier {
                 existing['members'] as List? ?? [],
                 current['members'] as List? ?? [],
                 'members',
+                stats: stats,
               );
               merged[id] = {...existing, 'members': mergedMembers};
             }
@@ -756,7 +789,7 @@ class DriveService extends ChangeNotifier {
       }
     }
 
-    process(remote);
+    process(remote, isRemote: true);
     process(local);
 
     return merged.values.toList();

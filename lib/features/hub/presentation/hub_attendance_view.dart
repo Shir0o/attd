@@ -985,21 +985,23 @@ class _EventCardState extends State<_EventCard>
                                 color: widget.onSurfaceVariantColor,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                widget.event.oneTimeDate != null
-                                    ? DateFormat(
-                                        'EEEE, MMM d, yyyy',
-                                      ).format(widget.event.oneTimeDate!)
-                                    : 'One-time Event',
-                                style: TextStyle(
-                                  color: widget.onSurfaceVariantColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                              Flexible(
+                                child: Text(
+                                  widget.event.oneTimeDate != null
+                                      ? DateFormat(
+                                          'EEEE, MMM d, yyyy',
+                                        ).format(widget.event.oneTimeDate!)
+                                      : 'One-time Event',
+                                  style: TextStyle(
+                                    color: widget.onSurfaceVariantColor,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
-                          )
-                        else if (widget.event.repeatingDays.isNotEmpty)
+                          )                        else if (widget.event.repeatingDays.isNotEmpty)
                           _buildRepeatingDaysRow(),
                       ],
                     ),
@@ -1020,6 +1022,7 @@ class _EventCardState extends State<_EventCard>
                 children: [
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.schedule,
@@ -1027,17 +1030,18 @@ class _EventCardState extends State<_EventCard>
                         color: widget.onSurfaceVariantColor,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        widget.event.time.format(context),
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: widget.onSurfaceVariantColor,
+                      Flexible(
+                        child: Text(
+                          widget.event.time.format(context),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: widget.onSurfaceVariantColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ),
-                  _buildAttendanceStatusPill(widget.attendanceStatus),
+                  ),                  _buildAttendanceStatusPill(widget.attendanceStatus),
                 ],
               ),
             ],
