@@ -454,6 +454,7 @@ class _MembersPageState extends State<MembersPage> {
                           borderRadius: BorderRadius.circular(28),
                         ),
                         child: TextField(
+                          key: const ValueKey('member_search_field'),
                           controller: _inputController,
                           focusNode: _inputFocusNode,
                           textCapitalization: TextCapitalization.words,

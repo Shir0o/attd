@@ -14,7 +14,7 @@ class MembersRobot {
     final membersPage = find.byType(MembersPage);
     await tester.pumpUntilFound(membersPage);
 
-    final textField = find.descendant(of: membersPage, matching: find.byType(TextField)).first;
+    final textField = find.byKey(const ValueKey('member_search_field'));
     await tester.enterText(textField, memberName);
     await tester.pump(const Duration(milliseconds: 500));
 
@@ -26,14 +26,17 @@ class MembersRobot {
 
   Future<void> search(String query) async {
     print('DEBUG: search($query)');
-    final textField = find.descendant(of: find.byType(MembersPage), matching: find.byType(TextField)).first;
+    final textField = find.byKey(const ValueKey('member_search_field'));
+    await tester.tap(textField);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(textField, query);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
   }
 
   Future<void> clearSearch() async {
     print('DEBUG: clearSearch');
-    final textField = find.descendant(of: find.byType(MembersPage), matching: find.byType(TextField)).first;
+    final textField = find.byKey(const ValueKey('member_search_field'));
     await tester.enterText(textField, '');
     await tester.pump(const Duration(milliseconds: 500));
   }

@@ -549,6 +549,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         children: [
                           _SettingsTile(
+                            key: const ValueKey('manage_members_tile'),
                             icon: Icons.people_outline,
                             title: 'Manage Members',
                             subtitle: 'Add, edit, or remove members',
@@ -569,6 +570,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             color: colorScheme.outlineVariant,
                           ),
                           _SettingsTile(
+                            key: const ValueKey('manage_backup_data_tile'),
                             icon: Icons.cleaning_services,
                             title: 'Manage Backup Data',
                             subtitle: 'Clean up hidden or orphaned records',
@@ -1356,6 +1358,7 @@ class _SectionHeader extends StatelessWidget {
 
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

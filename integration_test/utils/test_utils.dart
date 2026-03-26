@@ -78,6 +78,20 @@ extension PumpUntilFound on WidgetTester {
     throw StateError('Pump failed: Finder $finder not found in $timeout');
   }
 
+  Future<void> pumpUntilAbsent(
+    Finder finder, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final timer = Stopwatch()..start();
+    while (timer.elapsed < timeout) {
+      await pump(const Duration(milliseconds: 100));
+      if (!any(finder)) {
+        return;
+      }
+    }
+    throw StateError('Pump failed: Finder $finder still present after $timeout');
+  }
+
   /// Takes a screenshot while ensuring any snackbars and the keyboard are dismissed first.
   Future<void> takeScreenshot(
     IntegrationTestWidgetsFlutterBinding binding,
