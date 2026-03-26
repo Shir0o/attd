@@ -580,10 +580,11 @@ class _MembersPageState extends State<MembersPage> {
     }).toList();
 
     // In Event Mode, maybe we want to sort selected members to the top?
+    final selectedIds = isEventMode ? _currentEvent!.memberIds.toSet() : <String>{};
     if (isEventMode) {
       filteredMembers.sort((a, b) {
-        final aSelected = _currentEvent!.memberIds.contains(a.id);
-        final bSelected = _currentEvent!.memberIds.contains(b.id);
+        final aSelected = selectedIds.contains(a.id);
+        final bSelected = selectedIds.contains(b.id);
         if (aSelected && !bSelected) return -1;
         if (!aSelected && bSelected) return 1;
         return a.displayName.compareTo(b.displayName);
@@ -615,7 +616,7 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 child: Text(
                   isEventMode
-                      ? '${_currentEvent!.memberIds.length} / ${filteredMembers.length}'
+                      ? '${selectedIds.length} / ${filteredMembers.length}'
                       : '${filteredMembers.length}',
                   style: TextStyle(
                     color: colorScheme.onPrimaryContainer,
@@ -636,7 +637,7 @@ class _MembersPageState extends State<MembersPage> {
             itemBuilder: (context, index) {
               final member = filteredMembers[index];
               final isSelected = isEventMode
-                  ? _currentEvent!.memberIds.contains(member.id)
+                  ? selectedIds.contains(member.id)
                   : false;
 
               return ListTile(

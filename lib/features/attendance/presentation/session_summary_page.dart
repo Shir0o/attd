@@ -126,23 +126,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
-  AttendanceStatus _getStatus(Member member) {
-    // Check if member has a record in the session by ID first
-    for (final record in _currentSession.records) {
-      if (record.memberId != null && record.memberId == member.id) {
-        return record.status;
-      }
-    }
-    // Fallback to name-based lookup for legacy records
-    for (final record in _currentSession.records) {
-      if (record.memberId == null && record.attendee == member.displayName) {
-        return record.status;
-      }
-    }
-    // If no record, default to absent
-    return AttendanceStatus.absent;
-  }
-
   Future<void> _deleteSession() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -223,8 +206,33 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       }
     }
 
+    // Pre-calculate maps for efficient attendance status lookup
+    // recordByMemberId: priority 1
+    // recordByAttendee: priority 2 (fallback)
+    final recordByMemberId = <String, SessionRecord>{};
+    final recordByAttendee = <String, SessionRecord>{};
+
+    for (final record in _currentSession.records) {
+      if (record.memberId != null) {
+        recordByMemberId.putIfAbsent(record.memberId!, () => record);
+      } else {
+        recordByAttendee.putIfAbsent(record.attendee, () => record);
+      }
+    }
+
     for (final member in displayMembers) {
-      if (_getStatus(member) == AttendanceStatus.present) {
+      AttendanceStatus? status;
+
+      // Check if member has a record in the session by ID first
+      status = recordByMemberId[member.id]?.status;
+
+      // Fallback to name-based lookup for legacy records
+      status ??= recordByAttendee[member.displayName]?.status;
+
+      // If no record, default to absent
+      status ??= AttendanceStatus.absent;
+
+      if (status == AttendanceStatus.present) {
         presentMembers.add(member);
       } else {
         absentMembers.add(member);
