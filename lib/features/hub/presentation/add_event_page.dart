@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../../../data/session.dart';
+import '../../../data/session_repository.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 
@@ -8,11 +10,13 @@ class AddEventPage extends StatefulWidget {
   const AddEventPage({
     super.key,
     required this.eventRepository,
+    this.sessionRepository,
     this.eventToEdit,
     this.disableAnimations = false,
   });
 
   final EventRepository eventRepository;
+  final SessionRepository? sessionRepository;
   final Event? eventToEdit;
   final bool disableAnimations;
 
@@ -28,6 +32,7 @@ class _AddEventPageState extends State<AddEventPage> {
   late DateTime _selectedDate;
   late Set<String> _selectedDays;
   bool _isLoading = true;
+  final List<String> _linkedSessions = [];
 
   final List<String> _frequencies = [
     'One-time',
@@ -79,6 +84,25 @@ class _AddEventPageState extends State<AddEventPage> {
 
   Future<void> _loadData() async {
     final startTime = DateTime.now();
+
+    if (widget.eventToEdit != null && widget.sessionRepository != null) {
+      try {
+        final sessions = await widget.sessionRepository!.loadSessions();
+        final eventId = widget.eventToEdit!.id;
+        final linked = sessions
+            .where((s) => s.eventId == eventId)
+            .map((s) => s.title)
+            .toList();
+        if (mounted) {
+          setState(() {
+            _linkedSessions.clear();
+            _linkedSessions.addAll(linked);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading linked sessions: $e');
+      }
+    }
 
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
@@ -165,11 +189,18 @@ class _AddEventPageState extends State<AddEventPage> {
     final event = widget.eventToEdit;
     if (event == null) return;
 
+    String warningText = '';
+    if (_linkedSessions.isNotEmpty) {
+      final sessionListText = _linkedSessions.take(5).join(', ') + 
+          (_linkedSessions.length > 5 ? ' and ${_linkedSessions.length - 5} more' : '');
+      warningText = '\n\nWARNING: This event is linked to ${_linkedSessions.length} past session reports: $sessionListText.\n\nDeleting this event will NOT delete the past reports, but they will no longer be grouped under this event history.';
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Event'),
-        content: Text('Are you sure you want to delete "${event.title}"?'),
+        content: Text('Are you sure you want to delete "${event.title}"?$warningText'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),

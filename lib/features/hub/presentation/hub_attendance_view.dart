@@ -46,6 +46,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   // Using Stream for real-time updates
   late Stream<List<Event>> _eventsStream;
   List<Member> _members = [];
+  final Map<String, List<String>> _eventUsageMap = {};
   bool _isInitialLoading = true;
 
   @override
@@ -53,9 +54,30 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     super.initState();
     _eventsStream = widget.eventRepository.streamEvents().map(_processEvents);
     _loadInitialData();
+    _loadUsageStats();
 
     // Listen to DriveService for sync status updates
     widget.driveService?.addListener(_onDriveServiceChange);
+  }
+
+  Future<void> _loadUsageStats() async {
+    try {
+      final sessions = await widget.sessionRepository.loadSessions();
+      final usageMap = <String, List<String>>{};
+      for (final session in sessions) {
+        if (session.eventId != null && session.eventId!.isNotEmpty) {
+          usageMap.putIfAbsent(session.eventId!, () => []).add(session.title);
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _eventUsageMap.clear();
+          _eventUsageMap.addAll(usageMap);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading usage stats: $e');
+    }
   }
 
   Future<void> _loadInitialData() async {
@@ -107,6 +129,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       MaterialPageRoute(
         builder: (_) => AddEventPage(
           eventRepository: widget.eventRepository,
+          sessionRepository: widget.sessionRepository,
           disableAnimations: widget.disableAnimations,
         ),
       ),
@@ -119,6 +142,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       MaterialPageRoute(
         builder: (_) => AddEventPage(
           eventRepository: widget.eventRepository,
+          sessionRepository: widget.sessionRepository,
           eventToEdit: event,
           disableAnimations: widget.disableAnimations,
         ),
@@ -128,11 +152,20 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   }
 
   Future<void> _deleteEvent(Event event) async {
+    final linkedSessions = _eventUsageMap[event.id] ?? [];
+    String warningText = '';
+    
+    if (linkedSessions.isNotEmpty) {
+      final sessionListText = linkedSessions.take(5).join(', ') + 
+          (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
+      warningText = '\n\nWARNING: This event is linked to ${linkedSessions.length} past session reports: $sessionListText.\n\nDeleting this event will NOT delete the past reports, but they will no longer be grouped under this event history.';
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Event'),
-        content: Text('Are you sure you want to delete "${event.title}"?'),
+        content: Text('Are you sure you want to delete "${event.title}"?$warningText'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
