@@ -559,6 +559,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   builder: (_) => MembersPage(
                                     attendanceRepository:
                                         widget.attendanceRepository,
+                                    sessionRepository: widget.sessionRepository,
                                   ),
                                 ),
                               );

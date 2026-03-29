@@ -153,9 +153,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       backgroundColor: Colors.transparent,
       builder:
           (context) => AddMemberSheet(
-            onAdd: (name, isPresent, isGuest) async {
+            onAdd: (name, isPresent, isGuest, existingMember) async {
               String? finalMemberId;
-              if (!isGuest) {
+              if (existingMember != null) {
+                finalMemberId = existingMember.id;
+              } else if (!isGuest) {
                 try {
                   final families =
                       await widget.attendanceRepository.fetchFamilies();
@@ -221,6 +223,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         session: _currentSession,
         members: widget.members,
         sessionRepository: widget.sessionRepository,
+        attendanceRepository: widget.attendanceRepository,
       );
     }
 

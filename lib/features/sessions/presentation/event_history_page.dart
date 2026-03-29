@@ -241,6 +241,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                               members: filteredMembers,
                                               sessionRepository:
                                                   widget.sessionRepository,
+                                              attendanceRepository:
+                                                  widget.attendanceRepository,
                                             ),
                                       ),
                                     );

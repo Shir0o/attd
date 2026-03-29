@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
+import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
+import '../models/family.dart';
 import '../models/member.dart';
+import 'add_guest_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
   const SessionSummaryPage({
@@ -12,11 +16,13 @@ class SessionSummaryPage extends StatefulWidget {
     required this.session,
     required this.members,
     required this.sessionRepository,
+    this.attendanceRepository,
   });
 
   final Session session;
   final List<Member> members;
   final SessionRepository sessionRepository;
+  final AttendanceRepository? attendanceRepository;
 
   @override
   State<SessionSummaryPage> createState() => _SessionSummaryPageState();
@@ -25,12 +31,31 @@ class SessionSummaryPage extends StatefulWidget {
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
   bool _isLoading = true;
+  List<Member> _allMembers = [];
+  StreamSubscription? _membersSubscription;
 
   @override
   void initState() {
     super.initState();
     _currentSession = widget.session;
     _refreshLatest();
+    _subscribeToMembers();
+  }
+
+  @override
+  void dispose() {
+    _membersSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToMembers() {
+    _membersSubscription = widget.attendanceRepository?.streamFamilies().listen((families) {
+      if (mounted) {
+        setState(() {
+          _allMembers = families.expand((f) => f.members).toList();
+        });
+      }
+    });
   }
 
   @override
@@ -43,28 +68,41 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         _currentSession = widget.session;
       });
     }
+    
+    if (widget.attendanceRepository != oldWidget.attendanceRepository) {
+      _membersSubscription?.cancel();
+      _subscribeToMembers();
+    }
   }
 
   Future<void> _refreshLatest() async {
     final startTime = DateTime.now();
     
-    final latest = await widget.sessionRepository.findSessionById(
+    final latestFuture = widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
 
-    if (latest != null && mounted) {
-      final isNewer = latest.currentVersion > _currentSession.currentVersion ||
-          (latest.currentVersion == _currentSession.currentVersion &&
-              latest.updatedAt.isAfter(_currentSession.updatedAt));
+    final families = await widget.attendanceRepository?.fetchFamilies();
 
-      if (isNewer) {
-        setState(() {
-          _currentSession = latest;
-        });
-      }
+    final latest = await latestFuture;
+
+    if (mounted) {
+      setState(() {
+        if (latest != null) {
+          final isNewer = latest.currentVersion > _currentSession.currentVersion ||
+              (latest.currentVersion == _currentSession.currentVersion &&
+                  latest.updatedAt.isAfter(_currentSession.updatedAt));
+
+          if (isNewer) {
+            _currentSession = latest;
+          }
+        }
+        if (families != null) {
+          _allMembers = families.expand((f) => f.members).toList();
+        }
+      });
     }
 
-    // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 400) - elapsed;
     if (remaining > Duration.zero) {
@@ -76,25 +114,58 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
+  void _showAddMemberSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => AddMemberSheet(
+            availableMembers: _allMembers,
+            onAdd: (name, isPresent, isGuest, existingMember) async {
+              final member = existingMember ?? Member(
+                id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
+                displayName: name,
+                isVisitor: true,
+              );
+
+              // If it was an excluded member, un-exclude them
+              if (!member.isVisitor && _currentSession.excludedMemberIds.contains(member.id)) {
+                final updatedExcluded = _currentSession.excludedMemberIds
+                    .where((id) => id != member.id)
+                    .toList();
+                _currentSession = _currentSession.copyWith(excludedMemberIds: updatedExcluded);
+              }
+
+              await _toggleAttendance(member, isPresent);
+
+              if (mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('${member.displayName} added')));
+              }
+            },
+          ),
+    );
+  }
+
   Future<void> _toggleAttendance(Member member, bool isPresent) async {
     final status = isPresent
         ? AttendanceStatus.present
         : AttendanceStatus.absent;
-    final attendeeName = member.displayName;
-
+    
     final newRecord = SessionRecord(
-      memberId: member.id,
-      attendee: attendeeName,
+      memberId: member.id.startsWith('visitor_') ? null : member.id,
+      attendee: member.displayName,
       status: status,
       recordedAt: DateTime.now(),
-      recordedBy: 'User', // Placeholder
+      recordedBy: 'User',
     );
 
-    // Update session locally
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     final existingIndex = updatedRecords.indexWhere(
       (r) => (r.memberId != null && r.memberId == member.id) || 
-             (r.memberId == null && r.attendee == attendeeName),
+             (r.memberId == null && r.attendee == member.displayName),
     );
     if (existingIndex != -1) {
       updatedRecords[existingIndex] = newRecord;
@@ -111,7 +182,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       _currentSession = updatedSession;
     });
 
-    // Save to repo
     try {
       await widget.sessionRepository.saveSnapshot(
         updatedSession,
@@ -124,6 +194,165 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
       }
     }
+  }
+
+  Future<void> _editMemberName(Member member) async {
+    final controller = TextEditingController(text: member.displayName);
+    final isVisitor = member.isVisitor;
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isVisitor ? 'Rename Visitor' : 'Rename Member (Local)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'Enter new name',
+              ),
+            ),
+            if (!isVisitor)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Note: This only changes the name for THIS session report to preserve historical accuracy.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (newName == null || newName.isEmpty || newName == member.displayName) return;
+
+    final updatedRecords = _currentSession.records.map((r) {
+      final matchesById = !isVisitor && r.memberId == member.id;
+      final matchesByName = isVisitor && r.attendee == member.displayName && r.memberId == null;
+      
+      if (matchesById || matchesByName) {
+        return r.copyWith(attendee: newName);
+      }
+      return r;
+    }).toList();
+
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: DateTime.now(),
+    );
+
+    setState(() {
+      _currentSession = updatedSession;
+    });
+
+    try {
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      debugPrint('Error updating session record: $e');
+    }
+  }
+
+  Future<void> _removeMemberFromSession(Member member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove from Report'),
+        content: Text(
+          'Are you sure you want to remove "${member.displayName}" from this specific report?\n\nThis will not delete them from your global roster or other sessions.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // 1. Remove from records
+    final updatedRecords = _currentSession.records.where((r) {
+      if (member.isVisitor) {
+        return r.memberId != null || r.attendee != member.displayName;
+      } else {
+        return r.memberId != member.id;
+      }
+    }).toList();
+
+    // 2. If it's a regular member, add to excluded list so they don't show up as "Absent"
+    List<String> updatedExcluded = List<String>.from(_currentSession.excludedMemberIds);
+    if (!member.isVisitor && !updatedExcluded.contains(member.id)) {
+      updatedExcluded.add(member.id);
+    }
+
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      excludedMemberIds: updatedExcluded,
+      updatedAt: DateTime.now(),
+    );
+
+    setState(() {
+      _currentSession = updatedSession;
+    });
+
+    try {
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${member.displayName} removed from this report')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error removing member from session: $e');
+    }
+  }
+
+  void _showHistoryInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.history, color: Colors.blue),
+            SizedBox(width: 12),
+            Text('Historical Snapshot'),
+          ],
+        ),
+        content: const Text(
+          'This report is a historical snapshot. It shows the names and status of people exactly as they were recorded on this day.\n\nChanges made in the global "Manage Members" settings will not affect this past report to ensure data integrity.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteSession() async {
@@ -175,62 +404,68 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    final recordByMemberId = <String, SessionRecord>{};
+    final recordByVisitorName = <String, SessionRecord>{};
+    for (final r in _currentSession.records) {
+      if (r.memberId != null) {
+        recordByMemberId[r.memberId!] = r;
+      } else {
+        recordByVisitorName[r.attendee] = r;
+      }
+    }
+
+    final Map<String, Member> displayMembersMap = {};
+    final excludedIds = _currentSession.excludedMemberIds.toSet();
+
+    for (final m in widget.members) {
+      if (excludedIds.contains(m.id)) continue;
+      
+      final record = recordByMemberId[m.id];
+      if (record != null) {
+        displayMembersMap[m.id] = Member(
+          id: m.id,
+          displayName: record.attendee,
+          isVisitor: false,
+        );
+      } else {
+        displayMembersMap[m.id] = m;
+      }
+    }
+
+    for (final record in _currentSession.records) {
+      if (record.memberId != null) {
+        if (!displayMembersMap.containsKey(record.memberId) && !excludedIds.contains(record.memberId)) {
+          displayMembersMap[record.memberId!] = Member(
+            id: record.memberId!,
+            displayName: record.attendee,
+            isVisitor: false,
+          );
+        }
+      } else {
+        final visitorId = 'visitor_${record.attendee}';
+        if (!displayMembersMap.containsKey(visitorId)) {
+          displayMembersMap[visitorId] = Member(
+            id: visitorId,
+            displayName: record.attendee,
+            isVisitor: true,
+          );
+        }
+      }
+    }
+
+    final allDisplayMembers = displayMembersMap.values.toList()
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+
     final presentMembers = <Member>[];
     final absentMembers = <Member>[];
 
-    // Build the list of members to display
-    final displayMembers = List<Member>.from(widget.members);
-    
-    // Add any members who have records but are not in the provided list (e.g. guests/visitors)
-    final existingMemberIds = widget.members.map((m) => m.id).toSet();
-    final existingMemberNames = widget.members.map((m) => m.displayName).toSet();
-    
-    for (final record in _currentSession.records) {
-      bool isKnown = false;
-      if (record.memberId != null) {
-        if (existingMemberIds.contains(record.memberId)) {
-          isKnown = true;
-        }
+    for (final member in allDisplayMembers) {
+      AttendanceStatus status;
+      if (member.isVisitor) {
+        status = recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
       } else {
-        if (existingMemberNames.contains(record.attendee)) {
-          isKnown = true;
-        }
+        status = recordByMemberId[member.id]?.status ?? AttendanceStatus.absent;
       }
-      
-      if (!isKnown) {
-        displayMembers.add(Member(
-          id: record.memberId ?? 'visitor_${record.attendee}',
-          displayName: record.attendee,
-          isVisitor: true,
-        ));
-      }
-    }
-
-    // Pre-calculate maps for efficient attendance status lookup
-    // recordByMemberId: priority 1
-    // recordByAttendee: priority 2 (fallback)
-    final recordByMemberId = <String, SessionRecord>{};
-    final recordByAttendee = <String, SessionRecord>{};
-
-    for (final record in _currentSession.records) {
-      if (record.memberId != null) {
-        recordByMemberId.putIfAbsent(record.memberId!, () => record);
-      } else {
-        recordByAttendee.putIfAbsent(record.attendee, () => record);
-      }
-    }
-
-    for (final member in displayMembers) {
-      AttendanceStatus? status;
-
-      // Check if member has a record in the session by ID first
-      status = recordByMemberId[member.id]?.status;
-
-      // Fallback to name-based lookup for legacy records
-      status ??= recordByAttendee[member.displayName]?.status;
-
-      // If no record, default to absent
-      status ??= AttendanceStatus.absent;
 
       if (status == AttendanceStatus.present) {
         presentMembers.add(member);
@@ -274,6 +509,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           ),
                           centerTitle: true,
                           actions: [
+                            IconButton(
+                              tooltip: 'View data policy',
+                              onPressed: _showHistoryInfo,
+                              icon: const Icon(Icons.info_outline),
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            IconButton(
+                              tooltip: 'Add attendee',
+                              onPressed: _showAddMemberSheet,
+                              icon: const Icon(Icons.person_add),
+                              color: colorScheme.primary,
+                            ),
                             IconButton(
                               tooltip: 'Delete session',
                               onPressed: _deleteSession,
@@ -392,7 +639,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                       ),
                                     ),
                                     Text(
-                                      '${displayMembers.length} Total',
+                                      '${allDisplayMembers.length} Total',
                                       style: TextStyle(
                                         color: colorScheme.onSurfaceVariant,
                                         fontSize: 16,
@@ -424,6 +671,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                               isPresent: true,
                               onToggle: (value) =>
                                   _toggleAttendance(member, value),
+                              onEdit: () => _editMemberName(member),
+                              onRemove: () => _removeMemberFromSession(member),
                             );
                           }, childCount: presentMembers.length),
                         ),
@@ -446,6 +695,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                               isPresent: false,
                               onToggle: (value) =>
                                   _toggleAttendance(member, value),
+                              onEdit: () => _editMemberName(member),
+                              onRemove: () => _removeMemberFromSession(member),
                             );
                           }, childCount: absentMembers.length),
                         ),
@@ -657,11 +908,15 @@ class _MemberListItem extends StatelessWidget {
   final Member member;
   final bool isPresent;
   final ValueChanged<bool> onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
 
   const _MemberListItem({
     required this.member,
     required this.isPresent,
     required this.onToggle,
+    required this.onEdit,
+    required this.onRemove,
   });
 
   @override
@@ -670,6 +925,7 @@ class _MemberListItem extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return InkWell(
+      onLongPress: onEdit,
       onTap: () => onToggle(!isPresent),
       child: Container(
         height: 72,
@@ -719,11 +975,40 @@ class _MemberListItem extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       color: colorScheme.onSurface,
+                      fontWeight: member.isVisitor ? FontWeight.normal : FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    member.isVisitor ? 'Visitor' : 'Regular Member',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
+            // Edit Button
+            IconButton(
+              icon: Icon(
+                Icons.edit_outlined,
+                size: 20,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              onPressed: onEdit,
+              tooltip: 'Rename',
+            ),
+            // Delete Button
+            IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: colorScheme.error.withValues(alpha: 0.5),
+              ),
+              onPressed: onRemove,
+              tooltip: 'Remove from report',
+            ),
+            const SizedBox(width: 8),
             // Toggle Switch
             Switch(
               value: isPresent,

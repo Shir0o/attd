@@ -247,6 +247,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         MaterialPageRoute(
           builder: (_) => MembersPage(
             attendanceRepository: widget.attendanceRepository,
+            sessionRepository: widget.sessionRepository,
             event: event,
             eventRepository: widget.eventRepository,
             disableAnimations: widget.disableAnimations,
@@ -612,6 +613,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                             members: sessionMembers,
                                             sessionRepository:
                                                 widget.sessionRepository,
+                                            attendanceRepository:
+                                                widget.attendanceRepository,
                                           ),
                                         ),
                                       );
