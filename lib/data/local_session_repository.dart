@@ -111,6 +111,9 @@ class LocalJsonSessionRepository implements SessionRepository {
 
       // 2. Rotate current to backup
       if (await file.exists()) {
+        if (await backupFile.exists()) {
+          await backupFile.delete();
+        }
         await file.rename(backupFile.path);
       }
 
@@ -246,6 +249,7 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   @override
   Future<void> refresh() async {
+    _sessionsCache = null;
     _historyCache.clear();
     final sessions = await loadSessions();
     _controller.add(sessions);
@@ -259,7 +263,7 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     void emit() {
       if (!controller.isClosed) {
-        final sessions = _sessionsCache ?? [];
+        final sessions = List<Session>.from(_sessionsCache ?? []);
         // Sort by date descending
         sessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
         controller.add(sessions);

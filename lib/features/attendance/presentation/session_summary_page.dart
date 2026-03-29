@@ -378,23 +378,23 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     );
 
     if (confirmed == true && mounted) {
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
       try {
         await widget.sessionRepository.deleteSession(
           _currentSession.id,
           actor: 'You',
         );
-        if (mounted) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Session deleted')));
-        }
+        
+        navigator.pop(null);
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Session deleted')),
+        );
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error deleting session: $e')));
-        }
+        messenger.showSnackBar(
+          SnackBar(content: Text('Error deleting session: $e')),
+        );
       }
     }
   }
