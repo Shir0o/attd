@@ -924,98 +924,153 @@ class _MemberListItem extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return InkWell(
-      onLongPress: onEdit,
-      onTap: () => onToggle(!isPresent),
-      child: Container(
-        height: 72,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border(
-            bottom: BorderSide(color: colorScheme.surfaceContainerHighest),
+    return Dismissible(
+      key: ValueKey('dismiss_${member.id}_$isPresent'),
+      direction: DismissDirection.horizontal,
+      background: _buildSwipeBackground(
+        context,
+        isPresent ? 'Rename' : 'Mark Present',
+        isPresent ? colorScheme.secondary : colorScheme.primary,
+        isPresent ? Icons.edit_outlined : Icons.check,
+        true,
+      ),
+      secondaryBackground: _buildSwipeBackground(
+        context,
+        isPresent ? 'Mark Absent' : 'Remove from Report',
+        isPresent ? colorScheme.error : colorScheme.error,
+        isPresent ? Icons.close : Icons.delete_outline,
+        false,
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          if (isPresent) {
+            onEdit();
+          } else {
+            onToggle(true);
+          }
+        } else {
+          if (isPresent) {
+            onToggle(false);
+          } else {
+            onRemove();
+          }
+        }
+        return false; // We handle state externally
+      },
+      child: InkWell(
+        onLongPress: onEdit,
+        onTap: () => onToggle(!isPresent),
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            border: Border(
+              bottom: BorderSide(color: colorScheme.surfaceContainerHighest),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            // Avatar
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: member.isVisitor
-                    ? colorScheme.secondaryContainer
-                    : colorScheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Center(
-                child: Text(
-                  member.displayName.isNotEmpty
-                      ? member.displayName[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: member.isVisitor
-                        ? colorScheme.onSecondaryContainer
-                        : colorScheme.onSurfaceVariant,
+          child: Row(
+            children: [
+              // Avatar
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: member.isVisitor
+                      ? colorScheme.secondaryContainer
+                      : colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Center(
+                  child: Text(
+                    member.displayName.isNotEmpty
+                        ? member.displayName[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      color: member.isVisitor
+                          ? colorScheme.onSecondaryContainer
+                          : colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    member.displayName,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: colorScheme.onSurface,
-                      fontWeight: member.isVisitor ? FontWeight.normal : FontWeight.w500,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.displayName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: colorScheme.onSurface,
+                        fontWeight:
+                            member.isVisitor ? FontWeight.normal : FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  Text(
-                    member.isVisitor ? 'Visitor' : 'Regular Member',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
+                    Text(
+                      member.isVisitor ? 'Visitor' : 'Regular Member',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            // Edit Button
-            IconButton(
-              icon: Icon(
-                Icons.edit_outlined,
-                size: 20,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              // Hint for swipe
+              Icon(
+                Icons.swipe,
+                size: 16,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
               ),
-              onPressed: onEdit,
-              tooltip: 'Rename',
-            ),
-            // Delete Button
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: 20,
-                color: colorScheme.error.withValues(alpha: 0.5),
-              ),
-              onPressed: onRemove,
-              tooltip: 'Remove from report',
-            ),
-            const SizedBox(width: 8),
-            // Toggle Switch
-            Switch(
-              value: isPresent,
-              onChanged: onToggle,
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSwipeBackground(
+    BuildContext context,
+    String label,
+    Color color,
+    IconData icon,
+    bool isStart,
+  ) {
+    return Container(
+      color: color,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: isStart
+            ? [
+                Icon(icon, color: Colors.white),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ]
+            : [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(icon, color: Colors.white),
+              ],
       ),
     );
   }
