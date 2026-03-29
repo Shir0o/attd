@@ -12,6 +12,7 @@ class Session {
     required this.createdBy,
     this.currentVersion = 1,
     this.deletedAt,
+    this.excludedMemberIds = const [],
   }) : title = title.trim();
 
   final String id;
@@ -24,6 +25,7 @@ class Session {
   final String createdBy;
   final int currentVersion;
   final DateTime? deletedAt;
+  final List<String> excludedMemberIds;
 
   Session copyWith({
     String? id,
@@ -37,6 +39,7 @@ class Session {
     int? currentVersion,
     DateTime? deletedAt,
     bool clearDeletedAt = false,
+    List<String>? excludedMemberIds,
   }) {
     return Session(
       id: id ?? this.id,
@@ -49,11 +52,13 @@ class Session {
       createdBy: createdBy ?? this.createdBy,
       currentVersion: currentVersion ?? this.currentVersion,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+      excludedMemberIds: excludedMemberIds ?? this.excludedMemberIds,
     );
   }
 
   factory Session.fromJson(Map<String, dynamic> json) {
     final recordsJson = json['records'] as List<dynamic>? ?? [];
+    final excludedIdsJson = json['excludedMemberIds'] as List<dynamic>? ?? [];
     return Session(
       id: json['id'] as String,
       eventId: json['eventId'] as String?,
@@ -71,6 +76,7 @@ class Session {
       deletedAt: json['deletedAt'] != null
           ? DateTime.parse(json['deletedAt'] as String)
           : null,
+      excludedMemberIds: excludedIdsJson.cast<String>(),
     );
   }
 
@@ -86,6 +92,7 @@ class Session {
       'createdBy': createdBy,
       'currentVersion': currentVersion,
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+      'excludedMemberIds': excludedMemberIds,
     };
   }
 }
