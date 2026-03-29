@@ -243,6 +243,15 @@ class DriveService extends ChangeNotifier {
         'sessions_history.json',
       ];
 
+      // Create backup of current cloud state before overwriting
+      await _createCloudBackup(
+        folderId,
+        docsDir,
+        filesToSync,
+        actionTitle: 'Pre-Overwrite Cloud Backup',
+        tags: ['Safety'],
+      );
+
       final remoteFiles = await _listRemoteFiles(folderId);
 
       await Future.wait(
@@ -282,6 +291,15 @@ class DriveService extends ChangeNotifier {
         'events.json',
         'sessions_history.json',
       ];
+
+      // Create backup of current local state before overwriting
+      await _createCloudBackup(
+        folderId,
+        docsDir,
+        filesToSync,
+        actionTitle: 'Pre-Overwrite Local Backup',
+        tags: ['Safety'],
+      );
 
       final remoteFiles = await _listRemoteFiles(folderId);
 

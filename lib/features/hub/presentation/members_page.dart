@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
@@ -10,12 +11,14 @@ class MembersPage extends StatefulWidget {
   const MembersPage({
     super.key,
     required this.attendanceRepository,
+    this.sessionRepository,
     this.event,
     this.eventRepository,
     this.disableAnimations = false,
   });
 
   final AttendanceRepository attendanceRepository;
+  final SessionRepository? sessionRepository;
   final Event? event;
   final EventRepository? eventRepository;
   final bool disableAnimations;
@@ -30,6 +33,7 @@ class _MembersPageState extends State<MembersPage> {
   Object? _error;
   Event? _currentEvent; // To track local changes to the event
   bool _isAdding = false;
+  final Map<String, int> _memberUsageCount = {};
 
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -39,6 +43,30 @@ class _MembersPageState extends State<MembersPage> {
     super.initState();
     _currentEvent = widget.event;
     _loadFamilies(isInitial: true);
+    _loadUsageStats();
+  }
+
+  Future<void> _loadUsageStats() async {
+    if (widget.sessionRepository == null) return;
+    try {
+      final sessions = await widget.sessionRepository!.loadSessions();
+      final counts = <String, int>{};
+      for (final session in sessions) {
+        for (final record in session.records) {
+          if (record.memberId != null) {
+            counts[record.memberId!] = (counts[record.memberId!] ?? 0) + 1;
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _memberUsageCount.clear();
+          _memberUsageCount.addAll(counts);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading usage stats: $e');
+    }
   }
 
   @override
@@ -166,8 +194,58 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
+  void _showRenameInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.history, color: Colors.blue),
+            SizedBox(width: 12),
+            Text('Historical Accuracy'),
+          ],
+        ),
+        content: const Text(
+          'Renaming a member here will update their name for all FUTURE sessions.\n\nTo preserve data integrity, names in past session reports remain unchanged. This ensures your history shows exactly what was recorded at that time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _editMember(Member member) async {
     if (_families == null) return;
+
+    final usageCount = _memberUsageCount[member.id] ?? 0;
+    if (usageCount > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Historical Data Alert'),
+          content: Text(
+            'This member is linked to $usageCount past session reports.\n\n'
+            'Renaming them will update future reports, but past reports will keep the name "${member.displayName}" to preserve historical accuracy.\n\n'
+            'Do you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
 
     final controller = TextEditingController(text: member.displayName);
     final focusNode = FocusNode();
@@ -176,13 +254,26 @@ class _MembersPageState extends State<MembersPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Member'),
-        content: TextField(
-          controller: controller,
-          focusNode: focusNode,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(hintText: 'Member Name'),
-          autofocus: true,
-          onSubmitted: (val) => Navigator.of(context).pop(val),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              focusNode: focusNode,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(hintText: 'Member Name'),
+              autofocus: true,
+              onSubmitted: (val) => Navigator.of(context).pop(val),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Note: This updates future sessions. Past reports will keep the name "${member.displayName}" for accuracy.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -285,12 +376,17 @@ class _MembersPageState extends State<MembersPage> {
 
     if (_families == null) return;
 
+    final usageCount = _memberUsageCount[member.id] ?? 0;
+    final warningText = usageCount > 0
+        ? '\n\nWARNING: This member is linked to $usageCount historical records. Deleting them from the roster will make them appear as a "Visitor" in past reports, but their data will NOT be deleted.'
+        : '\n\nThis will remove them from the roster. Historical records are not affected.';
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Member'),
         content: Text(
-          'Are you sure you want to remove "${member.displayName}"? This will not delete their historical attendance records.',
+          'Are you sure you want to remove "${member.displayName}"?$warningText',
         ),
         actions: [
           TextButton(
@@ -430,6 +526,13 @@ class _MembersPageState extends State<MembersPage> {
           isEventMode ? 'Manage Event Members' : 'Manage Members',
           style: TextStyle(color: colorScheme.onSurface),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showRenameInfo,
+            tooltip: 'About historical records',
+          ),
+        ],
         iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),

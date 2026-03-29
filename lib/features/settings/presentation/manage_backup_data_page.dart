@@ -31,6 +31,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   List<Event> _events = [];
   List<Family> _families = [];
   List<Session> _sessions = [];
+  final Map<String, int> _memberUsageCount = {};
 
   // To track what needs to be deleted
   final Set<String> _eventsToDelete = {};
@@ -55,10 +56,21 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       final events = await eventsStream.first;
       final sessions = await sessionsStream.first;
 
+      final counts = <String, int>{};
+      for (final session in sessions) {
+        for (final record in session.records) {
+          if (record.memberId != null) {
+            counts[record.memberId!] = (counts[record.memberId!] ?? 0) + 1;
+          }
+        }
+      }
+
       setState(() {
         _families = families;
         _events = events;
         _sessions = sessions;
+        _memberUsageCount.clear();
+        _memberUsageCount.addAll(counts);
         _isLoading = false;
 
         _eventsToDelete.clear();
@@ -475,7 +487,32 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 ),
                 title: m.displayName,
                 subtitle: 'ID: #${m.id.substring(0, 4)}',
-                onDelete: () {
+                onDelete: () async {
+                  final usageCount = _memberUsageCount[m.id] ?? 0;
+                  if (usageCount > 0) {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Historical Data Alert'),
+                        content: Text(
+                          '${m.displayName} is linked to $usageCount past session reports.\n\n'
+                          'Deleting them from the roster will make them appear as a "Visitor" in those reports, but their data will NOT be deleted.\n\n'
+                          'Do you want to proceed?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Continue'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                  }
                   setState(() => _membersToDelete.add(m.id));
                 },
                 colorScheme: colorScheme,
