@@ -189,23 +189,17 @@ void main() {
     final absentHeader = find.text('Marked Absent');
     expect(absentHeader, findsOneWidget);
 
-    // Alice is present
-    expect(find.widgetWithText(SliverList, 'Alice'), findsOneWidget);
-    // Bob is absent
-    expect(find.widgetWithText(SliverList, 'Bob'), findsOneWidget);
+    // Verify Alice is present (in present list)
+    expect(find.text('Alice'), findsOneWidget);
+    // Bob is absent (in absent list)
+    expect(find.text('Bob'), findsOneWidget);
 
-    // Verify switches
-    final aliceSwitch = find.descendant(
-       of: find.widgetWithText(SliverList, 'Alice'),
-       matching: find.byType(Switch),
-    );
-    expect(tester.widget<Switch>(aliceSwitch).value, isTrue);
-
-    final bobSwitch = find.descendant(
-       of: find.widgetWithText(SliverList, 'Bob'),
-       matching: find.byType(Switch),
-    );
-    expect(tester.widget<Switch>(bobSwitch).value, isFalse);
+    // Verify stats
+    expect(find.text('1'), findsNWidgets(2)); // Present count and Absent count
+    
+    // Check that we don't have switches or delete icons in the list
+    expect(find.descendant(of: find.byType(SliverList), matching: find.byType(Switch)), findsNothing);
+    expect(find.descendant(of: find.byType(SliverList), matching: find.byIcon(Icons.delete_outline)), findsNothing);
 
     // Accessibility
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
@@ -272,7 +266,7 @@ void main() {
     expect(find.text('Alicia'), findsNothing);
   });
 
-  testWidgets('SessionSummaryPage toggling switch updates repository', (
+  testWidgets('SessionSummaryPage toggling attendance updates repository', (
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
@@ -303,21 +297,135 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
-    // Initially Absent
-    final switchFinder = find.byType(Switch);
-    expect(tester.widget<Switch>(switchFinder).value, isFalse);
+    // Initially Absent (in Marked Absent section)
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.text('PRESENT'), findsOneWidget);
+    expect(find.text('0'), findsOneWidget); // Present count
 
-    // Toggle to Present
-    await tester.tap(switchFinder);
+    // Swipe Right to Mark Present
+    await tester.drag(find.text('Alice'), const Offset(500, 0));
     await tester.pumpAndSettle();
-
-    expect(tester.widget<Switch>(switchFinder).value, isTrue);
 
     // Verify Repo Updated
     final updatedSession = await mockRepo.findSessionById('s1');
     expect(updatedSession?.records.length, 1);
     expect(updatedSession?.records.first.attendee, 'Alice');
     expect(updatedSession?.records.first.status, AttendanceStatus.present);
+
+    // Now swipe Left to Mark Absent
+    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    final updatedSession2 = await mockRepo.findSessionById('s1');
+    expect(updatedSession2?.records.first.status, AttendanceStatus.absent);
+  });
+
+  testWidgets('SessionSummaryPage "Remove from report" removes person locally via swipe', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [], // Initially absent
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    // Alice is absent
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.text('1 Total'), findsOneWidget);
+
+    // Swipe Left to Remove from Report (since she is already absent, swipe left triggers removal)
+    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    // Verify confirmation dialog title
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Remove from Report')), findsOneWidget);
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+
+    // Alice should be GONE entirely
+    expect(find.text('Alice'), findsNothing);
+    expect(find.text('0 Total'), findsOneWidget);
+
+    // Verify Repo Updated
+    final updatedSession = await mockRepo.findSessionById('s1');
+    expect(updatedSession?.excludedMemberIds, contains('1'));
+  });
+
+  testWidgets('SessionSummaryPage "Rename" via swipe', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    // Alice is present. Swipe Right to Rename
+    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await tester.pumpAndSettle();
+
+    // Check dialog
+    expect(find.text('Rename Member (Local)'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Alicia');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alicia'), findsOneWidget);
+    
+    final updatedSession = await mockRepo.findSessionById('s1');
+    expect(updatedSession?.records.first.attendee, 'Alicia');
   });
 
   testWidgets('SessionSummaryPage delete button shows confirmation', (
@@ -424,17 +532,9 @@ void main() {
 
     // Alice should be "Marked Absent" (default)
     // Visitor Bob should be "Marked Present"
-    expect(find.widgetWithText(SliverList, 'Visitor Bob'), findsOneWidget);
-    expect(find.widgetWithText(SliverList, 'Alice'), findsOneWidget);
+    expect(find.text('Visitor Bob'), findsOneWidget);
+    expect(find.text('Alice'), findsOneWidget);
 
-    // Verify Bob is in "Marked Present"
-    final presentSection = find.widgetWithText(SliverList, 'Visitor Bob');
-    final bobSwitch = find.descendant(
-      of: presentSection,
-      matching: find.byType(Switch),
-    );
-    expect(tester.widget<Switch>(bobSwitch).value, isTrue);
-    
     // Total count should be 2 (1 assigned + 1 visitor)
     expect(find.text('2 Total'), findsOneWidget);
   });
@@ -501,69 +601,5 @@ void main() {
     expect(updatedSession?.records.length, 1);
     expect(updatedSession?.records.first.attendee, 'Charlie');
     expect(updatedSession?.records.first.status, AttendanceStatus.present);
-  });
-
-  testWidgets('SessionSummaryPage "Remove from report" removes person locally', (
-    WidgetTester tester,
-  ) async {
-    final mockRepo = MockSessionRepository();
-    final member1 = Member(id: '1', displayName: 'Alice');
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        SessionRecord(
-          memberId: '1',
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: [member1],
-          sessionRepository: mockRepo,
-        ),
-      ),
-    );
-
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
-
-    // Alice is present
-    expect(find.text('Alice'), findsOneWidget);
-    expect(find.text('1 Total'), findsOneWidget);
-
-    // Tap Remove icon for Alice
-    final removeButton = find.byTooltip('Remove from report');
-    expect(removeButton, findsOneWidget);
-    await tester.tap(removeButton);
-    await tester.pumpAndSettle();
-
-    // Verify confirmation dialog
-    expect(find.text('Remove from Report'), findsOneWidget);
-    await tester.tap(find.text('Remove'));
-    await tester.pumpAndSettle();
-
-    // Alice should be GONE entirely (not even in Absent list because she is excluded)
-    expect(find.text('Alice'), findsNothing);
-    expect(find.text('0 Total'), findsOneWidget);
-
-    // Verify Repo Updated: records empty, ID in excluded
-    final updatedSession = await mockRepo.findSessionById('s1');
-    expect(updatedSession?.records, isEmpty);
-    expect(updatedSession?.excludedMemberIds, contains('1'));
   });
 }
