@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
+import '../models/member.dart';
 
 class AddMemberSheet extends StatefulWidget {
-  const AddMemberSheet({super.key, required this.onAdd});
+  const AddMemberSheet({
+    super.key,
+    required this.onAdd,
+    this.availableMembers = const [],
+  });
 
-  final void Function(String name, bool isPresent, bool isGuest) onAdd;
+  final void Function(
+    String name,
+    bool isPresent,
+    bool isGuest,
+    Member? existingMember,
+  ) onAdd;
+  final List<Member> availableMembers;
 
   @override
   State<AddMemberSheet> createState() => _AddMemberSheetState();
@@ -13,6 +24,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
   final _nameController = TextEditingController();
   bool _isPresent = true;
   bool _isGuest = false;
+  Member? _selectedExistingMember;
 
   @override
   void dispose() {
@@ -22,10 +34,23 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
 
   void _submit() {
     final name = _nameController.text.trim();
-    if (name.isNotEmpty) {
-      widget.onAdd(name, _isPresent, _isGuest);
+    if (name.isNotEmpty || _selectedExistingMember != null) {
+      widget.onAdd(
+        _selectedExistingMember?.displayName ?? name,
+        _isPresent,
+        _selectedExistingMember != null ? false : _isGuest,
+        _selectedExistingMember,
+      );
       Navigator.of(context).pop();
     }
+  }
+
+  void _selectMember(Member member) {
+    setState(() {
+      _selectedExistingMember = member;
+      _nameController.text = member.displayName;
+      _isGuest = false;
+    });
   }
 
   @override
@@ -33,21 +58,24 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    final query = _nameController.text.toLowerCase().trim();
+    final suggestions = query.isEmpty
+        ? <Member>[]
+        : widget.availableMembers
+            .where((m) =>
+                m.displayName.toLowerCase().contains(query) &&
+                m.id != _selectedExistingMember?.id)
+            .take(3)
+            .toList();
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
+        color: colorScheme.surface,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
+          topLeft: Radius.circular(32),
+          topRight: Radius.circular(32),
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Padding(
         padding: EdgeInsets.only(
@@ -62,7 +90,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -72,9 +100,9 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
             Text(
               'Add Person',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 22,
                 color: colorScheme.onSurface,
-                fontWeight: FontWeight.normal,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 24),
@@ -85,58 +113,103 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               child: Column(
                 children: [
                   // Name Input
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(24),
+                  TextField(
+                    controller: _nameController,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
+                    onChanged: (val) {
+                      if (_selectedExistingMember != null &&
+                          val != _selectedExistingMember!.displayName) {
+                        setState(() {
+                          _selectedExistingMember = null;
+                        });
+                      } else {
+                        setState(() {});
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Name',
+                      hintText: 'Enter name',
+                      filled: true,
+                      fillColor: colorScheme.surfaceContainerHigh,
+                      suffixIcon: _selectedExistingMember != null
+                          ? Icon(Icons.check_circle, color: colorScheme.primary)
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      floatingLabelBehavior: FloatingLabelBehavior.never,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Name',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: colorScheme.onSurface.withAlpha(179),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        TextField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
-                            hintText: 'Enter name',
-                          ),
-                          style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
-                          autofocus: true,
-                        ),
-                      ],
-                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
                   ),
+
+                  // Suggestions
+                  if (suggestions.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: suggestions.map((member) {
+                          return ListTile(
+                            leading: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: colorScheme.primaryContainer,
+                              child: Text(
+                                member.displayName[0].toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                            title: Text(member.displayName),
+                            subtitle: const Text('Existing Member'),
+                            onTap: () => _selectMember(member),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 24),
 
-                  // Guest Switch
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Add as Guest',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      Switch(
-                        value: _isGuest,
-                        onChanged: (value) => setState(() => _isGuest = value),
-                      ),
-                    ],
+                  // Guest Switch - Hide if existing member selected
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: _selectedExistingMember == null
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Add as Guest',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: colorScheme.onSurface,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                Switch(
+                                  value: _isGuest,
+                                  onChanged: (value) =>
+                                      setState(() => _isGuest = value),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                  const SizedBox(height: 12),
 
                   // Present Switch
                   Row(
@@ -147,6 +220,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         style: TextStyle(
                           fontSize: 18,
                           color: colorScheme.onSurface,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                       Switch(
@@ -161,19 +235,25 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                   // Button
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 56,
                     child: FilledButton(
                       onPressed: _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: colorScheme.primary,
                         foregroundColor: colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(28),
                         ),
+                        elevation: 0,
                       ),
-                      child: const Text(
-                        'Add & Continue',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      child: Text(
+                        _selectedExistingMember != null
+                            ? 'Add Existing'
+                            : 'Add & Continue',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
