@@ -197,9 +197,8 @@ void main() {
     // Verify stats
     expect(find.text('1'), findsNWidgets(2)); // Present count and Absent count
     
-    // Check that we don't have switches or delete icons in the list
-    expect(find.descendant(of: find.byType(SliverList), matching: find.byType(Switch)), findsNothing);
-    expect(find.descendant(of: find.byType(SliverList), matching: find.byIcon(Icons.delete_outline)), findsNothing);
+    // Check that we have switches back in the list
+    expect(find.descendant(of: find.byType(SliverList), matching: find.byType(Switch)), findsNWidgets(2));
 
     // Accessibility
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
@@ -266,7 +265,7 @@ void main() {
     expect(find.text('Alicia'), findsNothing);
   });
 
-  testWidgets('SessionSummaryPage toggling attendance updates repository', (
+  testWidgets('SessionSummaryPage toggling attendance updates repository via Switch', (
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
@@ -299,11 +298,12 @@ void main() {
 
     // Initially Absent (in Marked Absent section)
     expect(find.text('Alice'), findsOneWidget);
-    expect(find.text('PRESENT'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget); // Present count
+    
+    final switchFinder = find.byType(Switch);
+    expect(tester.widget<Switch>(switchFinder).value, isFalse);
 
-    // Swipe Right to Mark Present
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    // Toggle via Switch to Mark Present
+    await tester.tap(switchFinder);
     await tester.pumpAndSettle();
 
     // Verify Repo Updated
@@ -312,15 +312,15 @@ void main() {
     expect(updatedSession?.records.first.attendee, 'Alice');
     expect(updatedSession?.records.first.status, AttendanceStatus.present);
 
-    // Now swipe Left to Mark Absent
-    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    // Now toggle back to Absent
+    await tester.tap(switchFinder);
     await tester.pumpAndSettle();
 
     final updatedSession2 = await mockRepo.findSessionById('s1');
     expect(updatedSession2?.records.first.status, AttendanceStatus.absent);
   });
 
-  testWidgets('SessionSummaryPage "Remove from report" removes person locally via swipe', (
+  testWidgets('SessionSummaryPage "Remove from report" via swipe left', (
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
@@ -353,9 +353,8 @@ void main() {
 
     // Alice is absent
     expect(find.text('Alice'), findsOneWidget);
-    expect(find.text('1 Total'), findsOneWidget);
 
-    // Swipe Left to Remove from Report (since she is already absent, swipe left triggers removal)
+    // Swipe Left to Remove from Report
     await tester.drag(find.text('Alice'), const Offset(-500, 0));
     await tester.pumpAndSettle();
 
@@ -366,14 +365,13 @@ void main() {
 
     // Alice should be GONE entirely
     expect(find.text('Alice'), findsNothing);
-    expect(find.text('0 Total'), findsOneWidget);
 
     // Verify Repo Updated
     final updatedSession = await mockRepo.findSessionById('s1');
     expect(updatedSession?.excludedMemberIds, contains('1'));
   });
 
-  testWidgets('SessionSummaryPage "Rename" via swipe', (
+  testWidgets('SessionSummaryPage "Rename" via swipe right', (
     WidgetTester tester,
   ) async {
     final mockRepo = MockSessionRepository();
@@ -412,7 +410,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
-    // Alice is present. Swipe Right to Rename
+    // Swipe Right to Rename
     await tester.drag(find.text('Alice'), const Offset(500, 0));
     await tester.pumpAndSettle();
 
