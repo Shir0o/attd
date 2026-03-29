@@ -929,31 +929,23 @@ class _MemberListItem extends StatelessWidget {
       direction: DismissDirection.horizontal,
       background: _buildSwipeBackground(
         context,
-        isPresent ? 'Rename' : 'Mark Present',
-        isPresent ? colorScheme.secondary : colorScheme.primary,
-        isPresent ? Icons.edit_outlined : Icons.check,
+        'Rename',
+        colorScheme.secondary,
+        Icons.edit_outlined,
         true,
       ),
       secondaryBackground: _buildSwipeBackground(
         context,
-        isPresent ? 'Mark Absent' : 'Remove from Report',
-        isPresent ? colorScheme.error : colorScheme.error,
-        isPresent ? Icons.close : Icons.delete_outline,
+        'Remove from Report',
+        colorScheme.error,
+        Icons.delete_outline,
         false,
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
-          if (isPresent) {
-            onEdit();
-          } else {
-            onToggle(true);
-          }
+          onEdit();
         } else {
-          if (isPresent) {
-            onToggle(false);
-          } else {
-            onRemove();
-          }
+          onRemove();
         }
         return false; // We handle state externally
       },
@@ -1022,11 +1014,10 @@ class _MemberListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              // Hint for swipe
-              Icon(
-                Icons.swipe,
-                size: 16,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
+              // Attendance Toggle
+              Switch(
+                value: isPresent,
+                onChanged: onToggle,
               ),
             ],
           ),
