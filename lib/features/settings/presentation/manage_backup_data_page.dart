@@ -31,7 +31,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   List<Event> _events = [];
   List<Family> _families = [];
   List<Session> _sessions = [];
-  final Map<String, int> _memberUsageCount = {};
+  final Map<String, List<String>> _memberUsageMap = {};
 
   // To track what needs to be deleted
   final Set<String> _eventsToDelete = {};
@@ -56,11 +56,11 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       final events = await eventsStream.first;
       final sessions = await sessionsStream.first;
 
-      final counts = <String, int>{};
+      final usageMap = <String, List<String>>{};
       for (final session in sessions) {
         for (final record in session.records) {
           if (record.memberId != null) {
-            counts[record.memberId!] = (counts[record.memberId!] ?? 0) + 1;
+            usageMap.putIfAbsent(record.memberId!, () => []).add(session.title);
           }
         }
       }
@@ -69,8 +69,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         _families = families;
         _events = events;
         _sessions = sessions;
-        _memberUsageCount.clear();
-        _memberUsageCount.addAll(counts);
+        _memberUsageMap.clear();
+        _memberUsageMap.addAll(usageMap);
         _isLoading = false;
 
         _eventsToDelete.clear();
@@ -488,14 +488,17 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 title: m.displayName,
                 subtitle: 'ID: #${m.id.substring(0, 4)}',
                 onDelete: () async {
-                  final usageCount = _memberUsageCount[m.id] ?? 0;
-                  if (usageCount > 0) {
+                  final linkedSessions = _memberUsageMap[m.id] ?? [];
+                  if (linkedSessions.isNotEmpty) {
+                    final sessionListText = linkedSessions.take(5).join(', ') + 
+                        (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
+
                     final confirmed = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Historical Data Alert'),
                         content: Text(
-                          '${m.displayName} is linked to $usageCount past session reports.\n\n'
+                          '${m.displayName} is linked to ${linkedSessions.length} past session reports: $sessionListText.\n\n'
                           'Deleting them from the roster will make them appear as a "Visitor" in those reports, but their data will NOT be deleted.\n\n'
                           'Do you want to proceed?',
                         ),

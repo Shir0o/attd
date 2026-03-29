@@ -33,7 +33,7 @@ class _MembersPageState extends State<MembersPage> {
   Object? _error;
   Event? _currentEvent; // To track local changes to the event
   bool _isAdding = false;
-  final Map<String, int> _memberUsageCount = {};
+  final Map<String, List<String>> _memberUsageMap = {};
 
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -50,18 +50,18 @@ class _MembersPageState extends State<MembersPage> {
     if (widget.sessionRepository == null) return;
     try {
       final sessions = await widget.sessionRepository!.loadSessions();
-      final counts = <String, int>{};
+      final usageMap = <String, List<String>>{};
       for (final session in sessions) {
         for (final record in session.records) {
           if (record.memberId != null) {
-            counts[record.memberId!] = (counts[record.memberId!] ?? 0) + 1;
+            usageMap.putIfAbsent(record.memberId!, () => []).add(session.title);
           }
         }
       }
       if (mounted) {
         setState(() {
-          _memberUsageCount.clear();
-          _memberUsageCount.addAll(counts);
+          _memberUsageMap.clear();
+          _memberUsageMap.addAll(usageMap);
         });
       }
     } catch (e) {
@@ -221,14 +221,17 @@ class _MembersPageState extends State<MembersPage> {
   Future<void> _editMember(Member member) async {
     if (_families == null) return;
 
-    final usageCount = _memberUsageCount[member.id] ?? 0;
-    if (usageCount > 0) {
+    final linkedSessions = _memberUsageMap[member.id] ?? [];
+    if (linkedSessions.isNotEmpty) {
+      final sessionListText = linkedSessions.take(5).join(', ') + 
+          (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
+
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Historical Data Alert'),
           content: Text(
-            'This member is linked to $usageCount past session reports.\n\n'
+            'This member is linked to ${linkedSessions.length} past session reports: $sessionListText.\n\n'
             'Renaming them will update future reports, but past reports will keep the name "${member.displayName}" to preserve historical accuracy.\n\n'
             'Do you want to continue?',
           ),
@@ -376,10 +379,18 @@ class _MembersPageState extends State<MembersPage> {
 
     if (_families == null) return;
 
-    final usageCount = _memberUsageCount[member.id] ?? 0;
-    final warningText = usageCount > 0
-        ? '\n\nWARNING: This member is linked to $usageCount historical records. Deleting them from the roster will make them appear as a "Visitor" in past reports, but their data will NOT be deleted.'
-        : '\n\nThis will remove them from the roster. Historical records are not affected.';
+    final linkedSessions = _memberUsageMap[member.id] ?? [];
+    final usageCount = linkedSessions.length;
+    
+    String warningText;
+    if (usageCount > 0) {
+      final sessionListText = linkedSessions.take(5).join(', ') + 
+          (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
+          
+      warningText = '\n\nWARNING: This member is linked to $usageCount historical records: $sessionListText.\n\nDeleting them from the roster will make them appear as a "Visitor" in past reports, but their data will NOT be deleted.';
+    } else {
+      warningText = '\n\nThis will remove them from the roster. Historical records are not affected.';
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
