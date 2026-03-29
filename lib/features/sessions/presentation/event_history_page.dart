@@ -5,6 +5,7 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 
 import '../../../../data/session.dart';
+import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../attendance/presentation/session_summary_page.dart';
@@ -187,37 +188,63 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                       .toList()
                                   : _members;
 
-                              // Consistency check: use the same logic as SessionSummaryPage for counts
-                              final presentCount = filteredMembers.where((m) {
-                                return session.records.any((r) {
-                                  if (r.status != AttendanceStatus.present) return false;
-                                  if (r.memberId != null) return r.memberId == m.id;
-                                  return r.attendee == m.displayName;
-                                });
-                              }).length;
-                              
-                              // Any records for members NOT in the filtered list (e.g. visitors)
-                              final visitorPresentCount = session.records.where((r) {
-                                if (r.status != AttendanceStatus.present) return false;
-                                final isRegularMember = filteredMembers.any((m) => 
-                                  (r.memberId != null && m.id == r.memberId) || 
-                                  (r.memberId == null && m.displayName == r.attendee)
-                                );
-                                return !isRegularMember;
-                              }).length;
+                              // Consistency fix: use the same deduplication logic as SessionSummaryPage
+                              final recordByMemberId = <String, SessionRecord>{};
+                              final recordByVisitorName = <String, SessionRecord>{};
+                              for (final r in session.records) {
+                                if (r.memberId != null) {
+                                  recordByMemberId[r.memberId!] = r;
+                                } else {
+                                  recordByVisitorName[r.attendee] = r;
+                                }
+                              }
 
-                              final totalPresent = presentCount + visitorPresentCount;
-                              
-                              // SessionSummaryPage treats anyone in filteredMembers without a 'present' record as 'absent'
-                              final totalAbsent = filteredMembers.length - presentCount + 
-                                  session.records.where((r) {
-                                    if (r.status != AttendanceStatus.absent) return false;
-                                    final isRegularMember = filteredMembers.any((m) => 
-                                      (r.memberId != null && m.id == r.memberId) || 
-                                      (r.memberId == null && m.displayName == r.attendee)
+                              final Map<String, Member> displayMembersMap = {};
+                              final excludedIds = session.excludedMemberIds.toSet();
+
+                              for (final m in filteredMembers) {
+                                if (excludedIds.contains(m.id)) continue;
+                                displayMembersMap[m.id] = m;
+                              }
+
+                              for (final record in session.records) {
+                                if (record.memberId != null) {
+                                  if (!displayMembersMap.containsKey(record.memberId) && !excludedIds.contains(record.memberId)) {
+                                    displayMembersMap[record.memberId!] = Member(
+                                      id: record.memberId!,
+                                      displayName: record.attendee,
+                                      isVisitor: false,
                                     );
-                                    return !isRegularMember;
-                                  }).length;
+                                  }
+                                } else {
+                                  final visitorId = 'visitor_${record.attendee}';
+                                  if (!displayMembersMap.containsKey(visitorId)) {
+                                    displayMembersMap[visitorId] = Member(
+                                      id: visitorId,
+                                      displayName: record.attendee,
+                                      isVisitor: true,
+                                    );
+                                  }
+                                }
+                              }
+
+                              int totalPresent = 0;
+                              int totalAbsent = 0;
+
+                              for (final member in displayMembersMap.values) {
+                                AttendanceStatus status;
+                                if (member.isVisitor) {
+                                  status = recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
+                                } else {
+                                  status = recordByMemberId[member.id]?.status ?? AttendanceStatus.absent;
+                                }
+
+                                if (status == AttendanceStatus.present) {
+                                  totalPresent++;
+                                } else {
+                                  totalAbsent++;
+                                }
+                              }
 
                               return Card(
                                 elevation: 0,
