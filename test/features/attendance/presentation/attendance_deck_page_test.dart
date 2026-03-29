@@ -23,6 +23,11 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<Family> addFamily(String displayName) async => throw UnimplementedError();
   @override
   Future<void> refresh() async {}
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    return Stream.value([]);
+  }
 }
 
 class MockSessionRepository implements SessionRepository {
@@ -82,6 +87,11 @@ class MockSessionRepository implements SessionRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    return Stream.value([]);
+  }
 }
 
 void main() {

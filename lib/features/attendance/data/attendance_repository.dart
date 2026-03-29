@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,6 +17,8 @@ abstract class AttendanceRepository {
 
   Future<Family> addFamily(String displayName);
 
+  Stream<List<Family>> streamFamilies();
+
   Future<void> refresh();
 }
 
@@ -24,11 +27,13 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   final String? storagePath;
   List<Family>? _cachedFamilies;
+  final _controller = StreamController<List<Family>>.broadcast();
 
   @override
   Future<void> refresh() async {
     _cachedFamilies = null;
-    await fetchFamilies();
+    final families = await fetchFamilies();
+    _controller.add(families);
   }
 
   Future<File> get _file async {
@@ -44,9 +49,15 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     }
 
     final file = await _file;
+    final backupFile = File('${file.path}.bak');
+
     if (!await file.exists()) {
-      await saveFamilies([]);
-      return [];
+      if (await backupFile.exists()) {
+        await backupFile.copy(file.path);
+      } else {
+        await saveFamilies([]);
+        return [];
+      }
     }
 
     final content = await file.readAsString();
@@ -55,22 +66,42 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       return [];
     }
 
-    final decoded = jsonDecode(content);
-    if (decoded is! List) {
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is! List) {
+        _cachedFamilies = [];
+        return [];
+      }
+
+      final families = decoded
+          .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+          .where((f) => f.deletedAt == null)
+          .map((f) => f.copyWith(
+            members: f.members.where((m) => m.deletedAt == null).toList(),
+          ))
+          .toList();
+
+      _cachedFamilies = families;
+      return List<Family>.from(families);
+    } catch (e) {
+      print('Attendance storage corrupted, attempting recovery: $e');
+      try {
+        if (await backupFile.exists()) {
+          final backupContent = await backupFile.readAsString();
+          final decoded = jsonDecode(backupContent);
+          if (decoded is List) {
+            print('Successfully recovered attendance from .bak file');
+            return decoded
+                .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+                .toList();
+          }
+        }
+      } catch (backupError) {
+        print('Attendance backup recovery failed: $backupError');
+      }
       _cachedFamilies = [];
       return [];
     }
-
-    final families = decoded
-        .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
-        .where((f) => f.deletedAt == null)
-        .map((f) => f.copyWith(
-          members: f.members.where((m) => m.deletedAt == null).toList(),
-        ))
-        .toList();
-
-    _cachedFamilies = families;
-    return List<Family>.from(families);
   }
 
   @override
@@ -82,12 +113,32 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
         ))
         .toList();
     final file = await _file;
-    await file.create(recursive: true);
-    final payload = families.map((family) => family.toJson()).toList();
-    // Atomic write: write to tmp file first, then rename
-    final tmpFile = File('${file.path}.tmp');
-    await tmpFile.writeAsString(jsonEncode(payload));
-    await tmpFile.rename(file.path);
+    final tempFile = File('${file.path}.tmp');
+    final backupFile = File('${file.path}.bak');
+
+    try {
+      final payload = families.map((family) => family.toJson()).toList();
+      final content = jsonEncode(payload);
+
+      // 1. Write to temp file
+      await tempFile.writeAsString(content);
+
+      // 2. Rotate current to backup
+      if (await file.exists()) {
+        await file.rename(backupFile.path);
+      }
+
+      // 3. Move temp to current (Atomic rename)
+      await tempFile.rename(file.path);
+    } catch (e) {
+      print('Error during attendance save: $e');
+      // Restore from backup if possible
+      if (await backupFile.exists() && !await file.exists()) {
+        await backupFile.copy(file.path);
+      }
+    }
+    
+    _controller.add(List<Family>.from(_cachedFamilies!));
   }
 
   @override
@@ -118,5 +169,32 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final families = await fetchFamilies();
     await saveFamilies([...families, family]);
     return family;
+  }
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    final controller = StreamController<List<Family>>();
+
+    void emit() {
+      if (!controller.isClosed && _cachedFamilies != null) {
+        controller.add(List<Family>.from(_cachedFamilies!));
+      }
+    }
+
+    fetchFamilies().then((families) {
+      if (!controller.isClosed) {
+        controller.add(families);
+      }
+    });
+
+    final subscription = _controller.stream.listen((families) {
+      if (!controller.isClosed) {
+        controller.add(families);
+      }
+    });
+
+    controller.onCancel = () => subscription.cancel();
+
+    return controller.stream;
   }
 }

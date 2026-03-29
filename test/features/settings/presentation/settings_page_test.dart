@@ -29,6 +29,11 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<void> saveFamilies(List<Family> families) async {}
   @override
   Future<void> refresh() async {}
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    return Stream.value([]);
+  }
 }
 
 class MockEventRepository implements EventRepository {
@@ -42,6 +47,11 @@ class MockEventRepository implements EventRepository {
   Stream<List<Event>> streamEvents() => Stream.value([]);
   @override
   Future<void> refresh() async {}
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    return Stream.value([]);
+  }
 }
 
 class MockSessionRepository implements SessionRepository {

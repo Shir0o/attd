@@ -37,6 +37,11 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    return Stream.value([]);
+  }
 }
 
 class MockEventRepository implements EventRepository {

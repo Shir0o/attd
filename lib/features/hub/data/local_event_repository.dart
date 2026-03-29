@@ -41,19 +41,42 @@ class LocalJsonEventRepository implements EventRepository {
     }
 
     final file = await _storageFile;
-    if (await file.exists()) {
-      try {
-        final content = await file.readAsString();
-        if (content.isNotEmpty) {
-          final List<dynamic> jsonList = jsonDecode(content);
-          _cache = jsonList.map((e) => Event.fromJson(e)).toList();
-        }
-      } catch (e) {
-        print('Error reading events.json: $e');
+    final backupFile = File('${file.path}.bak');
+
+    if (!await file.exists()) {
+      if (await backupFile.exists()) {
+        await backupFile.copy(file.path);
+      } else {
+        _cache = [];
+        _controller.add(_cache);
+        _initialized = true;
+        return;
+      }
+    }
+
+    try {
+      final content = await file.readAsString();
+      if (content.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(content);
+        _cache = jsonList.map((e) => Event.fromJson(e)).toList();
+      } else {
         _cache = [];
       }
-    } else {
-      _cache = [];
+    } catch (e) {
+      print('Events storage corrupted, attempting recovery: $e');
+      try {
+        if (await backupFile.exists()) {
+          final backupContent = await backupFile.readAsString();
+          final List<dynamic> jsonList = jsonDecode(backupContent);
+          print('Successfully recovered events from .bak file');
+          _cache = jsonList.map((e) => Event.fromJson(e)).toList();
+        } else {
+          _cache = [];
+        }
+      } catch (backupError) {
+        print('Events backup recovery failed: $backupError');
+        _cache = [];
+      }
     }
 
     _controller.add(_cache);
@@ -62,8 +85,31 @@ class LocalJsonEventRepository implements EventRepository {
 
   Future<void> _save() async {
     final file = await _storageFile;
-    final jsonList = _cache.map((e) => e.toJson()).toList();
-    await file.writeAsString(jsonEncode(jsonList));
+    final tempFile = File('${file.path}.tmp');
+    final backupFile = File('${file.path}.bak');
+
+    try {
+      final jsonList = _cache.map((e) => e.toJson()).toList();
+      final content = jsonEncode(jsonList);
+
+      // 1. Write to temp file
+      await tempFile.writeAsString(content);
+
+      // 2. Rotate current to backup
+      if (await file.exists()) {
+        await file.rename(backupFile.path);
+      }
+
+      // 3. Move temp to current (Atomic rename)
+      await tempFile.rename(file.path);
+    } catch (e) {
+      print('Error during events save: $e');
+      // Restore from backup if possible
+      if (await backupFile.exists() && !await file.exists()) {
+        await backupFile.copy(file.path);
+      }
+    }
+    
     _controller.add(_cache);
   }
 

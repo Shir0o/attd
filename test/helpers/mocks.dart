@@ -15,9 +15,11 @@ import 'package:attendance_tracker/features/hub/domain/event.dart';
 
 class MockAttendanceRepository implements AttendanceRepository {
   List<Family> _families = [];
+  final _controller = StreamController<List<Family>>.broadcast();
 
   void setFamilies(List<Family> families) {
     _families = families;
+    _controller.add(families);
   }
 
   @override
@@ -26,6 +28,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   @override
   Future<void> saveFamilies(List<Family> families) async {
     _families = families;
+    _controller.add(families);
   }
 
   @override
@@ -36,6 +39,11 @@ class MockAttendanceRepository implements AttendanceRepository {
   @override
   Future<Family> addFamily(String displayName) async {
     throw UnimplementedError();
+  }
+
+  @override
+  Stream<List<Family>> streamFamilies() {
+    return _controller.stream;
   }
 
   @override

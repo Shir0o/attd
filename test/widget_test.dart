@@ -63,6 +63,11 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
+  Stream<List<Family>> streamFamilies() {
+    return Stream.value([]);
+  }
+
+  @override
   Future<void> refresh() async {}
 }
 
