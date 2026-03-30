@@ -6,4 +6,7 @@ abstract class EventRepository {
   Future<void> deleteEvent(String eventId);
   Stream<List<Event>> streamEvents();
   Future<void> refresh();
+
+  /// Permanently removes items that were marked as deleted before [threshold].
+  Future<void> pruneSoftDeleted(DateTime threshold);
 }

@@ -6,7 +6,6 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
-import '../models/family.dart';
 import '../models/member.dart';
 import 'add_guest_sheet.dart';
 

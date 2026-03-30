@@ -42,6 +42,33 @@ class Event {
     };
   }
 
+  Event copyWith({
+    String? id,
+    String? title,
+    TimeOfDay? time,
+    String? frequency,
+    DateTime? oneTimeDate,
+    List<String>? repeatingDays,
+    List<String>? memberIds,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
+    bool clearDeletedAt = false,
+  }) {
+    return Event(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      time: time ?? this.time,
+      frequency: frequency ?? this.frequency,
+      oneTimeDate: oneTimeDate ?? this.oneTimeDate,
+      repeatingDays: repeatingDays ?? this.repeatingDays,
+      memberIds: memberIds ?? this.memberIds,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+    );
+  }
+
   factory Event.fromJson(Map<String, dynamic> json) {
     final timeParts = (json['time'] as String).split(':');
     return Event(

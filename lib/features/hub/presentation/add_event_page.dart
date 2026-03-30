@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import '../../../data/session.dart';
 import '../../../data/session_repository.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';

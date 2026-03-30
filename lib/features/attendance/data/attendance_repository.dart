@@ -20,6 +20,9 @@ abstract class AttendanceRepository {
   Stream<List<Family>> streamFamilies();
 
   Future<void> refresh();
+
+  /// Permanently removes items that were marked as deleted before [threshold].
+  Future<void> pruneSoftDeleted(DateTime threshold);
 }
 
 class LocalJsonAttendanceRepository extends AttendanceRepository {
@@ -42,66 +45,75 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     return File('${directory.path}/families.json');
   }
 
+  Future<List<Family>> _loadRawFamilies() async {
+    final file = await _file;
+    if (!await file.exists()) return [];
+
+    final content = await file.readAsString();
+    if (content.trim().isEmpty) return [];
+
+    try {
+      final decoded = jsonDecode(content);
+      if (decoded is! List) return [];
+
+      return decoded
+          .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('Error loading raw families: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {
+    final allFamilies = await _loadRawFamilies();
+    bool changed = false;
+
+    final prunedFamilies = <Family>[];
+    for (final family in allFamilies) {
+      if (family.deletedAt != null && family.deletedAt!.isBefore(threshold)) {
+        changed = true;
+        continue;
+      }
+
+      final prunedMembers = family.members.where((m) {
+        if (m.deletedAt != null && m.deletedAt!.isBefore(threshold)) {
+          changed = true;
+          return false;
+        }
+        return true;
+      }).toList();
+
+      if (prunedMembers.length != family.members.length) {
+        prunedFamilies.add(family.copyWith(members: prunedMembers));
+        changed = true;
+      } else {
+        prunedFamilies.add(family);
+      }
+    }
+
+    if (changed) {
+      await saveFamilies(prunedFamilies);
+    }
+  }
+
   @override
   Future<List<Family>> fetchFamilies() async {
     if (_cachedFamilies != null) {
       return List<Family>.from(_cachedFamilies!);
     }
 
-    final file = await _file;
-    final backupFile = File('${file.path}.bak');
+    final decoded = await _loadRawFamilies();
+    final families = decoded
+        .where((f) => f.deletedAt == null)
+        .map((f) => f.copyWith(
+          members: f.members.where((m) => m.deletedAt == null).toList(),
+        ))
+        .toList();
 
-    if (!await file.exists()) {
-      if (await backupFile.exists()) {
-        await backupFile.copy(file.path);
-      } else {
-        await saveFamilies([]);
-        return [];
-      }
-    }
-
-    final content = await file.readAsString();
-    if (content.trim().isEmpty) {
-      await saveFamilies([]);
-      return [];
-    }
-
-    try {
-      final decoded = jsonDecode(content);
-      if (decoded is! List) {
-        _cachedFamilies = [];
-        return [];
-      }
-
-      final families = decoded
-          .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
-          .where((f) => f.deletedAt == null)
-          .map((f) => f.copyWith(
-            members: f.members.where((m) => m.deletedAt == null).toList(),
-          ))
-          .toList();
-
-      _cachedFamilies = families;
-      return List<Family>.from(families);
-    } catch (e) {
-      print('Attendance storage corrupted, attempting recovery: $e');
-      try {
-        if (await backupFile.exists()) {
-          final backupContent = await backupFile.readAsString();
-          final decoded = jsonDecode(backupContent);
-          if (decoded is List) {
-            print('Successfully recovered attendance from .bak file');
-            return decoded
-                .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
-                .toList();
-          }
-        }
-      } catch (backupError) {
-        print('Attendance backup recovery failed: $backupError');
-      }
-      _cachedFamilies = [];
-      return [];
-    }
+    _cachedFamilies = families;
+    return List<Family>.from(families);
   }
 
   @override
@@ -174,12 +186,6 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
   @override
   Stream<List<Family>> streamFamilies() {
     final controller = StreamController<List<Family>>();
-
-    void emit() {
-      if (!controller.isClosed && _cachedFamilies != null) {
-        controller.add(List<Family>.from(_cachedFamilies!));
-      }
-    }
 
     fetchFamilies().then((families) {
       if (!controller.isClosed) {

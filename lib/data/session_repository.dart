@@ -28,4 +28,7 @@ abstract class SessionRepository {
   Future<void> migrateRecords(Map<String, String> nameToIdMap);
 
   Future<void> refresh();
+
+  /// Permanently removes items that were marked as deleted before [threshold].
+  Future<void> pruneSoftDeleted(DateTime threshold);
 }
