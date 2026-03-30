@@ -156,6 +156,19 @@ AttendanceAnalytics calculateAttendanceAnalytics({
     membersById,
     visited,
   );
+
+  final attendeeLookup = <String, String>{};
+  for (final member in membersById.values) {
+    final canonical = _resolveMember(member, membersById, visited).canonicalName;
+    attendeeLookup.putIfAbsent(member.displayNameLowercase, () => canonical);
+    attendeeLookup.putIfAbsent(member.canonicalNameLowercase, () => canonical);
+  }
+  for (final family in families) {
+    final canonical = _resolveFamily(family, familiesById, visited).canonicalName;
+    attendeeLookup.putIfAbsent(family.displayNameLowercase, () => canonical);
+    attendeeLookup.putIfAbsent(family.canonicalNameLowercase, () => canonical);
+  }
+
   final memberLabels = _memberLabelIndex(families, membersById, visited);
   final familyLabels = _familyLabelIndex(families, familiesById, visited);
   final canonicalFamilies = _canonicalFamilies(families, familiesById, visited);
@@ -169,14 +182,10 @@ AttendanceAnalytics calculateAttendanceAnalytics({
       String canonicalName;
       if (record.memberId != null && membersById.containsKey(record.memberId)) {
         final member = membersById[record.memberId]!;
-        canonicalName = _resolveMember(member, membersById, visited).canonicalName;
+        canonicalName =
+            _resolveMember(member, membersById, visited).canonicalName;
       } else {
-        canonicalName = _canonicalizeAttendee(
-          record.attendee,
-          membersById,
-          families,
-          visited,
-        );
+        canonicalName = _canonicalizeAttendee(record.attendee, attendeeLookup);
       }
       
       switch (record.status) {
@@ -346,29 +355,8 @@ int _streak(List<_RecordEvent> entries, AttendanceStatus status) {
   return streak;
 }
 
-String _canonicalizeAttendee(
-  String attendee,
-  Map<String, Member> membersById,
-  List<Family> families,
-  [Set<String>? visited,]
-) {
-  final normalized = attendee.toLowerCase();
-  for (final member in membersById.values) {
-    if (member.displayNameLowercase == normalized ||
-        member.canonicalNameLowercase == normalized) {
-      return _resolveMember(member, membersById, visited).canonicalName;
-    }
-  }
-
-  final familiesById = {for (final family in families) family.id: family};
-  for (final family in families) {
-    if (family.displayNameLowercase == normalized ||
-        family.canonicalNameLowercase == normalized) {
-      return _resolveFamily(family, familiesById, visited).canonicalName;
-    }
-  }
-
-  return attendee;
+String _canonicalizeAttendee(String attendee, Map<String, String> lookup) {
+  return lookup[attendee.toLowerCase()] ?? attendee;
 }
 
 Family _resolveFamily(
