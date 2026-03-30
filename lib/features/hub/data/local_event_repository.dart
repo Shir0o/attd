@@ -28,6 +28,40 @@ class LocalJsonEventRepository implements EventRepository {
     return _file!;
   }
 
+  Future<List<Event>> _loadRawEvents() async {
+    final file = await _storageFile;
+    if (!await file.exists()) return [];
+
+    try {
+      final content = await file.readAsString();
+      if (content.isEmpty) return [];
+      final List<dynamic> jsonList = jsonDecode(content);
+      return jsonList.map((e) => Event.fromJson(e)).toList();
+    } catch (e) {
+      print('Error loading raw events: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {
+    final allEvents = await _loadRawEvents();
+    bool changed = false;
+
+    final prunedEvents = allEvents.where((e) {
+      if (e.deletedAt != null && e.deletedAt!.isBefore(threshold)) {
+        changed = true;
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (changed) {
+      _cache = prunedEvents;
+      await _save();
+    }
+  }
+
   @override
   Future<void> refresh() async {
     _initialized = false;
@@ -36,50 +70,14 @@ class LocalJsonEventRepository implements EventRepository {
 
   Future<void> _init() async {
     if (_initialized) {
-      _controller.add(_cache);
+      _controller.add(_cache.where((e) => e.deletedAt == null).toList());
       return;
     }
 
-    final file = await _storageFile;
-    final backupFile = File('${file.path}.bak');
+    final decoded = await _loadRawEvents();
+    _cache = decoded;
 
-    if (!await file.exists()) {
-      if (await backupFile.exists()) {
-        await backupFile.copy(file.path);
-      } else {
-        _cache = [];
-        _controller.add(_cache);
-        _initialized = true;
-        return;
-      }
-    }
-
-    try {
-      final content = await file.readAsString();
-      if (content.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(content);
-        _cache = jsonList.map((e) => Event.fromJson(e)).toList();
-      } else {
-        _cache = [];
-      }
-    } catch (e) {
-      print('Events storage corrupted, attempting recovery: $e');
-      try {
-        if (await backupFile.exists()) {
-          final backupContent = await backupFile.readAsString();
-          final List<dynamic> jsonList = jsonDecode(backupContent);
-          print('Successfully recovered events from .bak file');
-          _cache = jsonList.map((e) => Event.fromJson(e)).toList();
-        } else {
-          _cache = [];
-        }
-      } catch (backupError) {
-        print('Events backup recovery failed: $backupError');
-        _cache = [];
-      }
-    }
-
-    _controller.add(_cache);
+    _controller.add(_cache.where((e) => e.deletedAt == null).toList());
     _initialized = true;
   }
 
@@ -110,24 +108,14 @@ class LocalJsonEventRepository implements EventRepository {
       }
     }
     
-    _controller.add(_cache);
+    _controller.add(_cache.where((e) => e.deletedAt == null).toList());
   }
 
   @override
   Future<void> createEvent(Event event) async {
     await _init();
     final now = DateTime.now();
-    final newEvent = Event(
-      id: event.id,
-      title: event.title,
-      time: event.time,
-      frequency: event.frequency,
-      oneTimeDate: event.oneTimeDate,
-      repeatingDays: event.repeatingDays,
-      memberIds: event.memberIds,
-      createdAt: event.createdAt,
-      updatedAt: now,
-    );
+    final newEvent = event.copyWith(updatedAt: now);
     _cache.insert(0, newEvent); // Add to top
     await _save();
   }
@@ -138,17 +126,7 @@ class LocalJsonEventRepository implements EventRepository {
     final index = _cache.indexWhere((e) => e.id == event.id);
     if (index != -1) {
       final now = DateTime.now();
-      final updatedEvent = Event(
-        id: event.id,
-        title: event.title,
-        time: event.time,
-        frequency: event.frequency,
-        oneTimeDate: event.oneTimeDate,
-        repeatingDays: event.repeatingDays,
-        memberIds: event.memberIds,
-        createdAt: event.createdAt,
-        updatedAt: now,
-      );
+      final updatedEvent = event.copyWith(updatedAt: now);
       _cache[index] = updatedEvent;
       await _save();
     }
@@ -157,8 +135,15 @@ class LocalJsonEventRepository implements EventRepository {
   @override
   Future<void> deleteEvent(String eventId) async {
     await _init();
-    _cache.removeWhere((e) => e.id == eventId);
-    await _save();
+    final index = _cache.indexWhere((e) => e.id == eventId);
+    if (index != -1) {
+      final now = DateTime.now();
+      _cache[index] = _cache[index].copyWith(
+        deletedAt: now,
+        updatedAt: now,
+      );
+      await _save();
+    }
   }
 
   @override
@@ -169,7 +154,7 @@ class LocalJsonEventRepository implements EventRepository {
 
     void emit() {
       if (!controller.isClosed) {
-        controller.add(_cache);
+        controller.add(_cache.where((e) => e.deletedAt == null).toList());
       }
     }
 

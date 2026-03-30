@@ -46,54 +46,10 @@ class LocalJsonSessionRepository implements SessionRepository {
   }
 
   Future<List<Session>> _loadFromFile() async {
-    final file = await _storageFile;
-    final backupFile = File('${file.path}.bak');
-
-    if (!await file.exists()) {
-      if (await backupFile.exists()) {
-        await backupFile.copy(file.path);
-      } else {
-        return [];
-      }
-    }
-
-    try {
-      final content = await file.readAsString();
-      if (content.isEmpty) return [];
-      final List<dynamic> jsonList = jsonDecode(content);
-      final sessions = jsonList.map((e) => Session.fromJson(e)).toList();
-      _sessionsCache = sessions;
-      return sessions;
-    } catch (e) {
-      print('Main storage corrupted, attempting recovery: $e');
-      // Recovery Path 1: Try the .bak file
-      try {
-        if (await backupFile.exists()) {
-          final backupContent = await backupFile.readAsString();
-          final List<dynamic> jsonList = jsonDecode(backupContent);
-          print('Successfully recovered from .bak file');
-          return jsonList.map((e) => Session.fromJson(e)).toList();
-        }
-      } catch (backupError) {
-        print('Backup recovery failed: $backupError');
-      }
-
-      // Recovery Path 2: Try the latest snapshots from history
-      try {
-        await _loadHistory();
-        if (_historyCache.isNotEmpty) {
-          print('Attempting reconstruction from history snapshots');
-          final recovered = _historyCache.values
-              .map((versions) => versions.first.snapshot)
-              .toList();
-          return recovered;
-        }
-      } catch (historyError) {
-        print('History recovery failed: $historyError');
-      }
-
-      return [];
-    }
+    final decoded = await _loadRawSessions();
+    final activeSessions = decoded.where((s) => s.deletedAt == null).toList();
+    _sessionsCache = activeSessions;
+    return activeSessions;
   }
 
   Future<void> _saveToFile(List<Session> sessions) async {
@@ -244,6 +200,59 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     if (changed || historyChanged) {
       await refresh();
+    }
+  }
+
+  Future<List<Session>> _loadRawSessions() async {
+    final file = await _storageFile;
+    if (!await file.exists()) return [];
+
+    try {
+      final content = await file.readAsString();
+      if (content.isEmpty) return [];
+      final List<dynamic> jsonList = jsonDecode(content);
+      return jsonList.map((e) => Session.fromJson(e)).toList();
+    } catch (e) {
+      print('Error loading raw sessions: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {
+    final allSessions = await _loadRawSessions();
+    bool changed = false;
+
+    final prunedSessions = allSessions.where((s) {
+      if (s.deletedAt != null && s.deletedAt!.isBefore(threshold)) {
+        changed = true;
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (changed) {
+      await _saveToFile(prunedSessions);
+      
+      // Also clean up history for pruned sessions
+      final prunedIds = allSessions
+          .where((s) => s.deletedAt != null && s.deletedAt!.isBefore(threshold))
+          .map((s) => s.id)
+          .toSet();
+      
+      if (prunedIds.isNotEmpty) {
+        await _loadHistory();
+        bool historyChanged = false;
+        for (final id in prunedIds) {
+          if (_historyCache.containsKey(id)) {
+            _historyCache.remove(id);
+            historyChanged = true;
+          }
+        }
+        if (historyChanged) {
+          await _saveHistory();
+        }
+      }
     }
   }
 
@@ -432,17 +441,17 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   @override
   Future<void> deleteSession(String sessionId, {required String actor}) async {
-    final sessions = await _loadFromFile();
-    final initialLength = sessions.length;
-    sessions.removeWhere((s) => s.id == sessionId);
+    final allSessions = await _loadRawSessions();
+    final index = allSessions.indexWhere((s) => s.id == sessionId);
 
-    if (sessions.length < initialLength) {
-      await _saveToFile(sessions);
+    if (index != -1) {
+      final now = DateTime.now();
+      allSessions[index] = allSessions[index].copyWith(
+        deletedAt: now,
+        updatedAt: now,
+      );
+      await _saveToFile(allSessions);
       _controller.add(await loadSessions());
-
-      // Clean up history for this session
-      _historyCache.remove(sessionId);
-      await _saveHistory();
     }
   }
 
