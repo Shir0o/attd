@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/design/app_shimmer.dart';
 import '../data/drive_service.dart';
+
 import 'package:googleapis/drive/v3.dart' as drive;
 
 class CloudBackupPage extends StatefulWidget {
@@ -324,7 +327,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
-              _ShimmerBox(
+              AppShimmer(
                 width: 52,
                 height: 52,
                 borderRadius: BorderRadius.circular(18),
@@ -336,14 +339,14 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _ShimmerBox(
+                    AppShimmer(
                       width: 180,
                       height: 18,
                       borderRadius: BorderRadius.circular(4),
                       disableAnimations: widget.disableAnimations,
                     ),
                     const SizedBox(height: 10),
-                    _ShimmerBox(
+                    AppShimmer(
                       width: 100,
                       height: 14,
                       borderRadius: BorderRadius.circular(4),
@@ -353,89 +356,13 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                 ),
               ),
               const SizedBox(width: 24),
-              _ShimmerBox(
+              AppShimmer(
                 width: 88,
                 height: 40,
                 borderRadius: BorderRadius.circular(100),
                 disableAnimations: widget.disableAnimations,
               ),
             ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ShimmerBox extends StatefulWidget {
-  const _ShimmerBox({
-    required this.width,
-    required this.height,
-    this.borderRadius,
-    this.disableAnimations = false,
-  });
-
-  final double width;
-  final double height;
-  final BorderRadius? borderRadius;
-  final bool disableAnimations;
-
-  @override
-  State<_ShimmerBox> createState() => _ShimmerBoxState();
-}
-
-class _ShimmerBoxState extends State<_ShimmerBox>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
-
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
-
-    if (!widget.disableAnimations) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final baseColor = colorScheme.surfaceContainerHigh.withValues(
-      alpha: 0.3,
-    );
-    final highlightColor = colorScheme.surfaceContainerHigh.withValues(
-      alpha: 0.1,
-    );
-
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, -1),
-              end: Alignment(_animation.value + 1, 1),
-              colors: [baseColor, highlightColor, baseColor],
-            ),
           ),
         );
       },

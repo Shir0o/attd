@@ -17,6 +17,7 @@ import 'members_page.dart';
 import '../../sessions/presentation/event_history_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/models/member.dart';
+import '../../../core/design/app_shimmer.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -1123,14 +1124,14 @@ class _EventCardSkeleton extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          _ShimmerBox(
+                          AppShimmer(
                             width: 60,
                             height: 24,
                             borderRadius: BorderRadius.circular(28),
                             disableAnimations: disableAnimations,
                           ),
                           const SizedBox(width: 8),
-                          _ShimmerBox(
+                          AppShimmer(
                             width: 80,
                             height: 24,
                             borderRadius: BorderRadius.circular(28),
@@ -1139,13 +1140,13 @@ class _EventCardSkeleton extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _ShimmerBox(
+                      AppShimmer(
                         width: 200,
                         height: 32,
                         disableAnimations: disableAnimations,
                       ),
                       const SizedBox(height: 8),
-                      _ShimmerBox(
+                      AppShimmer(
                         width: 140,
                         height: 32,
                         disableAnimations: disableAnimations,
@@ -1153,7 +1154,7 @@ class _EventCardSkeleton extends StatelessWidget {
                     ],
                   ),
                 ),
-                _ShimmerBox(
+                AppShimmer(
                   width: 24,
                   height: 24,
                   disableAnimations: disableAnimations,
@@ -1166,20 +1167,20 @@ class _EventCardSkeleton extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _ShimmerBox(
+                    AppShimmer(
                       width: 20,
                       height: 20,
                       disableAnimations: disableAnimations,
                     ),
                     const SizedBox(width: 8),
-                    _ShimmerBox(
+                    AppShimmer(
                       width: 80,
                       height: 20,
                       disableAnimations: disableAnimations,
                     ),
                   ],
                 ),
-                _ShimmerBox(
+                AppShimmer(
                   width: 120,
                   height: 36,
                   borderRadius: BorderRadius.circular(28),
@@ -1190,82 +1191,6 @@ class _EventCardSkeleton extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ShimmerBox extends StatefulWidget {
-  const _ShimmerBox({
-    required this.width,
-    required this.height,
-    this.borderRadius,
-    this.disableAnimations = false,
-  });
-
-  final double width;
-  final double height;
-  final BorderRadius? borderRadius;
-  final bool disableAnimations;
-
-  @override
-  State<_ShimmerBox> createState() => _ShimmerBoxState();
-}
-
-class _ShimmerBoxState extends State<_ShimmerBox>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
-
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
-
-    if (!widget.disableAnimations) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final baseColor = colorScheme.surfaceContainerHigh.withValues(
-      alpha: 0.3,
-    );
-    final highlightColor = colorScheme.surfaceContainerHigh.withValues(
-      alpha: 0.1,
-    );
-
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, -1),
-              end: Alignment(_animation.value + 1, 1),
-              colors: [baseColor, highlightColor, baseColor],
-            ),
-          ),
-        );
-      },
     );
   }
 }

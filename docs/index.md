@@ -1,23 +1,27 @@
-# Privacy Policy
+# Attendance Tracker Documentation
 
-**Effective Date:** 2026-02-26
+Welcome to the official documentation for the Attendance Tracker application. This guide provides comprehensive information on the app's features, architecture, and development processes.
 
-Thank you for choosing to use our Attendance application. This Privacy Policy is meant to help you understand how we collect, use, and safeguard your data.
+## 📚 Documentation Table of Contents
 
-## Data Storage
-Our application stores all of your attendance data locally on your device. We do not transmit or store your personal attendance records onto any external centralized, proprietary databases.
+### 🚀 Getting Started
+- **[Introduction](../README.md)**: High-level overview of the app, key features, and license.
+- **[User Guide](./USER_GUIDE.md)**: How to use the app, manage members, and track attendance.
 
-## Google Drive Integration
-If you choose to enable the backup feature, the application will request access to your Google Drive via Google Sign-In. 
-- We only request the minimum permissions necessary to read and write application-specific backup files to your own personal Google Drive. 
-- We do not access, view, or modify any other files in your Google Drive. 
-- You retain full control over these backup files and can delete them at any time.
+### 🛠 Development & Architecture
+- **[Architecture](./ARCHITECTURE.md)**: Deep dive into the Feature-Sliced Architecture and key design patterns.
+- **[Development Guide](./DEVELOPMENT.md)**: How to set up the environment, run builds, and execute tests.
+- **[Backup & Sync System](./BACKUP_SYNC.md)**: Detailed explanation of the Google Drive sync engine and merge logic.
 
-## Third-Party Services
-We have removed integration with Firebase and AI features, ensuring fewer third-party services process your data.
+### 🎨 Design & Privacy
+- **[Design System Specification](../DESIGN_SPEC.md)**: Details on the "Fluid Humanist" design system (colors, typography, etc.).
+- **[Privacy Policy](./PRIVACY_POLICY.md)**: Information on data handling and user privacy.
 
-## Changes to This Policy
-We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.
+## 🔧 Core Technologies
+- **Flutter**: Cross-platform mobile UI framework.
+- **Google Sign-In & OAuth**: Secure authentication and Google API access.
+- **Google Drive & Sheets API**: Cloud-based storage and reporting.
+- **Shared Preferences & JSON Storage**: High-performance local persistence.
 
-## Contact Us
-If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us.
+---
+*Last updated: March 30, 2026*

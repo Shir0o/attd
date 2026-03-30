@@ -13,6 +13,7 @@ import '../../../data/session_repository.dart';
 
 import 'cloud_backup_page.dart';
 import 'manage_backup_data_page.dart';
+import '../../../core/design/app_shimmer.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -951,7 +952,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: _ShimmerBox(
+                        child: AppShimmer(
                           height: 44,
                           width: double.infinity,
                           borderRadius: BorderRadius.circular(24),
@@ -960,7 +961,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _ShimmerBox(
+                        child: AppShimmer(
                           height: 44,
                           width: double.infinity,
                           borderRadius: BorderRadius.circular(24),
@@ -982,7 +983,7 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          _ShimmerBox(
+          AppShimmer(
             width: 40,
             height: 40,
             borderRadius: BorderRadius.circular(20),
@@ -993,14 +994,14 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ShimmerBox(
+                AppShimmer(
                   width: 140,
                   height: 16,
                   borderRadius: BorderRadius.circular(4),
                   disableAnimations: widget.disableAnimations,
                 ),
                 const SizedBox(height: 8),
-                _ShimmerBox(
+                AppShimmer(
                   width: 200,
                   height: 12,
                   borderRadius: BorderRadius.circular(4),
@@ -1259,81 +1260,6 @@ function doPost(e) {
 }
 
 // ── Shared Widgets ────────────────────────────────────────────────────────────
-
-class _ShimmerBox extends StatefulWidget {
-  const _ShimmerBox({
-    required this.width,
-    required this.height,
-    this.borderRadius,
-    this.disableAnimations = false,
-  });
-
-  final double width;
-  final double height;
-  final BorderRadius? borderRadius;
-  final bool disableAnimations;
-
-  @override
-  State<_ShimmerBox> createState() => _ShimmerBoxState();
-}
-
-class _ShimmerBoxState extends State<_ShimmerBox>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
-
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
-
-    if (!widget.disableAnimations) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final baseColor = colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.3,
-    );
-    final highlightColor = colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.1,
-    );
-
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, -1),
-              end: Alignment(_animation.value + 1, 1),
-              colors: [baseColor, highlightColor, baseColor],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title});
