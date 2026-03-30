@@ -18,6 +18,7 @@ import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/maintenance/data_maintenance_service.dart';
 
 import 'features/auth/config/google_oauth_config.dart';
 
@@ -37,6 +38,15 @@ Future<void> main() async {
   final attendanceRepository = LocalJsonAttendanceRepository();
   final sessionRepository = LocalJsonSessionRepository();
   final eventRepository = LocalJsonEventRepository();
+
+  // Run data maintenance
+  final maintenanceService = DataMaintenanceService(
+    attendanceRepository: attendanceRepository,
+    eventRepository: eventRepository,
+    sessionRepository: sessionRepository,
+    prefs: prefs,
+  );
+  maintenanceService.runIfNeeded();
 
   final driveService = DriveService(
     googleSignIn: googleSignIn,
