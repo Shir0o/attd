@@ -23,6 +23,8 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<Family> addFamily(String displayName) async => throw UnimplementedError();
   @override
   Future<void> refresh() async {}
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 
   @override
   Stream<List<Family>> streamFamilies() {
@@ -87,11 +89,8 @@ class MockSessionRepository implements SessionRepository {
 
   @override
   Future<void> refresh() async {}
-
   @override
-  Stream<List<Family>> streamFamilies() {
-    return Stream.value([]);
-  }
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 void main() {

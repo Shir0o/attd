@@ -51,6 +51,9 @@ class MockAttendanceRepository implements AttendanceRepository {
   Future<void> refresh() async {}
 
   @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+
+  @override
   Stream<List<Family>> streamFamilies() {
     return Stream.value(_families);
   }

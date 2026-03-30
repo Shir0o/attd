@@ -46,6 +46,9 @@ class MockSessionRepository implements SessionRepository {
   Future<void> refresh() async {}
 
   @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+
+  @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
     return session;
   }

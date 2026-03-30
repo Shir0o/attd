@@ -64,6 +64,9 @@ class _FakeSessionRepository implements SessionRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 class _FakeSheetsClient implements SheetsClient {

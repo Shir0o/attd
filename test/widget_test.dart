@@ -43,6 +43,9 @@ class MockEventRepository implements EventRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 class MockAttendanceRepository implements AttendanceRepository {
@@ -69,6 +72,9 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 class MockSessionRepository implements SessionRepository {
@@ -117,6 +123,9 @@ class MockSessionRepository implements SessionRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 class MockAuthRepository implements AuthRepository {

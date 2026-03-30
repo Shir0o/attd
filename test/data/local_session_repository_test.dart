@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -75,7 +76,7 @@ void main() {
       expect(history.last.version, 1);
     });
 
-    test('deleteSession removes session and history', () async {
+    test('deleteSession soft deletes session and preserves history', () async {
       final now = DateTime.now();
       final session = await repository.createSession(
         title: 'To Delete',
@@ -85,10 +86,47 @@ void main() {
       );
 
       await repository.deleteSession(session.id, actor: 'Admin');
+      await repository.refresh();
 
       final loaded = await repository.loadSessions();
       expect(loaded, isEmpty);
 
+      // History should still exist for soft-deleted session (needed for sync)
+      final history = await repository.history(session.id);
+      expect(history, isNotEmpty);
+
+      // Verify it still exists in the raw file
+      final file = File('${tempDir.path}/sessions.json');
+      final content = await file.readAsString();
+      final List<dynamic> jsonList = jsonDecode(content);
+      expect(jsonList.length, 1);
+      expect(jsonList.first['deletedAt'], isNotNull);
+    });
+
+    test('pruneSoftDeleted removes old deleted sessions', () async {
+      final now = DateTime.now();
+      final session = await repository.createSession(
+        title: 'To Prune',
+        sessionDate: now,
+        actor: 'Admin',
+        records: [],
+      );
+
+      // Soft delete it
+      await repository.deleteSession(session.id, actor: 'Admin');
+      
+      // Threshold is in the future relative to deletion time, so it should be pruned
+      final threshold = now.add(const Duration(seconds: 1));
+      await repository.pruneSoftDeleted(threshold);
+      await repository.refresh();
+
+      // Verify it's gone from the raw file
+      final file = File('${tempDir.path}/sessions.json');
+      final content = await file.readAsString();
+      final List<dynamic> jsonList = jsonDecode(content);
+      expect(jsonList, isEmpty);
+
+      // History should also be gone
       final history = await repository.history(session.id);
       expect(history, isEmpty);
     });

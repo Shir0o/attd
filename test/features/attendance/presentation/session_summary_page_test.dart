@@ -69,6 +69,9 @@ class MockSessionRepository implements SessionRepository {
   Future<void> refresh() async {}
 
   @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+
+  @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
     final index = _sessions.indexWhere((s) => s.id == session.id);
     if (index != -1) {
@@ -130,6 +133,9 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 void main() {
