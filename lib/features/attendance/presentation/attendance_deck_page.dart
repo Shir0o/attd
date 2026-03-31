@@ -462,15 +462,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
             // Footer Buttons
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-
                 children: [
                   // Undo Button
                   SizedBox(
-                    width: 88,
-                    height: 88,
+                    width: 72,
+                    height: 72,
                     child: Material(
                       color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
@@ -480,7 +479,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         onTap: _currentIndex > 0 ? _undo : null,
                         child: Icon(
                           Icons.undo,
-                          size: 40,
+                          size: 32,
                           color: _currentIndex > 0
                               ? colorScheme.onSurfaceVariant
                               : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
@@ -488,12 +487,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 32),
+                  const SizedBox(width: 24),
 
                   // Absent Button (X)
                   SizedBox(
-                    width: 88,
-                    height: 88,
+                    width: 80,
+                    height: 80,
                     child: Material(
                       color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
@@ -505,18 +504,18 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             _processAttendance(AttendanceStatus.absent),
                         child: Icon(
                           Icons.close,
-                          size: 48,
+                          size: 40,
                           color: colorScheme.error,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 32),
+                  const SizedBox(width: 24),
 
                   // Present Button (Check)
                   SizedBox(
-                    width: 88,
-                    height: 88,
+                    width: 80,
+                    height: 80,
                     child: Hero(
                       tag: 'fab',
                       child: Material(
@@ -530,7 +529,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               _processAttendance(AttendanceStatus.present),
                           child: Icon(
                             Icons.check,
-                            size: 48,
+                            size: 40,
                             color: colorScheme.onPrimary,
                           ),
                         ),

@@ -92,6 +92,18 @@ extension PumpUntilFound on WidgetTester {
     throw StateError('Pump failed: Finder $finder still present after $timeout');
   }
 
+  Future<void> clearSnackBars() async {
+    if (find.byType(SnackBar).evaluate().isNotEmpty) {
+      final messenger = ScaffoldMessenger.maybeOf(
+        element(find.byType(MaterialApp).first),
+      );
+      if (messenger != null) {
+        messenger.clearSnackBars();
+        await pump(const Duration(milliseconds: 500));
+      }
+    }
+  }
+
   /// Takes a screenshot while ensuring any snackbars and the keyboard are dismissed first.
   Future<void> takeScreenshot(
     IntegrationTestWidgetsFlutterBinding binding,

@@ -37,10 +37,11 @@ class HubRobot {
     print('DEBUG: Successfully navigated to AddEventPage');  }
 
   Future<void> tapSettings() async {
+    print('DEBUG: tapSettings');
     final finder = find.byIcon(Icons.settings);
     await tester.pumpUntilFound(finder);
     await tester.tap(finder);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
   }
 
   Future<void> verifyEventCard(String title) async {
@@ -97,12 +98,13 @@ class HubRobot {
   }
 
   Future<void> goBack() async {
+    print('DEBUG: goBack');
     final backButton = find.byType(BackButton);
     if (backButton.evaluate().isNotEmpty) {
       await tester.tap(backButton.last);
     } else {
       await tester.tap(find.byIcon(Icons.arrow_back).last);
     }
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
   }
 }

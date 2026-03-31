@@ -777,6 +777,8 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 title: Text(
                   member.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: colorScheme.onSurface,
                     fontSize: 18,
@@ -798,6 +800,7 @@ class _MembersPageState extends State<MembersPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
+                      visualDensity: VisualDensity.compact,
                       icon: Icon(
                         Icons.edit_outlined,
                         color: colorScheme.onSurfaceVariant,
@@ -806,12 +809,14 @@ class _MembersPageState extends State<MembersPage> {
                     ),
                     if (isEventMode)
                       Checkbox(
+                        visualDensity: VisualDensity.compact,
                         value: isSelected,
                         onChanged: (val) =>
                             _toggleEventMember(member, val ?? false),
                       )
                     else
                       IconButton(
+                        visualDensity: VisualDensity.compact,
                         icon: Icon(
                           Icons.delete_outline,
                           color: colorScheme.onSurfaceVariant,

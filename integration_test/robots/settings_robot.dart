@@ -90,4 +90,39 @@ class SettingsRobot {
     await tester.ensureVisible(finder);
     expect(finder, findsWidgets);
   }
+
+  Future<void> searchBackup(String query) async {
+    print('DEBUG: searchBackup($query)');
+    final textField = find.byType(TextField); // The search bar in ManageBackupDataPage
+    await tester.enterText(textField, query);
+    await tester.pump(const Duration(milliseconds: 500));
+    // Dismiss keyboard
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> deleteBackupRecord(String title) async {
+    print('DEBUG: deleteBackupRecord($title)');
+    
+    // Find the icon button whose key starts with 'delete_$title'
+    final finder = find.byWidgetPredicate((widget) => 
+      widget is IconButton && 
+      widget.key is ValueKey<String> && 
+      (widget.key as ValueKey<String>).value.startsWith('delete_$title')
+    ).first;
+
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> saveCleanedBackup() async {
+    print('DEBUG: saveCleanedBackup');
+    final button = find.byKey(const ValueKey('save_cleaned_backup_button'));
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpUntilAbsent(find.byType(ManageBackupDataPage));
+  }
 }

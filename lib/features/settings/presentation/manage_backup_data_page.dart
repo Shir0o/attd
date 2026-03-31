@@ -260,7 +260,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                   const SizedBox(height: 4),
                   const Text(
                     'Local Records Snapshot',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -279,8 +279,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                             ),
                             Text(
                               DateFormat('MMM dd, yyyy').format(DateTime.now()),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -301,8 +303,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                             ),
                             Text(
                               _approximateSize,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -323,8 +327,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                             ),
                             Text(
                               '$_totalRecords',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -413,6 +419,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
         trailing: IconButton(
+          key: ValueKey('delete_${title}_$subtitle'),
           icon: Icon(Icons.delete, color: colorScheme.error),
           onPressed: onDelete,
         ),
@@ -590,6 +597,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         ),
         child: SafeArea(
           child: FilledButton.icon(
+            key: const ValueKey('save_cleaned_backup_button'),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(56),
               shape: RoundedRectangleBorder(
