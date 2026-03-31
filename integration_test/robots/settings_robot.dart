@@ -40,11 +40,14 @@ class SettingsRobot {
     final settingsPage = find.byType(SettingsPage).last;
     await tester.pumpUntilFound(settingsPage);
 
-    final finder = find.descendant(
-      of: settingsPage,
-      matching: find.byKey(const ValueKey('manage_members_tile')),
-    ).last;
-    await tester.ensureVisible(finder);
+    final finder = find.byKey(const ValueKey('manage_members_tile'));
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    
     await tester.tap(finder);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -55,11 +58,14 @@ class SettingsRobot {
     final settingsPage = find.byType(SettingsPage).last;
     await tester.pumpUntilFound(settingsPage);
 
-    final finder = find.descendant(
-      of: settingsPage,
-      matching: find.byKey(const ValueKey('manage_backup_data_tile')),
-    ).last;
-    await tester.ensureVisible(finder);
+    final finder = find.byKey(const ValueKey('manage_backup_data_tile'));
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
     await tester.tap(finder);
     await tester.pump(const Duration(milliseconds: 500));
   }

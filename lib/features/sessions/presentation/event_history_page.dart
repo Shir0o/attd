@@ -318,11 +318,13 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                         const SizedBox(height: 12),
                                         Row(
                                           children: [
-                                            _buildStatusBadge(
-                                              context,
-                                              Icons.check_circle,
-                                              colorScheme.primary,
-                                              '$totalPresent Present',
+                                            Expanded(
+                                              child: _buildStatusBadge(
+                                                context,
+                                                Icons.check_circle,
+                                                colorScheme.primary,
+                                                '$totalPresent Present',
+                                              ),
                                             ),
                                             Container(
                                               height: 16,
@@ -333,11 +335,13 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                   ),
                                               color: colorScheme.outlineVariant,
                                             ),
-                                            _buildStatusBadge(
-                                              context,
-                                              Icons.cancel,
-                                              colorScheme.error,
-                                              '$totalAbsent Absent',
+                                            Expanded(
+                                              child: _buildStatusBadge(
+                                                context,
+                                                Icons.cancel,
+                                                colorScheme.error,
+                                                '$totalAbsent Absent',
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -492,15 +496,19 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
   ) {
     final theme = Theme.of(context);
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurface,
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

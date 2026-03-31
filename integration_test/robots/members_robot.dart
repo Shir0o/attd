@@ -80,14 +80,18 @@ class MembersRobot {
 
   Future<void> tapDeleteMember(String memberName) async {
     print('DEBUG: tapDeleteMember($memberName)');
-    final memberFinder = find.text(memberName).first;
+    final memberFinder = find.text(memberName).last;
     await tester.pumpUntilFound(memberFinder);
     
-    final tileFinder = find.ancestor(of: memberFinder, matching: find.byType(ListTile));
-    final deleteButton = find.descendant(of: tileFinder, matching: find.byIcon(Icons.delete_outline));
+    // Find the icon button that is in the same ListTile as the member name
+    final deleteButton = find.descendant(
+      of: find.ancestor(of: memberFinder, matching: find.byType(ListTile)),
+      matching: find.byIcon(Icons.delete_outline),
+    ).first;
     
+    await tester.ensureVisible(deleteButton);
     await tester.tap(deleteButton);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
   }
 
   Future<void> handleHistoricalAlert(bool confirm) async {

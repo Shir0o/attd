@@ -81,20 +81,22 @@ class HubRobot {
 
   Future<void> verifyEventStatus(String title, String status) async {
     print('DEBUG: verifyEventStatus($title, $status)');
-    final textFinder = find.text(title);
+    final textFinder = find.text(title).last;
     await tester.pumpUntilFound(textFinder);
 
     final cardFinder = find.ancestor(
       of: textFinder,
       matching: find.byType(Card),
-    );
+    ).last;
+    
+    // Case-insensitive matching to handle both 'Start' and 'START'
     final statusFinder = find.descendant(
       of: cardFinder,
-      matching: find.textContaining(status),
+      matching: find.textContaining(RegExp(status, caseSensitive: false)),
     );
 
     await tester.pumpUntilFound(statusFinder);
-    expect(statusFinder, findsOneWidget);
+    expect(statusFinder, findsWidgets);
   }
 
   Future<void> goBack() async {

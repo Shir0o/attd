@@ -9,6 +9,8 @@ class HistoryRobot {
 
   Future<void> verifySessionCount(int count) async {
     print('DEBUG: verifySessionCount($count)');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
     if (count == 0) {
       await tester.pumpUntilFound(find.text('No history found'));
     } else {
@@ -38,11 +40,14 @@ class HistoryRobot {
     final deleteIcon = find.byIcon(Icons.delete_outline);
     await tester.pumpUntilFound(deleteIcon);
     await tester.tap(deleteIcon);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
 
     final confirmButton = find.text('Delete');
     await tester.pumpUntilFound(confirmButton);
     await tester.tap(confirmButton);
-    await tester.pump(const Duration(milliseconds: 500));
+    
+    // Crucial: wait for deletion to persist and stream to emit
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pumpAndSettle();
   }
 }
