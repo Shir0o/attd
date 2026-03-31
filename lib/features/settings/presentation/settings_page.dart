@@ -405,10 +405,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ],
                               ),
                             ),
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant,
-                            ),
+                            const SizedBox(height: 4),
                             _SettingsTile(
                               icon: Icons.history,
                               title: 'Cloud Version History',
@@ -425,10 +422,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 _markDataModified();
                               },
                             ),
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant,
-                            ),
+                            const SizedBox(height: 4),
                             _SettingsTile(
                               icon: Icons.upload_file,
                               title: 'Overwrite Cloud',
@@ -469,10 +463,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                       }
                                     },
                             ),
-                            Divider(
-                              height: 1,
-                              color: colorScheme.outlineVariant,
-                            ),
+                            const SizedBox(height: 4),
                             _SettingsTile(
                               icon: Icons.download_for_offline,
                               title: 'Overwrite Local',
@@ -567,10 +558,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               _markDataModified();
                             },
                           ),
-                          Divider(
-                            height: 1,
-                            color: colorScheme.outlineVariant,
-                          ),
+                          const SizedBox(height: 4),
                           _SettingsTile(
                             key: const ValueKey('manage_backup_data_tile'),
                             icon: Icons.cleaning_services,
@@ -590,10 +578,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               _markDataModified();
                             },
                           ),
-                          Divider(
-                            height: 1,
-                            color: colorScheme.outlineVariant,
-                          ),
+                          const SizedBox(height: 4),
                           _SettingsTile(
                             icon: Icons.save,
                             title: 'Backup to Local Storage',
@@ -612,10 +597,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               }
                             },
                           ),
-                          Divider(
-                            height: 1,
-                            color: colorScheme.outlineVariant,
-                          ),
+                          const SizedBox(height: 4),
                           _SettingsTile(
                             icon: Icons.ios_share,
                             title: 'Export Report',
@@ -763,10 +745,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               );
                             },
                           ),
-                          Divider(
-                            height: 1,
-                            color: colorScheme.outlineVariant,
-                          ),
+                          const SizedBox(height: 4),
                           _SettingsTile(
                             icon: Icons.info_outline,
                             title: 'About',
@@ -941,10 +920,7 @@ class _SettingsPageState extends State<SettingsPage> {
               for (int i = 0; i < tileCount; i++) ...[
                 _buildSkeletonTile(context),
                 if (i < tileCount - 1)
-                  Divider(
-                    height: 1,
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  ),
+                  const SizedBox(height: 4),
               ],
               if (hasButtons)
                 Padding(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../../../core/design/app_shimmer.dart';
 import '../../../data/session_repository.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -591,18 +592,11 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 
   Widget _buildSkeletonInput() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          height: 64,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24),
-          ),
-        ),
-      ],
+    return AppShimmer(
+      width: double.infinity,
+      height: 64,
+      borderRadius: BorderRadius.circular(24),
+      disableAnimations: widget.disableAnimations,
     );
   }
 }

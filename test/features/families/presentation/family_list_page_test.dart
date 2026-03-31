@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
@@ -67,17 +68,22 @@ void main() {
     mockRepo.pauseFetch();
 
     await tester.pumpWidget(
-      MaterialApp(home: FamilyListPage(repository: mockRepo)),
+      MaterialApp(
+        home: FamilyListPage(
+          repository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
     );
 
     await tester.pump(); // Start the future
 
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(AppShimmer), findsWidgets);
 
     mockRepo.resumeFetch();
     await tester.pumpAndSettle();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(AppShimmer), findsNothing);
   });
 
   testWidgets('FamilyListPage shows empty message when no families', (

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/design/app_shimmer.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
@@ -762,7 +763,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 
   Widget _buildSkeleton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return ListView(
       key: const ValueKey('skeleton'),
       padding: const EdgeInsets.all(16),
@@ -772,37 +772,32 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           children: [
             Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
             const Spacer(),
-            Container(width: 120, height: 20, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24))),
+            AppShimmer(width: 120, height: 20, borderRadius: BorderRadius.circular(24)),
             const Spacer(),
             Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
           ],
         ),
         const SizedBox(height: 24),
         // Session Date
-        Container(
+        AppShimmer(
           width: 150,
           height: 16,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(24),
-          ),
+          borderRadius: BorderRadius.circular(24),
         ),
         const SizedBox(height: 12),
         // Stats Card
-        Container(
+        AppShimmer(
+          width: double.infinity,
           height: 140,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(24),
-          ),
+          borderRadius: BorderRadius.circular(24),
         ),
         const SizedBox(height: 32),
         // Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(width: 180, height: 24, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24))),
-            Container(width: 60, height: 14, decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(24))),
+            AppShimmer(width: 180, height: 24, borderRadius: BorderRadius.circular(24)),
+            AppShimmer(width: 60, height: 14, borderRadius: BorderRadius.circular(24)),
           ],
         ),
         const SizedBox(height: 24),
@@ -813,31 +808,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               children: [
-                Container(
+                AppShimmer(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    shape: BoxShape.circle,
-                  ),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 const SizedBox(width: 16),
-                Container(
+                AppShimmer(
                   width: 120,
                   height: 16,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 const Spacer(),
-                Container(
+                AppShimmer(
                   width: 40,
                   height: 24,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.circular(24),
                 ),
               ],
             ),

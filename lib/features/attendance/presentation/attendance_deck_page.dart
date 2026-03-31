@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/design/app_shimmer.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
@@ -366,13 +367,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                         borderRadius: BorderRadius.circular(24),
                                       ),
                                       child: Center(
-                                        child: Container(
+                                        child: AppShimmer(
                                           width: 96,
                                           height: 96,
-                                          decoration: BoxDecoration(
-                                            color: colorScheme.surfaceContainerHigh,
-                                            shape: BoxShape.circle,
-                                          ),
+                                          borderRadius: BorderRadius.circular(48),
+                                          disableAnimations: widget.disableAnimations,
                                         ),
                                       ),
                                     )
@@ -439,11 +438,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                             const SizedBox(height: 24),
                                             Text(
                                               currentMember.displayName,
-                                              style: TextStyle(
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.w500,
+                                              style: theme.textTheme.displaySmall?.copyWith(
                                                 color: colorScheme.onSurface,
-                                                height: 1.25, // leading-tight
+                                                fontWeight: FontWeight.w500,
                                               ),
                                               textAlign: TextAlign.center,
                                             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/design/app_shimmer.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
@@ -647,30 +648,27 @@ class _MembersPageState extends State<MembersPage> {
         key: const ValueKey('loading'),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         itemCount: 10,
-        separatorBuilder: (ctx, i) =>
-            Divider(color: colorScheme.outlineVariant, height: 1),
+        separatorBuilder: (ctx, i) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           return ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              backgroundColor: colorScheme.primary.withValues(alpha: 0.05),
+            leading: AppShimmer(
+              width: 40,
+              height: 40,
+              borderRadius: BorderRadius.circular(20),
+              disableAnimations: widget.disableAnimations,
             ),
-            title: Container(
+            title: AppShimmer(
               width: 150,
               height: 16,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(24),
-              ),
+              borderRadius: BorderRadius.circular(24),
+              disableAnimations: widget.disableAnimations,
             ),
-            subtitle: Container(
+            subtitle: AppShimmer(
               width: 80,
               height: 12,
-              margin: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(24),
-              ),
+              borderRadius: BorderRadius.circular(24),
+              disableAnimations: widget.disableAnimations,
             ),
           );
         },
@@ -746,8 +744,7 @@ class _MembersPageState extends State<MembersPage> {
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: filteredMembers.length,
-            separatorBuilder: (ctx, i) =>
-                Divider(color: colorScheme.outlineVariant, height: 1),
+            separatorBuilder: (ctx, i) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final member = filteredMembers[index];
               final isSelected = isEventMode

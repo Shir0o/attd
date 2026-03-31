@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../../core/design/app_shimmer.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
 import 'add_family_page.dart';
 import 'family_details_page.dart';
 
 class FamilyListPage extends StatefulWidget {
-  const FamilyListPage({super.key, required this.repository});
+  const FamilyListPage({
+    super.key,
+    required this.repository,
+    this.disableAnimations = false,
+  });
 
   final AttendanceRepository repository;
+  final bool disableAnimations;
 
   @override
   State<FamilyListPage> createState() => _FamilyListPageState();
@@ -65,7 +71,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
         future: _familiesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildSkeleton(context);
           }
 
           if (snapshot.hasError) {
@@ -79,8 +85,9 @@ class _FamilyListPageState extends State<FamilyListPage> {
           }
 
           return ListView.separated(
+            padding: const EdgeInsets.all(16),
             itemCount: families.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final family = families[index];
               final memberCount = family.members.length;
@@ -107,6 +114,20 @@ class _FamilyListPageState extends State<FamilyListPage> {
         onPressed: _addFamily,
         tooltip: 'Add Family',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: 8,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => AppShimmer(
+        width: double.infinity,
+        height: 72,
+        borderRadius: BorderRadius.circular(24),
+        disableAnimations: widget.disableAnimations,
       ),
     );
   }

@@ -18,6 +18,7 @@ import '../../sessions/presentation/event_history_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/models/member.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/swipe_action_track.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -1056,34 +1057,43 @@ class _EventCardState extends State<_EventCard>
                 ],
               ),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 20,
-                        color: widget.onSurfaceVariantColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          widget.event.time.format(context),
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: widget.onSurfaceVariantColor,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+              if (widget.isToday && widget.attendanceStatus.startsWith('Start'))
+                SwipeActionTrack(
+                  onSwipeComplete: widget.onTap,
+                  label: 'Swipe to Start Attendance',
+                  height: 56,
+                  disableAnimations: widget.disableAnimations,
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 20,
+                          color: widget.onSurfaceVariantColor,
                         ),
-                      ),
-                    ],
-                  ),                  _buildAttendanceStatusPill(widget.attendanceStatus),
-                ],
-              ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            widget.event.time.format(context),
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: widget.onSurfaceVariantColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    _buildAttendanceStatusPill(widget.attendanceStatus),
+                  ],
+                ),
             ],
           ),
         ),

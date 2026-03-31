@@ -184,7 +184,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
                         ],
                       ),
                     ),
-                    const Divider(height: 1),
+                    const SizedBox(height: 1),
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,

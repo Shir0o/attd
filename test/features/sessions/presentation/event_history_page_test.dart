@@ -115,6 +115,7 @@ void main() {
           event: event,
           sessionRepository: mockRepo,
           attendanceRepository: mockAttendanceRepo,
+          disableAnimations: true,
         ),
       ),
     );
@@ -183,6 +184,7 @@ void main() {
           event: event,
           sessionRepository: mockRepo,
           attendanceRepository: customAttendanceRepo,
+          disableAnimations: true,
         ),
       ),
     );
@@ -250,6 +252,7 @@ void main() {
           event: event,
           sessionRepository: mockRepo,
           attendanceRepository: mockAttendanceRepo,
+          disableAnimations: true,
         ),
       ),
     );

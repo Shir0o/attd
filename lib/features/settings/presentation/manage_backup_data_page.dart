@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import '../../../core/design/app_shimmer.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../../data/session_repository.dart';
@@ -47,6 +47,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   }
 
   Future<void> _loadData() async {
+    final startTime = DateTime.now();
     setState(() => _isLoading = true);
     try {
       final families = await widget.attendanceRepository.fetchFamilies();
@@ -65,21 +66,32 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         }
       }
 
-      setState(() {
-        _families = families;
-        _events = events;
-        _sessions = sessions;
-        _memberUsageMap.clear();
-        _memberUsageMap.addAll(usageMap);
-        _isLoading = false;
+      // Minimum loading duration for visual consistency
+      final elapsed = DateTime.now().difference(startTime);
+      final remaining = const Duration(milliseconds: 800) - elapsed;
+      if (remaining > Duration.zero) {
+        await Future.delayed(remaining);
+      }
 
-        _eventsToDelete.clear();
-        _membersToDelete.clear();
-        _sessionsToDelete.clear();
-      });
+      if (mounted) {
+        setState(() {
+          _families = families;
+          _events = events;
+          _sessions = sessions;
+          _memberUsageMap.clear();
+          _memberUsageMap.addAll(usageMap);
+          _isLoading = false;
+
+          _eventsToDelete.clear();
+          _membersToDelete.clear();
+          _sessionsToDelete.clear();
+        });
+      }
     } catch (e) {
       print('Failed to load backup data: $e');
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -194,7 +206,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildSkeleton(context)
           : Stack(
               children: [
                 ListView(
@@ -218,6 +230,54 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                   _buildFloatingBottomAction(colorScheme),
               ],
             ),
+    );
+  }
+
+  Widget _buildSkeleton(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AppShimmer(
+          width: double.infinity,
+          height: 200,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        const SizedBox(height: 24),
+        AppShimmer(
+          width: double.infinity,
+          height: 56,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        const SizedBox(height: 32),
+        ...List.generate(
+          3,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppShimmer(
+                  width: 120,
+                  height: 24,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                const SizedBox(height: 16),
+                ...List.generate(
+                  3,
+                  (i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: AppShimmer(
+                      width: double.infinity,
+                      height: 72,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -451,10 +511,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 },
                 colorScheme: colorScheme,
               ),
-              Divider(
-                height: 1,
-                color: colorScheme.primary.withValues(alpha: 0.05),
-              ),
+              const SizedBox(height: 4),
             ],
           ),
         ),
@@ -525,10 +582,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 },
                 colorScheme: colorScheme,
               ),
-              Divider(
-                height: 1,
-                color: colorScheme.primary.withValues(alpha: 0.05),
-              ),
+              const SizedBox(height: 4),
             ],
           ),
         ),
@@ -569,10 +623,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 },
                 colorScheme: colorScheme,
               ),
-              Divider(
-                height: 1,
-                color: colorScheme.primary.withValues(alpha: 0.05),
-              ),
+              const SizedBox(height: 4),
             ],
           ),
         ),

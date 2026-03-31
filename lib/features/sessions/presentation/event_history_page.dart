@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
+import '../../../core/design/app_shimmer.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 
@@ -18,11 +18,13 @@ class EventHistoryPage extends StatefulWidget {
     required this.event,
     required this.sessionRepository,
     required this.attendanceRepository,
+    this.disableAnimations = false,
   });
 
   final Event event;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
+  final bool disableAnimations;
 
   @override
   State<EventHistoryPage> createState() => _EventHistoryPageState();
@@ -437,49 +439,41 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
         return Container(
           height: 140,
           decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh.withOpacity(0.5),
+            color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(24),
           ),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
+              AppShimmer(
                 width: 140,
                 height: 24,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(24),
-                ),
+                borderRadius: BorderRadius.circular(24),
+                disableAnimations: widget.disableAnimations,
               ),
               const SizedBox(height: 10),
-              Container(
+              AppShimmer(
                 width: 200,
                 height: 16,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(24),
-                ),
+                borderRadius: BorderRadius.circular(24),
+                disableAnimations: widget.disableAnimations,
               ),
               const Spacer(),
               Row(
                 children: [
-                  Container(
+                  AppShimmer(
                     width: 100,
                     height: 20,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    disableAnimations: widget.disableAnimations,
                   ),
                   const SizedBox(width: 32),
-                  Container(
+                  AppShimmer(
                     width: 100,
                     height: 20,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    disableAnimations: widget.disableAnimations,
                   ),
                 ],
               ),
