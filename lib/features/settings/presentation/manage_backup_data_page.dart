@@ -226,9 +226,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       padding: const EdgeInsets.all(16.0),
       child: Container(
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
+          color: colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.1)),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -353,9 +352,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
+          color: colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(

@@ -133,7 +133,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Verify initial state: Alice is shown
@@ -258,7 +258,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Verify Alice is shown

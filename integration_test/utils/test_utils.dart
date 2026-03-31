@@ -50,6 +50,7 @@ Future<Widget> createTestApp(Directory tempDir) async {
     eventRepository: eventRepository,
     driveService: driveService,
     localBackupService: localBackupService,
+    prefs: prefs,
     disableAnimations: true,
   );
 }

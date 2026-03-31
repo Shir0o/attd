@@ -175,6 +175,7 @@ class MockAuthRepository implements AuthRepository {
         sessionRepository: mockSessionRepo,
         eventRepository: mockEventRepo,
         authRepository: mockAuthRepo,
+        prefs: prefs,
       ),
     );
 

@@ -179,7 +179,7 @@ void main() {
     );
 
     // Wait for the initial loading animation and delay
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Verify Title and Date
@@ -252,7 +252,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Verify Alice is shown
@@ -299,7 +299,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Initially Absent (in Marked Absent section)
@@ -354,7 +354,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Alice is absent
@@ -413,7 +413,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Swipe Right to Rename
@@ -460,7 +460,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Find delete button (specifically the one in AppBar with tooltip)
@@ -531,7 +531,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Alice should be "Marked Absent" (default)
@@ -571,7 +571,7 @@ void main() {
       ),
     );
 
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Initially 1 member (Alice)

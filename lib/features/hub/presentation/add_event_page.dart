@@ -105,7 +105,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
     // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 250) - elapsed;
+    final remaining = const Duration(milliseconds: 800) - elapsed;
     if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }

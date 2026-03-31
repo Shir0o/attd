@@ -121,7 +121,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Find the card (SwipeableCard)
@@ -174,7 +174,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Tap Absent button (instead of drag for more reliable transition test)

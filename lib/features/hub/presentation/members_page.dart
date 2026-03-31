@@ -89,7 +89,7 @@ class _MembersPageState extends State<MembersPage> {
       final families = await widget.attendanceRepository.fetchFamilies();
 
       final elapsed = DateTime.now().difference(startTime);
-      final remaining = const Duration(milliseconds: 600) - elapsed;
+      final remaining = const Duration(milliseconds: 800) - elapsed;
 
       if (remaining > Duration.zero && !widget.disableAnimations) {
         await Future.delayed(remaining);

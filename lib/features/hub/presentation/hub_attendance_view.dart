@@ -91,7 +91,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     ]);
 
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 1200) - elapsed;
+    final remaining = const Duration(milliseconds: 800) - elapsed;
     if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }

@@ -68,7 +68,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _currentIndex = firstUnrecorded;
 
     // Snappier delay to allow Hero to finish without making the app feel slow
-    final delay = widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 250);
+    // Mandated minimum of 800ms for visual consistency
+    final delay = widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 800);
     Future.delayed(delay, () {
       if (mounted) {
         setState(() => _isLoading = false);

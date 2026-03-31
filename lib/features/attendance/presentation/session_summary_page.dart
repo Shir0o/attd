@@ -103,7 +103,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
 
     final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 400) - elapsed;
+    final remaining = const Duration(milliseconds: 800) - elapsed;
     if (remaining > Duration.zero) {
       await Future.delayed(remaining);
     }

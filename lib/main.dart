@@ -39,15 +39,6 @@ Future<void> main() async {
   final sessionRepository = LocalJsonSessionRepository();
   final eventRepository = LocalJsonEventRepository();
 
-  // Run data maintenance
-  final maintenanceService = DataMaintenanceService(
-    attendanceRepository: attendanceRepository,
-    eventRepository: eventRepository,
-    sessionRepository: sessionRepository,
-    prefs: prefs,
-  );
-  maintenanceService.runIfNeeded();
-
   final driveService = DriveService(
     googleSignIn: googleSignIn,
     attendanceRepository: attendanceRepository,
@@ -70,6 +61,7 @@ Future<void> main() async {
       repository: attendanceRepository,
       sessionRepository: sessionRepository,
       eventRepository: eventRepository,
+      prefs: prefs,
       disableAnimations: false,
     ),
   );
@@ -80,6 +72,7 @@ class AttendanceApp extends StatefulWidget {
     super.key,
     required this.themeController,
     required this.onboardingController,
+    required this.prefs,
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
     EventRepository? eventRepository,
@@ -94,6 +87,7 @@ class AttendanceApp extends StatefulWidget {
 
   final ThemeController themeController;
   final OnboardingController onboardingController;
+  final SharedPreferences prefs;
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
@@ -113,7 +107,22 @@ class _AttendanceAppState extends State<AttendanceApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _runMigration();
+    
+    // Defer heavy initialization to prevent blocking the first frame paint
+    Future.microtask(() {
+      _runMaintenance();
+      _runMigration();
+    });
+  }
+
+  Future<void> _runMaintenance() async {
+    final maintenanceService = DataMaintenanceService(
+      attendanceRepository: widget.repository,
+      eventRepository: widget.eventRepository,
+      sessionRepository: widget.sessionRepository,
+      prefs: widget.prefs,
+    );
+    await maintenanceService.runIfNeeded();
   }
 
   Future<void> _runMigration() async {

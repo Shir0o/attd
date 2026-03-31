@@ -146,7 +146,7 @@ void main() {
     );
 
     mockRepo.emit([session]);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     expect(find.text('Morning Standup History'), findsOneWidget);
@@ -215,7 +215,7 @@ void main() {
     );
 
     mockRepo.emit([session]);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 800));
     await tester.pumpAndSettle();
 
     // Member One is assigned and present -> 1 Present
