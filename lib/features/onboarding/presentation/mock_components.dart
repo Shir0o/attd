@@ -210,7 +210,7 @@ class _MockListItem extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

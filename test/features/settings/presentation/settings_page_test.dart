@@ -90,8 +90,6 @@ class MockSessionRepository implements SessionRepository {
   Stream<List<Session>> streamSessions() => Stream.value([]);
 }
 
-// Create a Fake Drive Service
-// ... (rest of the fake classes)
 class FakeDriveService extends ChangeNotifier implements DriveService {
   @override
   bool isSyncing = false;
@@ -158,17 +156,43 @@ class FakeGoogleSignInAccount implements GoogleSignInAccount {
   String? get photoUrl => null;
 
   @override
-  String? get serverAuthCode => null;
+  GoogleSignInAuthentication get authentication => FakeGoogleSignInAuthentication();
 
   @override
-  Future<Map<String, String>> get authHeaders async => {};
+  GoogleSignInAuthorizationClient get authorizationClient => FakeGoogleSignInAuthorizationClient();
+}
+
+class FakeGoogleSignInAuthentication implements GoogleSignInAuthentication {
+  @override
+  String? get idToken => 'fake_id_token';
+}
+
+class FakeGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationClient {
+  @override
+  Future<GoogleSignInClientAuthorization?> authorizationForScopes(List<String> scopes) async {
+    return FakeGoogleSignInClientAuthorization();
+  }
 
   @override
-  Future<GoogleSignInAuthentication> get authentication async =>
-      throw UnimplementedError();
+  Future<GoogleSignInClientAuthorization> authorizeScopes(List<String> scopes) async {
+    return FakeGoogleSignInClientAuthorization();
+  }
 
   @override
-  Future<void> clearAuthCache() async {}
+  Future<Map<String, String>?> authorizationHeaders(List<String> scopes, {bool promptIfNecessary = false}) async {
+    return {'Authorization': 'Bearer fake_access_token'};
+  }
+
+  @override
+  Future<GoogleSignInServerAuthorization?> authorizeServer(List<String> scopes) async => null;
+
+  @override
+  Future<void> clearAuthorizationToken({required String accessToken}) async {}
+}
+
+class FakeGoogleSignInClientAuthorization implements GoogleSignInClientAuthorization {
+  @override
+  String get accessToken => 'fake_access_token';
 }
 
 class FakeLocalBackupService extends LocalBackupService {

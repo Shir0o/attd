@@ -10,7 +10,7 @@ void main() {
 
     setUp(() {
       // We don't need real dependencies for testing static merge logic
-      driveService = DriveService(googleSignIn: GoogleSignIn());
+      driveService = DriveService(googleSignIn: GoogleSignIn.instance);
     });
 
     test('Scenario: Independent changes should be merged (Union)', () {

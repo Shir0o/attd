@@ -31,7 +31,7 @@ Future<Widget> createTestApp(Directory tempDir) async {
   final eventRepository = LocalJsonEventRepository(storagePath: storagePath);
 
   // Mock GoogleSignIn for DriveService
-  final googleSignIn = GoogleSignIn();
+  final googleSignIn = GoogleSignIn.instance;
 
   final driveService = DriveService(
     googleSignIn: googleSignIn,

@@ -26,14 +26,15 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase initialization removed
 
+  // Initialize exactly once before use
+  final googleSignIn = GoogleSignIn.instance;
+  await googleSignIn.initialize(
+    serverClientId: GoogleOAuthConfig.webServerClientId,
+  );
+
   final prefs = await SharedPreferences.getInstance();
   final themeController = ThemeController(prefs);
   final onboardingController = OnboardingController(prefs);
-
-  final googleSignIn = GoogleSignIn(
-    scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
-    serverClientId: GoogleOAuthConfig.webServerClientId,
-  );
 
   final attendanceRepository = LocalJsonAttendanceRepository();
   final sessionRepository = LocalJsonSessionRepository();
