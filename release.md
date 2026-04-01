@@ -1,3 +1,10 @@
+# 1.0.13+14
+*   **Data Integrity & Maintenance**:
+    *   Implemented **DataMaintenanceService**: The app now automatically prunes soft-deleted records older than 90 days every week to keep the local database healthy.
+*   **Testing & Reliability**:
+    *   Added **Member Lifecycle & Data Integrity** integration tests to verify renaming, merging, and sync consistency.
+    *   Fixed UI overflows on the attendance deck for smaller device screens.
+
 # 1.0.12+13
 *   **Performance & UI Smoothness**:
     *   Implemented **Instant Transitions** globally: All page switches are now immediate, removing artificial animation delays for a snappier feel.

@@ -749,7 +749,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           _SettingsTile(
                             icon: Icons.info_outline,
                             title: 'About',
-                            subtitle: 'Version 2.4.0',
+                            subtitle: 'Version 1.0.13+14',
                             onTap: () {
                               showModalBottomSheet(
                                 context: context,
@@ -834,7 +834,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                               ),
                                               Center(
                                                 child: Text(
-                                                  'Version 2.4.0',
+                                                  'Version 1.0.13+14',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodyMedium
