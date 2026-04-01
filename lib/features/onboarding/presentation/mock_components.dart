@@ -11,52 +11,119 @@ class MockAttendanceSwipe extends StatelessWidget {
     return _MockContainer(
       child: Column(
         children: [
-          _MockHeader(title: 'Quick Mark'),
-          const SizedBox(height: 16),
-          _MockListItem(
-            label: 'John Doe',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+          _MockHeader(title: 'Marking Present'),
+          const SizedBox(height: 24),
+          AspectRatio(
+            aspectRatio: 3 / 2,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Icon(Icons.chevron_left, color: colorScheme.error),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.tertiary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(24),
+                // Background card
+                Transform.translate(
+                  offset: const Offset(0, 8),
+                  child: Transform.scale(
+                    scale: 0.9,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainer.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
                   ),
-                  child: Text('PRESENT', style: TextStyle(color: AppColors.tertiary, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
-                Icon(Icons.chevron_right, color: AppColors.tertiary),
+                // Main card being swiped
+                Transform.translate(
+                  offset: const Offset(40, -10),
+                  child: Transform.rotate(
+                    angle: 0.1,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: colorScheme.primaryContainer,
+                            child: Text('JD', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 20)),
+                          ),
+                          const SizedBox(height: 12),
+                          Text('John Doe', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Present indicator overlay
+                Positioned(
+                  right: 20,
+                  top: 20,
+                  child: Transform.rotate(
+                    angle: 0.2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.tertiary, width: 2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'PRESENT',
+                        style: TextStyle(
+                          color: AppColors.tertiary,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          _MockListItem(
-            label: 'Jane Smith',
-            trailing: Icon(Icons.swipe, color: colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 8),
-          _MockListItem(
-            label: 'Robert Johnson',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, color: colorScheme.error),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.error.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Text('ABSENT', style: TextStyle(color: colorScheme.error, fontSize: 10, fontWeight: FontWeight.bold)),
-                ),
-                Icon(Icons.chevron_right, color: AppColors.tertiary),
-              ],
-            ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _MockRoundButton(icon: Icons.undo, color: colorScheme.onSurfaceVariant.withOpacity(0.5), size: 40),
+              const SizedBox(width: 16),
+              _MockRoundButton(icon: Icons.close, color: colorScheme.error, size: 48),
+              const SizedBox(width: 16),
+              _MockRoundButton(icon: Icons.check, color: colorScheme.onPrimary, backgroundColor: colorScheme.primary, size: 48),
+            ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MockRoundButton extends StatelessWidget {
+  const _MockRoundButton({required this.icon, required this.color, this.backgroundColor, required this.size});
+  final IconData icon;
+  final Color color;
+  final Color? backgroundColor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: backgroundColor ?? Theme.of(context).colorScheme.surfaceContainerHigh,
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: size * 0.6),
     );
   }
 }
@@ -66,14 +133,30 @@ class MockSessionHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return _MockContainer(
       child: Column(
         children: [
-          _MockHeader(title: 'Recent Sessions'),
+          _MockHeader(title: 'History'),
           const SizedBox(height: 16),
-          _MockHistoryItem(title: 'Weekly Meetup', date: 'March 20, 2026', count: '18/20'),
-          _MockHistoryItem(title: 'Special Event', date: 'March 15, 2026', count: '45/50'),
-          _MockHistoryItem(title: 'Weekly Meetup', date: 'March 13, 2026', count: '15/20'),
+          _MockHistoryItem(
+            title: 'Sunday Service',
+            date: 'Today, 10:00 AM',
+            count: '42',
+            color: colorScheme.primary,
+          ),
+          _MockHistoryItem(
+            title: 'Midweek Prayer',
+            date: 'Wednesday, 7:00 PM',
+            count: '28',
+            color: AppColors.tertiary,
+          ),
+          _MockHistoryItem(
+            title: 'Youth Night',
+            date: 'Last Friday, 6:30 PM',
+            count: '35',
+            color: AppColors.secondary,
+          ),
         ],
       ),
     );
@@ -88,11 +171,11 @@ class MockManageMembers extends StatelessWidget {
     return _MockContainer(
       child: Column(
         children: [
-          _MockHeader(title: 'Families & Members'),
+          _MockHeader(title: 'People'),
           const SizedBox(height: 16),
-          _MockFamilyItem(name: 'Doe Family', count: 4),
-          _MockFamilyItem(name: 'Smith Family', count: 2),
-          _MockFamilyItem(name: 'Johnson Family', count: 3),
+          _MockFamilyItem(name: 'The Andersons', count: 4, initials: 'A'),
+          _MockFamilyItem(name: 'The Bakers', count: 2, initials: 'B'),
+          _MockFamilyItem(name: 'The Campbells', count: 5, initials: 'C'),
         ],
       ),
     );
@@ -192,40 +275,22 @@ class _MockHeader extends StatelessWidget {
   }
 }
 
-class _MockListItem extends StatelessWidget {
-  const _MockListItem({required this.label, this.trailing});
-  final String label;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
-          if (trailing != null) trailing!,
-        ],
-      ),
-    );
-  }
-}
-
 class _MockHistoryItem extends StatelessWidget {
-  const _MockHistoryItem({required this.title, required this.date, required this.count});
+  const _MockHistoryItem({
+    required this.title,
+    required this.date,
+    required this.count,
+    this.color,
+  });
   final String title;
   final String date;
   final String count;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final itemColor = color ?? colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
@@ -234,10 +299,10 @@ class _MockHistoryItem extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
+              color: itemColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: Icon(Icons.history_rounded, color: colorScheme.primary, size: 20),
+            child: Icon(Icons.history_rounded, color: itemColor, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -249,7 +314,7 @@ class _MockHistoryItem extends StatelessWidget {
               ],
             ),
           ),
-          Text(count, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colorScheme.primary)),
+          Text(count, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: itemColor)),
         ],
       ),
     );
@@ -257,9 +322,14 @@ class _MockHistoryItem extends StatelessWidget {
 }
 
 class _MockFamilyItem extends StatelessWidget {
-  const _MockFamilyItem({required this.name, required this.count});
+  const _MockFamilyItem({
+    required this.name,
+    required this.count,
+    required this.initials,
+  });
   final String name;
   final int count;
+  final String initials;
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +338,18 @@ class _MockFamilyItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
-          const CircleAvatar(radius: 18, child: Icon(Icons.group_rounded, size: 20)),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: colorScheme.surfaceContainerHigh,
+            child: Text(
+              initials,
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(child: Text(name, style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500))),
           Container(
