@@ -8,98 +8,164 @@ class MockAttendanceSwipe extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return _MockContainer(
-      child: Column(
-        children: [
-          _MockHeader(title: 'Marking Present'),
-          const SizedBox(height: 24),
-          AspectRatio(
-            aspectRatio: 3 / 2,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Background card
-                Transform.translate(
-                  offset: const Offset(0, 8),
-                  child: Transform.scale(
-                    scale: 0.9,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 300,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              // Left swipe card (ABSENT) - positioned behind
+              Transform.translate(
+                offset: const Offset(-50, 40),
+                child: Transform.rotate(
+                  angle: -0.15,
+                  child: _EnlargedCard(
+                    initials: 'JS',
+                    name: 'Jane Smith',
+                    label: 'ABSENT',
+                    labelColor: colorScheme.error,
+                    isLeft: true,
                   ),
                 ),
-                // Main card being swiped
-                Transform.translate(
-                  offset: const Offset(40, -10),
-                  child: Transform.rotate(
-                    angle: 0.1,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: colorScheme.primaryContainer,
-                            child: Text('JD', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 20)),
-                          ),
-                          const SizedBox(height: 12),
-                          Text('John Doe', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
+              ),
+              // Right swipe card (PRESENT) - positioned front
+              Transform.translate(
+                offset: const Offset(50, -20),
+                child: Transform.rotate(
+                  angle: 0.15,
+                  child: _EnlargedCard(
+                    initials: 'JD',
+                    name: 'John Doe',
+                    label: 'PRESENT',
+                    labelColor: AppColors.tertiary,
+                    isLeft: false,
                   ),
                 ),
-                // Present indicator overlay
-                Positioned(
-                  right: 20,
-                  top: 20,
-                  child: Transform.rotate(
-                    angle: 0.2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.tertiary, width: 2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'PRESENT',
-                        style: TextStyle(
-                          color: AppColors.tertiary,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          Row(
+        ),
+        const SizedBox(height: 48),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _MockRoundButton(
+              icon: Icons.undo,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+              size: 48,
+            ),
+            const SizedBox(width: 24),
+            _MockRoundButton(
+              icon: Icons.close,
+              color: colorScheme.error,
+              size: 64,
+            ),
+            const SizedBox(width: 24),
+            _MockRoundButton(
+              icon: Icons.check,
+              color: colorScheme.onPrimary,
+              backgroundColor: colorScheme.primary,
+              size: 64,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _EnlargedCard extends StatelessWidget {
+  const _EnlargedCard({
+    required this.initials,
+    required this.name,
+    required this.label,
+    required this.labelColor,
+    required this.isLeft,
+  });
+
+  final String initials;
+  final String name;
+  final String label;
+  final Color labelColor;
+  final bool isLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 200,
+      height: 240,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _MockRoundButton(icon: Icons.undo, color: colorScheme.onSurfaceVariant.withOpacity(0.5), size: 40),
-              const SizedBox(width: 16),
-              _MockRoundButton(icon: Icons.close, color: colorScheme.error, size: 48),
-              const SizedBox(width: 16),
-              _MockRoundButton(icon: Icons.check, color: colorScheme.onPrimary, backgroundColor: colorScheme.primary, size: 48),
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 28,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                name,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
+          ),
+          Positioned(
+            top: -10,
+            left: isLeft ? -10 : null,
+            right: isLeft ? null : -10,
+            child: Transform.rotate(
+              angle: isLeft ? -0.2 : 0.2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  border: Border.all(color: labelColor, width: 3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: labelColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
