@@ -55,7 +55,7 @@ class MockAttendanceSwipe extends StatelessWidget {
             _MockRoundButton(
               icon: Icons.undo,
               color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-              size: 56,
+              size: 72,
             ),
             const SizedBox(width: 24),
             _MockRoundButton(

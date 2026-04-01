@@ -484,8 +484,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                 children: [
                   // Undo Button
                   SizedBox(
-                    width: 72,
-                    height: 72,
+                    width: 80,
+                    height: 80,
                     child: Material(
                       color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
@@ -495,7 +495,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         onTap: _currentIndex > 0 ? _undo : null,
                         child: Icon(
                           Icons.undo,
-                          size: 32,
+                          size: 40,
                           color: _currentIndex > 0
                               ? colorScheme.onSurfaceVariant
                               : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
