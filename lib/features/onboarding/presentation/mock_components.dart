@@ -22,11 +22,11 @@ class MockAttendanceSwipe extends StatelessWidget {
                 offset: const Offset(-50, 40),
                 child: Transform.rotate(
                   angle: -0.15,
-                  child: _EnlargedCard(
+                  child: const _EnlargedCard(
                     initials: 'JS',
                     name: 'Jane Smith',
                     label: 'ABSENT',
-                    labelColor: colorScheme.error,
+                    labelColor: Colors.red,
                     isLeft: true,
                   ),
                 ),
@@ -98,7 +98,6 @@ class _EnlargedCard extends StatelessWidget {
     return Container(
       width: 200,
       height: 240,
-      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(32),
@@ -113,55 +112,73 @@ class _EnlargedCard extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 28,
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 28,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                name,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    name,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+              ],
+            ),
           ),
           Positioned(
-            top: -10,
-            left: isLeft ? -10 : null,
-            right: isLeft ? null : -10,
+            top: -12,
+            left: isLeft ? -12 : null,
+            right: isLeft ? null : -12,
             child: Transform.rotate(
               angle: isLeft ? -0.2 : 0.2,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
+                  color: colorScheme.surface,
                   border: Border.all(color: labelColor, width: 3),
                   borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Text(
                   label,
                   style: TextStyle(
                     color: labelColor,
                     fontWeight: FontWeight.w900,
-                    fontSize: 20,
+                    fontSize: 18,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
@@ -189,7 +206,7 @@ class _MockRoundButton extends StatelessWidget {
         color: backgroundColor ?? Theme.of(context).colorScheme.surfaceContainerHigh,
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: size * 0.6),
+      child: Icon(icon, color: color, size: size * 0.5),
     );
   }
 }
@@ -203,7 +220,7 @@ class MockSessionHistory extends StatelessWidget {
     return _MockContainer(
       child: Column(
         children: [
-          _MockHeader(title: 'History'),
+          const _MockHeader(title: 'History'),
           const SizedBox(height: 16),
           _MockHistoryItem(
             title: 'Sunday Service',
@@ -234,7 +251,7 @@ class MockManageMembers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _MockContainer(
+    return const _MockContainer(
       child: Column(
         children: [
           _MockHeader(title: 'People'),
@@ -287,7 +304,7 @@ class MockManageBackup extends StatelessWidget {
     return _MockContainer(
       child: Column(
         children: [
-          _MockHeader(title: 'Data & Backups'),
+          const _MockHeader(title: 'Data & Backups'),
           const SizedBox(height: 16),
           _MockBackupAction(icon: Icons.download_rounded, label: 'Export to CSV', color: AppColors.tertiary),
           _MockBackupAction(icon: Icons.backup_rounded, label: 'Create Local Backup', color: colorScheme.primary),

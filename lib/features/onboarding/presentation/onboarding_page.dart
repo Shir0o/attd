@@ -52,15 +52,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _nextPage() {
-    if (_currentPage < _slides.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      widget.onboardingController.completeOnboarding();
-    }
+  void _complete() {
+    widget.onboardingController.completeOnboarding();
   }
 
   @override
@@ -69,6 +62,35 @@ class _OnboardingPageState extends State<OnboardingPage> {
       body: SafeArea(
         child: Column(
           children: [
+            // Top Navigation & Progress
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 8, 8),
+              child: Row(
+                children: [
+                  // Progress Indicators
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      _slides.length,
+                      (index) => _buildPageIndicator(index),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Skip / Get Started Button
+                  if (_currentPage < _slides.length - 1)
+                    TextButton(
+                      onPressed: _complete,
+                      child: const Text('Skip'),
+                    )
+                  else
+                    TextButton(
+                      onPressed: _complete,
+                      child: const Text('Get Started'),
+                    ),
+                ],
+              ),
+            ),
+            
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -83,42 +105,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 },
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _slides.length,
-                      (index) => _buildPageIndicator(index),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton(
-                      onPressed: _nextPage,
-                      child: Text(
-                        _currentPage == _slides.length - 1 ? 'Get Started' : 'Next',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_currentPage < _slides.length - 1)
-                    TextButton(
-                      onPressed: () {
-                        widget.onboardingController.completeOnboarding();
-                      },
-                      child: const Text('Skip'),
-                    )
-                  else
-                    const SizedBox(height: 48), // Placeholder to maintain layout
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -130,12 +116,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      height: 8.0,
-      width: isActive ? 24.0 : 8.0,
+      height: 6.0,
+      width: isActive ? 20.0 : 6.0,
       decoration: BoxDecoration(
         color: isActive
             ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.primaryContainer,
+            : Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(24),
       ),
     );
@@ -155,35 +141,42 @@ class _OnboardingSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(40.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            mockUI,
-            const SizedBox(height: 60),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  mockUI,
+                  const SizedBox(height: 40),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                    textAlign: TextAlign.center,
                   ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.5,
+                  const SizedBox(height: 16),
+                  Text(
+                    description,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.5,
+                        ),
                   ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 }
