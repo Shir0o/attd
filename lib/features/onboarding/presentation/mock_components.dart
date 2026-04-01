@@ -10,9 +10,9 @@ class MockAttendanceSwipe extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         SizedBox(
-          height: 300,
+          height: 340,
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
@@ -48,27 +48,27 @@ class MockAttendanceSwipe extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 48),
+        const SizedBox(height: 40),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _MockRoundButton(
               icon: Icons.undo,
               color: colorScheme.onSurfaceVariant.withOpacity(0.5),
-              size: 48,
+              size: 56,
             ),
             const SizedBox(width: 24),
             _MockRoundButton(
               icon: Icons.close,
               color: colorScheme.error,
-              size: 64,
+              size: 72,
             ),
             const SizedBox(width: 24),
             _MockRoundButton(
               icon: Icons.check,
               color: colorScheme.onPrimary,
               backgroundColor: colorScheme.primary,
-              size: 64,
+              size: 72,
             ),
           ],
         ),
