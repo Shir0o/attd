@@ -133,6 +133,16 @@ class LocalJsonEventRepository implements EventRepository {
   }
 
   @override
+  Future<Event?> findEventById(String eventId) async {
+    await _init();
+    try {
+      return _cache.firstWhere((e) => e.id == eventId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<void> deleteEvent(String eventId) async {
     await _init();
     final index = _cache.indexWhere((e) => e.id == eventId);

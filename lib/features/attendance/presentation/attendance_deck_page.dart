@@ -8,6 +8,7 @@ import '../models/attendance_status.dart';
 import '../models/member.dart';
 import '../models/family.dart';
 import '../data/attendance_repository.dart';
+import '../../hub/data/event_repository.dart';
 import 'add_guest_sheet.dart';
 import 'session_summary_page.dart';
 import 'swipeable_card.dart';
@@ -19,6 +20,7 @@ class AttendanceDeckPage extends StatefulWidget {
     required this.members,
     required this.sessionRepository,
     required this.attendanceRepository,
+    required this.eventRepository,
     this.disableAnimations = false,
   });
 
@@ -26,6 +28,7 @@ class AttendanceDeckPage extends StatefulWidget {
   final List<Member> members;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
+  final EventRepository eventRepository;
   final bool disableAnimations;
 
   @override
@@ -182,6 +185,21 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     targetFamily.id,
                     newMember,
                   );
+
+                  // Tie to event if session has eventId
+                  if (widget.session.eventId != null) {
+                    final event = await widget.eventRepository.findEventById(
+                      widget.session.eventId!,
+                    );
+                    if (event != null &&
+                        !event.memberIds.contains(finalMemberId)) {
+                      await widget.eventRepository.updateEvent(
+                        event.copyWith(
+                          memberIds: [...event.memberIds, finalMemberId],
+                        ),
+                      );
+                    }
+                  }
                 } catch (e) {
                   debugPrint('Error adding regular member: $e');
                 }

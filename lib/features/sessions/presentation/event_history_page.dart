@@ -8,6 +8,7 @@ import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../../hub/domain/event.dart';
+import '../../hub/data/event_repository.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/models/attendance_status.dart';
@@ -18,12 +19,14 @@ class EventHistoryPage extends StatefulWidget {
     required this.event,
     required this.sessionRepository,
     required this.attendanceRepository,
+    required this.eventRepository,
     this.disableAnimations = false,
   });
 
   final Event event;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
+  final EventRepository eventRepository;
   final bool disableAnimations;
 
   @override
@@ -272,6 +275,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                   widget.sessionRepository,
                                               attendanceRepository:
                                                   widget.attendanceRepository,
+                                              eventRepository:
+                                                  widget.eventRepository,
                                             ),
                                       ),
                                     );
@@ -410,6 +415,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 members: sessionMembers,
                 sessionRepository: widget.sessionRepository,
                 attendanceRepository: widget.attendanceRepository,
+                eventRepository: widget.eventRepository,
               ),
         ),
       );

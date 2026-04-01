@@ -6,8 +6,10 @@ import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
+import '../../hub/data/event_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
+import '../models/family.dart';
 import 'add_guest_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
@@ -17,12 +19,14 @@ class SessionSummaryPage extends StatefulWidget {
     required this.members,
     required this.sessionRepository,
     this.attendanceRepository,
+    this.eventRepository,
   });
 
   final Session session;
   final List<Member> members;
   final SessionRepository sessionRepository;
   final AttendanceRepository? attendanceRepository;
+  final EventRepository? eventRepository;
 
   @override
   State<SessionSummaryPage> createState() => _SessionSummaryPageState();
@@ -123,11 +127,62 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           (context) => AddMemberSheet(
             availableMembers: _allMembers,
             onAdd: (name, isPresent, isGuest, existingMember) async {
-              final member = existingMember ?? Member(
-                id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
-                displayName: name,
-                isVisitor: true,
-              );
+              Member member;
+              if (existingMember != null) {
+                member = existingMember;
+              } else if (!isGuest && widget.attendanceRepository != null) {
+                // Add as regular member
+                try {
+                  final families =
+                      await widget.attendanceRepository!.fetchFamilies();
+                  Family targetFamily;
+                  if (families.isEmpty) {
+                    targetFamily =
+                        await widget.attendanceRepository!.addFamily('General');
+                  } else {
+                    targetFamily = families.first;
+                  }
+
+                  final memberId =
+                      DateTime.now().millisecondsSinceEpoch.toString();
+                  member = Member(id: memberId, displayName: name);
+
+                  await widget.attendanceRepository!.addMember(
+                    targetFamily.id,
+                    member,
+                  );
+
+                  // Tie to event
+                  if (widget.session.eventId != null &&
+                      widget.eventRepository != null) {
+                    final event = await widget.eventRepository!.findEventById(
+                      widget.session.eventId!,
+                    );
+                    if (event != null && !event.memberIds.contains(memberId)) {
+                      await widget.eventRepository!.updateEvent(
+                        event.copyWith(
+                          memberIds: [...event.memberIds, memberId],
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error adding regular member in summary: $e');
+                  // Fallback to visitor if error
+                  member = Member(
+                    id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
+                    displayName: name,
+                    isVisitor: true,
+                  );
+                }
+              } else {
+                // Add as guest/visitor
+                member = Member(
+                  id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
+                  displayName: name,
+                  isVisitor: true,
+                );
+              }
 
               // If it was an excluded member, un-exclude them
               if (!member.isVisitor && _currentSession.excludedMemberIds.contains(member.id)) {

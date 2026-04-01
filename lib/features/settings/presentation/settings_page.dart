@@ -14,6 +14,7 @@ import '../../../data/session_repository.dart';
 import 'cloud_backup_page.dart';
 import 'manage_backup_data_page.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/fluid_loading_border.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -44,12 +45,24 @@ class _SettingsPageState extends State<SettingsPage> {
   final _sheetsUrlController = TextEditingController();
   bool _isSavingUrl = false;
   bool _isInitialLoading = true;
+  bool _isOperating = false;
   bool _dataModified = false;
 
   @override
   void initState() {
     super.initState();
     _loadGoogleSheetsUrl();
+  }
+
+  Future<void> _performOperation(Future<void> Function() action) async {
+    setState(() => _isOperating = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) {
+        setState(() => _isOperating = false);
+      }
+    }
   }
 
   void _markDataModified() {
@@ -97,36 +110,40 @@ class _SettingsPageState extends State<SettingsPage> {
       },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-          onPressed: () => Navigator.of(context).pop(_dataModified),
-        ),
-        title: Text(
-          'Settings',
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontSize: 24,
-            fontWeight: FontWeight.normal,
+        appBar: AppBar(
+          backgroundColor: colorScheme.surface,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+            onPressed: () => Navigator.of(context).pop(_dataModified),
+          ),
+          title: Text(
+            'Settings',
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontSize: 24,
+              fontWeight: FontWeight.normal,
+            ),
           ),
         ),
-      ),
-      body: _isInitialLoading
-          ? _buildSkeleton(context)
-          : ListenableBuilder(
-              listenable: widget.driveService,
-              builder: (context, _) {
-                final isSyncing = widget.driveService.isSyncing;
-                final isSignedIn = widget.driveService.currentUser != null;
+        body: FluidLoadingBorder(
+          isLoading: _isOperating,
+          borderRadius: 0, // Fill the whole screen area below AppBar
+          child: _isInitialLoading
+              ? _buildSkeleton(context)
+              : ListenableBuilder(
+                  listenable: widget.driveService,
+                  builder: (context, _) {
+                    final isSyncing = widget.driveService.isSyncing;
+                    final isSignedIn = widget.driveService.currentUser != null;
 
-                return ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  children: [
+                    return ListView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      children: [
+
                     // ── Appearance ───────────────────────────────────────────
                     _SectionHeader(title: 'Appearance'),
                     Container(
@@ -271,19 +288,34 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                                 if (!isSignedIn)
                                   OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                      try {
-                                        await widget.driveService.signIn();
-                                        if (widget.driveService.currentUser != null) {
-                                          await widget.driveService.setDriveSyncEnabled(true);
-                                        }
-                                      } catch (e) {
-                                        scaffoldMessenger.showSnackBar(
-                                          SnackBar(content: Text('Sign in failed: $e')),
-                                        );
-                                      }
-                                    },
+                                    onPressed: _isOperating
+                                        ? null
+                                        : () async {
+                                            final scaffoldMessenger =
+                                                ScaffoldMessenger.of(context);
+                                            await _performOperation(() async {
+                                              try {
+                                                await widget.driveService
+                                                    .signIn();
+                                                if (widget.driveService
+                                                        .currentUser !=
+                                                    null) {
+                                                  await widget.driveService
+                                                      .setDriveSyncEnabled(
+                                                    true,
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                scaffoldMessenger.showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Sign in failed: $e',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            });
+                                          },
                                     icon: const Icon(Icons.login, size: 18),
                                     label: const Text('Sign In'),
                                     style: OutlinedButton.styleFrom(
@@ -304,17 +336,26 @@ class _SettingsPageState extends State<SettingsPage> {
                                 children: [
                                   Expanded(
                                     child: OutlinedButton.icon(
-                                      onPressed: () async {
-                                        final confirmed = await _showConfirmDialog(
-                                          context,
-                                          title: 'Sign Out?',
-                                          message: 'You will no longer be able to sync with Google Drive until you sign in again.',
-                                          confirmLabel: 'Sign Out',
-                                        );
-                                        if (confirmed == true) {
-                                          await widget.driveService.signOut();
-                                        }
-                                      },
+                                      onPressed: _isOperating
+                                          ? null
+                                          : () async {
+                                              final confirmed =
+                                                  await _showConfirmDialog(
+                                                context,
+                                                title: 'Sign Out?',
+                                                message:
+                                                    'You will no longer be able to sync with Google Drive until you sign in again.',
+                                                confirmLabel: 'Sign Out',
+                                              );
+                                              if (confirmed == true) {
+                                                await _performOperation(
+                                                  () async {
+                                                    await widget.driveService
+                                                        .signOut();
+                                                  },
+                                                );
+                                              }
+                                            },
                                       icon: const Icon(Icons.logout, size: 18),
                                       label: const Text('Sign Out'),
                                       style: OutlinedButton.styleFrom(
@@ -330,54 +371,67 @@ class _SettingsPageState extends State<SettingsPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: FilledButton.icon(
-                                      onPressed: isSyncing
+                                      onPressed: isSyncing || _isOperating
                                           ? null
                                           : () async {
                                               final scaffoldMessenger =
                                                   ScaffoldMessenger.of(context);
-                                              final url = _sheetsUrlController.text
+                                              final url = _sheetsUrlController
+                                                  .text
                                                   .trim();
-                                              try {
-                                                if (url.isNotEmpty) {
-                                                  await Future.wait([
-                                                    widget.driveService.syncFiles(
-                                                      actionTitle: 'Sheets & Drive Sync',
-                                                      tags: ['Manual', 'Sheets'],
-                                                    ),
-                                                    _googleSheetsService
-                                                        .syncAttendance(url),
-                                                  ]);
-                                                  _markDataModified();
-                                                  scaffoldMessenger.showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Backed up to Drive and Synced to Sheets.',
+                                              await _performOperation(() async {
+                                                try {
+                                                  if (url.isNotEmpty) {
+                                                    await Future.wait([
+                                                      widget.driveService
+                                                          .syncFiles(
+                                                        actionTitle:
+                                                            'Sheets & Drive Sync',
+                                                        tags: [
+                                                          'Manual',
+                                                          'Sheets',
+                                                        ],
                                                       ),
-                                                    ),
-                                                  );
-                                                } else {
-                                                  await widget.driveService
-                                                      .syncFiles(
-                                                        actionTitle: 'Manual Drive Sync',
-                                                        tags: ['Manual'],
-                                                      );
-                                                  _markDataModified();
+                                                      _googleSheetsService
+                                                          .syncAttendance(url),
+                                                    ]);
+                                                    _markDataModified();
+                                                    scaffoldMessenger
+                                                        .showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Backed up to Drive and Synced to Sheets.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  } else {
+                                                    await widget.driveService
+                                                        .syncFiles(
+                                                      actionTitle:
+                                                          'Manual Drive Sync',
+                                                      tags: ['Manual'],
+                                                    );
+                                                    _markDataModified();
 
-                                                  scaffoldMessenger.showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        'Sync completed successfully',
+                                                    scaffoldMessenger
+                                                        .showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Sync completed successfully',
+                                                        ),
                                                       ),
+                                                    );
+                                                  }
+                                                } catch (e) {
+                                                  scaffoldMessenger
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content:
+                                                          Text('Sync failed: $e'),
                                                     ),
                                                   );
                                                 }
-                                              } catch (e) {
-                                                scaffoldMessenger.showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Sync failed: $e'),
-                                                  ),
-                                                );
-                                              }
+                                              });
                                             },
                                       icon: isSyncing
                                           ? const SizedBox(
@@ -428,7 +482,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               title: 'Overwrite Cloud',
                               subtitle:
                                   'Upload local data to Google Drive',
-                              onTap: isSyncing
+                              onTap: isSyncing || _isOperating
                                   ? null
                                   : () async {
                                       final confirmed =
@@ -442,24 +496,26 @@ class _SettingsPageState extends State<SettingsPage> {
                                       if (confirmed == true) {
                                         final messenger =
                                             ScaffoldMessenger.of(context);
-                                        try {
-                                          await widget.driveService
-                                              .overwriteCloudWithLocal();
-                                          _markDataModified();
-                                          messenger.showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Cloud data overwritten',
+                                        await _performOperation(() async {
+                                          try {
+                                            await widget.driveService
+                                                .overwriteCloudWithLocal();
+                                            _markDataModified();
+                                            messenger.showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Cloud data overwritten',
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text('Error: $e'),
-                                            ),
-                                          );
-                                        }
+                                            );
+                                          } catch (e) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text('Error: $e'),
+                                              ),
+                                            );
+                                          }
+                                        });
                                       }
                                     },
                             ),
@@ -469,7 +525,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               title: 'Overwrite Local',
                               subtitle:
                                   'Replace local data with cloud backup',
-                              onTap: isSyncing
+                              onTap: isSyncing || _isOperating
                                   ? null
                                   : () async {
                                       final confirmed =
@@ -483,24 +539,26 @@ class _SettingsPageState extends State<SettingsPage> {
                                       if (confirmed == true) {
                                         final messenger =
                                             ScaffoldMessenger.of(context);
-                                        try {
-                                          await widget.driveService
-                                              .overwriteLocalWithCloud();
-                                          _markDataModified();
-                                          messenger.showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Local data overwritten',
+                                        await _performOperation(() async {
+                                          try {
+                                            await widget.driveService
+                                                .overwriteLocalWithCloud();
+                                            _markDataModified();
+                                            messenger.showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Local data overwritten',
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text('Error: $e'),
-                                            ),
-                                          );
-                                        }
+                                            );
+                                          } catch (e) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text('Error: $e'),
+                                              ),
+                                            );
+                                          }
+                                        });
                                       }
                                     },
                             ),
@@ -870,6 +928,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
             ),
+        ),
       ),
     );
   }

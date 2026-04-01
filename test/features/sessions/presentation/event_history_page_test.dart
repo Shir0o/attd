@@ -8,6 +8,7 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
@@ -35,6 +36,23 @@ class MockAttendanceRepository implements AttendanceRepository {
   Stream<List<Family>> streamFamilies() {
     return Stream.value([]);
   }
+}
+
+class MockEventRepository implements EventRepository {
+  @override
+  Future<void> createEvent(Event event) async {}
+  @override
+  Future<void> updateEvent(Event event) async {}
+  @override
+  Future<void> deleteEvent(String eventId) async {}
+  @override
+  Future<Event?> findEventById(String eventId) async => null;
+  @override
+  Stream<List<Event>> streamEvents() => Stream.value([]);
+  @override
+  Future<void> refresh() async {}
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 class MockSessionRepository implements SessionRepository {
@@ -115,6 +133,7 @@ void main() {
           event: event,
           sessionRepository: mockRepo,
           attendanceRepository: mockAttendanceRepo,
+          eventRepository: MockEventRepository(),
           disableAnimations: true,
         ),
       ),
@@ -184,6 +203,7 @@ void main() {
           event: event,
           sessionRepository: mockRepo,
           attendanceRepository: customAttendanceRepo,
+          eventRepository: MockEventRepository(),
           disableAnimations: true,
         ),
       ),
@@ -252,6 +272,7 @@ void main() {
           event: event,
           sessionRepository: mockRepo,
           attendanceRepository: mockAttendanceRepo,
+          eventRepository: MockEventRepository(),
           disableAnimations: true,
         ),
       ),

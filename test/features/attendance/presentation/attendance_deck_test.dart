@@ -7,6 +7,8 @@ import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,6 +34,23 @@ class MockAttendanceRepository implements AttendanceRepository {
   Stream<List<Family>> streamFamilies() {
     return Stream.value([]);
   }
+}
+
+class MockEventRepository implements EventRepository {
+  @override
+  Future<void> createEvent(Event event) async {}
+  @override
+  Future<void> updateEvent(Event event) async {}
+  @override
+  Future<void> deleteEvent(String eventId) async {}
+  @override
+  Future<Event?> findEventById(String eventId) async => null;
+  @override
+  Stream<List<Event>> streamEvents() => Stream.value([]);
+  @override
+  Future<void> refresh() async {}
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
 class MockSessionRepository implements SessionRepository {
@@ -130,6 +149,7 @@ void main() {
           members: members,
           sessionRepository: mockRepo,
           attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
         ),
       ),
     );
@@ -202,6 +222,7 @@ void main() {
           members: members,
           sessionRepository: mockRepo,
           attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
         ),
       ),
     );
@@ -255,6 +276,7 @@ void main() {
           members: members,
           sessionRepository: mockRepo,
           attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
         ),
       ),
     );
@@ -323,6 +345,7 @@ void main() {
             members: members,
             sessionRepository: mockRepo,
             attendanceRepository: MockAttendanceRepository(),
+            eventRepository: MockEventRepository(),
           ),
         ),
       );

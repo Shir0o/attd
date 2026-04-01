@@ -18,7 +18,6 @@ import '../../sessions/presentation/event_history_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/models/member.dart';
 import '../../../core/design/app_shimmer.dart';
-import '../../../core/design/swipe_action_track.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -271,6 +270,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             event: event,
             sessionRepository: widget.sessionRepository,
             attendanceRepository: widget.attendanceRepository,
+            eventRepository: widget.eventRepository,
           ),
         ),
       );
@@ -621,6 +621,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                     widget.sessionRepository,
                                                 attendanceRepository:
                                                     widget.attendanceRepository,
+                                                eventRepository:
+                                                    widget.eventRepository,
                                                 disableAnimations: widget.disableAnimations,
                                               ),
                                             ),
@@ -650,6 +652,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                 widget.sessionRepository,
                                             attendanceRepository:
                                                 widget.attendanceRepository,
+                                            eventRepository:
+                                                widget.eventRepository,
                                           ),
                                         ),
                                       );
@@ -680,6 +684,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                   widget.sessionRepository,
                                               attendanceRepository:
                                                   widget.attendanceRepository,
+                                              eventRepository:
+                                                  widget.eventRepository,
                                               disableAnimations: widget.disableAnimations,
                                             ),
                                           ),
@@ -1058,11 +1064,25 @@ class _EventCardState extends State<_EventCard>
               ),
               const SizedBox(height: 16),
               if (widget.isToday && widget.attendanceStatus.startsWith('Start'))
-                SwipeActionTrack(
-                  onSwipeComplete: widget.onTap,
-                  label: 'Swipe to Start Attendance',
+                SizedBox(
+                  width: double.infinity,
                   height: 56,
-                  disableAnimations: widget.disableAnimations,
+                  child: FilledButton.icon(
+                    onPressed: widget.onTap,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text(
+                      'Start Attendance',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                    ),
+                  ),
                 )
               else
                 Row(
