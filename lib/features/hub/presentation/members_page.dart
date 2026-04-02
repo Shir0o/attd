@@ -833,7 +833,7 @@ class _MemberListItem extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: isSelected && isEventMode
                     ? colorScheme.primary
-                    : colorScheme.primary.withValues(alpha: 0.1),
+                    : colorScheme.primaryContainer,
                 child: Text(
                   member.displayName.isNotEmpty
                       ? member.displayName[0].toUpperCase()
@@ -841,7 +841,7 @@ class _MemberListItem extends StatelessWidget {
                   style: TextStyle(
                     color: isSelected && isEventMode
                         ? colorScheme.onPrimary
-                        : colorScheme.primary,
+                        : colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
