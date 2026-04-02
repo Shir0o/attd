@@ -250,68 +250,77 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 const SizedBox(height: 16),
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 200),
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
+                  child: Padding(
                     padding: const EdgeInsets.all(12),
-                    itemCount:
-                        linkedSessions.length > 5 ? 6 : linkedSessions.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      if (index == 5 && linkedSessions.length > 5) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 4, left: 4),
-                          child: Text(
-                            '... and ${linkedSessions.length - 5} more',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  fontStyle: FontStyle.italic,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                          ),
-                        );
-                      }
-                      final session = linkedSessions[index];
-                      return Row(
-                        children: [
-                          Icon(Icons.event_note,
-                              size: 16, color: colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...linkedSessions.take(5).map((session) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
                               children: [
-                                Text(
-                                  session.title,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
+                                Icon(Icons.event_note,
+                                    size: 16,
+                                    color: colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        session.title,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
+                                      Text(
+                                        DateFormat('MMM d, yyyy')
+                                            .format(session.date),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                              ],
+                            ),
+                          );
+                        }),
+                        if (linkedSessions.length > 5)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, left: 4),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 24),
                                 Text(
-                                  DateFormat('MMM d, yyyy').format(session.date),
+                                  '... and ${linkedSessions.length - 5} more',
                                   style: Theme.of(context)
                                       .textTheme
-                                      .labelSmall
+                                      .bodySmall
                                       ?.copyWith(
+                                        fontStyle: FontStyle.italic,
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      );
-                    },
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -506,65 +515,69 @@ class _MembersPageState extends State<MembersPage> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
+                  child: Padding(
                     padding: const EdgeInsets.all(12),
-                    itemCount:
-                        linkedSessions.length > 3 ? 4 : linkedSessions.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      if (index == 3 && linkedSessions.length > 3) {
-                        return Text(
-                          '... and ${linkedSessions.length - 3} more',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                fontStyle: FontStyle.italic,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                        );
-                      }
-                      final session = linkedSessions[index];
-                      return Row(
-                        children: [
-                          Icon(Icons.event_note,
-                              size: 16, color: colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...linkedSessions.take(3).map((session) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
                               children: [
-                                Text(
-                                  session.title,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
+                                Icon(Icons.event_note,
+                                    size: 16,
+                                    color: colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        session.title,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
-                                ),
-                                Text(
-                                  DateFormat('MMM d, yyyy').format(session.date),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        color: colorScheme.onSurfaceVariant,
+                                      Text(
+                                        DateFormat('MMM d, yyyy')
+                                            .format(session.date),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
                                       ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
+                          );
+                        }),
+                        if (linkedSessions.length > 3)
+                          Text(
+                            '... and ${linkedSessions.length - 3} more',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                           ),
-                        ],
-                      );
-                    },
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
