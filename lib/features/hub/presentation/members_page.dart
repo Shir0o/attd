@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_theme.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
@@ -751,82 +752,189 @@ class _MembersPageState extends State<MembersPage> {
                   ? selectedIds.contains(member.id)
                   : false;
 
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                onTap: isEventMode
-                    ? () => _toggleEventMember(member, !isSelected)
-                    : null,
-                leading: CircleAvatar(
-                  backgroundColor: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.primary.withValues(alpha: 0.1),
-                  child: Text(
-                    member.displayName.isNotEmpty
-                        ? member.displayName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      color: isSelected
-                          ? colorScheme.onPrimary
-                          : colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  member.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: isSelected
-                        ? FontWeight.w500
-                        : FontWeight.normal,
-                  ),
-                ),
-                subtitle: isEventMode && isSelected
-                    ? Text(
-                        'Assigned',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.primary,
-                        ),
-                      )
-                    : null,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        Icons.edit_outlined,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed: () => _editMember(member),
-                    ),
-                    if (isEventMode)
-                      Checkbox(
-                        visualDensity: VisualDensity.compact,
-                        value: isSelected,
-                        onChanged: (val) =>
-                            _toggleEventMember(member, val ?? false),
-                      )
-                    else
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          Icons.delete_outline,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: () => _deleteMember(member),
-                      ),
-                  ],
-                ),
+              return _MemberListItem(
+                member: member,
+                isSelected: isSelected,
+                isEventMode: isEventMode,
+                onToggle: (val) => _toggleEventMember(member, val),
+                onEdit: () => _editMember(member),
+                onDelete: () => _deleteMember(member),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MemberListItem extends StatelessWidget {
+  final Member member;
+  final bool isSelected;
+  final bool isEventMode;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _MemberListItem({
+    required this.member,
+    required this.isSelected,
+    required this.isEventMode,
+    required this.onToggle,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Dismissible(
+      key: ValueKey('dismiss_${member.id}_$isEventMode'),
+      direction: DismissDirection.horizontal,
+      background: _buildSwipeBackground(
+        context,
+        'Rename',
+        colorScheme.secondary,
+        Icons.edit_outlined,
+        true,
+      ),
+      secondaryBackground: _buildSwipeBackground(
+        context,
+        'Delete Member',
+        colorScheme.error,
+        Icons.delete_outline,
+        false,
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          onEdit();
+        } else {
+          onDelete();
+        }
+        return false; // Handle state externally
+      },
+      child: InkWell(
+        onLongPress: onEdit,
+        onTap: isEventMode ? () => onToggle(!isSelected) : onEdit,
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isSelected && isEventMode
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                backgroundColor: isSelected && isEventMode
+                    ? colorScheme.primary
+                    : colorScheme.primary.withValues(alpha: 0.1),
+                child: Text(
+                  member.displayName.isNotEmpty
+                      ? member.displayName[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: isSelected && isEventMode
+                        ? colorScheme.onPrimary
+                        : colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: colorScheme.onSurface,
+                        fontWeight: isSelected && isEventMode
+                            ? FontWeight.w500
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    if (isEventMode && isSelected)
+                      Text(
+                        'Assigned to Event',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    else
+                      Text(
+                        'Regular Member',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (isEventMode)
+                Switch(
+                  value: isSelected,
+                  onChanged: onToggle,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwipeBackground(
+    BuildContext context,
+    String label,
+    Color color,
+    IconData icon,
+    bool isStart,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: isStart
+            ? [
+                Icon(icon, color: Colors.white),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ]
+            : [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(icon, color: Colors.white),
+              ],
+      ),
     );
   }
 }
