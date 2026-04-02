@@ -1,3 +1,13 @@
+# 1.0.14+15
+*   **Hub & Historical Data**:
+    *   Enhanced the **Historical Data Alert Dialog**: Now includes detailed session information and improved layout.
+    *   Fixed a layout exception that occurred in the alert dialog for some data sets.
+*   **UI & Styling**:
+    *   Refined **Member Avatar colors** for neutral consistency across the app, aligning with the Settings page styling.
+*   **Testing & Maintenance**:
+    *   Aligned **integration tests** with the latest UI changes.
+    *   Resolved a session caching issue to ensure more reliable data verification.
+
 # 1.0.13+14
 *   **Data Integrity & Maintenance**:
     *   Implemented **DataMaintenanceService**: The app now automatically prunes soft-deleted records older than 90 days every week to keep the local database healthy.
