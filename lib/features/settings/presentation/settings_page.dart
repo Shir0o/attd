@@ -128,7 +128,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         body: FluidLoadingBorder(
           isLoading: _isOperating,
-          borderRadius: 0, // Fill the whole screen area below AppBar
           child: _isInitialLoading
               ? _buildSkeleton(context)
               : ListenableBuilder(
@@ -287,7 +286,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                 ),
                                 if (!isSignedIn)
-                                  OutlinedButton.icon(
+                                  FilledButton.icon(
                                     onPressed: _isOperating
                                         ? null
                                         : () async {
@@ -318,10 +317,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                           },
                                     icon: const Icon(Icons.login, size: 18),
                                     label: const Text('Sign In'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(24),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
                                       ),
                                     ),
                                   ),

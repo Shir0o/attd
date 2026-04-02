@@ -110,7 +110,7 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       SizedBox(
                         width: double.infinity,
-                        child: OutlinedButton.icon(
+                        child: FilledButton.icon(
                           key: const Key('googleSignInButton'),
                           onPressed: state.isLoading
                               ? null
@@ -121,6 +121,7 @@ class _AuthPageState extends State<AuthPage> {
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    color: Colors.white,
                                   ),
                                 )
                               : const Icon(Icons.login),

@@ -6,8 +6,8 @@ class FluidLoadingBorder extends StatefulWidget {
     super.key,
     required this.child,
     this.isLoading = false,
-    this.borderWidth = 4.0,
-    this.borderRadius = 24.0,
+    this.borderWidth = 6.0,
+    this.borderRadius = 32.0,
     this.gradientColors,
   });
 
@@ -114,7 +114,8 @@ class _BorderPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = borderWidth;
+      ..strokeWidth = borderWidth
+      ..strokeCap = StrokeCap.round;
 
     // Use a sweep gradient for the rotating effect
     // We adjust the stops to make the "light" segment smaller and more focused
@@ -128,9 +129,9 @@ class _BorderPainter extends CustomPainter {
     canvas.saveLayer(rect, Paint());
     
     // Outer glow
-    canvas.drawPath(path, paint..maskFilter = const MaskFilter.blur(BlurStyle.outer, 8));
+    canvas.drawPath(path, paint..maskFilter = const MaskFilter.blur(BlurStyle.outer, 12));
     // Core light
-    canvas.drawPath(path, paint..maskFilter = null..strokeWidth = borderWidth * 0.5);
+    canvas.drawPath(path, paint..maskFilter = null..strokeWidth = borderWidth * 0.75);
     
     canvas.restore();
   }

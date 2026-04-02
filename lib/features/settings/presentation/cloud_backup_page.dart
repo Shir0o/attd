@@ -159,7 +159,6 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
       ),
       body: FluidLoadingBorder(
         isLoading: _isOperating,
-        borderRadius: 0,
         child: _isInitialLoading
             ? _buildSkeleton(context)
             : FutureBuilder<List<drive.File>>(
