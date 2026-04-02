@@ -306,10 +306,10 @@ class LocalJsonSessionRepository implements SessionRepository {
   Future<List<Session>> loadSessions() async {
     if (_sessionsCache != null) {
       // Sort copy to avoid mutating cache incorrectly if sort is needed
-      final sorted = List<Session>.from(_sessionsCache!);
-      sorted.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-      _controller.add(sorted);
-      return sorted;
+      final active = _sessionsCache!.where((s) => s.deletedAt == null).toList();
+      active.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+      _controller.add(active);
+      return active;
     }
 
     final sessions = await _loadFromFile();

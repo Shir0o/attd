@@ -51,11 +51,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     setState(() => _isLoading = true);
     try {
       final families = await widget.attendanceRepository.fetchFamilies();
-      final eventsStream = widget.eventRepository.streamEvents();
-      final sessionsStream = widget.sessionRepository.streamSessions();
-
-      final events = await eventsStream.first;
-      final sessions = await sessionsStream.first;
+      final events = await widget.eventRepository.streamEvents().first;
+      final sessions = await widget.sessionRepository.loadSessions();
 
       final usageMap = <String, List<({String title, DateTime date})>>{};
       for (final session in sessions) {

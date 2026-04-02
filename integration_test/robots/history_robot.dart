@@ -35,14 +35,17 @@ class HistoryRobot {
 
   Future<void> deleteSession() async {
     print('DEBUG: deleteSession');
-    final deleteIcon = find.byIcon(Icons.delete_outline);
-    await tester.pumpUntilFound(deleteIcon);
-    await tester.tap(deleteIcon);
+    final deleteButton = find.byTooltip('Delete session');
+    await tester.pumpUntilFound(deleteButton);
+    await tester.tap(deleteButton);
     await tester.pump(const Duration(milliseconds: 500));
 
     final confirmButton = find.text('Delete');
     await tester.pumpUntilFound(confirmButton);
     await tester.tap(confirmButton);
+    
+    // Wait for the deletion to complete and navigation to finish
+    await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 500));
   }
 }

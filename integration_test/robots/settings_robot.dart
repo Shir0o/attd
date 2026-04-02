@@ -59,7 +59,15 @@ class SettingsRobot {
       of: settingsPage,
       matching: find.byKey(const ValueKey('manage_backup_data_tile')),
     ).last;
-    await tester.ensureVisible(finder);
+    
+    // Explicitly scroll until visible to avoid hit test issues on physical devices
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    
     await tester.tap(finder);
     await tester.pump(const Duration(milliseconds: 500));
   }
@@ -72,6 +80,9 @@ class SettingsRobot {
 
   Future<void> verifyRecordCount(int expectedTotal) async {
     print('DEBUG: verifyRecordCount($expectedTotal)');
+    // Take a screenshot to see what's on the screen if it fails
+    // We can't easily see it now, but it's good practice
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpUntilFound(find.text('$expectedTotal'));
   }
 
