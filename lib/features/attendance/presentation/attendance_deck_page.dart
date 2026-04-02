@@ -9,6 +9,7 @@ import '../models/member.dart';
 import '../models/family.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
+import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
 import 'session_summary_page.dart';
 import 'swipeable_card.dart';
@@ -21,6 +22,7 @@ class AttendanceDeckPage extends StatefulWidget {
     required this.sessionRepository,
     required this.attendanceRepository,
     required this.eventRepository,
+    this.driveService,
     this.disableAnimations = false,
   });
 
@@ -29,6 +31,7 @@ class AttendanceDeckPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
+  final DriveService? driveService;
   final bool disableAnimations;
 
   @override
@@ -244,6 +247,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         members: widget.members,
         sessionRepository: widget.sessionRepository,
         attendanceRepository: widget.attendanceRepository,
+        driveService: widget.driveService,
       );
     }
 

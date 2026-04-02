@@ -271,6 +271,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             sessionRepository: widget.sessionRepository,
             attendanceRepository: widget.attendanceRepository,
             eventRepository: widget.eventRepository,
+            driveService: widget.driveService,
           ),
         ),
       );
@@ -495,7 +496,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                             (a, b) => b.sessionDate.compareTo(a.sessionDate),
                           );
 
-                          // A session is considered "current" if it's on or after the last supposed occurrence
+                          // A session is considered \"current\" if:
+                          // 1. It happened today (highest priority)
+                          // 2. OR it happened on/after the last supposed occurrence
                           Session? targetSession;
                           if (eventSessions.isNotEmpty) {
                             final latest = eventSessions.first;
@@ -504,7 +507,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                               latest.sessionDate.month,
                               latest.sessionDate.day,
                             );
-                            if (!latestDate.isBefore(lastSupposed)) {
+                            
+                            final isLatestToday = latestDate.year == today.year &&
+                                latestDate.month == today.month &&
+                                latestDate.day == today.day;
+
+                            if (isLatestToday || !latestDate.isBefore(lastSupposed)) {
                               targetSession = latest;
                             }
                           }
@@ -524,7 +532,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 displayDate.day == today.day;
                             if (isTargetToday) {
                               if (hasSession) {
-                                attendanceStatus = 'Taken today';
+                                attendanceStatus = 'COMPLETED';
                               } else {
                                 attendanceStatus = 'Start';
                                 isActionable = true;
@@ -534,7 +542,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 'MMM d',
                               ).format(displayDate);
                               if (hasSession) {
-                                attendanceStatus = 'Taken ($dateStr)';
+                                attendanceStatus = 'COMPLETED';
                               } else {
                                 attendanceStatus = 'Start';
                                 isActionable = true;
@@ -623,6 +631,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                     widget.attendanceRepository,
                                                 eventRepository:
                                                     widget.eventRepository,
+                                                driveService: widget.driveService,
                                                 disableAnimations: widget.disableAnimations,
                                               ),
                                             ),
@@ -654,6 +663,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                 widget.attendanceRepository,
                                             eventRepository:
                                                 widget.eventRepository,
+                                            driveService: widget.driveService,
                                           ),
                                         ),
                                       );
@@ -686,6 +696,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                                   widget.attendanceRepository,
                                               eventRepository:
                                                   widget.eventRepository,
+                                              driveService: widget.driveService,
                                               disableAnimations: widget.disableAnimations,
                                             ),
                                           ),
@@ -905,7 +916,7 @@ class _EventCardState extends State<_EventCard>
           ],
         ),
       );
-    } else if (status.startsWith('Taken')) {
+    } else if (status == 'COMPLETED') {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -1063,57 +1074,35 @@ class _EventCardState extends State<_EventCard>
                 ],
               ),
               const SizedBox(height: 16),
-              if (widget.isToday && widget.attendanceStatus.startsWith('Start'))
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton.icon(
-                    onPressed: widget.onTap,
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text(
-                      'Start Attendance',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 20,
+                        color: widget.onSurfaceVariantColor,
                       ),
-                    ),
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 20,
-                          color: widget.onSurfaceVariantColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            widget.event.time.format(context),
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: widget.onSurfaceVariantColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          widget.event.time.format(context),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: widget.onSurfaceVariantColor,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                    _buildAttendanceStatusPill(widget.attendanceStatus),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                  _buildAttendanceStatusPill(widget.attendanceStatus),
+                ],
+              ),
             ],
           ),
         ),

@@ -169,20 +169,22 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     // Also migrate history
     await _loadHistory();
-    bool historyChanged = false;
+    bool anyHistoryChanged = false;
     _historyCache.forEach((sessionId, versions) {
       for (int i = 0; i < versions.length; i++) {
         final version = versions[i];
         final session = version.snapshot;
+        bool versionChanged = false;
         final updatedRecords = session.records.map((record) {
           if (record.memberId == null && nameToIdMap.containsKey(record.attendee)) {
-            historyChanged = true;
+            versionChanged = true;
             return record.copyWith(memberId: nameToIdMap[record.attendee]);
           }
           return record;
         }).toList();
 
-        if (historyChanged) {
+        if (versionChanged) {
+          anyHistoryChanged = true;
           versions[i] = SessionVersion(
             sessionId: version.sessionId,
             version: version.version,
@@ -194,11 +196,11 @@ class LocalJsonSessionRepository implements SessionRepository {
       }
     });
 
-    if (historyChanged) {
+    if (anyHistoryChanged) {
       await _saveHistory();
     }
 
-    if (changed || historyChanged) {
+    if (changed || anyHistoryChanged) {
       await refresh();
     }
   }

@@ -129,7 +129,20 @@ class _AttendanceAppState extends State<AttendanceApp>
     try {
       final families = await widget.repository.fetchFamilies();
       final allMembers = families.expand((f) => f.members).toList();
-      final nameToIdMap = {for (var m in allMembers) m.displayName: m.id};
+      
+      // Safety: Only map names that are unique in the roster.
+      // If there are two "John Smiths", we don't know which one the legacy record belongs to,
+      // so it's safer to skip migration for that name and keep them as visitors.
+      final nameCounts = <String, int>{};
+      for (final m in allMembers) {
+        nameCounts[m.displayName] = (nameCounts[m.displayName] ?? 0) + 1;
+      }
+
+      final nameToIdMap = {
+        for (var m in allMembers)
+          if (nameCounts[m.displayName] == 1) m.displayName: m.id
+      };
+
       if (nameToIdMap.isNotEmpty) {
         await widget.sessionRepository.migrateRecords(nameToIdMap);
       }

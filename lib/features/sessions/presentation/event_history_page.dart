@@ -12,6 +12,7 @@ import '../../hub/data/event_repository.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/models/attendance_status.dart';
+import '../../settings/data/drive_service.dart';
 
 class EventHistoryPage extends StatefulWidget {
   const EventHistoryPage({
@@ -20,6 +21,7 @@ class EventHistoryPage extends StatefulWidget {
     required this.sessionRepository,
     required this.attendanceRepository,
     required this.eventRepository,
+    this.driveService,
     this.disableAnimations = false,
   });
 
@@ -27,6 +29,7 @@ class EventHistoryPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
+  final DriveService? driveService;
   final bool disableAnimations;
 
   @override
@@ -206,10 +209,21 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
                               final Map<String, Member> displayMembersMap = {};
                               final excludedIds = session.excludedMemberIds.toSet();
+                              final memberNames = filteredMembers.map((m) => m.displayName).toSet();
 
                               for (final m in filteredMembers) {
                                 if (excludedIds.contains(m.id)) continue;
-                                displayMembersMap[m.id] = m;
+                                
+                                final record = recordByMemberId[m.id] ?? recordByVisitorName[m.displayName];
+                                if (record != null) {
+                                  displayMembersMap[m.id] = Member(
+                                    id: m.id,
+                                    displayName: record.attendee,
+                                    isVisitor: false,
+                                  );
+                                } else {
+                                  displayMembersMap[m.id] = m;
+                                }
                               }
 
                               for (final record in session.records) {
@@ -222,13 +236,15 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                     );
                                   }
                                 } else {
-                                  final visitorId = 'visitor_${record.attendee}';
-                                  if (!displayMembersMap.containsKey(visitorId)) {
-                                    displayMembersMap[visitorId] = Member(
-                                      id: visitorId,
-                                      displayName: record.attendee,
-                                      isVisitor: true,
-                                    );
+                                  if (!memberNames.contains(record.attendee)) {
+                                    final visitorId = 'visitor_${record.attendee}';
+                                    if (!displayMembersMap.containsKey(visitorId)) {
+                                      displayMembersMap[visitorId] = Member(
+                                        id: visitorId,
+                                        displayName: record.attendee,
+                                        isVisitor: true,
+                                      );
+                                    }
                                   }
                                 }
                               }
@@ -241,7 +257,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                 if (member.isVisitor) {
                                   status = recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
                                 } else {
-                                  status = recordByMemberId[member.id]?.status ?? AttendanceStatus.absent;
+                                  status = recordByMemberId[member.id]?.status ?? recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
                                 }
 
                                 if (status == AttendanceStatus.present) {
@@ -267,8 +283,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder:
-                                            (_) => SessionSummaryPage(
+                                        builder: (_) => SessionSummaryPage(
                                               session: session,
                                               members: filteredMembers,
                                               sessionRepository:
@@ -277,6 +292,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                   widget.attendanceRepository,
                                               eventRepository:
                                                   widget.eventRepository,
+                                              driveService: widget.driveService,
                                             ),
                                       ),
                                     );
