@@ -538,9 +538,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                                 isActionable = true;
                               }
                             } else {
-                              final dateStr = DateFormat(
-                                'MMM d',
-                              ).format(displayDate);
                               if (hasSession) {
                                 attendanceStatus = 'COMPLETED';
                               } else {
