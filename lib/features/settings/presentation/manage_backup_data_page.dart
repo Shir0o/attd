@@ -31,7 +31,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   List<Event> _events = [];
   List<Family> _families = [];
   List<Session> _sessions = [];
-  final Map<String, List<String>> _memberUsageMap = {};
+  final Map<String, List<({String title, DateTime date})>> _memberUsageMap = {};
 
   // To track what needs to be deleted
   final Set<String> _eventsToDelete = {};
@@ -57,11 +57,13 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       final events = await eventsStream.first;
       final sessions = await sessionsStream.first;
 
-      final usageMap = <String, List<String>>{};
+      final usageMap = <String, List<({String title, DateTime date})>>{};
       for (final session in sessions) {
         for (final record in session.records) {
           if (record.memberId != null) {
-            usageMap.putIfAbsent(record.memberId!, () => []).add(session.title);
+            usageMap
+                .putIfAbsent(record.memberId!, () => [])
+                .add((title: session.title, date: session.sessionDate));
           }
         }
       }
@@ -552,29 +554,127 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 onDelete: () async {
                   final linkedSessions = _memberUsageMap[m.id] ?? [];
                   if (linkedSessions.isNotEmpty) {
-                    final sessionListText = linkedSessions.take(5).join(', ') + 
-                        (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
-
+                    if (!mounted) return;
                     final confirmed = await showDialog<bool>(
                       context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Historical Data Alert'),
-                        content: Text(
-                          '${m.displayName} is linked to ${linkedSessions.length} past session reports: $sessionListText.\n\n'
-                          'Deleting them from the roster will make them appear as a "Visitor" in those reports, but their data will NOT be deleted.\n\n'
-                          'Do you want to proceed?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancel'),
+                      builder: (context) {
+                        final colorScheme = Theme.of(context).colorScheme;
+                        return AlertDialog(
+                          title: const Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded,
+                                  color: Colors.orange),
+                              SizedBox(width: 12),
+                              Text('Historical Data Alert'),
+                            ],
                           ),
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text('Continue'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${m.displayName} is linked to ${linkedSessions.length} past session reports:',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                constraints:
+                                    const BoxConstraints(maxHeight: 150),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  padding: const EdgeInsets.all(12),
+                                  itemCount: linkedSessions.length > 3
+                                      ? 4
+                                      : linkedSessions.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 8),
+                                  itemBuilder: (context, index) {
+                                    if (index == 3 &&
+                                        linkedSessions.length > 3) {
+                                      return Text(
+                                        '... and ${linkedSessions.length - 3} more',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontStyle: FontStyle.italic,
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      );
+                                    }
+                                    final session = linkedSessions[index];
+                                    return Row(
+                                      children: [
+                                        Icon(Icons.event_note,
+                                            size: 16,
+                                            color:
+                                                colorScheme.onSurfaceVariant),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                session.title,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                              Text(
+                                                DateFormat('MMM d, yyyy')
+                                                    .format(session.date),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .labelSmall
+                                                    ?.copyWith(
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Deleting them from the roster will make them appear as a "Visitor" in those reports, but their data will NOT be deleted.',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text('Do you want to proceed?'),
+                            ],
                           ),
-                        ],
-                      ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('Continue'),
+                            ),
+                          ],
+                        );
+                      },
                     );
                     if (confirmed != true) return;
                   }
