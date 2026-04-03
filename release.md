@@ -1,3 +1,7 @@
+# 1.0.15+16
+*   **Maintenance**:
+    *   Incremented version number to 1.0.15+16.
+
 # 1.0.14+15
 *   **Hub & Historical Data**:
     *   Enhanced the **Historical Data Alert Dialog**: Now includes detailed session information and improved layout.
