@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../reports/report_export_page.dart';
 import '../../settings/application/theme_controller.dart';
@@ -704,6 +705,33 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         children: [
                           _SettingsTile(
+                            icon: Icons.feedback_outlined,
+                            title: 'Feedback & Support',
+                            subtitle: 'Report a bug or request a feature',
+                            onTap: () async {
+                              final Uri emailLaunchUri = Uri(
+                                scheme: 'mailto',
+                                path: 'support@attd.tracker',
+                                queryParameters: {
+                                  'subject': 'Attendance Tracker Feedback',
+                                  'body': 'App Version: 1.0.13+14\n\nDescribe your feedback or bug here...',
+                                },
+                              );
+                              if (await canLaunchUrl(emailLaunchUri)) {
+                                await launchUrl(emailLaunchUri);
+                              } else {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Could not launch email app'),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          _SettingsTile(
                             icon: Icons.security,
                             title: 'Privacy Policy',
                             subtitle: 'How your data is handled',
@@ -777,9 +805,15 @@ class _SettingsPageState extends State<SettingsPage> {
                                               ),
                                               _buildPolicyPoint(
                                                 context,
+                                                Icons.bug_report_outlined,
+                                                'Anonymized Error Reporting',
+                                                'We use Firebase Crashlytics to catch bugs and improve app stability. This service collects anonymous technical data about app crashes (such as device model and stack traces). No personal information is ever sent.',
+                                              ),
+                                              _buildPolicyPoint(
+                                                context,
                                                 Icons.cloud_off,
-                                                'No Third-Party Tracking',
-                                                'We do not use any analytics, tracking pixels, or advertising identifiers. Your usage of the app is completely private and anonymous.',
+                                                'No Advertising Tracking',
+                                                'We do not use any advertising identifiers or tracking pixels. Your usage of the app for any purpose other than technical stability is completely private and anonymous.',
                                               ),
                                               _buildPolicyPoint(
                                                 context,
@@ -796,7 +830,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                               const SizedBox(height: 48),
                                               Center(
                                                 child: Text(
-                                                  'Effective Date: February 25, 2026',
+                                                  'Effective Date: April 2, 2026',
                                                   style: Theme.of(context)
                                                       .textTheme
                                                       .bodySmall
@@ -970,7 +1004,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 24),
         _buildSkeletonSection(context, 'Data Management', 4),
         const SizedBox(height: 24),
-        _buildSkeletonSection(context, 'Information', 2),
+        _buildSkeletonSection(context, 'Information', 3),
         const SizedBox(height: 48),
       ],
     );
