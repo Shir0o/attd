@@ -1,13 +1,27 @@
 # 1.0.15+16
-*   **Maintenance**:
-    *   Incremented version number to 1.0.15+16.
+*   **Stability & Feedback**:
+    *   Integrated **Firebase Crashlytics** for automated crash reporting and better diagnostic tracking.
+    *   Improved the **Email Feedback** mechanism: Implemented manual URL encoding to ensure reliable subject/body pre-filling across different email clients.
+    *   Fixed a bug where the email app would fail to launch on **Android 11+ and iOS** due to strict URL scheme restrictions.
+*   **Platform Specifics (iOS)**:
+    *   Configured **dynamic Google OAuth Client IDs** via environment variables for more secure and flexible authentication management.
+*   **Testing**:
+    *   Added a **comprehensive integration suite** to verify end-to-end app flows.
+    *   Enhanced **test robots** for more robust and maintainable integration testing.
 
 # 1.0.14+15
 *   **Hub & Historical Data**:
     *   Enhanced the **Historical Data Alert Dialog**: Now includes detailed session information and improved layout.
     *   Fixed a layout exception that occurred in the alert dialog for some data sets.
+    *   Unified **Hub buttons** and implemented **auto-sync on finalize** to ensure cloud data is always up-to-date.
 *   **UI & Styling**:
-    *   Refined **Member Avatar colors** for neutral consistency across the app, aligning with the Settings page styling.
+    *   Refined **Member Avatar colors** for neutral consistency across the app.
+    *   Updated **Onboarding** with a refactored layout, top progress indicator, and high-fidelity mock components matching the actual app UI.
+    *   Standardized **action button sizes** (Undo, Absent, Present) for a more balanced look and feel.
+    *   Enhanced **Google Sign-In buttons** and **Fluid Loading Border** styling.
+*   **Member Management**:
+    *   Improved **Manage Members UI** with intuitive swipe actions and status switches.
+    *   Streamlined attendance member management within the cloud sync context.
 *   **Testing & Maintenance**:
     *   Aligned **integration tests** with the latest UI changes.
     *   Resolved a session caching issue to ensure more reliable data verification.
@@ -15,9 +29,22 @@
 # 1.0.13+14
 *   **Data Integrity & Maintenance**:
     *   Implemented **DataMaintenanceService**: The app now automatically prunes soft-deleted records older than 90 days every week to keep the local database healthy.
+    *   Improved **Backup/Sync reliability**: Added `updatedAt` and `deletedAt` timestamps for conflict resolution and implemented **atomic writes** for local storage.
+    *   Introduced **Local Backup Rotation**: The repository now maintains `.bak` files during saves for safe data recovery.
+*   **UX & Interaction**:
+    *   Implemented **Fluid Humanist UI polish** with high-fidelity skeleton loaders across all main pages.
+    *   Enhanced **Session Summary**:
+        *   Restored the attendance toggle and dedicated swipes for edit/delete actions.
+        *   Added **Swipe Gestures** for the attendance roster.
+        *   Enabled adding, selecting, renaming, and removing members directly from the summary.
+    *   Added **Safety Warnings**: The app now displays specific linked sessions when editing or deleting members or events to prevent accidental data loss.
+*   **Performance**:
+    *   Optimized attendance and member lookups using internal Maps and Sets, significantly reducing list processing time.
+    *   ⚡ Improved **Analytics resolution** speed with an attendee lookup map.
 *   **Testing & Reliability**:
-    *   Added **Member Lifecycle & Data Integrity** integration tests to verify renaming, merging, and sync consistency.
+    *   Added **Member Lifecycle & Data Integrity** integration tests.
     *   Fixed UI overflows on the attendance deck for smaller device screens.
+    *   Aligned historical attendance counting logic to prevent double-counting across different views.
 
 # 1.0.12+13
 *   **Performance & UI Smoothness**:
@@ -25,36 +52,48 @@
     *   Introduced **System-wide Skeleton Loaders**: Pages now render a structural skeleton immediately while background data loads.
     *   Refactored **Settings Page** with a full skeleton state and instant entry.
 *   **Settings & About Page Refactor**:
-    *   Simplified the "App Version" bottom sheet to focus on core app metadata (name, version, legalese).
+    *   Simplified the "About" section bottom sheet to focus on core app metadata (name, version, legalese).
     *   Removed redundant **Open Source** declarations and **View Licenses** functionality for a cleaner user experience.
+*   **UI Polish**:
+    *   Modernized **Cloud Version History** UI with a timeline-based design syntax.
+    *   Refined dark theme legibility and unified animation durations.
 
 # 1.0.11+12
 *   **Data Integrity & Member Management**:
     *   Implemented **hybrid ID-based session records**, allowing for reliable member renames while maintaining backward compatibility with legacy name-based records.
-*   **Security & Integrity**:
-    *   Enhanced **Google Play Integrity** configuration with environment variable support for Google Cloud Project Number.
-    *   Added a fail-safe mechanism to handle missing project configuration gracefully.
 *   **Reporting & Sheets Integration**:
     *   Updated the **Google Sheets Apps Script boilerplate** to include a "Points" column, enabling more detailed engagement analysis in exported reports.
+    *   Fixed a regex mismatch in the Apps Script payload by ensuring consistent spacing for key fields.
 
 # 1.0.10+11
+*   **Performance & Sync Optimization**:
+    *   ⚡ **Optimized Google Drive synchronization**: Implemented concurrent network operations for sequential sync tasks, significantly reducing wait times.
+*   **Security & Environment**:
+    *   Enhanced **Google Play Integrity** configuration with environment variable support for Google Cloud Project Number.
+    *   Added a fail-safe mechanism to handle missing project configuration gracefully.
 *   **Member Management Enhancements**:
     *   **Editing in Event Context**: Renaming members is now possible directly from the event management screen, improving flexibility.
     *   Added **loading states** for member creation to prevent duplicate entries during slow operations.
 *   **Event & Session Improvements**:
     *   Fixed a bug where **assigned members were lost** when editing existing events.
     *   Cleaned up the **Session Summary** UI by removing redundant status labels.
-*   **Reliability**:
-    *   Resolved a potential race condition and compilation error in Google Drive synchronization.
+*   **Testing & Reliability**:
+    *   Resolved integration test hangs by replacing `pumpAndSettle` with timed pumps and disabling animations in test mode.
 
 # 1.0.9+10
-*   **New Feature**: **Member Editing** functionality, allowing users to update member names directly.
+*   **New Feature**: **Member Editing** functionality, allowing users to update member names directly from the members page.
 *   **UX Improvements**: 
     *   **Auto-trimming** whitespace for event and member names to ensure clean data entry.
-    *   Optimized CI workflow for faster verification.
+    *   Enhanced **Google Drive security**: Updated authentication scope to the more restricted `drive.file` for better user privacy.
 *   **Bug Fixes & Maintenance**:
-    *   Updated integration test robots for reliable member page verification.
-    *   Removed redundant cloud backup caps to improve data synchronization scalability.
+    *   Fixed a race condition in the Session Summary during cloud sync.
+    *   Optimized CI workflows and GitHub Actions to reduce build usage and improve verification speed.
+
+# 1.0.8+9
+*   **UX & Feature Additions**:
+    *   Introduced a **Unified Add Member/Guest sheet** for a more streamlined attendance experience.
+    *   Added a **Make-up Session FAB** to the Event History page with smooth Hero animations.
+    *   Updated the **Attendance Deck** UI for better visual clarity.
 
 # 1.0.7+8
 *   **Performance & Optimization**:
