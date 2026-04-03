@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../reports/report_export_page.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/google_sheets_service.dart';
 import '../../settings/data/drive_service.dart';
@@ -651,6 +652,21 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ),
                                 );
                               }
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          _SettingsTile(
+                            icon: Icons.analytics_outlined,
+                            title: 'Advanced Reporting',
+                            subtitle: 'Filter and export custom reports',
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ReportExportPage(
+                                    sessionRepository: widget.sessionRepository,
+                                  ),
+                                ),
+                              );
                             },
                           ),
                           const SizedBox(height: 4),
