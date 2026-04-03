@@ -709,17 +709,29 @@ class _SettingsPageState extends State<SettingsPage> {
                             title: 'Feedback & Support',
                             subtitle: 'Report a bug or request a feature',
                             onTap: () async {
+                              String? encodeQueryParameters(Map<String, String> params) {
+                                return params.entries
+                                    .map((MapEntry<String, String> e) =>
+                                        '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+                                    .join('&');
+                              }
+
                               final Uri emailLaunchUri = Uri(
                                 scheme: 'mailto',
                                 path: 'support@attd.tracker',
-                                queryParameters: {
+                                query: encodeQueryParameters(<String, String>{
                                   'subject': 'Attendance Tracker Feedback',
-                                  'body': 'App Version: 1.0.13+14\n\nDescribe your feedback or bug here...',
-                                },
+                                  'body':
+                                      'App Version: 1.0.13+14\n\nDescribe your feedback or bug here...',
+                                }),
                               );
-                              if (await canLaunchUrl(emailLaunchUri)) {
-                                await launchUrl(emailLaunchUri);
-                              } else {
+
+                              try {
+                                await launchUrl(
+                                  emailLaunchUri,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -728,8 +740,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   );
                                 }
                               }
-                            },
-                          ),
+                            },                          ),
                           const SizedBox(height: 4),
                           _SettingsTile(
                             icon: Icons.security,
