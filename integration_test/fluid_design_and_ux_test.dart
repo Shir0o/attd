@@ -108,8 +108,6 @@ void main() {
           ),
         );
 
-        final hub = HubRobot(tester);
-
         // Skip onboarding
         await tester.pumpUntilFound(find.text('Skip'));
         await tester.tap(find.text('Skip'));

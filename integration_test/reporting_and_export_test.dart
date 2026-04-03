@@ -8,7 +8,6 @@ import 'robots/hub_robot.dart';
 import 'robots/event_robot.dart';
 import 'robots/members_robot.dart';
 import 'robots/attendance_robot.dart';
-import 'robots/settings_robot.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +25,6 @@ void main() {
       final event = EventRobot(tester);
       final members = MembersRobot(tester);
       final attendance = AttendanceRobot(tester);
-      final settings = SettingsRobot(tester);
 
       // 1. Skip onboarding
       await tester.pumpUntilFound(find.text('Skip'));

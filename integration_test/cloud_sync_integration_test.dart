@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 import 'utils/test_utils.dart';
 import 'robots/hub_robot.dart';
-import 'robots/settings_robot.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +18,6 @@ void main() {
       await setupScreenshots(binding);
       
       final hub = HubRobot(tester);
-      final settings = SettingsRobot(tester);
 
       // 1. Skip onboarding
       await tester.pumpUntilFound(find.text('Skip'));

@@ -4,6 +4,8 @@
     *   Cleaned up orphaned analytics code and associated unit tests.
     *   Updated the User Guide and Architecture documentation to reflect the streamlined feature set.
     *   Refined UI icons: Replaced "Analytics" icons with more descriptive "Reporting" and "Summary" icons in the Settings and Export screens.
+*   **Maintenance**:
+    *   Resolved `flutter analyze` warnings by removing unused local variables and imports across the integration test suite.
 
 # 1.0.15+16
 *   **Stability & Feedback**:
