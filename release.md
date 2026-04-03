@@ -1,3 +1,10 @@
+# 1.0.16+17
+*   **Privacy & Cleanup**:
+    *   **Removed Attendance Analytics**: To further prioritize user privacy and focus on core utility, the internal attendance stats and trend visualization features have been removed.
+    *   Cleaned up orphaned analytics code and associated unit tests.
+    *   Updated the User Guide and Architecture documentation to reflect the streamlined feature set.
+    *   Refined UI icons: Replaced "Analytics" icons with more descriptive "Reporting" and "Summary" icons in the Settings and Export screens.
+
 # 1.0.15+16
 *   **Stability & Feedback**:
     *   Integrated **Firebase Crashlytics** for automated crash reporting and better diagnostic tracking.

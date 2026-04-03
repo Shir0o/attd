@@ -35,7 +35,6 @@ Keep your data safe across multiple devices.
 Get your data into external tools for deeper analysis.
 - **CSV Export**: Generate a standard comma-separated file for Excel or Numbers.
 - **Google Sheets Sync**: Direct integration that pushes attendance records to a specified Google Sheet.
-- **Analytics**: Built-in charts and graphs showing attendance trends over time.
 
 ## Privacy & Security
 - **No Third-Party Servers**: Your data is stored on your device and in your private Google Drive folder.

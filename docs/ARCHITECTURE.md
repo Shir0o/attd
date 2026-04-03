@@ -17,7 +17,6 @@ Contains global data models and base repositories that are used across multiple 
 
 ### Feature Layer (`lib/features/`)
 Each directory represents a standalone functional module.
-- `analytics/`: Visualization of attendance trends.
 - `attendance/`: Core UI and logic for taking attendance.
 - `auth/`: Google OAuth integration and user session management.
 - `families/`: Management of member groups (families).

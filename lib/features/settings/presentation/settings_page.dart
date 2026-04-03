@@ -657,7 +657,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 4),
                           _SettingsTile(
-                            icon: Icons.analytics_outlined,
+                            icon: Icons.summarize,
                             title: 'Advanced Reporting',
                             subtitle: 'Filter and export custom reports',
                             onTap: () async {
