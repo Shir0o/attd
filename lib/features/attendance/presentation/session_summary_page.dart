@@ -6,8 +6,11 @@ import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
+import '../../hub/data/event_repository.dart';
+import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
+import '../models/family.dart';
 import 'add_guest_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
@@ -17,12 +20,16 @@ class SessionSummaryPage extends StatefulWidget {
     required this.members,
     required this.sessionRepository,
     this.attendanceRepository,
+    this.eventRepository,
+    this.driveService,
   });
 
   final Session session;
   final List<Member> members;
   final SessionRepository sessionRepository;
   final AttendanceRepository? attendanceRepository;
+  final EventRepository? eventRepository;
+  final DriveService? driveService;
 
   @override
   State<SessionSummaryPage> createState() => _SessionSummaryPageState();
@@ -123,11 +130,62 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           (context) => AddMemberSheet(
             availableMembers: _allMembers,
             onAdd: (name, isPresent, isGuest, existingMember) async {
-              final member = existingMember ?? Member(
-                id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
-                displayName: name,
-                isVisitor: true,
-              );
+              Member member;
+              if (existingMember != null) {
+                member = existingMember;
+              } else if (!isGuest && widget.attendanceRepository != null) {
+                // Add as regular member
+                try {
+                  final families =
+                      await widget.attendanceRepository!.fetchFamilies();
+                  Family targetFamily;
+                  if (families.isEmpty) {
+                    targetFamily =
+                        await widget.attendanceRepository!.addFamily('General');
+                  } else {
+                    targetFamily = families.first;
+                  }
+
+                  final memberId =
+                      DateTime.now().millisecondsSinceEpoch.toString();
+                  member = Member(id: memberId, displayName: name);
+
+                  await widget.attendanceRepository!.addMember(
+                    targetFamily.id,
+                    member,
+                  );
+
+                  // Tie to event
+                  if (widget.session.eventId != null &&
+                      widget.eventRepository != null) {
+                    final event = await widget.eventRepository!.findEventById(
+                      widget.session.eventId!,
+                    );
+                    if (event != null && !event.memberIds.contains(memberId)) {
+                      await widget.eventRepository!.updateEvent(
+                        event.copyWith(
+                          memberIds: [...event.memberIds, memberId],
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error adding regular member in summary: $e');
+                  // Fallback to visitor if error
+                  member = Member(
+                    id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
+                    displayName: name,
+                    isVisitor: true,
+                  );
+                }
+              } else {
+                // Add as guest/visitor
+                member = Member(
+                  id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
+                  displayName: name,
+                  isVisitor: true,
+                );
+              }
 
               // If it was an excluded member, un-exclude them
               if (!member.isVisitor && _currentSession.excludedMemberIds.contains(member.id)) {
@@ -221,7 +279,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
-                  'Note: This only changes the name for THIS session report to preserve historical accuracy.',
+                  'Note: This only changes the name for "${_currentSession.title}" on ${DateFormat('MMM d, yyyy').format(_currentSession.sessionDate)} to preserve historical accuracy.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -276,7 +334,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       builder: (context) => AlertDialog(
         title: const Text('Remove from Report'),
         content: Text(
-          'Are you sure you want to remove "${member.displayName}" from this specific report?\n\nThis will not delete them from your global roster or other sessions.',
+          'Are you sure you want to remove "${member.displayName}" from "${_currentSession.title}" on ${DateFormat('MMM d, yyyy').format(_currentSession.sessionDate)}?\n\nThis will not delete them from your global roster or other sessions.',
         ),
         actions: [
           TextButton(
@@ -416,11 +474,12 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     final Map<String, Member> displayMembersMap = {};
     final excludedIds = _currentSession.excludedMemberIds.toSet();
+    final memberNames = widget.members.map((m) => m.displayName).toSet();
 
     for (final m in widget.members) {
       if (excludedIds.contains(m.id)) continue;
       
-      final record = recordByMemberId[m.id];
+      final record = recordByMemberId[m.id] ?? recordByVisitorName[m.displayName];
       if (record != null) {
         displayMembersMap[m.id] = Member(
           id: m.id,
@@ -442,13 +501,16 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           );
         }
       } else {
-        final visitorId = 'visitor_${record.attendee}';
-        if (!displayMembersMap.containsKey(visitorId)) {
-          displayMembersMap[visitorId] = Member(
-            id: visitorId,
-            displayName: record.attendee,
-            isVisitor: true,
-          );
+        // Legacy record matching: If name exists in regular members, don't show as visitor
+        if (!memberNames.contains(record.attendee)) {
+          final visitorId = 'visitor_${record.attendee}';
+          if (!displayMembersMap.containsKey(visitorId)) {
+            displayMembersMap[visitorId] = Member(
+              id: visitorId,
+              displayName: record.attendee,
+              isVisitor: true,
+            );
+          }
         }
       }
     }
@@ -464,7 +526,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       if (member.isVisitor) {
         status = recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
       } else {
-        status = recordByMemberId[member.id]?.status ?? AttendanceStatus.absent;
+        status = recordByMemberId[member.id]?.status ?? recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
       }
 
       if (status == AttendanceStatus.present) {
@@ -727,7 +789,16 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
               child: Hero(
                 tag: 'fab',
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(_currentSession),
+                  onPressed: () {
+                    // Trigger Auto-Sync if enabled
+                    if (widget.driveService?.isDriveSyncEnabled ?? false) {
+                      widget.driveService?.syncFiles(
+                        actionTitle: 'Auto Sync (Session Finalized)',
+                        tags: ['Auto'],
+                      ).catchError((e) => debugPrint('Auto-sync failed: $e'));
+                    }
+                    Navigator.of(context).pop(_currentSession);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,

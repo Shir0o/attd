@@ -37,10 +37,14 @@ class SettingsRobot {
   }
 
   Future<void> tapManageMembers() async {
+    await verifyOnSettingsPage();
     final settingsPage = find.byType(SettingsPage).last;
-    await tester.pumpUntilFound(settingsPage);
 
-    final finder = find.byKey(const ValueKey('manage_members_tile'));
+    final finder = find.descendant(
+      of: settingsPage,
+      matching: find.byKey(const ValueKey('manage_members_tile')),
+    ).last;
+    
     await tester.dragUntilVisible(
       finder,
       find.byType(ListView),
@@ -55,17 +59,22 @@ class SettingsRobot {
 
   Future<void> tapManageBackupData() async {
     print('DEBUG: tapManageBackupData');
+    await verifyOnSettingsPage();
     final settingsPage = find.byType(SettingsPage).last;
-    await tester.pumpUntilFound(settingsPage);
 
-    final finder = find.byKey(const ValueKey('manage_backup_data_tile'));
+    final finder = find.descendant(
+      of: settingsPage,
+      matching: find.byKey(const ValueKey('manage_backup_data_tile')),
+    ).last;
+    
+    // Explicitly scroll until visible to avoid hit test issues on physical devices
     await tester.dragUntilVisible(
       finder,
       find.byType(ListView),
       const Offset(0, -300),
     );
     await tester.pumpAndSettle();
-
+    
     await tester.tap(finder);
     await tester.pump(const Duration(milliseconds: 500));
   }
@@ -78,6 +87,9 @@ class SettingsRobot {
 
   Future<void> verifyRecordCount(int expectedTotal) async {
     print('DEBUG: verifyRecordCount($expectedTotal)');
+    // Take a screenshot to see what's on the screen if it fails
+    // We can't easily see it now, but it's good practice
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpUntilFound(find.text('$expectedTotal'));
   }
 

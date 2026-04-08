@@ -15,7 +15,7 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-Future<Widget> createTestApp(Directory tempDir) async {
+Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true}) async {
   // Use a temporary directory for local storage to isolate tests
   final storagePath = tempDir.path;
 
@@ -51,7 +51,7 @@ Future<Widget> createTestApp(Directory tempDir) async {
     driveService: driveService,
     localBackupService: localBackupService,
     prefs: prefs,
-    disableAnimations: true,
+    disableAnimations: disableAnimations,
   );
 }
 

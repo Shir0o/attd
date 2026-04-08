@@ -29,16 +29,19 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.YOUR_IOS_CLIENT_ID</string>
-			</array>
-		</dict>
-	</array>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>GIDClientID</key>
-	<string>YOUR_IOS_CLIENT_ID.apps.googleusercontent.com</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
+				<string>$(GOOGLE_IOS_REVERSED_CLIENT_ID)</string>
+				</array>
+				</dict>
+				</array>
+				<key>CFBundleVersion</key>
+				<string>$(FLUTTER_BUILD_NUMBER)</string>
+				<key>GIDClientID</key>
+				<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+				<key>LSApplicationQueriesSchemes</key>
+				<array>
+					<string>mailto</string>
+				</array>
+				<key>LSRequiresIPhoneOS</key>	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

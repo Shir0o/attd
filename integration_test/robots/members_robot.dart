@@ -54,11 +54,11 @@ class MembersRobot {
     final memberFinder = find.text(memberName).first;
     await tester.pumpUntilFound(memberFinder);
 
-    final tileFinder = find.ancestor(of: memberFinder, matching: find.byType(ListTile));
-    final checkboxFinder = find.descendant(of: tileFinder, matching: find.byType(Checkbox));
+    final itemFinder = find.ancestor(of: memberFinder, matching: find.byType(InkWell));
+    final switchFinder = find.descendant(of: itemFinder, matching: find.byType(Switch));
     
-    final checkbox = tester.widget<Checkbox>(checkboxFinder);
-    expect(checkbox.value, isSelected);
+    final switchWidget = tester.widget<Switch>(switchFinder);
+    expect(switchWidget.value, isSelected);
   }
 
   Future<void> verifyMember(String memberName) async {
@@ -71,10 +71,8 @@ class MembersRobot {
     final memberFinder = find.text(memberName).first;
     await tester.pumpUntilFound(memberFinder);
     
-    final tileFinder = find.ancestor(of: memberFinder, matching: find.byType(ListTile));
-    final editButton = find.descendant(of: tileFinder, matching: find.byIcon(Icons.edit_outlined));
-    
-    await tester.tap(editButton);
+    // In new UI, we use long press for edit
+    await tester.longPress(memberFinder);
     await tester.pump(const Duration(milliseconds: 500));
   }
 
@@ -83,14 +81,8 @@ class MembersRobot {
     final memberFinder = find.text(memberName).last;
     await tester.pumpUntilFound(memberFinder);
     
-    // Find the icon button that is in the same ListTile as the member name
-    final deleteButton = find.descendant(
-      of: find.ancestor(of: memberFinder, matching: find.byType(ListTile)),
-      matching: find.byIcon(Icons.delete_outline),
-    ).first;
-    
-    await tester.ensureVisible(deleteButton);
-    await tester.tap(deleteButton);
+    // In new UI, we swipe left for delete
+    await tester.drag(memberFinder, const Offset(-500, 0));
     await tester.pumpAndSettle();
   }
 

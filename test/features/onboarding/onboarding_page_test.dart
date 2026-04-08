@@ -27,33 +27,33 @@ void main() {
 
       expect(find.text('Quick Marking'), findsOneWidget);
       expect(find.byType(MockAttendanceSwipe), findsOneWidget);
-      expect(find.text('Next'), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
+      expect(find.text('Next'), findsNothing);
     });
 
-    testWidgets('navigates through all slides using Next button', (tester) async {
+    testWidgets('navigates through all slides using swipes', (tester) async {
       await tester.pumpWidget(buildOnboardingPage());
 
       // Slide 1 -> Slide 2
-      await tester.tap(find.text('Next'));
+      await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
       expect(find.text('Session History'), findsOneWidget);
       expect(find.byType(MockSessionHistory), findsOneWidget);
 
       // Slide 2 -> Slide 3
-      await tester.tap(find.text('Next'));
+      await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
       expect(find.text('Manage Members'), findsOneWidget);
       expect(find.byType(MockManageMembers), findsOneWidget);
 
       // Slide 3 -> Slide 4
-      await tester.tap(find.text('Next'));
+      await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
       expect(find.text('Cloud Backup'), findsOneWidget);
       expect(find.byType(MockCloudBackup), findsOneWidget);
 
       // Slide 4 -> Slide 5
-      await tester.tap(find.text('Next'));
+      await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
       expect(find.text('Data & Export'), findsOneWidget);
       expect(find.byType(MockManageBackup), findsOneWidget);
@@ -75,7 +75,7 @@ void main() {
 
       // Navigate to final slide (5 slides total)
       for (int i = 0; i < 4; i++) {
-        await tester.tap(find.text('Next'));
+        await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
         await tester.pumpAndSettle();
       }
 

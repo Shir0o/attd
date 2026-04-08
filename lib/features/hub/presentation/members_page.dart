@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_theme.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
@@ -34,7 +36,7 @@ class _MembersPageState extends State<MembersPage> {
   Object? _error;
   Event? _currentEvent; // To track local changes to the event
   bool _isAdding = false;
-  final Map<String, List<String>> _memberUsageMap = {};
+  final Map<String, List<({String title, DateTime date})>> _memberUsageMap = {};
 
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocusNode = FocusNode();
@@ -51,11 +53,13 @@ class _MembersPageState extends State<MembersPage> {
     if (widget.sessionRepository == null) return;
     try {
       final sessions = await widget.sessionRepository!.loadSessions();
-      final usageMap = <String, List<String>>{};
+      final usageMap = <String, List<({String title, DateTime date})>>{};
       for (final session in sessions) {
         for (final record in session.records) {
           if (record.memberId != null) {
-            usageMap.putIfAbsent(record.memberId!, () => []).add(session.title);
+            usageMap
+                .putIfAbsent(record.memberId!, () => [])
+                .add((title: session.title, date: session.sessionDate));
           }
         }
       }
@@ -224,29 +228,120 @@ class _MembersPageState extends State<MembersPage> {
 
     final linkedSessions = _memberUsageMap[member.id] ?? [];
     if (linkedSessions.isNotEmpty) {
-      final sessionListText = linkedSessions.take(5).join(', ') + 
-          (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
-
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Historical Data Alert'),
-          content: Text(
-            'This member is linked to ${linkedSessions.length} past session reports: $sessionListText.\n\n'
-            'Renaming them will update future reports, but past reports will keep the name "${member.displayName}" to preserve historical accuracy.\n\n'
-            'Do you want to continue?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+        builder: (context) {
+          final colorScheme = Theme.of(context).colorScheme;
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.history, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                const Text('Historical Data Alert'),
+              ],
             ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continue'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This member is linked to ${linkedSessions.length} past session reports:',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...linkedSessions.take(5).map((session) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.event_note,
+                                    size: 16,
+                                    color: colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        session.title,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                      Text(
+                                        DateFormat('MMM d, yyyy')
+                                            .format(session.date),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        if (linkedSessions.length > 5)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, left: 4),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 24),
+                                Text(
+                                  '... and ${linkedSessions.length - 5} more',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Renaming them will update future reports, but past reports will keep the name "${member.displayName}" to preserve historical accuracy.\n\nDo you want to continue?',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Continue'),
+              ),
+            ],
+          );
+        },
       );
       if (confirmed != true) return;
     }
@@ -381,37 +476,136 @@ class _MembersPageState extends State<MembersPage> {
     if (_families == null) return;
 
     final linkedSessions = _memberUsageMap[member.id] ?? [];
-    final usageCount = linkedSessions.length;
-    
-    String warningText;
-    if (usageCount > 0) {
-      final sessionListText = linkedSessions.take(5).join(', ') + 
-          (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
-          
-      warningText = '\n\nWARNING: This member is linked to $usageCount historical records: $sessionListText.\n\nDeleting them from the roster will make them appear as a "Visitor" in past reports, but their data will NOT be deleted.';
-    } else {
-      warningText = '\n\nThis will remove them from the roster. Historical records are not affected.';
-    }
 
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Member'),
-        content: Text(
-          'Are you sure you want to remove "${member.displayName}"?$warningText',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                linkedSessions.isNotEmpty
+                    ? Icons.warning_amber_rounded
+                    : Icons.delete_outline,
+                color: linkedSessions.isNotEmpty
+                    ? Colors.orange
+                    : colorScheme.error,
+              ),
+              const SizedBox(width: 12),
+              const Text('Remove Member'),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to remove "${member.displayName}" from the roster?',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              if (linkedSessions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'This member is linked to ${linkedSessions.length} past session reports:',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ...linkedSessions.take(3).map((session) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.event_note,
+                                    size: 16,
+                                    color: colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        session.title,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                      Text(
+                                        DateFormat('MMM d, yyyy')
+                                            .format(session.date),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        if (linkedSessions.length > 3)
+                          Text(
+                            '... and ${linkedSessions.length - 3} more',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'They will appear as a "Visitor" in past reports, but their data will NOT be deleted.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
+                const Text('Historical records are not affected.'),
+              ],
+            ],
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -751,82 +945,189 @@ class _MembersPageState extends State<MembersPage> {
                   ? selectedIds.contains(member.id)
                   : false;
 
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                onTap: isEventMode
-                    ? () => _toggleEventMember(member, !isSelected)
-                    : null,
-                leading: CircleAvatar(
-                  backgroundColor: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.primary.withValues(alpha: 0.1),
-                  child: Text(
-                    member.displayName.isNotEmpty
-                        ? member.displayName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      color: isSelected
-                          ? colorScheme.onPrimary
-                          : colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  member.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: isSelected
-                        ? FontWeight.w500
-                        : FontWeight.normal,
-                  ),
-                ),
-                subtitle: isEventMode && isSelected
-                    ? Text(
-                        'Assigned',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.primary,
-                        ),
-                      )
-                    : null,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        Icons.edit_outlined,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed: () => _editMember(member),
-                    ),
-                    if (isEventMode)
-                      Checkbox(
-                        visualDensity: VisualDensity.compact,
-                        value: isSelected,
-                        onChanged: (val) =>
-                            _toggleEventMember(member, val ?? false),
-                      )
-                    else
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          Icons.delete_outline,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: () => _deleteMember(member),
-                      ),
-                  ],
-                ),
+              return _MemberListItem(
+                member: member,
+                isSelected: isSelected,
+                isEventMode: isEventMode,
+                onToggle: (val) => _toggleEventMember(member, val),
+                onEdit: () => _editMember(member),
+                onDelete: () => _deleteMember(member),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MemberListItem extends StatelessWidget {
+  final Member member;
+  final bool isSelected;
+  final bool isEventMode;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _MemberListItem({
+    required this.member,
+    required this.isSelected,
+    required this.isEventMode,
+    required this.onToggle,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Dismissible(
+      key: ValueKey('dismiss_${member.id}_$isEventMode'),
+      direction: DismissDirection.horizontal,
+      background: _buildSwipeBackground(
+        context,
+        'Rename',
+        colorScheme.secondary,
+        Icons.edit_outlined,
+        true,
+      ),
+      secondaryBackground: _buildSwipeBackground(
+        context,
+        'Delete Member',
+        colorScheme.error,
+        Icons.delete_outline,
+        false,
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          onEdit();
+        } else {
+          onDelete();
+        }
+        return false; // Handle state externally
+      },
+      child: InkWell(
+        onLongPress: onEdit,
+        onTap: isEventMode ? () => onToggle(!isSelected) : onEdit,
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isSelected && isEventMode
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: Row(
+            children: [
+              // Avatar
+              CircleAvatar(
+                backgroundColor: isSelected && isEventMode
+                    ? colorScheme.primary
+                    : colorScheme.surfaceContainerHighest,
+                child: Text(
+                  member.displayName.isNotEmpty
+                      ? member.displayName[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: isSelected && isEventMode
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: colorScheme.onSurface,
+                        fontWeight: isSelected && isEventMode
+                            ? FontWeight.w500
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    if (isEventMode && isSelected)
+                      Text(
+                        'Assigned to Event',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.primary,
+                        ),
+                      )
+                    else
+                      Text(
+                        'Regular Member',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (isEventMode)
+                Switch(
+                  value: isSelected,
+                  onChanged: onToggle,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwipeBackground(
+    BuildContext context,
+    String label,
+    Color color,
+    IconData icon,
+    bool isStart,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: isStart
+            ? [
+                Icon(icon, color: Colors.white),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ]
+            : [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(icon, color: Colors.white),
+              ],
+      ),
     );
   }
 }

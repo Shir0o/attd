@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'dart:ui';
 
 import 'core/design/app_theme.dart';
 import 'data/local_session_repository.dart';
@@ -24,7 +27,25 @@ import 'features/auth/config/google_oauth_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase initialization removed
+  
+  // Parallelize heavy initialization to prevent ANR and reduce startup time
+  final initialization = await Future.wait([
+    Firebase.initializeApp(),
+    SharedPreferences.getInstance(),
+  ]);
+
+  final prefs = initialization[1] as SharedPreferences;
+
+  // Pass all uncaught "Fatal" errors from the framework to Crashlytics
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+  };
+
+  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // Initialize exactly once before use
   final googleSignIn = GoogleSignIn.instance;
@@ -32,7 +53,6 @@ Future<void> main() async {
     serverClientId: GoogleOAuthConfig.webServerClientId,
   );
 
-  final prefs = await SharedPreferences.getInstance();
   final themeController = ThemeController(prefs);
   final onboardingController = OnboardingController(prefs);
 
@@ -46,8 +66,6 @@ Future<void> main() async {
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,
   );
-  // Restore sync session and trigger initial sync if enabled
-  driveService.init();
 
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
@@ -113,6 +131,8 @@ class _AttendanceAppState extends State<AttendanceApp>
     Future.microtask(() {
       _runMaintenance();
       _runMigration();
+      // Restore sync session and trigger initial sync if enabled
+      widget.driveService?.init();
     });
   }
 
@@ -130,7 +150,20 @@ class _AttendanceAppState extends State<AttendanceApp>
     try {
       final families = await widget.repository.fetchFamilies();
       final allMembers = families.expand((f) => f.members).toList();
-      final nameToIdMap = {for (var m in allMembers) m.displayName: m.id};
+      
+      // Safety: Only map names that are unique in the roster.
+      // If there are two "John Smiths", we don't know which one the legacy record belongs to,
+      // so it's safer to skip migration for that name and keep them as visitors.
+      final nameCounts = <String, int>{};
+      for (final m in allMembers) {
+        nameCounts[m.displayName] = (nameCounts[m.displayName] ?? 0) + 1;
+      }
+
+      final nameToIdMap = {
+        for (var m in allMembers)
+          if (nameCounts[m.displayName] == 1) m.displayName: m.id
+      };
+
       if (nameToIdMap.isNotEmpty) {
         await widget.sessionRepository.migrateRecords(nameToIdMap);
       }
@@ -186,4 +219,3 @@ class _AttendanceAppState extends State<AttendanceApp>
     );
   }
 }
-

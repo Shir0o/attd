@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -106,8 +105,8 @@ void main() {
       // User searches for members
       print('DEBUG: Step 5a - Search members');
       await members.search('Ali');
-      await tester.pumpUntilAbsent(find.widgetWithText(ListTile, 'Bob'));
-      expect(find.widgetWithText(ListTile, 'Alice'), findsOneWidget);
+      await tester.pumpUntilAbsent(find.text('Bob'));
+      expect(find.text('Alice'), findsOneWidget);
       await tester.takeScreenshot(binding, '09_member_search');
       await members.clearSearch();
       

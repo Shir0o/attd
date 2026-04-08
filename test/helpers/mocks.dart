@@ -84,6 +84,15 @@ class MockEventRepository implements EventRepository {
   }
 
   @override
+  Future<Event?> findEventById(String eventId) async {
+    try {
+      return _events.firstWhere((e) => e.id == eventId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Stream<List<Event>> streamEvents() {
     return _controller.stream;
   }

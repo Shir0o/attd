@@ -64,6 +64,9 @@ class MockEventRepository implements EventRepository {
   Future<void> deleteEvent(String eventId) async {}
 
   @override
+  Future<Event?> findEventById(String eventId) async => null;
+
+  @override
   Stream<List<Event>> streamEvents() {
     return _controller.stream;
   }

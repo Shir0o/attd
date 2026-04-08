@@ -1,42 +1,36 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import '../../../../data/session.dart';
-import '../../../../data/session_repository.dart';
+import '../../../core/design/app_shimmer.dart';
+import '../../../data/session.dart';
+import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
-import '../../settings/data/drive_service.dart';
-import '../../settings/data/local_backup_service.dart';
+import '../../attendance/presentation/session_summary_page.dart';
 import '../../settings/application/theme_controller.dart';
-import '../../settings/presentation/settings_page.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 import '../utils/event_date_utils.dart';
-import 'add_event_page.dart';
-import 'members_page.dart';
-import '../../sessions/presentation/event_history_page.dart';
-import '../../attendance/presentation/session_summary_page.dart';
-import '../../attendance/models/member.dart';
-import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/swipe_action_track.dart';
+import '../../settings/data/drive_service.dart';
+import '../../settings/data/local_backup_service.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
     super.key,
+    required this.themeController,
     required this.sessionRepository,
     required this.eventRepository,
     required this.attendanceRepository,
-    required this.themeController,
     this.driveService,
     this.localBackupService,
     this.disableAnimations = false,
   });
 
+  final ThemeController themeController;
   final SessionRepository sessionRepository;
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
-  final ThemeController themeController;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
   final bool disableAnimations;
@@ -46,455 +40,149 @@ class HubAttendanceView extends StatefulWidget {
 }
 
 class _HubAttendanceViewState extends State<HubAttendanceView> {
-  late Stream<({List<Event> events, List<Session> sessions})> _combinedStream;
   List<Member> _members = [];
-  final Map<String, List<String>> _eventUsageMap = {};
-  bool _isInitialLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _combinedStream = _createCombinedStream();
-    _loadInitialData();
-    _loadUsageStats();
-
-    // Listen to DriveService for sync status updates
-    widget.driveService?.addListener(_onDriveServiceChange);
-  }
-
-  Stream<({List<Event> events, List<Session> sessions})> _createCombinedStream() {
-    // We want to rebuild whenever either events or sessions change.
-    // Since we don't have RxDart, we use a simple StreamController approach.
-    final controller = StreamController<({List<Event> events, List<Session> sessions})>();
-    
-    List<Event>? lastEvents;
-    List<Session>? lastSessions;
-
-    void emitIfReady() {
-      if (lastEvents != null && lastSessions != null) {
-        if (!controller.isClosed) {
-          controller.add((events: _processEvents(lastEvents!), sessions: lastSessions!));
-        }
-      }
-    }
-
-    final eventSub = widget.eventRepository.streamEvents().listen((events) {
-      lastEvents = events;
-      emitIfReady();
-    });
-
-    final sessionSub = widget.sessionRepository.streamSessions().listen((sessions) {
-      lastSessions = sessions;
-      emitIfReady();
-    });
-
-    controller.onCancel = () {
-      eventSub.cancel();
-      sessionSub.cancel();
-    };
-
-    return controller.stream;
-  }
-
-  Future<void> _loadUsageStats() async {
-    try {
-      final sessions = await widget.sessionRepository.loadSessions();
-      final usageMap = <String, List<String>>{};
-      for (final session in sessions) {
-        if (session.eventId != null && session.eventId!.isNotEmpty) {
-          usageMap.putIfAbsent(session.eventId!, () => []).add(session.title);
-        }
-      }
-      if (mounted) {
-        setState(() {
-          _eventUsageMap.clear();
-          _eventUsageMap.addAll(usageMap);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading usage stats: $e');
-    }
-  }
-
-  Future<void> _loadInitialData() async {
-    setState(() => _isInitialLoading = true);
-    final startTime = DateTime.now();
-
-    await Future.wait([
-      _loadMembers(),
-      // Add any other necessary initial loads here
-    ]);
-
-    final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 800) - elapsed;
-    if (remaining > Duration.zero && !widget.disableAnimations) {
-      await Future.delayed(remaining);
-    }
-
-    if (mounted) {
-      setState(() => _isInitialLoading = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.driveService?.removeListener(_onDriveServiceChange);
-    super.dispose();
-  }
-
-  void _onDriveServiceChange() {
-    if (mounted) setState(() {});
+    _loadMembers();
   }
 
   Future<void> _loadMembers() async {
-    try {
-      final families = await widget.attendanceRepository.fetchFamilies();
-      if (mounted) {
-        setState(() {
-          _members = families.expand((f) => f.members).toList();
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading members: $e');
+    final families = await widget.attendanceRepository.fetchFamilies();
+    if (mounted) {
+      setState(() {
+        _members = families.expand((f) => f.members).toList();
+      });
     }
-  }
-
-  void _createNewSession() async {
-    debugPrint('DEBUG: _createNewSession called');
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AddEventPage(
-          eventRepository: widget.eventRepository,
-          sessionRepository: widget.sessionRepository,
-          disableAnimations: widget.disableAnimations,
-        ),
-      ),
-    );
-    if (mounted) _loadMembers();
-  }
-
-  void _editEvent(Event event) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AddEventPage(
-          eventRepository: widget.eventRepository,
-          sessionRepository: widget.sessionRepository,
-          eventToEdit: event,
-          disableAnimations: widget.disableAnimations,
-        ),
-      ),
-    );
-    if (mounted) _loadMembers();
-  }
-
-  Future<void> _deleteEvent(Event event) async {
-    final linkedSessions = _eventUsageMap[event.id] ?? [];
-    String warningText = '';
-    
-    if (linkedSessions.isNotEmpty) {
-      final sessionListText = linkedSessions.take(5).join(', ') + 
-          (linkedSessions.length > 5 ? ' and ${linkedSessions.length - 5} more' : '');
-      warningText = '\n\nWARNING: This event is linked to ${linkedSessions.length} past session reports: $sessionListText.\n\nDeleting this event will NOT delete the past reports, but they will no longer be grouped under this event history.';
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Event'),
-        content: Text('Are you sure you want to delete "${event.title}"?$warningText'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      try {
-        await widget.eventRepository.deleteEvent(event.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Event deleted successfully')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error deleting event: $e')));
-        }
-      }
-    }
-  }
-
-  void _showEventMenu(BuildContext context, Event event) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return RepaintBoundary(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              // Handle bar
-              Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant.withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: const Icon(Icons.history),
-                title: const Text('View History'),
-                onTap: () {
-                  Navigator.pop(context, 'history');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit Event'),
-                onTap: () {
-                  Navigator.pop(context, 'edit');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.people_outline),
-                title: const Text('Manage Members'),
-                onTap: () {
-                  Navigator.pop(context, 'manage');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text(
-                  'Delete Event',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context, 'delete');
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (action == 'history') {
-      if (!context.mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => EventHistoryPage(
-            event: event,
-            sessionRepository: widget.sessionRepository,
-            attendanceRepository: widget.attendanceRepository,
-          ),
-        ),
-      );
-    } else if (action == 'edit') {
-      _editEvent(event);
-    } else if (action == 'manage') {
-      if (!context.mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => MembersPage(
-            attendanceRepository: widget.attendanceRepository,
-            sessionRepository: widget.sessionRepository,
-            event: event,
-            eventRepository: widget.eventRepository,
-            disableAnimations: widget.disableAnimations,
-          ),
-        ),
-      );
-      if (mounted) _loadMembers();
-    } else if (action == 'delete') {
-      _deleteEvent(event);
-    }
-  }
-
-  bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
   }
 
   bool _isEventToday(Event event) {
     final now = DateTime.now();
+    final dayName = DateFormat('EEEE').format(now);
+
     if (event.frequency == 'One-time') {
-      return event.oneTimeDate != null && _isToday(event.oneTimeDate!);
-    } else {
-      // Repeating event
-      final todayWeekday = DateFormat('EEEE').format(now);
-      final isToday = event.repeatingDays.contains(todayWeekday);
-      return isToday;
+      return event.oneTimeDate != null &&
+          event.oneTimeDate!.year == now.year &&
+          event.oneTimeDate!.month == now.month &&
+          event.oneTimeDate!.day == now.day;
     }
+    return event.repeatingDays.contains(dayName);
   }
 
-  List<Event> _processEvents(List<Event> events) {
-    final todayEvents = <Event>[];
-    final otherEvents = <Event>[];
+  void _showEventMenu(BuildContext context, Event event) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit Event'),
+            onTap: () {
+              Navigator.pop(context);
+              // TODO: Implement edit
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: Colors.red),
+            title: const Text('Delete Event', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete Event'),
+                  content: Text('Are you sure you want to delete "${event.title}"?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
 
-    for (final event in events) {
-      if (_isEventToday(event)) {
-        todayEvents.add(event);
-      } else {
-        otherEvents.add(event);
-      }
-    }
+              if (confirmed == true) {
+                await widget.eventRepository.deleteEvent(event.id);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
-    // Sort within groups if needed (e.g. by time)
-    todayEvents.sort((a, b) {
-      final timeA = a.time.hour * 60 + a.time.minute;
-      final timeB = b.time.hour * 60 + b.time.minute;
-      return timeA.compareTo(timeB);
-    });
-
-    return [...todayEvents, ...otherEvents];
+  Future<void> _createNewSession() async {
+    // TODO: Implement generic "Add Session" (Manual)
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isSyncing = widget.driveService?.isSyncing ?? false;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () async {
-          await widget.eventRepository.refresh();
-          await widget.sessionRepository.refresh();
-          await widget.attendanceRepository.refresh();
           await _loadMembers();
+          // The StreamBuilder will handle events/sessions refresh automatically if they are streams
         },
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              backgroundColor: colorScheme.surface,
-              floating: true,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'TODAY',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurfaceVariant,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  Text(
-                    DateFormat(
-                      'EEE, MMM d',
-                    ).format(DateTime.now()).toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                if (widget.driveService != null &&
-                    widget.localBackupService != null)
-                  IconButton(
-                    icon: Icon(
-                      Icons.settings,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    onPressed: () async {
-                      final dataModified = await Navigator.of(context).push<bool>(
-                        MaterialPageRoute(
-                          builder: (_) => SettingsPage(
-                            themeController: widget.themeController,
-                            driveService: widget.driveService!,
-                            localBackupService: widget.localBackupService!,
-                            attendanceRepository: widget.attendanceRepository,
-                            eventRepository: widget.eventRepository,
-                            sessionRepository: widget.sessionRepository,
-                            disableAnimations: widget.disableAnimations,
-                          ),
-                        ),
-                      );
-
-                      // Only refresh if data was actually modified
-                      if (mounted && dataModified == true) {
-                        await Future.wait([
-                          widget.eventRepository.refresh(),
-                          widget.sessionRepository.refresh(),
-                          widget.attendanceRepository.refresh(),
-                          _loadInitialData(),
-                        ]);
-                      }
-                    },
-                  ),
-              ],
-              expandedHeight: 100,
-              toolbarHeight: 80,
-            ),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(16),
               sliver: StreamBuilder<({List<Event> events, List<Session> sessions})>(
-                stream: _combinedStream,
+                stream: widget.eventRepository.streamEvents().asyncMap((events) async {
+                  final sessions = await widget.sessionRepository.loadSessions();
+                  return (events: events, sessions: sessions);
+                }),
                 builder: (context, snapshot) {
-                  final isLoading =
-                      _isInitialLoading ||
-                      snapshot.connectionState == ConnectionState.waiting ||
-                      (isSyncing &&
-                          (snapshot.data == null ||
-                              snapshot.data!.events.isEmpty));
-
-                  if (isLoading) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return SliverList(
-                      key: const ValueKey('hub_skeleton'),
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _EventCardSkeleton(
-                            disableAnimations: widget.disableAnimations,
-                          ),
+                        (context, index) => const Padding(
+                          padding: EdgeInsets.only(bottom: 16),
+                          child: _EventCardSkeleton(),
                         ),
                         childCount: 3,
                       ),
                     );
                   }
 
-                  if (!snapshot.hasData || snapshot.data!.events.isEmpty) {
+                  if (snapshot.hasError) {
                     return SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Text(
-                          'No events created yet',
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
+                      child: Center(child: Text('Error: ${snapshot.error}')),
                     );
                   }
 
-                  final sortedEvents = snapshot.data!.events;
+                  final events = snapshot.data?.events ?? [];
+                  final sessions = snapshot.data?.sessions ?? [];
+
+                  if (events.isEmpty) {
+                    return const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(child: Text('No events scheduled')),
+                    );
+                  }
+
+                  // Sort events: Today first, then by time
+                  final sortedEvents = List<Event>.from(events)..sort((a, b) {
+                    final aToday = _isEventToday(a);
+                    final bToday = _isEventToday(b);
+                    if (aToday != bToday) return aToday ? -1 : 1;
+                    
+                    // Same "today" status, sort by time
+                    final aMinutes = a.time.hour * 60 + a.time.minute;
+                    final bMinutes = b.time.hour * 60 + b.time.minute;
+                    return aMinutes.compareTo(bMinutes);
+                  });
 
                   return SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
@@ -503,24 +191,17 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                       final now = DateTime.now();
                       final today = DateTime(now.year, now.month, now.day);
-                      final lastSupposed = getLastSupposedOccurrence(
-                        event,
-                        now,
-                      );
+                      final lastSupposed = getLastSupposedOccurrence(event, now);
 
                       // Find the most recent session for this event
                       final eventSessions = sessions.where((s) {
                         if (s.eventId != null && s.eventId!.isNotEmpty) {
                           return s.eventId == event.id;
                         }
-                        // Legacy fallback: only match by title if no eventId is present
                         return s.title.trim() == event.title.trim();
                       }).toList();
-                      eventSessions.sort(
-                        (a, b) => b.sessionDate.compareTo(a.sessionDate),
-                      );
+                      eventSessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
 
-                      // A session is considered "current" if it's on or after the last supposed occurrence
                       Session? targetSession;
                       if (eventSessions.isNotEmpty) {
                         final latest = eventSessions.first;
@@ -535,11 +216,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       }
 
                       final hasSession = targetSession != null;
-                      final displayDate =
-                          targetSession?.sessionDate ?? lastSupposed;
+                      final displayDate = targetSession?.sessionDate ?? lastSupposed;
 
                       String attendanceStatus;
                       bool isActionable = false;
+                      
                       if (lastSupposed.isAfter(today)) {
                         attendanceStatus = 'Upcoming';
                       } else {
@@ -547,6 +228,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                             displayDate.year == today.year &&
                             displayDate.month == today.month &&
                             displayDate.day == today.day;
+                        
                         if (isTargetToday) {
                           if (hasSession) {
                             attendanceStatus = 'Taken today';
@@ -555,193 +237,125 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                             isActionable = true;
                           }
                         } else {
-                          final dateStr = DateFormat(
-                            'MMM d',
-                          ).format(displayDate);
+                          final dateStr = DateFormat('MMM d').format(displayDate);
                           if (hasSession) {
                             attendanceStatus = 'Taken ($dateStr)';
                           } else {
                             attendanceStatus = 'Start';
                             isActionable = true;
                           }
-                          }
-                          }
+                        }
+                      }
 
-                          return RepaintBoundary(                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _EventCard(
-                            event: event,
-                            isToday: isToday,
-                            attendanceStatus: attendanceStatus,
-                            isActionable: isActionable,
-                            onTap: () async {
-                              // 1. Calculate target date
-                              final targetDate = calculateTargetDate(
-                                event,
-                                DateTime.now(),
-                              );
-
-                              // 2. Find existing session for target date (or most recent relevant)
-                              final eventSessionsOnTap = sessions.where((
-                                s,
-                              ) {
-                                if (s.eventId != null &&
-                                    s.eventId!.isNotEmpty) {
-                                  return s.eventId == event.id;
-                                }
-                                // Legacy fallback: only match by title if no eventId is present
-                                return s.title.trim() == event.title.trim();
-                              }).toList();
-                              eventSessionsOnTap.sort(
-                                (a, b) =>
-                                    b.sessionDate.compareTo(a.sessionDate),
-                              );
-
-                              Session? foundSession;
-                              if (eventSessionsOnTap.isNotEmpty) {
-                                final latest = eventSessionsOnTap.first;
-                                final latestDate = DateTime(
-                                  latest.sessionDate.year,
-                                  latest.sessionDate.month,
-                                  latest.sessionDate.day,
-                                );
-                                if (!latestDate.isBefore(targetDate)) {
-                                  foundSession = latest;
-                                }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _EventCard(
+                          event: event,
+                          isToday: isToday,
+                          attendanceStatus: attendanceStatus,
+                          isActionable: isActionable,
+                          onTap: () async {
+                            final targetDate = calculateTargetDate(event, DateTime.now());
+                            
+                            final eventSessionsOnTap = sessions.where((s) {
+                              if (s.eventId != null && s.eventId!.isNotEmpty) {
+                                return s.eventId == event.id;
                               }
+                              return s.title.trim() == event.title.trim();
+                            }).toList();
+                            eventSessionsOnTap.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
 
-                              // 3. Filter members
-                              final sessionMembers =
-                                  event.memberIds.isNotEmpty
-                                  ? _members
-                                        .where(
-                                          (m) => event.memberIds.contains(
-                                            m.id,
-                                          ),
-                                        )
-                                        .toList()
-                                  : _members;
+                            Session? foundSession;
+                            if (eventSessionsOnTap.isNotEmpty) {
+                              final latest = eventSessionsOnTap.first;
+                              final latestDate = DateTime(
+                                latest.sessionDate.year,
+                                latest.sessionDate.month,
+                                latest.sessionDate.day,
+                              );
+                              if (!latestDate.isBefore(targetDate)) {
+                                foundSession = latest;
+                              }
+                            }
 
-                              if (foundSession != null) {
-                                // Session exists
-                                final sessionToOpen = foundSession;
+                            final sessionMembers = event.memberIds.isNotEmpty
+                                ? _members.where((m) => event.memberIds.contains(m.id)).toList()
+                                : _members;
 
-                                // If the session is "empty" or "incomplete", go to Deck to resume/start
-                                // If it's fully marked, go to Summary
-                                final bool isIncomplete =
-                                    sessionToOpen.records.length <
-                                    sessionMembers.length;
+                            if (foundSession != null) {
+                              final bool isIncomplete = foundSession.records.length < sessionMembers.length;
 
-                                if (isIncomplete) {
-                                  var resultSession =
-                                      await Navigator.of(
-                                        context,
-                                      ).push<Session>(
-                                        MaterialPageRoute(
-                                          builder: (_) => AttendanceDeckPage(
-                                            session: sessionToOpen,
-                                            members: sessionMembers,
-                                            sessionRepository:
-                                                widget.sessionRepository,
-                                            attendanceRepository:
-                                                widget.attendanceRepository,
-                                            disableAnimations: widget.disableAnimations,
-                                          ),
-                                        ),
-                                      );
-
-                                  // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
-                                  resultSession ??= await widget
-                                      .sessionRepository
-                                      .findSessionById(sessionToOpen.id);
-
-                                  // Cleanup if still empty after returning
-                                  if (resultSession != null &&
-                                      resultSession.records.isEmpty) {
-                                    await widget.sessionRepository
-                                        .deleteSession(
-                                          sessionToOpen.id,
-                                          actor: 'System (Cleanup)',
-                                        );
-                                  }
-                                } else {
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => SessionSummaryPage(
-                                        session: sessionToOpen,
-                                        members: sessionMembers,
-                                        sessionRepository:
-                                            widget.sessionRepository,
-                                        attendanceRepository:
-                                            widget.attendanceRepository,
-                                      ),
+                              if (isIncomplete) {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => AttendanceDeckPage(
+                                      session: foundSession!,
+                                      members: sessionMembers,
+                                      sessionRepository: widget.sessionRepository,
+                                      attendanceRepository: widget.attendanceRepository,
+                                      eventRepository: widget.eventRepository,
+                                      driveService: widget.driveService,
+                                      disableAnimations: widget.disableAnimations,
                                     ),
-                                  );
-                                }
+                                  ),
+                                );
                               } else {
-                                // Session does not exist -> Create new -> Deck
-                                final session = await widget
-                                    .sessionRepository
-                                    .createSession(
-                                      title: event.title,
-                                      eventId: event.id,
-                                      sessionDate: targetDate,
-                                      actor: 'User',
-                                      records: [],
-                                    );
-
-                                if (!context.mounted) return;
-
-                                var resultSession =
-                                    await Navigator.of(
-                                      context,
-                                    ).push<Session>(
-                                      MaterialPageRoute(
-                                        builder: (_) => AttendanceDeckPage(
-                                          session: session,
-                                          members: sessionMembers,
-                                          sessionRepository:
-                                              widget.sessionRepository,
-                                          attendanceRepository:
-                                              widget.attendanceRepository,
-                                          disableAnimations: widget.disableAnimations,
-                                        ),
-                                      ),
-                                    );
-
-                                // Performance Optimization: Fallback only if Navigator.pop didn't return session (e.g. swipe back)
-                                resultSession ??= await widget
-                                    .sessionRepository
-                                    .findSessionById(session.id);
-
-                                // Check if the session was actually used/finished
-                                if (resultSession != null &&
-                                    resultSession.records.isEmpty) {
-                                  // If no records were added, assume the user cancelled/aborted
-                                  await widget.sessionRepository
-                                      .deleteSession(
-                                        session.id,
-                                        actor: 'System (Cleanup)',
-                                      );
-                                }
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => SessionSummaryPage(
+                                      session: foundSession!,
+                                      members: sessionMembers,
+                                      sessionRepository: widget.sessionRepository,
+                                      attendanceRepository: widget.attendanceRepository,
+                                    ),
+                                  ),
+                                );
                               }
+                            } else {
+                              final session = await widget.sessionRepository.createSession(
+                                title: event.title,
+                                eventId: event.id,
+                                sessionDate: targetDate,
+                                actor: 'User',
+                                records: [],
+                              );
 
-                              if (mounted) _loadMembers();
-                            },
-                            onMenuTap: () => _showEventMenu(context, event),
-                            primaryColor: colorScheme.primary,
-                            onPrimaryColor: colorScheme.onPrimary,
-                            surfaceContainerColor:
-                                colorScheme.surfaceContainer,
-                            onSurfaceColor: colorScheme.onSurface,
-                            onSurfaceVariantColor:
-                                colorScheme.onSurfaceVariant,
-                            secondaryContainerColor:
-                                colorScheme.secondaryContainer,
-                            onSecondaryContainerColor:
-                                colorScheme.onSecondaryContainer,
-                            disableAnimations: widget.disableAnimations,
-                          ),
+                              if (!context.mounted) return;
+
+                              var resultSession = await Navigator.of(context).push<Session>(
+                                MaterialPageRoute(
+                                  builder: (_) => AttendanceDeckPage(
+                                    session: session,
+                                    members: sessionMembers,
+                                    sessionRepository: widget.sessionRepository,
+                                    attendanceRepository: widget.attendanceRepository,
+                                    eventRepository: widget.eventRepository,
+                                    driveService: widget.driveService,
+                                    disableAnimations: widget.disableAnimations,
+                                  ),
+                                ),
+                              );
+
+                              resultSession ??= await widget.sessionRepository.findSessionById(session.id);
+
+                              if (resultSession != null && resultSession.records.isEmpty) {
+                                await widget.sessionRepository.deleteSession(
+                                  session.id,
+                                  actor: 'System (Cleanup)',
+                                );
+                              }
+                            }
+                            if (mounted) _loadMembers();
+                          },
+                          onMenuTap: () => _showEventMenu(context, event),
+                          primaryColor: colorScheme.primary,
+                          onPrimaryColor: colorScheme.onPrimary,
+                          surfaceContainerColor: colorScheme.surfaceContainer,
+                          onSurfaceColor: colorScheme.onSurface,
+                          onSurfaceVariantColor: colorScheme.onSurfaceVariant,
+                          secondaryContainerColor: colorScheme.secondaryContainer,
+                          onSecondaryContainerColor: colorScheme.onSecondaryContainer,
+                          disableAnimations: widget.disableAnimations,
                         ),
                       );
                     }, childCount: sortedEvents.length),
@@ -817,7 +431,6 @@ class _EventCardState extends State<_EventCard>
     _pulseAnimation = Tween<double>(begin: 0.0, end: 6.0).animate(
       CurvedAnimation(
         parent: _pulseController,
-        // The HTML uses a 70% keyframe for max spread, we can simulate with Sine or custom timing.
         curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
       ),
     );
@@ -845,13 +458,7 @@ class _EventCardState extends State<_EventCard>
 
   Widget _buildRepeatingDaysRow() {
     final dayOrder = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
+      'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
     ];
 
     return FittedBox(
@@ -921,7 +528,7 @@ class _EventCardState extends State<_EventCard>
           ],
         ),
       );
-    } else if (status.startsWith('Taken')) {
+    } else if (status.contains('Taken')) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -938,7 +545,7 @@ class _EventCardState extends State<_EventCard>
             ),
             const SizedBox(width: 8),
             Text(
-              'COMPLETED',
+              status.toUpperCase(),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -949,7 +556,6 @@ class _EventCardState extends State<_EventCard>
         ),
       );
     } else {
-      // Upcoming, Missed, etc. Keep plain text style as a fallback.
       return Text(
         status,
         style: TextStyle(
@@ -989,27 +595,16 @@ class _EventCardState extends State<_EventCard>
                           AnimatedBuilder(
                             animation: _pulseAnimation,
                             builder: (context, child) {
-                              // Fade out the shadow as it expands based on animation value
-                              final opacity =
-                                  1.0 -
-                                  (_pulseController.value / 0.7).clamp(
-                                    0.0,
-                                    1.0,
-                                  );
+                              final opacity = 1.0 - (_pulseController.value / 0.7).clamp(0.0, 1.0);
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 4,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: widget.primaryColor,
                                   borderRadius: BorderRadius.circular(28),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: widget.primaryColor.withOpacity(
-                                        opacity * 0.4,
-                                      ),
+                                      color: widget.primaryColor.withOpacity(opacity * 0.4),
                                       blurRadius: 0,
                                       spreadRadius: _pulseAnimation.value,
                                     ),
@@ -1051,9 +646,7 @@ class _EventCardState extends State<_EventCard>
                               Flexible(
                                 child: Text(
                                   widget.event.oneTimeDate != null
-                                      ? DateFormat(
-                                          'EEEE, MMM d, yyyy',
-                                        ).format(widget.event.oneTimeDate!)
+                                      ? DateFormat('EEEE, MMM d, yyyy').format(widget.event.oneTimeDate!)
                                       : 'One-time Event',
                                   style: TextStyle(
                                     color: widget.onSurfaceVariantColor,
@@ -1064,16 +657,14 @@ class _EventCardState extends State<_EventCard>
                                 ),
                               ),
                             ],
-                          )                        else if (widget.event.repeatingDays.isNotEmpty)
+                          )
+                        else if (widget.event.repeatingDays.isNotEmpty)
                           _buildRepeatingDaysRow(),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: widget.onSurfaceVariantColor,
-                    ),
+                    icon: Icon(Icons.more_vert, color: widget.onSurfaceVariantColor),
                     onPressed: widget.onMenuTap,
                   ),
                 ],
@@ -1098,11 +689,7 @@ class _EventCardState extends State<_EventCard>
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 20,
-                          color: widget.onSurfaceVariantColor,
-                        ),
+                        Icon(Icons.schedule, size: 20, color: widget.onSurfaceVariantColor),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(

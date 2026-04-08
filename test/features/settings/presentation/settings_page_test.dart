@@ -47,6 +47,8 @@ class MockEventRepository implements EventRepository {
   @override
   Future<void> deleteEvent(String eventId) async {}
   @override
+  Future<Event?> findEventById(String eventId) async => null;
+  @override
   Stream<List<Event>> streamEvents() => Stream.value([]);
   @override
   Future<void> refresh() async {}
@@ -426,7 +428,7 @@ void main() {
 
     // We can't rely on 'dialogFinder' so just look globally
     expect(find.text('Attendance Tracker', skipOffstage: false), findsWidgets);
-    expect(find.text('Version 2.4.0', skipOffstage: false), findsWidgets);
+    expect(find.text('Version 1.0.13+14', skipOffstage: false), findsWidgets);
     expect(find.text('Legalese', skipOffstage: false), findsWidgets);
   });
 }

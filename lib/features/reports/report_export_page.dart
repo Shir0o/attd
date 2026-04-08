@@ -340,7 +340,7 @@ class _ReportExportPageState extends State<ReportExportPage> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                    : const Icon(Icons.analytics_outlined),
+                    : const Icon(Icons.description),
             label: Text(
               _isProcessing ? 'Preparing report…' : 'Generate report',
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/fluid_loading_border.dart';
 import '../data/drive_service.dart';
 
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -24,11 +25,23 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
   late Future<List<drive.File>> _backupsFuture;
   bool _isInitialLoading = true;
   bool _isRefreshing = false;
+  bool _isOperating = false;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+  Future<void> _performOperation(Future<void> Function() action) async {
+    setState(() => _isOperating = true);
+    try {
+      await action();
+    } finally {
+      if (mounted) {
+        setState(() => _isOperating = false);
+      }
+    }
   }
 
   Future<void> _loadInitialData({bool isRefresh = false}) async {
@@ -99,28 +112,30 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
 
     if (confirmed == true && mounted) {
       final scaffoldMessenger = ScaffoldMessenger.of(context);
-      try {
-        final backupDate =
-            DateFormat('MMM d, HH:mm').format(backup.createdTime!);
-        await widget.driveService.restoreFromBackup(
-          backup.id!,
-          backupDateLabel: backupDate,
-        );
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Restoration successful'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        if (mounted) Navigator.pop(context);
-      } catch (e) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Restoration failed: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      await _performOperation(() async {
+        try {
+          final backupDate =
+              DateFormat('MMM d, HH:mm').format(backup.createdTime!);
+          await widget.driveService.restoreFromBackup(
+            backup.id!,
+            backupDateLabel: backupDate,
+          );
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Restoration successful'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          if (mounted) Navigator.pop(context);
+        } catch (e) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Restoration failed: $e'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -142,9 +157,11 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: _isInitialLoading
-          ? _buildSkeleton(context)
-          : FutureBuilder<List<drive.File>>(
+      body: FluidLoadingBorder(
+        isLoading: _isOperating,
+        child: _isInitialLoading
+            ? _buildSkeleton(context)
+            : FutureBuilder<List<drive.File>>(
               future: _backupsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting && !_isRefreshing) {
@@ -308,6 +325,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                 );
               },
             ),
+      ),
     );
   }
 

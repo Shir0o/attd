@@ -8,6 +8,8 @@ import '../models/attendance_status.dart';
 import '../models/member.dart';
 import '../models/family.dart';
 import '../data/attendance_repository.dart';
+import '../../hub/data/event_repository.dart';
+import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
 import 'session_summary_page.dart';
 import 'swipeable_card.dart';
@@ -19,6 +21,8 @@ class AttendanceDeckPage extends StatefulWidget {
     required this.members,
     required this.sessionRepository,
     required this.attendanceRepository,
+    required this.eventRepository,
+    this.driveService,
     this.disableAnimations = false,
   });
 
@@ -26,6 +30,8 @@ class AttendanceDeckPage extends StatefulWidget {
   final List<Member> members;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
+  final EventRepository eventRepository;
+  final DriveService? driveService;
   final bool disableAnimations;
 
   @override
@@ -182,6 +188,21 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     targetFamily.id,
                     newMember,
                   );
+
+                  // Tie to event if session has eventId
+                  if (widget.session.eventId != null) {
+                    final event = await widget.eventRepository.findEventById(
+                      widget.session.eventId!,
+                    );
+                    if (event != null &&
+                        !event.memberIds.contains(finalMemberId)) {
+                      await widget.eventRepository.updateEvent(
+                        event.copyWith(
+                          memberIds: [...event.memberIds, finalMemberId],
+                        ),
+                      );
+                    }
+                  }
                 } catch (e) {
                   debugPrint('Error adding regular member: $e');
                 }
@@ -226,6 +247,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         members: widget.members,
         sessionRepository: widget.sessionRepository,
         attendanceRepository: widget.attendanceRepository,
+        driveService: widget.driveService,
       );
     }
 
@@ -466,8 +488,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                 children: [
                   // Undo Button
                   SizedBox(
-                    width: 72,
-                    height: 72,
+                    width: 80,
+                    height: 80,
                     child: Material(
                       color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
@@ -477,7 +499,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         onTap: _currentIndex > 0 ? _undo : null,
                         child: Icon(
                           Icons.undo,
-                          size: 32,
+                          size: 40,
                           color: _currentIndex > 0
                               ? colorScheme.onSurfaceVariant
                               : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),

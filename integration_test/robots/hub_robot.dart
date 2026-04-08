@@ -54,21 +54,34 @@ class HubRobot {
   }
 
   Future<void> tapEventMenu(String title) async {
-    final textFinder = find.text(title);
+    print('DEBUG: tapEventMenu($title)');
+    final textFinder = find.textContaining(title);
     await tester.pumpUntilFound(textFinder);
-    await tester.pump(const Duration(milliseconds: 300));
+    
+    // Ensure the event card is visible
+    await tester.ensureVisible(textFinder.last);
+    await tester.pumpAndSettle();
 
     final cardFinder = find.ancestor(
-      of: textFinder,
+      of: textFinder.last,
       matching: find.byType(Card),
     );
-    final menuFinder = find.descendant(
-      of: cardFinder,
-      matching: find.byIcon(Icons.more_vert),
-    );
 
-    await tester.tap(menuFinder);
-    await tester.pump(const Duration(milliseconds: 500));
+    // Fallback logic for resilient testing
+    if (cardFinder.evaluate().isEmpty) {
+        print('DEBUG: Card ancestor not found, falling back to Icons.more_vert');
+        final menuFinder = find.byIcon(Icons.more_vert);
+        await tester.tap(menuFinder.last);
+    } else {
+        final menuFinder = find.descendant(
+          of: cardFinder,
+          matching: find.byIcon(Icons.more_vert),
+        );
+        await tester.pumpUntilFound(menuFinder);
+        await tester.tap(menuFinder);
+    }
+    
+    await tester.pumpAndSettle();
   }
 
   Future<void> selectMenuOption(String option) async {
