@@ -28,7 +28,13 @@ import 'features/auth/config/google_oauth_config.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await Firebase.initializeApp();
+  // Parallelize heavy initialization to prevent ANR and reduce startup time
+  final initialization = await Future.wait([
+    Firebase.initializeApp(),
+    SharedPreferences.getInstance(),
+  ]);
+
+  final prefs = initialization[1] as SharedPreferences;
 
   // Pass all uncaught "Fatal" errors from the framework to Crashlytics
   FlutterError.onError = (errorDetails) {
@@ -41,7 +47,6 @@ Future<void> main() async {
     return true;
   };
 
-  final prefs = await SharedPreferences.getInstance();
   final themeController = ThemeController(prefs);
   final onboardingController = OnboardingController(prefs);
 
@@ -60,8 +65,6 @@ Future<void> main() async {
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,
   );
-  // Restore sync session and trigger initial sync if enabled
-  driveService.init();
 
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
@@ -127,6 +130,8 @@ class _AttendanceAppState extends State<AttendanceApp>
     Future.microtask(() {
       _runMaintenance();
       _runMigration();
+      // Restore sync session and trigger initial sync if enabled
+      widget.driveService?.init();
     });
   }
 
