@@ -34,6 +34,11 @@ void main() {
       // 2. Create event with one member
       await hub.tapFab();
       await event.enterName('Advanced Event');
+      // Ensure current day is selected for "today" logic
+      final currentDay = [
+        'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+      ][DateTime.now().weekday % 7];
+      await event.selectDay(currentDay);
       await event.save();
       await tester.pump(const Duration(milliseconds: 800));
 
@@ -74,15 +79,17 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       
       // Now we should be at completion
-      await tester.pumpUntilFound(find.text('Finalize Report'));
+      await tester.pump(const Duration(milliseconds: 1000));
+      await attendance.verifyDeckComplete();
       
       // Verify guest is in summary (if summary is shown or by finishing and checking history)
       await attendance.finishSession();
       
       // 6. Verify in history
-      print('DEBUG: Waiting for Hub to reload');
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 3));
+      print('DEBUG: Returning to Hub');
+      await hub.goBack();
+      await hub.verifyOnHubPage();
+      await tester.pump(const Duration(seconds: 1));
       
       await hub.tapEventMenu('Advanced Event');
       await hub.selectMenuOption('View History');

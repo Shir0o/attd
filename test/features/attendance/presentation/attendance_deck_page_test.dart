@@ -161,10 +161,11 @@ void main() {
     expect(savedRecords.first.status, AttendanceStatus.present);
 
     // Verify we are at the summary page (it shows the session title)
-    await tester.pump(const Duration(seconds: 1));
+    // Summary page has an 800ms skeleton
+    await tester.pump(const Duration(milliseconds: 1000));
     await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
-    expect(find.text('Finalize Report'), findsOneWidget);
+    expect(find.text('PRESENT'), findsOneWidget);
   });
 
   testWidgets('AttendanceDeckPage swipes left to mark absent', (
@@ -210,8 +211,10 @@ void main() {
       AttendanceStatus.absent,
     );
 
-    // Verify Completion Screen
+    // Verify Summary Screen
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
-    expect(find.text('Finalize Report'), findsOneWidget);
+    expect(find.text('PRESENT'), findsOneWidget);
   });
 }

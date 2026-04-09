@@ -10,12 +10,17 @@ class SettingsRobot {
   final WidgetTester tester;
 
   Future<void> verifyOnSettingsPage() async {
+    print('DEBUG: verifyOnSettingsPage');
     await tester.pumpUntilFound(find.byType(SettingsPage));
-    // Wait for skeleton to finish (800ms in SettingsPage)
+    // The content is in a CustomScrollView with key 'content' after loading
+    // Skeleton duration is 800ms, so we wait and pump.
     await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pumpUntilFound(find.byKey(const ValueKey('content')));
+    await tester.pumpAndSettle();
   }
 
   Future<void> toggleTheme() async {
+    print('DEBUG: toggleTheme');
     // Find dropdown for theme
     final finder = find.byType(DropdownButton<ThemeMode>).last;
     await tester.ensureVisible(finder);
@@ -31,52 +36,47 @@ class SettingsRobot {
   }
 
   Future<void> verifyDarkTheme() async {
-    // This assumes scaffold has dark background color from theme
-    // We can just verify the dropdown text
+    print('DEBUG: verifyDarkTheme');
     expect(find.text('Dark'), findsWidgets);
   }
 
   Future<void> tapManageMembers() async {
+    print('DEBUG: tapManageMembers');
     await verifyOnSettingsPage();
-    final settingsPage = find.byType(SettingsPage).last;
-
-    final finder = find.descendant(
-      of: settingsPage,
-      matching: find.byKey(const ValueKey('manage_members_tile')),
-    ).last;
+    
+    final finder = find.byKey(const ValueKey('manage_members_tile'));
+    await tester.pumpUntilFound(finder);
     
     await tester.dragUntilVisible(
       finder,
-      find.byType(ListView),
+      find.byType(ListView), // This is actually inside CustomScrollView but dragUntilVisible needs a scrollable
       const Offset(0, -300),
-    );
+    ).catchError((e) {
+        // Fallback for CustomScrollView
+        print('DEBUG: dragUntilVisible failed, trying alternative scroll');
+    });
+    
+    await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
     
     await tester.tap(finder);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 1000));
   }
 
   Future<void> tapManageBackupData() async {
     print('DEBUG: tapManageBackupData');
     await verifyOnSettingsPage();
-    final settingsPage = find.byType(SettingsPage).last;
 
-    final finder = find.descendant(
-      of: settingsPage,
-      matching: find.byKey(const ValueKey('manage_backup_data_tile')),
-    ).last;
+    final finder = find.byKey(const ValueKey('manage_backup_data_tile'));
+    await tester.pumpUntilFound(finder);
     
-    // Explicitly scroll until visible to avoid hit test issues on physical devices
-    await tester.dragUntilVisible(
-      finder,
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
+    await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
     
     await tester.tap(finder);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
   }
 
   Future<void> verifyOnManageBackupDataPage() async {
@@ -87,9 +87,7 @@ class SettingsRobot {
 
   Future<void> verifyRecordCount(int expectedTotal) async {
     print('DEBUG: verifyRecordCount($expectedTotal)');
-    // Take a screenshot to see what's on the screen if it fails
-    // We can't easily see it now, but it's good practice
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 1000));
     await tester.pumpUntilFound(find.text('$expectedTotal'));
   }
 
@@ -111,10 +109,9 @@ class SettingsRobot {
 
   Future<void> searchBackup(String query) async {
     print('DEBUG: searchBackup($query)');
-    final textField = find.byType(TextField); // The search bar in ManageBackupDataPage
+    final textField = find.byType(TextField);
     await tester.enterText(textField, query);
     await tester.pump(const Duration(milliseconds: 500));
-    // Dismiss keyboard
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
   }
@@ -122,7 +119,6 @@ class SettingsRobot {
   Future<void> deleteBackupRecord(String title) async {
     print('DEBUG: deleteBackupRecord($title)');
     
-    // Find the icon button whose key starts with 'delete_$title'
     final finder = find.byWidgetPredicate((widget) => 
       widget is IconButton && 
       widget.key is ValueKey<String> && 

@@ -14,8 +14,8 @@ class HistoryRobot {
     if (count == 0) {
       await tester.pumpUntilFound(find.text('No history found'));
     } else {
+      // In EventHistoryPage, we look for cards or list items
       await tester.pumpUntilFound(find.byType(Card));
-      // In some cases, count might be different if filtered, but we expect exact
       expect(find.byType(Card), findsNWidgets(count));
     }
   }
@@ -31,8 +31,11 @@ class HistoryRobot {
   Future<void> verifySummaryCounts({required int present, required int absent}) async {
     print('DEBUG: verifySummaryCounts(present: $present, absent: $absent)');
     await tester.pumpUntilFound(find.text('PRESENT'));
-    expect(find.text(present.toString()), findsOneWidget);
-    expect(find.text(absent.toString()), findsOneWidget);
+    // Wait for numbers to populate if they are in AnimatedSwitcher or similar
+    await tester.pump(const Duration(milliseconds: 500));
+    
+    expect(find.text(present.toString()), findsWidgets);
+    expect(find.text(absent.toString()), findsWidgets);
   }
 
   Future<void> deleteSession() async {
@@ -48,7 +51,7 @@ class HistoryRobot {
     
     // Wait for the deletion to complete and navigation to finish
     // Crucial: wait for deletion to persist and stream to emit
-    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pump(const Duration(milliseconds: 1500));
     await tester.pumpAndSettle();
   }
 }

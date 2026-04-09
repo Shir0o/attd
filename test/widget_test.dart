@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MockEventRepository implements EventRepository {
-  final _controller = StreamController<List<Event>>();
+  final _controller = StreamController<List<Event>>.broadcast();
 
   void emit(List<Event> events) {
     _controller.add(events);
@@ -150,10 +150,9 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<User> signup(Credentials credentials) async =>
       throw UnimplementedError();
-  }
+}
 
-  void main() {
-
+void main() {
   testWidgets('AttendanceApp loads HubPage without BottomNavigationBar', (
     tester,
   ) async {
@@ -167,7 +166,7 @@ class MockAuthRepository implements AuthRepository {
     final mockAttendanceRepo = MockAttendanceRepository();
     final mockAuthRepo = MockAuthRepository();
 
-    // Emit empty list to stop loading spinner
+    // Emit empty list to stop loading
     mockEventRepo.emit([]);
 
     await tester.pumpWidget(
@@ -184,14 +183,13 @@ class MockAuthRepository implements AuthRepository {
 
     // Initial pump
     await tester.pump();
-    // Animation pump/settle
-    await tester.pumpAndSettle();
+    // Wait for skeleton (800ms) - pump a fixed duration to avoid animations causing timeout
+    await tester.pump(const Duration(milliseconds: 1500));
 
     // Verify NavigationBar does NOT exist
     expect(find.byType(NavigationBar), findsNothing);
 
-    // Verify default view is Attendance (HubAttendanceView)
-    // "TODAY" text should be visible (from HubAttendanceView)
-    expect(find.text('TODAY'), findsOneWidget);
+    // Verify default view is Attendance Hub
+    expect(find.text('Attendance Hub'), findsOneWidget);
   });
 }

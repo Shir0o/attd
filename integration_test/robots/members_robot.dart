@@ -54,8 +54,8 @@ class MembersRobot {
     final memberFinder = find.text(memberName).first;
     await tester.pumpUntilFound(memberFinder);
 
-    final itemFinder = find.ancestor(of: memberFinder, matching: find.byType(InkWell));
-    final switchFinder = find.descendant(of: itemFinder, matching: find.byType(Switch));
+    final rowFinder = find.ancestor(of: memberFinder, matching: find.byType(Row)).first;
+    final switchFinder = find.descendant(of: rowFinder, matching: find.byType(Switch));
     
     final switchWidget = tester.widget<Switch>(switchFinder);
     expect(switchWidget.value, isSelected);

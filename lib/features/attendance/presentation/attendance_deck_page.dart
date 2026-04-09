@@ -6,7 +6,6 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
-import '../models/family.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../settings/data/drive_service.dart';
@@ -48,19 +47,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   void initState() {
     super.initState();
     _currentSession = widget.session;
-    // Filter members that are already recorded in the session?
-    // The requirement is to show the deck.
-    // If we assume we want to go through everyone, let's just use the full list.
-    // Or, better, start with members who don't have a record yet?
-    // For now, let's load all members into _remainingMembers to iterate through.
-    // Ideally we'd filter out valid records, but for "The Deck" UI flow, maybe we always want to review?
-    // Let's stick to: All members, but maybe sort or filter?
-    // Simple approach: Start from index 0 of the provided members list.
+    debugPrint('DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
+    debugPrint('DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
+
     _remainingMembers.addAll(widget.members);
     _currentIndex = 0;
 
-    // Remove members already present in the session records if we want to resume?
-    // The design shows a linear flow. Let's find the first member without a record.
     final recordedIds = _currentSession.records.map((r) => r.memberId).toSet();
     final recordedNames = _currentSession.records.map((r) => r.attendee).toSet();
     
@@ -73,15 +65,17 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       }
     }
     _currentIndex = firstUnrecorded;
+    debugPrint('DEBUG: AttendanceDeckPage.initState: _currentIndex=$_currentIndex');
 
-    // Snappier delay to allow Hero to finish without making the app feel slow
-    // Mandated minimum of 800ms for visual consistency
-    final delay = widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 800);
-    Future.delayed(delay, () {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    });
+    if (widget.disableAnimations) {
+      _isLoading = false;
+    } else {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      });
+    }
   }
 
   Future<void> _recordAttendance(
@@ -98,60 +92,69 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       recordedBy: 'User', // Placeholder
     );
 
-    // Update session locally
-    // If record exists, replace it. If not, add it.
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    final existingIndex = updatedRecords.indexWhere(
-      (r) => (r.memberId != null && r.memberId == memberId) || 
-             (r.memberId == null && r.attendee == attendeeName),
+    // Remove any existing record for this attendee if exists (overwrite)
+    updatedRecords.removeWhere((r) => 
+      (memberId != null && r.memberId == memberId) || 
+      (r.attendee == attendeeName)
     );
-    if (existingIndex != -1) {
-      updatedRecords[existingIndex] = newRecord;
-    } else {
-      updatedRecords.add(newRecord);
-    }
+    updatedRecords.add(newRecord);
 
     final updatedSession = _currentSession.copyWith(
       records: updatedRecords,
       updatedAt: DateTime.now(),
     );
 
-    setState(() {
-      _currentSession = updatedSession;
-    });
-
-    // Save to repo logic
     try {
-      final saved = await widget.sessionRepository.saveSnapshot(
-        updatedSession,
-        actor: 'User',
-      );
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
       if (mounted) {
         setState(() {
-          _currentSession = saved;
+          _currentSession = updatedSession;
         });
       }
     } catch (e) {
-      // Handle error (show snackbar?)
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save record: $e')),
+        );
       }
     }
   }
 
   void _processAttendance(AttendanceStatus status) {
-    if (_currentIndex >= widget.members.length) return;
-
     final member = widget.members[_currentIndex];
-
-    // Fire and forget attendance recording
     _recordAttendance(member.id, member.displayName, status);
 
-    setState(() {
-      _currentIndex++;
-    });
+    if (_currentIndex < widget.members.length - 1) {
+      setState(() {
+        _currentIndex++;
+      });
+    } else {
+      // Finished all members
+      _finishAndNavigate();
+    }
+  }
+
+  void _undo() {
+    if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+      });
+    }
+  }
+
+  void _finishAndNavigate() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => SessionSummaryPage(
+          session: _currentSession,
+          members: widget.members,
+          sessionRepository: widget.sessionRepository,
+          attendanceRepository: widget.attendanceRepository,
+          disableAnimations: widget.disableAnimations,
+        ),
+      ),
+    );
   }
 
   void _showAddMemberSheet() {
@@ -159,81 +162,17 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) => AddMemberSheet(
-            onAdd: (name, isPresent, isGuest, existingMember) async {
-              String? finalMemberId;
-              if (existingMember != null) {
-                finalMemberId = existingMember.id;
-              } else if (!isGuest) {
-                try {
-                  final families =
-                      await widget.attendanceRepository.fetchFamilies();
-                  Family targetFamily;
-                  if (families.isEmpty) {
-                    targetFamily = await widget.attendanceRepository.addFamily(
-                      'General',
-                    );
-                  } else {
-                    targetFamily = families.first;
-                  }
-
-                  finalMemberId = DateTime.now().millisecondsSinceEpoch.toString();
-                  final newMember = Member(
-                    id: finalMemberId,
-                    displayName: name,
-                  );
-
-                  await widget.attendanceRepository.addMember(
-                    targetFamily.id,
-                    newMember,
-                  );
-
-                  // Tie to event if session has eventId
-                  if (widget.session.eventId != null) {
-                    final event = await widget.eventRepository.findEventById(
-                      widget.session.eventId!,
-                    );
-                    if (event != null &&
-                        !event.memberIds.contains(finalMemberId)) {
-                      await widget.eventRepository.updateEvent(
-                        event.copyWith(
-                          memberIds: [...event.memberIds, finalMemberId],
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  debugPrint('Error adding regular member: $e');
-                }
-              }
-
-              _recordAttendance(
-                finalMemberId,
-                name,
-                isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
-              );
-
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('$name added')));
-              }
-            },
-          ),
+      builder: (context) => AddMemberSheet(
+        onAdd: (name, isPresent, isGuest, existingMember) {
+          _recordAttendance(
+            existingMember?.id,
+            name,
+            isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+          );
+        },
+        availableMembers: widget.members,
+      ),
     );
-  }
-
-  void _undo() {
-    if (_currentIndex > 0) {
-      setState(() {
-        _currentIndex--;
-        // Optionally remove the record from session?
-        // Or just let the user overwrite it.
-        // If we want "Undo" to clear the state, we should remove it from records or not logic?
-        // Let's just step back. The user will overwrite key.
-      });
-    }
   }
 
   @override
@@ -242,13 +181,21 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final colorScheme = theme.colorScheme;
 
     if (_currentIndex >= widget.members.length) {
-      return SessionSummaryPage(
-        session: _currentSession,
-        members: widget.members,
-        sessionRepository: widget.sessionRepository,
-        attendanceRepository: widget.attendanceRepository,
-        driveService: widget.driveService,
-      );
+        return Scaffold(
+            body: Center(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Text('Session Complete'),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                            onPressed: _finishAndNavigate,
+                            child: const Text('Finalize Report'),
+                        ),
+                    ],
+                ),
+            ),
+        );
     }
 
     final currentMember = widget.members[_currentIndex];
@@ -499,17 +446,15 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         onTap: _currentIndex > 0 ? _undo : null,
                         child: Icon(
                           Icons.undo,
-                          size: 40,
                           color: _currentIndex > 0
-                              ? colorScheme.onSurfaceVariant
-                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                              ? colorScheme.onSurface
+                              : colorScheme.onSurface.withValues(alpha: 0.3),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 24),
-
-                  // Absent Button (X)
+                  // Absent Button
                   SizedBox(
                     width: 80,
                     height: 80,
@@ -517,42 +462,26 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       color: colorScheme.surfaceContainerHigh,
                       shape: const CircleBorder(),
                       clipBehavior: Clip.antiAlias,
-                      elevation: 1,
                       child: InkWell(
                         key: const Key('absentButton'),
-                        onTap: () =>
-                            _processAttendance(AttendanceStatus.absent),
-                        child: Icon(
-                          Icons.close,
-                          size: 40,
-                          color: colorScheme.error,
-                        ),
+                        onTap: () => _processAttendance(AttendanceStatus.absent),
+                        child: Icon(Icons.close, color: colorScheme.error),
                       ),
                     ),
                   ),
                   const SizedBox(width: 24),
-
-                  // Present Button (Check)
+                  // Present Button
                   SizedBox(
                     width: 80,
                     height: 80,
-                    child: Hero(
-                      tag: 'fab',
-                      child: Material(
-                        color: colorScheme.primary,
-                        shape: const CircleBorder(),
-                        clipBehavior: Clip.antiAlias,
-                        elevation: 3,
-                        child: InkWell(
-                          key: const Key('presentButton'),
-                          onTap: () =>
-                              _processAttendance(AttendanceStatus.present),
-                          child: Icon(
-                            Icons.check,
-                            size: 40,
-                            color: colorScheme.onPrimary,
-                          ),
-                        ),
+                    child: Material(
+                      color: colorScheme.primary,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        key: const Key('presentButton'),
+                        onTap: () => _processAttendance(AttendanceStatus.present),
+                        child: Icon(Icons.check, color: colorScheme.onPrimary),
                       ),
                     ),
                   ),

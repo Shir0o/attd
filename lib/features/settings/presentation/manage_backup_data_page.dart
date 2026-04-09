@@ -54,6 +54,9 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       final events = await widget.eventRepository.streamEvents().first;
       final sessions = await widget.sessionRepository.loadSessions();
 
+      final totalMembersCount = families.expand((f) => f.members).length;
+      debugPrint('DEBUG: ManageBackupDataPage._loadData: events=${events.length}, members=$totalMembersCount, sessions=${sessions.length}');
+
       final usageMap = <String, List<({String title, DateTime date})>>{};
       for (final session in sessions) {
         for (final record in session.records) {
