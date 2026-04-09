@@ -45,6 +45,12 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    
+    # REQUIRED: These permissions allow GitHub to request the OIDC token
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -69,15 +75,29 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run Integration Tests
-        uses: reactivecircus/android-emulator-runner@v2
+      - name: Build App APK
+        run: flutter build apk --debug --dart-define=IS_TEST_MODE=true
+
+      - name: Build Test APK
+        run: |
+          cd android
+          ./gradlew app:assembleAndroidTest
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          api-level: 31
-          target: google_apis
-          arch: x86_64
-          profile: Nexus 6
-          disable-animations: true
-          force-avd-creation: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: flutter test --dart-define=IS_TEST_MODE=true integration_test/app_test.dart
+          workload_identity_provider: 'projects/114395066159212530788/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider'
+          service_account: 'github-actions-firebase-test@attd-ef18a.iam.gserviceaccount.com'
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Integration Tests (Firebase Test Lab)
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app build/app/outputs/flutter-apk/app-debug.apk \
+            --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --timeout 15m
 
