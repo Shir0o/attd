@@ -42,15 +42,12 @@ jobs:
   integration_tests:
     name: Integration Tests
     needs: unit_tests
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    
-    # REQUIRED: These permissions allow GitHub to request the OIDC token
     permissions:
       contents: 'read'
       id-token: 'write'
-      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,29 +72,36 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build App APK
-        run: flutter build apk --debug --dart-define=IS_TEST_MODE=true
-
-      - name: Build Test APK
+      - name: Build App APK (with tests bundled inside)
         run: |
-          cd android
-          ./gradlew app:assembleAndroidTest
+          DART_DEFINES=$(echo -n "IS_TEST_MODE=true" | base64)
+          pushd android
+          ./gradlew app:assembleDebug \
+            -Ptarget=$(pwd)/../integration_test/app_test.dart \
+            -Pdart-defines="$DART_DEFINES"
+          popd
 
-      - id: auth
-        name: Authenticate to Google Cloud
+      - name: Build Test APK (The Android wrapper)
+        run: |
+          pushd android
+          ./gradlew app:assembleAndroidTest
+          popd
+
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: 'projects/995280441940/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider'
-          service_account: 'github-actions-firebase-test@attd-ef18a.iam.gserviceaccount.com'
+          workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
+          service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
 
-      - name: Setup Google Cloud SDK
+      - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Run Integration Tests (Firebase Test Lab)
+      - name: Run on Firebase Test Lab
         run: |
           gcloud firebase test android run \
             --type instrumentation \
             --app build/app/outputs/flutter-apk/app-debug.apk \
             --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
-            --timeout 30m
-
+            --device model=MediumPhone.arm,version=35,locale=en,orientation=portrait \
+            --timeout 10m \
+            --results-dir=integration-tests/${{ github.run_id }}
