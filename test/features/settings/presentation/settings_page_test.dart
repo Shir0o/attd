@@ -6,6 +6,7 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
 import 'package:attendance_tracker/features/settings/presentation/cloud_backup_page.dart';
+import 'package:attendance_tracker/features/settings/presentation/manage_backup_data_page.dart';
 import 'package:attendance_tracker/features/hub/presentation/members_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -321,7 +322,20 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
 
+    // Test navigation to Manage Backup Data
+    await tester.tap(find.text('Manage Backup Data'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ManageBackupDataPage), findsOneWidget);
+
+    // Go back
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
     // Test navigation to Google Drive Sync
+    // Must be signed in to navigate to CloudBackupPage
+    await driveService.signIn();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Google Drive Sync'));
     await tester.pumpAndSettle();
     expect(find.byType(CloudBackupPage), findsOneWidget);
