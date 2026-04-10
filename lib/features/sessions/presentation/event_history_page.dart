@@ -69,7 +69,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 800) - elapsed;
 
-    if (remaining > Duration.zero) {
+    if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }
   }
@@ -293,6 +293,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                               eventRepository:
                                                   widget.eventRepository,
                                               driveService: widget.driveService,
+                                              disableAnimations: widget.disableAnimations,
                                             ),
                                       ),
                                     );
@@ -436,6 +437,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 sessionRepository: widget.sessionRepository,
                 attendanceRepository: widget.attendanceRepository,
                 eventRepository: widget.eventRepository,
+                disableAnimations: widget.disableAnimations,
               ),
         ),
       );

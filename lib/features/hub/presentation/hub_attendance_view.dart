@@ -450,6 +450,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                         members: sessionMembers,
                         sessionRepository: widget.sessionRepository,
                         attendanceRepository: widget.attendanceRepository,
+                        disableAnimations: widget.disableAnimations,
                       ),
                     ),
                   );

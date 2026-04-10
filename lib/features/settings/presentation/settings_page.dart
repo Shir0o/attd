@@ -204,6 +204,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                           builder: (_) => MembersPage(
                                             attendanceRepository: widget.attendanceRepository,
                                             sessionRepository: widget.sessionRepository,
+                                            disableAnimations: widget.disableAnimations,
                                           ),
                                         ),
                                       );
@@ -223,6 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                             attendanceRepository: widget.attendanceRepository,
                                             eventRepository: widget.eventRepository,
                                             sessionRepository: widget.sessionRepository,
+                                            disableAnimations: widget.disableAnimations,
                                           ),
                                         ),
                                       );
@@ -249,7 +251,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                     title: 'Google Drive Sync',
                                     subtitle: 'Sync data across devices',
                                     onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => CloudBackupPage(driveService: widget.driveService)),
+                                      MaterialPageRoute(builder: (_) => CloudBackupPage(
+                                        driveService: widget.driveService,
+                                        disableAnimations: widget.disableAnimations,
+                                      )),
                                     ),
                                   ),
                                 ],

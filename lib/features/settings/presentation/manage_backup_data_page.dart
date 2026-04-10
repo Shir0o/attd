@@ -15,11 +15,13 @@ class ManageBackupDataPage extends StatefulWidget {
     required this.attendanceRepository,
     required this.eventRepository,
     required this.sessionRepository,
+    this.disableAnimations = false,
   });
 
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
   final SessionRepository sessionRepository;
+  final bool disableAnimations;
 
   @override
   State<ManageBackupDataPage> createState() => _ManageBackupDataPageState();
@@ -71,7 +73,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       // Minimum loading duration for visual consistency
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 800) - elapsed;
-      if (remaining > Duration.zero) {
+      if (remaining > Duration.zero && !widget.disableAnimations) {
         await Future.delayed(remaining);
       }
 
