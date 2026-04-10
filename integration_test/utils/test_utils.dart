@@ -14,6 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true}) async {
   // Use a temporary directory for local storage to isolate tests
@@ -30,8 +33,10 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   final sessionRepository = LocalJsonSessionRepository(storagePath: storagePath);
   final eventRepository = LocalJsonEventRepository(storagePath: storagePath);
 
-  // Mock GoogleSignIn for DriveService
-  final googleSignIn = GoogleSignIn.instance;
+  // Mock GoogleSignIn for DriveService to avoid native hangs
+  final googleSignIn = MockGoogleSignIn();
+  when(() => googleSignIn.attemptLightweightAuthentication()).thenAnswer((_) async => null);
+  when(() => googleSignIn.signOut()).thenAnswer((_) async {});
 
   final driveService = DriveService(
     googleSignIn: googleSignIn,

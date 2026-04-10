@@ -3,14 +3,19 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 void main() {
   group('DriveService Merge Logic Scenarios', () {
     late DriveService driveService;
+    late MockGoogleSignIn mockGoogleSignIn;
 
     setUp(() {
+      mockGoogleSignIn = MockGoogleSignIn();
       // We don't need real dependencies for testing static merge logic
-      driveService = DriveService(googleSignIn: GoogleSignIn.instance);
+      driveService = DriveService(googleSignIn: mockGoogleSignIn);
     });
 
     test('Scenario: Independent changes should be merged (Union)', () {
