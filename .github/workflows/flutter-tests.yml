@@ -84,7 +84,7 @@ jobs:
           DART_DEFINES=$(echo -n "IS_TEST_MODE=true" | base64)
           pushd android
           ./gradlew app:assembleDebug \
-            -Ptarget=$(pwd)/../integration_test/app_test.dart \
+            -Ptarget=$(pwd)/../integration_test/all_tests.dart \
             -Pdart-defines="$DART_DEFINES"
           popd
 
