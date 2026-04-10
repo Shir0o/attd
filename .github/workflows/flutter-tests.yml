@@ -72,6 +72,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Bootstrap Android project (Generates gradlew)
+        run: flutter build apk --debug
+
       - name: Build App APK (with tests bundled inside)
         run: |
           DART_DEFINES=$(echo -n "IS_TEST_MODE=true" | base64)
