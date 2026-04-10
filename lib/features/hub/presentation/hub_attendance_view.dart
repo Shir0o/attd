@@ -424,7 +424,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 }
               }
 
-              final sessionMembers = _members;
+              final sessionMembers = event.memberIds.isNotEmpty
+                  ? _members
+                      .where((m) => event.memberIds.contains(m.id))
+                      .toList()
+                  : _members;
               debugPrint('DEBUG: HubAttendanceView.onTap: foundSession=${foundSession?.id}, membersCount=${sessionMembers.length}');
 
               if (foundSession != null) {
@@ -929,7 +933,7 @@ class _EventCardSkeleton extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     AppShimmer(
-                      width: 80,
+                      width: 60,
                       height: 20,
                       disableAnimations: disableAnimations,
                     ),

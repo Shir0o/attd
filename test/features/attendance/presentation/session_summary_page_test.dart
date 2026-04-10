@@ -356,15 +356,13 @@ void main() {
     // Alice is absent
     expect(find.text('Alice'), findsOneWidget);
 
-    // Tap Remove icon
-    final removeIcon = find.byTooltip('Remove from session');
-    expect(removeIcon, findsOneWidget);
-    await tester.tap(removeIcon);
+    // Swipe left to remove
+    await tester.drag(find.text('Alice'), const Offset(-500, 0));
     await tester.pumpAndSettle();
 
     // Verify confirmation dialog title
     expect(find.text('Remove from Report'), findsOneWidget);
-    await tester.tap(find.text('Remove'));
+    await tester.tap(find.widgetWithText(TextButton, 'Remove'));
     await tester.pumpAndSettle();
 
     // Alice should be GONE entirely
@@ -415,10 +413,8 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Tap Edit icon
-    final editIcon = find.byTooltip('Edit name');
-    expect(editIcon, findsOneWidget);
-    await tester.tap(editIcon);
+    // Swipe right to edit
+    await tester.drag(find.text('Alice'), const Offset(500, 0));
     await tester.pumpAndSettle();
 
     // Check dialog

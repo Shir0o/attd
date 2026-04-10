@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_theme.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 
@@ -71,6 +72,49 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
     if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
+    }
+  }
+
+  Future<void> _deleteSession(Session session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Session'),
+        content: Text(
+          'Are you sure you want to delete "${session.title}" for ${DateFormat('yyyy-MM-dd').format(session.sessionDate)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await widget.sessionRepository.deleteSession(
+          session.id,
+          actor: 'You',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting session: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -267,114 +311,132 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                 }
                               }
 
-                              return Card(
-                                elevation: 0,
-                                color: colorScheme.secondaryContainer
-                                    .withOpacity(0.4),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  side: BorderSide(
-                                    color: colorScheme.surfaceContainerHighest
-                                        .withOpacity(0.5),
-                                  ),
+                              return Dismissible(
+                                key: ValueKey('dismiss_session_${session.id}'),
+                                direction: DismissDirection.endToStart,
+                                background: Container(color: Colors.transparent), // Required by Flutter if secondaryBackground is set
+                                secondaryBackground: _buildSwipeBackground(
+                                  context,
+                                  'Delete Session',
+                                  colorScheme.error,
+                                  Icons.delete_outline,
+                                  false,
                                 ),
-                                clipBehavior: Clip.antiAlias,
-                                child: InkWell(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => SessionSummaryPage(
-                                              session: session,
-                                              members: filteredMembers,
-                                              sessionRepository:
-                                                  widget.sessionRepository,
-                                              attendanceRepository:
-                                                  widget.attendanceRepository,
-                                              eventRepository:
-                                                  widget.eventRepository,
-                                              driveService: widget.driveService,
-                                              disableAnimations: widget.disableAnimations,
-                                            ),
+                                confirmDismiss: (direction) async {
+                                  if (direction == DismissDirection.endToStart) {
+                                    await _deleteSession(session);
+                                  }
+                                  return false;
+                                },
+                                child: Card(
+                                  elevation: 0,
+                                  color: colorScheme.secondaryContainer
+                                      .withOpacity(0.4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                    side: BorderSide(
+                                      color: colorScheme.surfaceContainerHighest
+                                          .withOpacity(0.5),
+                                    ),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => SessionSummaryPage(
+                                                session: session,
+                                                members: filteredMembers,
+                                                sessionRepository:
+                                                    widget.sessionRepository,
+                                                attendanceRepository:
+                                                    widget.attendanceRepository,
+                                                eventRepository:
+                                                    widget.eventRepository,
+                                                driveService: widget.driveService,
+                                                disableAnimations: widget.disableAnimations,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      dateStr,
+                                                      style: TextStyle(
+                                                        fontSize: 22,
+                                                        fontWeight: FontWeight.w500,
+                                                        color: colorScheme.onSurface,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                    Text(
+                                                      dayTimeStr,
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        color: colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Icon(
+                                                Icons.chevron_right,
+                                                color:
+                                                    colorScheme.onSurfaceVariant,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: _buildStatusBadge(
+                                                  context,
+                                                  Icons.check_circle,
+                                                  colorScheme.primary,
+                                                  '$totalPresent Present',
+                                                ),
+                                              ),
+                                              Container(
+                                                height: 16,
+                                                width: 1,
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 16,
+                                                    ),
+                                                color: colorScheme.outlineVariant,
+                                              ),
+                                              Expanded(
+                                                child: _buildStatusBadge(
+                                                  context,
+                                                  Icons.cancel,
+                                                  colorScheme.error,
+                                                  '$totalAbsent Absent',
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    dateStr,
-                                                    style: TextStyle(
-                                                      fontSize: 22,
-                                                      fontWeight: FontWeight.w500,
-                                                      color: colorScheme.onSurface,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                  Text(
-                                                    dayTimeStr,
-                                                    style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: colorScheme
-                                                          .onSurfaceVariant,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Icon(
-                                              Icons.chevron_right,
-                                              color:
-                                                  colorScheme.onSurfaceVariant,
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: _buildStatusBadge(
-                                                context,
-                                                Icons.check_circle,
-                                                colorScheme.primary,
-                                                '$totalPresent Present',
-                                              ),
-                                            ),
-                                            Container(
-                                              height: 16,
-                                              width: 1,
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                  ),
-                                              color: colorScheme.outlineVariant,
-                                            ),
-                                            Expanded(
-                                              child: _buildStatusBadge(
-                                                context,
-                                                Icons.cancel,
-                                                colorScheme.error,
-                                                '$totalAbsent Absent',
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
                                     ),
                                   ),
                                 ),
@@ -393,8 +455,52 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
         onPressed: () => _showMakeUpDatePicker(context),
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
         child: const Icon(Icons.add, size: 24),
+      ),
+    );
+  }
+
+  Widget _buildSwipeBackground(
+    BuildContext context,
+    String label,
+    Color color,
+    IconData icon,
+    bool isStart,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 0),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: isStart
+            ? [
+                Icon(icon, color: Colors.white),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ]
+            : [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(icon, color: Colors.white),
+              ],
       ),
     );
   }

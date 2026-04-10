@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_theme.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
@@ -823,72 +824,127 @@ class _MemberListItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
+      child: Dismissible(
+        key: ValueKey('dismiss_${member.id}_${member.displayName}'),
+        direction: DismissDirection.horizontal,
+        background: _buildSwipeBackground(
+          context,
+          'Edit Name',
+          colorScheme.secondary,
+          Icons.edit_outlined,
+          true,
         ),
-        child: ListTile(
-          visualDensity: VisualDensity.compact,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          leading: CircleAvatar(
-            backgroundColor: isPresent
-                ? colorScheme.primary.withValues(alpha: 0.1)
-                : colorScheme.error.withValues(alpha: 0.1),
-            child: Text(
-              member.displayName.isNotEmpty
-                  ? member.displayName[0].toUpperCase()
-                  : '?',
-              style: TextStyle(
-                color: isPresent ? colorScheme.primary : colorScheme.error,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+        secondaryBackground: _buildSwipeBackground(
+          context,
+          'Remove',
+          colorScheme.error,
+          Icons.remove_circle_outline,
+          false,
+        ),
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd) {
+            onEdit();
+          } else {
+            onRemove();
+          }
+          return false; // Handle state externally
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          title: Text(
-            member.displayName,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: member.isVisitor
-              ? Text(
-                  'Visitor',
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                )
-              : null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: onEdit,
-                tooltip: 'Edit name',
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(8),
-              ),
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline, size: 20),
-                onPressed: onRemove,
-                tooltip: 'Remove from session',
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(8),
-              ),
-              const SizedBox(width: 4),
-              Transform.scale(
-                scale: 0.8,
-                child: Switch(
-                  value: isPresent,
-                  onChanged: onToggle,
-                  activeColor: colorScheme.primary,
+          child: ListTile(
+            visualDensity: VisualDensity.compact,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: isPresent
+                  ? colorScheme.primary.withValues(alpha: 0.1)
+                  : colorScheme.error.withValues(alpha: 0.1),
+              child: Text(
+                member.displayName.isNotEmpty
+                    ? member.displayName[0].toUpperCase()
+                    : '?',
+                style: TextStyle(
+                  color: isPresent ? colorScheme.primary : colorScheme.error,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
+            ),
+            title: Text(
+              member.displayName,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: member.isVisitor
+                ? Text(
+                    'Visitor',
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  )
+                : null,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: isPresent,
+                    onChanged: onToggle,
+                    activeColor: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSwipeBackground(
+    BuildContext context,
+    String label,
+    Color color,
+    IconData icon,
+    bool isStart,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: isStart
+            ? [
+                Icon(icon, color: Colors.white),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ]
+            : [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(icon, color: Colors.white),
+              ],
       ),
     );
   }
