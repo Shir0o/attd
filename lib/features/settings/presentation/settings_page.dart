@@ -78,6 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     // Simulate a brief delay to ensure skeleton is visible on first load
     await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
     setState(() {
       _sheetsUrlController.text = prefs.getString('googleSheetsUrl') ?? '';
       _isInitialLoading = false;
@@ -88,6 +89,7 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _isSavingUrl = true);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('googleSheetsUrl', url.trim());
+    if (!mounted) return;
     setState(() => _isSavingUrl = false);
   }
 
@@ -139,6 +141,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     final isSignedIn = widget.driveService.currentUser != null;
 
                     return ListView(
+                      key: const ValueKey('content'),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
