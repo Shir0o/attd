@@ -72,6 +72,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Patch app_device_integrity bug (Remove unhandled TODOs)
+        run: |
+          find ~/.pub-cache/hosted/pub.dev -path "*/app_device_integrity*/android/*/AppDeviceIntegrityPlugin.kt" -exec sed -i 's/TODO("Not yet implemented")//g' {} +
+
       - name: Bootstrap Android project (Generates gradlew)
         run: flutter build apk --debug
 
