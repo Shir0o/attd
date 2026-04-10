@@ -69,9 +69,13 @@ void main() {
       
       print('DEBUG: Step 2c - Select day ($currentDay)');
       await event.selectDay(currentDay);
+      
+      print('DEBUG: Step 2d - Select time (10:00)');
+      await event.selectTime(10, 0);
+      
       await tester.takeScreenshot(binding, '03_create_event_form');
 
-      print('DEBUG: Step 2d - Save event');
+      print('DEBUG: Step 2e - Save event');
       await event.save();
       await tester.pump(const Duration(milliseconds: 1000));
 

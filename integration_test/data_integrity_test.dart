@@ -108,11 +108,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       await tester.pumpAndSettle(const Duration(seconds: 1));
-      await settings.saveCleanedBackup();
       
-      // Verify record count reduced: 0 Event + 2 Members + 1 Session = 3.
+      // Verify record count reduced: 4 -> 3 (pending deletion)
       await settings.verifyRecordCount(3); 
 
+      await settings.saveCleanedBackup();
+      
       // Restore error handler
       FlutterError.onError = originalOnError;
       

@@ -308,28 +308,35 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  dateStr,
-                                                  style: TextStyle(
-                                                    fontSize: 22,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: colorScheme.onSurface,
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    dateStr,
+                                                    style: TextStyle(
+                                                      fontSize: 22,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: colorScheme.onSurface,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                ),
-                                                Text(
-                                                  dayTimeStr,
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    color: colorScheme
-                                                        .onSurfaceVariant,
+                                                  Text(
+                                                    dayTimeStr,
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
                                             Icon(
                                               Icons.chevron_right,
                                               color:

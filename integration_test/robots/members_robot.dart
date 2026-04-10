@@ -21,7 +21,15 @@ class MembersRobot {
     final fabFinder = find.byKey(const ValueKey('member_add_fab'));
     await tester.pumpUntilFound(fabFinder);
     await tester.tap(fabFinder.last);
-    await tester.pump(const Duration(milliseconds: 800));
+    
+    // Wait for the member to be added (input cleared)
+    final timer = Stopwatch()..start();
+    while (tester.widget<TextField>(textField).controller?.text.isNotEmpty == true && 
+           timer.elapsed < const Duration(seconds: 5)) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> search(String query) async {

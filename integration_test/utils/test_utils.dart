@@ -73,7 +73,7 @@ Future<void> setupScreenshots(IntegrationTestWidgetsFlutterBinding binding) asyn
 extension PumpUntilFound on WidgetTester {
   Future<void> pumpUntilFound(
     Finder finder, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 5),
   }) async {
     bool found = false;
     final timer = Stopwatch()..start();
@@ -88,7 +88,7 @@ extension PumpUntilFound on WidgetTester {
 
   Future<void> pumpUntilAbsent(
     Finder finder, {
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 5),
   }) async {
     bool absent = false;
     final timer = Stopwatch()..start();

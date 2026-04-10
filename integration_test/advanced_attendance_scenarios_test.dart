@@ -14,7 +14,10 @@ void main() {
 
   group('Advanced Attendance Scenarios', () {
     testWidgets('Guest handling and Undo functionality', (tester) async {
-      final tempDir = await Directory.systemTemp.createTemp('advanced_attendance_');
+      // Set a consistent surface size for integration tests
+      await tester.binding.setSurfaceSize(const Size(1080, 1920));
+
+      final tempDir = await Directory.systemTemp.createTemp('advanced_test_');
       final app = await createTestApp(tempDir);
 
       await tester.pumpWidget(app);
@@ -105,6 +108,10 @@ void main() {
       await tester.pumpUntilFound(find.text('Regular Member 1'));
       await tester.pumpUntilFound(find.text('Guest Visitor'));
       print('DEBUG: Guest verified in history');
+
+      // Allow animations to settle before finishing to prevent 'DEFUNCT' overflows
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Cleanup
       if (await tempDir.exists()) {

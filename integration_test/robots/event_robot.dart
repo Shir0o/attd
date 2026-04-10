@@ -51,6 +51,35 @@ class EventRobot {
     }
   }
 
+  Future<void> selectTime(int hour, int minute) async {
+    print('DEBUG: selectTime($hour:$minute)');
+    final timeFinder = find.byIcon(Icons.schedule);
+    await tester.pumpUntilFound(timeFinder);
+    await tester.tap(find.ancestor(of: timeFinder, matching: find.byType(InputDecorator)));
+    await tester.pumpAndSettle();
+
+    // Try to find the hour text.
+    // Note: Some pickers use "12" for 0, some use "00".
+    final hourStr = hour == 0 ? '12' : hour.toString();
+    final hourFinder = find.text(hourStr);
+    
+    if (hourFinder.evaluate().isNotEmpty) {
+      await tester.tap(hourFinder.last);
+      await tester.pumpAndSettle();
+    }
+    
+    final okFinder = find.text('OK');
+    if (okFinder.evaluate().isNotEmpty) {
+      await tester.tap(okFinder);
+    } else {
+      final doneFinder = find.text('DONE');
+      if (doneFinder.evaluate().isNotEmpty) {
+        await tester.tap(doneFinder);
+      }
+    }
+    await tester.pumpAndSettle();
+  }
+
   Future<void> save() async {
     print('DEBUG: robot save()');
     final finder = find.byKey(const ValueKey('save_event_button'));

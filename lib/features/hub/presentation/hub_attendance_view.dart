@@ -54,7 +54,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   @override
   void initState() {
     super.initState();
-    _loadMembers();
+    _refreshData();
     _subscribeToData();
   }
 
@@ -93,13 +93,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     });
   }
 
-  Future<void> _loadMembers() async {
+  Future<void> _refreshData() async {
     final families = await widget.attendanceRepository.fetchFamilies();
+    final sessions = await widget.sessionRepository.loadSessions();
     if (mounted) {
       setState(() {
         _members = families.expand((f) => f.members).toList();
+        _sessions = sessions;
       });
-      debugPrint('DEBUG: HubAttendanceView._loadMembers: loaded ${_members.length} members: ${_members.map((m) => m.displayName).toList()}');
+      debugPrint('DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
     }
   }
 
@@ -140,7 +142,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ),
                 ),
               );
-              _loadMembers();
+              _refreshData();
             },
           ),
           ListTile(
@@ -161,7 +163,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ),
                 ),
               );
-              _loadMembers();
+              _refreshData();
             },
           ),
           ListTile(
@@ -180,7 +182,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ),
                 ),
               );
-              _loadMembers();
+              _refreshData();
             },
           ),
           ListTile(
@@ -228,7 +230,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       ),
     );
-    _loadMembers();
+    _refreshData();
   }
 
   void _navigateToSettings() {
@@ -257,7 +259,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       backgroundColor: colorScheme.surface,
       body: RefreshIndicator(
         onRefresh: () async {
-          await _loadMembers();
+          await _refreshData();
           _subscribeToData();
         },
         child: CustomScrollView(
@@ -489,7 +491,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   );
                 }
               }
-              _loadMembers();
+              _refreshData();
             },
             onMenuTap: () => _showEventMenu(context, event),
             primaryColor: colorScheme.primary,

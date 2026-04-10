@@ -497,7 +497,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -507,9 +507,12 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 8),
                                 Container(
-                                  padding: const EdgeInsets.all(24),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 16,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: colorScheme.primaryContainer,
                                     borderRadius: BorderRadius.circular(24),
@@ -523,88 +526,103 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                       ),
                                     ],
                                   ),
-                                  child: Row(
+                                  child: Wrap(
+                                    alignment: WrapAlignment.spaceEvenly,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 16,
+                                    runSpacing: 16,
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              'PRESENT',
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 1.0,
-                                              ),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'PRESENT',
+                                            style: TextStyle(
+                                              color: colorScheme
+                                                  .onPrimaryContainer,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: 1.0,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
+                                            maxLines: 1,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
                                               '${presentMembers.length}',
                                               style: TextStyle(
                                                 color: colorScheme.primary,
-                                                fontSize: 48,
+                                                fontSize: 32,
                                                 fontWeight: FontWeight.w500,
                                                 height: 1.0,
                                               ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                       Container(
                                         width: 1,
-                                        height: 60,
+                                        height: 30,
                                         color: colorScheme.onPrimaryContainer
                                             .withValues(alpha: 0.2),
                                       ),
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              'ABSENT',
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 1.0,
-                                              ),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'ABSENT',
+                                            style: TextStyle(
+                                              color: colorScheme
+                                                  .onPrimaryContainer,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: 1.0,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
+                                            maxLines: 1,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
                                               '${absentMembers.length}',
                                               style: TextStyle(
                                                 color: colorScheme.error,
-                                                fontSize: 40,
+                                                fontSize: 32,
                                                 fontWeight: FontWeight.w500,
                                                 height: 1.0,
                                               ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 16),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      'Attendance Roster',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.w500,
+                                    Expanded(
+                                      child: Text(
+                                        'Attendance Roster',
+                                        style: TextStyle(
+                                          color: colorScheme.onSurface,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       '${allDisplayMembers.length} Total',
                                       style: TextStyle(
                                         color: colorScheme.onSurfaceVariant,
-                                        fontSize: 16,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -764,13 +782,17 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -807,6 +829,7 @@ class _MemberListItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         child: ListTile(
+          visualDensity: VisualDensity.compact,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: CircleAvatar(
             backgroundColor: isPresent
@@ -825,6 +848,8 @@ class _MemberListItem extends StatelessWidget {
           title: Text(
             member.displayName,
             style: const TextStyle(fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           subtitle: member.isVisitor
               ? Text(
@@ -842,17 +867,24 @@ class _MemberListItem extends StatelessWidget {
                 icon: const Icon(Icons.edit_outlined, size: 20),
                 onPressed: onEdit,
                 tooltip: 'Edit name',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
               ),
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline, size: 20),
                 onPressed: onRemove,
                 tooltip: 'Remove from session',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
               ),
-              const SizedBox(width: 8),
-              Switch(
-                value: isPresent,
-                onChanged: onToggle,
-                activeColor: colorScheme.primary,
+              const SizedBox(width: 4),
+              Transform.scale(
+                scale: 0.8,
+                child: Switch(
+                  value: isPresent,
+                  onChanged: onToggle,
+                  activeColor: colorScheme.primary,
+                ),
               ),
             ],
           ),

@@ -370,50 +370,64 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                                             ),
                                           ],
                                         ),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            // Avatar
-                                            Container(
-                                              width: 96,
-                                              height: 96,
-                                              decoration: BoxDecoration(
-                                                color: colorScheme.surfaceContainerHigh,
-                                                shape: BoxShape.circle,
-                                                boxShadow: const [
-                                                  BoxShadow(
-                                                    color: Colors.black12,
-                                                    blurRadius: 2,
-                                                    offset: Offset(0, 1),
-                                                  ),
-                                                ],
-                                              ),
-                                              clipBehavior: Clip.antiAlias,
-                                              child: Center(
-                                                child: Text(
-                                                  currentMember.displayName.isNotEmpty
-                                                      ? currentMember.displayName[0]
-                                                            .toUpperCase()
-                                                      : '?',
-                                                  style: TextStyle(
-                                                    fontSize: 32,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: colorScheme.primary,
+                                        child: Center(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(16),
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Avatar
+                                                Flexible(
+                                                  child: Container(
+                                                    width: 96,
+                                                    height: 96,
+                                                    constraints: const BoxConstraints(
+                                                      minWidth: 48,
+                                                      minHeight: 48,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: colorScheme.surfaceContainerHigh,
+                                                      shape: BoxShape.circle,
+                                                      boxShadow: const [
+                                                        BoxShadow(
+                                                          color: Colors.black12,
+                                                          blurRadius: 2,
+                                                          offset: Offset(0, 1),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    clipBehavior: Clip.antiAlias,
+                                                    child: Center(
+                                                      child: Text(
+                                                        currentMember.displayName.isNotEmpty
+                                                            ? currentMember.displayName[0]
+                                                                  .toUpperCase()
+                                                            : '?',
+                                                        style: TextStyle(
+                                                          fontSize: 32,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: colorScheme.primary,
+                                                        ),
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
+                                                const SizedBox(height: 24),
+                                                Text(
+                                                  currentMember.displayName,
+                                                  style: theme.textTheme.displaySmall?.copyWith(
+                                                    color: colorScheme.onSurface,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(height: 24),
-                                            Text(
-                                              currentMember.displayName,
-                                              style: theme.textTheme.displaySmall?.copyWith(
-                                                color: colorScheme.onSurface,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
+                                          ),
                                         ),
                                       ),
                                     ),

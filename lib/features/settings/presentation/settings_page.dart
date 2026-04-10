@@ -244,20 +244,63 @@ class _SettingsPageState extends State<SettingsPage> {
                                 borderRadius: BorderRadius.circular(24),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: Column(
-                                children: [
-                                  _SettingsTile(
-                                    icon: Icons.cloud_sync_outlined,
-                                    title: 'Google Drive Sync',
-                                    subtitle: 'Sync data across devices',
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => CloudBackupPage(
-                                        driveService: widget.driveService,
-                                        disableAnimations: widget.disableAnimations,
-                                      )),
-                                    ),
-                                  ),
-                                ],
+                              child: ListenableBuilder(
+                                listenable: widget.driveService,
+                                builder: (context, child) {
+                                  final isEnabled = widget.driveService.isDriveSyncEnabled;
+                                  final user = widget.driveService.currentUser;
+
+                                  if (user == null) {
+                                    return _SettingsTile(
+                                      icon: Icons.cloud_off_outlined,
+                                      title: 'Google Drive Sync',
+                                      subtitle: 'Sign in to sync data',
+                                      trailing: FilledButton(
+                                        onPressed: () async {
+                                          try {
+                                            await widget.driveService.signIn();
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text('Sign in failed: $e')),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        child: const Text('Sign In'),
+                                      ),
+                                      onTap: () {},
+                                    );
+                                  }
+
+                                  return Column(
+                                    children: [
+                                      _SettingsTile(
+                                        icon: Icons.cloud_sync_outlined,
+                                        title: 'Google Drive Sync',
+                                        subtitle: isEnabled ? 'Syncing as ${user.email}' : 'Sync disabled',
+                                        trailing: Switch(
+                                          value: isEnabled,
+                                          onChanged: (val) => widget.driveService.setDriveSyncEnabled(val),
+                                        ),
+                                        onTap: () => Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (_) => CloudBackupPage(
+                                            driveService: widget.driveService,
+                                            disableAnimations: widget.disableAnimations,
+                                          )),
+                                        ),
+                                      ),
+                                      if (isEnabled) ...[
+                                        const Divider(height: 1, indent: 56),
+                                        ListTile(
+                                          leading: const SizedBox(width: 40),
+                                          title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                                          onTap: () => widget.driveService.signOut(),
+                                        ),
+                                      ],
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                             
@@ -332,6 +375,7 @@ class _SettingsTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   const _SettingsTile({
     super.key,
@@ -339,6 +383,7 @@ class _SettingsTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -362,7 +407,7 @@ class _SettingsTile extends StatelessWidget {
         subtitle,
         style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
       ),
-      trailing: const Icon(Icons.chevron_right, size: 20),
+      trailing: trailing ?? const Icon(Icons.chevron_right, size: 20),
       onTap: onTap,
     );
   }

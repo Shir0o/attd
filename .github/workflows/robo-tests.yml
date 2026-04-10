@@ -1,0 +1,56 @@
+name: Nightly Robo Test
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 2 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  robo_test:
+    name: Firebase Robo Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/995280441940/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider'
+          service_account: 'github-actions-firebase-test@attd-ef18a.iam.gserviceaccount.com'
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Robo Test (Firebase Test Lab)
+        run: |
+          gcloud firebase test android run \
+            --type robo \
+            --app build/app/outputs/flutter-apk/app-release.apk \
+            --device model=pixel6pro,version=33 \
+            --timeout 10m
