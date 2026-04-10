@@ -2,127 +2,99 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../utils/test_utils.dart';
 
-
 class EventRobot {
   const EventRobot(this.tester);
 
   final WidgetTester tester;
 
   Future<void> enterName(String name) async {
-    final finder = find.byType(TextFormField);
-    await tester.pumpUntilFound(finder);
-    await tester.ensureVisible(finder);
-    await tester.pump(const Duration(milliseconds: 500));
-    
     print('DEBUG: Entering text "$name"');
+    final finder = find.byType(TextField).first;
+    await tester.pumpUntilFound(finder);
     await tester.enterText(finder, name);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-  }
-
-  Future<void> tapTime() async {
-    final timeFinder = find.text('Event Time');
-    await tester.pumpUntilFound(timeFinder);
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.ancestor(of: timeFinder, matching: find.byType(GestureDetector)));
-    await tester.pump(const Duration(milliseconds: 500));
-  }
-
-  Future<void> selectTime(int hour, int minute) async {
-    print('DEBUG: selectTime($hour, $minute)');
-    await tapTime();
-    
-    final inputModeIcon = find.byIcon(Icons.keyboard_outlined);
-    if (inputModeIcon.evaluate().isNotEmpty) {
-      print('DEBUG: Switching to text input mode in time picker');
-      await tester.tap(inputModeIcon);
-      await tester.pump(const Duration(milliseconds: 500));
-      
-      final hourField = find.byType(TextField).first;
-      final minuteField = find.byType(TextField).last;
-      
-      await tester.enterText(hourField, hour.toString());
-      await tester.enterText(minuteField, minute.toString());
-      await tester.pump(const Duration(milliseconds: 500));
-    }
-    
-    print('DEBUG: Tapping OK on time picker');
-    await tester.tap(find.text('OK'));
-    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> selectFrequency(String frequency) async {
     print('DEBUG: selectFrequency($frequency)');
-    final dropdownFinder = find.byIcon(Icons.arrow_drop_down);
+    final dropdownFinder = find.byType(DropdownButton<String>);
     await tester.pumpUntilFound(dropdownFinder);
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.ensureVisible(dropdownFinder);
     await tester.tap(dropdownFinder);
-    await tester.pump(const Duration(milliseconds: 500));
-    
+    await tester.pumpAndSettle();
+
     final itemFinder = find.text(frequency).last;
-    await tester.pumpUntilFound(itemFinder);
-    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(itemFinder);
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
   }
 
-  Future<void> tapDate() async {
-    print('DEBUG: tapDate');
-    final dateFinder = find.text('Date');
-    await tester.pumpUntilFound(dateFinder);
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.ancestor(of: dateFinder, matching: find.byType(GestureDetector)));
-    await tester.pump(const Duration(milliseconds: 500));
+  Future<void> selectDay(String day) async {
+    print('DEBUG: selectDay($day)');
+    final label = day.substring(0, 1).toUpperCase();
+    final textFinder = find.text(label).first;
+    await tester.pumpUntilFound(textFinder);
+    
+    final containerFinder = find.ancestor(of: textFinder, matching: find.byType(Container)).first;
+    final container = tester.widget<Container>(containerFinder);
+    final decoration = container.decoration as BoxDecoration;
+    
+    // Check if it's already selected by color (primary vs surfaceContainerLow)
+    final colorScheme = Theme.of(tester.element(containerFinder)).colorScheme;
+    final isSelected = decoration.color == colorScheme.primary;
+    
+    if (!isSelected) {
+      print('DEBUG: Day $day not selected, tapping');
+      final gestureFinder = find.ancestor(of: textFinder, matching: find.byType(GestureDetector)).first;
+      await tester.tap(gestureFinder);
+      await tester.pumpAndSettle();
+    } else {
+      print('DEBUG: Day $day already selected, skipping tap');
+    }
   }
 
-  Future<void> selectDate(int day) async {
-    print('DEBUG: selectDate($day)');
-    await tapDate();
-    final dayFinder = find.text(day.toString());
-    await tester.tap(dayFinder);
-    await tester.pump(const Duration(milliseconds: 500));
-    print('DEBUG: Tapping OK on date picker');
-    await tester.tap(find.text('OK'));
-    await tester.pump(const Duration(milliseconds: 500));
-  }
+  Future<void> selectTime(int hour, int minute) async {
+    print('DEBUG: selectTime($hour:$minute)');
+    final timeFinder = find.byIcon(Icons.schedule);
+    await tester.pumpUntilFound(timeFinder);
+    await tester.tap(find.ancestor(of: timeFinder, matching: find.byType(InputDecorator)));
+    await tester.pumpAndSettle();
 
-  Future<void> selectDay(String dayName) async {
-    print('DEBUG: selectDay($dayName)');
-    final letter = dayName.substring(0, 1);
-    final letterFinder = find.text(letter);
-    await tester.pumpUntilFound(letterFinder);
-    await tester.tap(letterFinder.last); 
-    await tester.pump(const Duration(milliseconds: 500));
+    // Try to find the hour text.
+    // Note: Some pickers use "12" for 0, some use "00".
+    final hourStr = hour == 0 ? '12' : hour.toString();
+    final hourFinder = find.text(hourStr);
+    
+    if (hourFinder.evaluate().isNotEmpty) {
+      await tester.tap(hourFinder.last);
+      await tester.pumpAndSettle();
+    }
+    
+    final okFinder = find.text('OK');
+    if (okFinder.evaluate().isNotEmpty) {
+      await tester.tap(okFinder);
+    } else {
+      final doneFinder = find.text('DONE');
+      if (doneFinder.evaluate().isNotEmpty) {
+        await tester.tap(doneFinder);
+      }
+    }
+    await tester.pumpAndSettle();
   }
 
   Future<void> save() async {
     print('DEBUG: robot save()');
-    final buttonFinder = find.byKey(const ValueKey('save_event_button'));
-    await tester.pumpUntilFound(buttonFinder);
-    await tester.tap(buttonFinder);
-    
-    // Use pump instead of pumpAndSettle to avoid hangs
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1000));
+    final finder = find.byKey(const ValueKey('save_event_button'));
+    await tester.pumpUntilFound(finder);
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
   }
 
   Future<void> update() async {
     print('DEBUG: robot update()');
-    final buttonFinder = find.byKey(const ValueKey('save_event_button'));
-    await tester.pumpUntilFound(buttonFinder);
-    await tester.tap(buttonFinder);
-    
-    // Use pump instead of pumpAndSettle to avoid hangs
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1000));
-  }
-
-  Future<void> delete() async {
-    await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pump(const Duration(milliseconds: 500));
-    // Confirm dialog
-    await tester.tap(find.text('Delete'));
-    await tester.pump(const Duration(milliseconds: 500));
+    final finder = find.byKey(const ValueKey('save_event_button'));
+    await tester.pumpUntilFound(finder);
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
   }
 }

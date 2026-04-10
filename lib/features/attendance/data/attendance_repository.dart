@@ -29,14 +29,13 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
   LocalJsonAttendanceRepository({this.storagePath});
 
   final String? storagePath;
-  List<Family>? _cachedFamilies;
+  List<Family>? _allFamilies;
   final _controller = StreamController<List<Family>>.broadcast();
 
   @override
   Future<void> refresh() async {
-    _cachedFamilies = null;
-    final families = await fetchFamilies();
-    _controller.add(families);
+    _allFamilies = null;
+    await fetchFamilies();
   }
 
   Future<File> get _file async {
@@ -46,6 +45,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
   }
 
   Future<List<Family>> _loadRawFamilies() async {
+    if (_allFamilies != null) return List<Family>.from(_allFamilies!);
+    
     final file = await _file;
     if (!await file.exists()) return [];
 
@@ -56,9 +57,11 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       final decoded = jsonDecode(content);
       if (decoded is! List) return [];
 
-      return decoded
+      final families = decoded
           .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
           .toList();
+      _allFamilies = families;
+      return List<Family>.from(families);
     } catch (e) {
       print('Error loading raw families: $e');
       return [];
@@ -100,30 +103,20 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   @override
   Future<List<Family>> fetchFamilies() async {
-    if (_cachedFamilies != null) {
-      return List<Family>.from(_cachedFamilies!);
-    }
-
-    final decoded = await _loadRawFamilies();
-    final families = decoded
+    final all = await _loadRawFamilies();
+    final visible = all
         .where((f) => f.deletedAt == null)
         .map((f) => f.copyWith(
           members: f.members.where((m) => m.deletedAt == null).toList(),
         ))
         .toList();
 
-    _cachedFamilies = families;
-    return List<Family>.from(families);
+    return List<Family>.from(visible);
   }
 
   @override
   Future<void> saveFamilies(List<Family> families) async {
-    _cachedFamilies = families
-        .where((f) => f.deletedAt == null)
-        .map((f) => f.copyWith(
-          members: f.members.where((m) => m.deletedAt == null).toList(),
-        ))
-        .toList();
+    _allFamilies = families;
     final file = await _file;
     final tempFile = File('${file.path}.tmp');
     final backupFile = File('${file.path}.bak');
@@ -150,12 +143,12 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       }
     }
     
-    _controller.add(List<Family>.from(_cachedFamilies!));
+    _controller.add(await fetchFamilies());
   }
 
   @override
   Future<Family> addMember(String familyId, Member member) async {
-    final families = await fetchFamilies();
+    final families = await _loadRawFamilies();
     final now = DateTime.now();
     final memberWithTimestamp = member.copyWith(updatedAt: now);
     final updated = families.map((family) {
@@ -166,7 +159,12 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       );
     }).toList();
     await saveFamilies(updated);
-    return updated.firstWhere((family) => family.id == familyId);
+    
+    // We need to return the family as visible to the UI (without deleted members)
+    final savedFamily = updated.firstWhere((family) => family.id == familyId);
+    return savedFamily.copyWith(
+      members: savedFamily.members.where((m) => m.deletedAt == null).toList(),
+    );
   }
 
   @override
@@ -178,7 +176,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       members: const [],
       updatedAt: now,
     );
-    final families = await fetchFamilies();
+    final families = await _loadRawFamilies();
     await saveFamilies([...families, family]);
     return family;
   }

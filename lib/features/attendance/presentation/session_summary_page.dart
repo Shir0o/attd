@@ -10,7 +10,6 @@ import '../../hub/data/event_repository.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
-import '../models/family.dart';
 import 'add_guest_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
@@ -22,6 +21,7 @@ class SessionSummaryPage extends StatefulWidget {
     this.attendanceRepository,
     this.eventRepository,
     this.driveService,
+    this.disableAnimations = false,
   });
 
   final Session session;
@@ -30,6 +30,7 @@ class SessionSummaryPage extends StatefulWidget {
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
   final DriveService? driveService;
+  final bool disableAnimations;
 
   @override
   State<SessionSummaryPage> createState() => _SessionSummaryPageState();
@@ -45,6 +46,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   void initState() {
     super.initState();
     _currentSession = widget.session;
+    debugPrint('DEBUG: SessionSummaryPage.initState: session=${_currentSession.id}, title=${_currentSession.title}');
     _refreshLatest();
     _subscribeToMembers();
   }
@@ -89,131 +91,47 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       _currentSession.id,
     );
 
-    final families = await widget.attendanceRepository?.fetchFamilies();
-
     final latest = await latestFuture;
 
     if (mounted) {
-      setState(() {
-        if (latest != null) {
-          final isNewer = latest.currentVersion > _currentSession.currentVersion ||
-              (latest.currentVersion == _currentSession.currentVersion &&
-                  latest.updatedAt.isAfter(_currentSession.updatedAt));
-
-          if (isNewer) {
+      if (latest != null) {
+        final isNewer = latest.currentVersion > _currentSession.currentVersion ||
+            (latest.currentVersion == _currentSession.currentVersion &&
+                latest.updatedAt.isAfter(_currentSession.updatedAt));
+        if (isNewer) {
+          setState(() {
             _currentSession = latest;
-          }
+          });
         }
-        if (families != null) {
-          _allMembers = families.expand((f) => f.members).toList();
+      }
+      
+      if (widget.disableAnimations) {
+        // Synchronous update for tests
+        setState(() => _isLoading = false);
+        debugPrint('DEBUG: SessionSummaryPage loading finished immediately (sync)');
+      } else {
+        final elapsed = DateTime.now().difference(startTime);
+        const minDuration = Duration(milliseconds: 800);
+        if (elapsed < minDuration) {
+          Future.delayed(minDuration - elapsed, () {
+            if (mounted) {
+              setState(() => _isLoading = false);
+              debugPrint('DEBUG: SessionSummaryPage loading finished after delay');
+            }
+          });
+        } else {
+          setState(() => _isLoading = false);
+          debugPrint('DEBUG: SessionSummaryPage loading finished after long refresh');
         }
-      });
+      }
     }
-
-    final elapsed = DateTime.now().difference(startTime);
-    final remaining = const Duration(milliseconds: 800) - elapsed;
-    if (remaining > Duration.zero) {
-      await Future.delayed(remaining);
-    }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _showAddMemberSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => AddMemberSheet(
-            availableMembers: _allMembers,
-            onAdd: (name, isPresent, isGuest, existingMember) async {
-              Member member;
-              if (existingMember != null) {
-                member = existingMember;
-              } else if (!isGuest && widget.attendanceRepository != null) {
-                // Add as regular member
-                try {
-                  final families =
-                      await widget.attendanceRepository!.fetchFamilies();
-                  Family targetFamily;
-                  if (families.isEmpty) {
-                    targetFamily =
-                        await widget.attendanceRepository!.addFamily('General');
-                  } else {
-                    targetFamily = families.first;
-                  }
-
-                  final memberId =
-                      DateTime.now().millisecondsSinceEpoch.toString();
-                  member = Member(id: memberId, displayName: name);
-
-                  await widget.attendanceRepository!.addMember(
-                    targetFamily.id,
-                    member,
-                  );
-
-                  // Tie to event
-                  if (widget.session.eventId != null &&
-                      widget.eventRepository != null) {
-                    final event = await widget.eventRepository!.findEventById(
-                      widget.session.eventId!,
-                    );
-                    if (event != null && !event.memberIds.contains(memberId)) {
-                      await widget.eventRepository!.updateEvent(
-                        event.copyWith(
-                          memberIds: [...event.memberIds, memberId],
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  debugPrint('Error adding regular member in summary: $e');
-                  // Fallback to visitor if error
-                  member = Member(
-                    id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
-                    displayName: name,
-                    isVisitor: true,
-                  );
-                }
-              } else {
-                // Add as guest/visitor
-                member = Member(
-                  id: 'visitor_${DateTime.now().microsecondsSinceEpoch}',
-                  displayName: name,
-                  isVisitor: true,
-                );
-              }
-
-              // If it was an excluded member, un-exclude them
-              if (!member.isVisitor && _currentSession.excludedMemberIds.contains(member.id)) {
-                final updatedExcluded = _currentSession.excludedMemberIds
-                    .where((id) => id != member.id)
-                    .toList();
-                _currentSession = _currentSession.copyWith(excludedMemberIds: updatedExcluded);
-              }
-
-              await _toggleAttendance(member, isPresent);
-
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('${member.displayName} added')));
-              }
-            },
-          ),
-    );
   }
 
   Future<void> _toggleAttendance(Member member, bool isPresent) async {
-    final status = isPresent
-        ? AttendanceStatus.present
-        : AttendanceStatus.absent;
+    final status = isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
     
     final newRecord = SessionRecord(
-      memberId: member.id.startsWith('visitor_') ? null : member.id,
+      memberId: member.id,
       attendee: member.displayName,
       status: status,
       recordedAt: DateTime.now(),
@@ -221,15 +139,11 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     );
 
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    final existingIndex = updatedRecords.indexWhere(
-      (r) => (r.memberId != null && r.memberId == member.id) || 
-             (r.memberId == null && r.attendee == member.displayName),
+    updatedRecords.removeWhere((r) => 
+      (r.memberId == member.id) || 
+      (r.attendee == member.displayName && r.memberId == null)
     );
-    if (existingIndex != -1) {
-      updatedRecords[existingIndex] = newRecord;
-    } else {
-      updatedRecords.add(newRecord);
-    }
+    updatedRecords.add(newRecord);
 
     final updatedSession = _currentSession.copyWith(
       records: updatedRecords,
@@ -241,58 +155,31 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     });
 
     try {
-      await widget.sessionRepository.saveSnapshot(
-        updatedSession,
-        actor: 'User',
-      );
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
-      }
+      debugPrint('Error updating session record: $e');
     }
   }
 
   Future<void> _editMemberName(Member member) async {
-    final controller = TextEditingController(text: member.displayName);
     final isVisitor = member.isVisitor;
-
+    final controller = TextEditingController(text: member.displayName);
+    
     final newName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isVisitor ? 'Rename Visitor' : 'Rename Member (Local)'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'Enter new name',
-              ),
-            ),
-            if (!isVisitor)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Note: This only changes the name for "${_currentSession.title}" on ${DateFormat('MMM d, yyyy').format(_currentSession.sessionDate)} to preserve historical accuracy.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-          ],
+        title: const Text('Edit Member'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Name'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
             child: const Text('Save'),
           ),
@@ -352,7 +239,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     if (confirmed != true) return;
 
-    // 1. Remove from records
     final updatedRecords = _currentSession.records.where((r) {
       if (member.isVisitor) {
         return r.memberId != null || r.attendee != member.displayName;
@@ -361,7 +247,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       }
     }).toList();
 
-    // 2. If it's a regular member, add to excluded list so they don't show up as "Absent"
     List<String> updatedExcluded = List<String>.from(_currentSession.excludedMemberIds);
     if (!member.isVisitor && !updatedExcluded.contains(member.id)) {
       updatedExcluded.add(member.id);
@@ -457,6 +342,23 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
+  void _showAddMemberSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddMemberSheet(
+        onAdd: (name, isPresent, isGuest, existingMember) {
+          _toggleAttendance(
+            existingMember ?? Member(id: '', displayName: name, isVisitor: isGuest), 
+            isPresent,
+          );
+        },
+        availableMembers: _allMembers,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -474,8 +376,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     final Map<String, Member> displayMembersMap = {};
     final excludedIds = _currentSession.excludedMemberIds.toSet();
-    final memberNames = widget.members.map((m) => m.displayName).toSet();
-
+    
     for (final m in widget.members) {
       if (excludedIds.contains(m.id)) continue;
       
@@ -491,6 +392,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       }
     }
 
+    final memberNames = widget.members.map((m) => m.displayName).toSet();
     for (final record in _currentSession.records) {
       if (record.memberId != null) {
         if (!displayMembersMap.containsKey(record.memberId) && !excludedIds.contains(record.memberId)) {
@@ -501,7 +403,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           );
         }
       } else {
-        // Legacy record matching: If name exists in regular members, don't show as visitor
         if (!memberNames.contains(record.attendee)) {
           final visitorId = 'visitor_${record.attendee}';
           if (!displayMembersMap.containsKey(visitorId)) {
@@ -542,7 +443,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         children: [
           RepaintBoundary(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
+              duration: widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 600),
               child: _isLoading
                   ? _buildSkeleton(context)
                   : CustomScrollView(
@@ -594,10 +495,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           ],
                         ),
 
-                        // Stats Card
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -607,9 +507,12 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 8),
                                 Container(
-                                  padding: const EdgeInsets.all(24),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 16,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: colorScheme.primaryContainer,
                                     borderRadius: BorderRadius.circular(24),
@@ -623,88 +526,103 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                                       ),
                                     ],
                                   ),
-                                  child: Row(
+                                  child: Wrap(
+                                    alignment: WrapAlignment.spaceEvenly,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 16,
+                                    runSpacing: 16,
                                     children: [
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              'PRESENT',
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 1.0,
-                                              ),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'PRESENT',
+                                            style: TextStyle(
+                                              color: colorScheme
+                                                  .onPrimaryContainer,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: 1.0,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
+                                            maxLines: 1,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
                                               '${presentMembers.length}',
                                               style: TextStyle(
                                                 color: colorScheme.primary,
-                                                fontSize: 48,
+                                                fontSize: 32,
                                                 fontWeight: FontWeight.w500,
                                                 height: 1.0,
                                               ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                       Container(
                                         width: 1,
-                                        height: 60,
+                                        height: 30,
                                         color: colorScheme.onPrimaryContainer
                                             .withValues(alpha: 0.2),
                                       ),
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              'ABSENT',
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                                letterSpacing: 1.0,
-                                              ),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'ABSENT',
+                                            style: TextStyle(
+                                              color: colorScheme
+                                                  .onPrimaryContainer,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: 1.0,
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
+                                            maxLines: 1,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
                                               '${absentMembers.length}',
                                               style: TextStyle(
                                                 color: colorScheme.error,
-                                                fontSize: 40,
+                                                fontSize: 32,
                                                 fontWeight: FontWeight.w500,
                                                 height: 1.0,
                                               ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 16),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      'Attendance Roster',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.w500,
+                                    Expanded(
+                                      child: Text(
+                                        'Attendance Roster',
+                                        style: TextStyle(
+                                          color: colorScheme.onSurface,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       '${allDisplayMembers.length} Total',
                                       style: TextStyle(
                                         color: colorScheme.onSurfaceVariant,
-                                        fontSize: 16,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -715,16 +633,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           ),
                         ),
 
-                        // Marked Present Header
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _SectionHeaderDelegate(
+                        SliverToBoxAdapter(
+                          child: _SectionHeader(
                             title: 'Marked Present',
                             color: colorScheme.primary,
                           ),
                         ),
 
-                        // Present List
                         SliverList(
                           delegate: SliverChildBuilderDelegate((context, index) {
                             final member = presentMembers[index];
@@ -739,16 +654,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                           }, childCount: presentMembers.length),
                         ),
 
-                        // Marked Absent Header
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _SectionHeaderDelegate(
+                        SliverToBoxAdapter(
+                          child: _SectionHeader(
                             title: 'Marked Absent',
                             color: colorScheme.error,
                           ),
                         ),
 
-                        // Absent List
                         SliverList(
                           delegate: SliverChildBuilderDelegate((context, index) {
                             final member = absentMembers[index];
@@ -762,70 +674,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                             );
                           }, childCount: absentMembers.length),
                         ),
-
-                        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                        const SliverToBoxAdapter(child: SizedBox(height: 80)),
                       ],
                     ),
-            ),
-          ),
-
-          // Finalize Button
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.3,
-                    ),
-                  ),
-                ),
-              ),
-              child: Hero(
-                tag: 'fab',
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Trigger Auto-Sync if enabled
-                    if (widget.driveService?.isDriveSyncEnabled ?? false) {
-                      widget.driveService?.syncFiles(
-                        actionTitle: 'Auto Sync (Session Finalized)',
-                        tags: ['Auto'],
-                      ).catchError((e) => debugPrint('Auto-sync failed: $e'));
-                    }
-                    Navigator.of(context).pop(_currentSession);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 72),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(36),
-                    ),
-                    elevation: 4,
-                  ).copyWith(
-                    overlayColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.pressed)) {
-                        return colorScheme.onPrimary.withValues(alpha: 0.2);
-                      }
-                      return null;
-                    }),
-                  ),
-                  child: const Text(
-                    'Finalize Report',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ],
@@ -834,70 +685,73 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 
   Widget _buildSkeleton(BuildContext context) {
-    return ListView(
-      key: const ValueKey('skeleton'),
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Fake AppBar
-        Row(
-          children: [
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
-            const Spacer(),
-            AppShimmer(width: 120, height: 20, borderRadius: BorderRadius.circular(24)),
-            const Spacer(),
-            Container(width: 40, height: 40, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.transparent)),
-          ],
+    final colorScheme = Theme.of(context).colorScheme;
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          backgroundColor: colorScheme.surface,
+          pinned: true,
+          title: AppShimmer(
+            width: 150,
+            height: 24,
+            borderRadius: BorderRadius.circular(12),
+            disableAnimations: widget.disableAnimations,
+          ),
+          centerTitle: true,
         ),
-        const SizedBox(height: 24),
-        // Session Date
-        AppShimmer(
-          width: 150,
-          height: 16,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        const SizedBox(height: 12),
-        // Stats Card
-        AppShimmer(
-          width: double.infinity,
-          height: 140,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        const SizedBox(height: 32),
-        // Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            AppShimmer(width: 180, height: 24, borderRadius: BorderRadius.circular(24)),
-            AppShimmer(width: 60, height: 14, borderRadius: BorderRadius.circular(24)),
-          ],
-        ),
-        const SizedBox(height: 24),
-        // List items
-        ...List.generate(
-          5,
-          (index) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppShimmer(
-                  width: 40,
-                  height: 40,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                const SizedBox(width: 16),
-                AppShimmer(
-                  width: 120,
+                  width: 200,
                   height: 16,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(8),
+                  disableAnimations: widget.disableAnimations,
                 ),
-                const Spacer(),
+                const SizedBox(height: 12),
                 AppShimmer(
-                  width: 40,
-                  height: 24,
+                  width: double.infinity,
+                  height: 140,
                   borderRadius: BorderRadius.circular(24),
+                  disableAnimations: widget.disableAnimations,
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    AppShimmer(
+                      width: 180,
+                      height: 32,
+                      borderRadius: BorderRadius.circular(12),
+                      disableAnimations: widget.disableAnimations,
+                    ),
+                    AppShimmer(
+                      width: 80,
+                      height: 20,
+                      borderRadius: BorderRadius.circular(8),
+                      disableAnimations: widget.disableAnimations,
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: AppShimmer(
+                width: double.infinity,
+                height: 72,
+                borderRadius: BorderRadius.circular(16),
+                disableAnimations: widget.disableAnimations,
+              ),
+            ),
+            childCount: 5,
           ),
         ),
       ],
@@ -905,58 +759,45 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 }
 
-class _SectionHeaderDelegate extends SliverPersistentHeaderDelegate {
+class _SectionHeader extends StatelessWidget {
   final String title;
   final Color color;
 
-  _SectionHeaderDelegate({required this.title, required this.color});
+  const _SectionHeader({required this.title, required this.color});
 
   @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+  Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.surface.withValues(
-        alpha: 0.95,
-      ), // Surface color with opacity
+      color: colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      alignment: Alignment.centerLeft,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: colorScheme.surfaceContainerHighest,
-              width: 0.5,
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-        ),
-        width: double.infinity,
-        padding: const EdgeInsets.only(bottom: 8),
-                 child: Text(
-                   title,
-                   style: TextStyle(
-                     color: color,
-                     fontSize: 16,
-                     fontWeight: FontWeight.w500,
-                   ),
-                 ),
-        
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  @override
-  double get maxExtent => 48;
-
-  @override
-  double get minExtent => 48;
-
-  @override
-  bool shouldRebuild(covariant _SectionHeaderDelegate oldDelegate) {
-    return oldDelegate.title != title || oldDelegate.color != color;
   }
 }
 
@@ -980,144 +821,74 @@ class _MemberListItem extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Dismissible(
-      key: ValueKey('dismiss_${member.id}_$isPresent'),
-      direction: DismissDirection.horizontal,
-      background: _buildSwipeBackground(
-        context,
-        'Rename',
-        colorScheme.secondary,
-        Icons.edit_outlined,
-        true,
-      ),
-      secondaryBackground: _buildSwipeBackground(
-        context,
-        'Remove from Report',
-        colorScheme.error,
-        Icons.delete_outline,
-        false,
-      ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          onEdit();
-        } else {
-          onRemove();
-        }
-        return false; // We handle state externally
-      },
-      child: InkWell(
-        onLongPress: onEdit,
-        onTap: () => onToggle(!isPresent),
-        child: Container(
-          height: 72,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(color: colorScheme.surfaceContainerHighest),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: ListTile(
+          visualDensity: VisualDensity.compact,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          leading: CircleAvatar(
+            backgroundColor: isPresent
+                ? colorScheme.primary.withValues(alpha: 0.1)
+                : colorScheme.error.withValues(alpha: 0.1),
+            child: Text(
+              member.displayName.isNotEmpty
+                  ? member.displayName[0].toUpperCase()
+                  : '?',
+              style: TextStyle(
+                color: isPresent ? colorScheme.primary : colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          child: Row(
-            children: [
-              // Avatar
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: member.isVisitor
-                      ? colorScheme.secondaryContainer
-                      : colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Center(
-                  child: Text(
-                    member.displayName.isNotEmpty
-                        ? member.displayName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: member.isVisitor
-                          ? colorScheme.onSecondaryContainer
-                          : colorScheme.onSurfaceVariant,
-                    ),
+          title: Text(
+            member.displayName,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: member.isVisitor
+              ? Text(
+                  'Visitor',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 12,
                   ),
-                ),
+                )
+              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: onEdit,
+                tooltip: 'Edit name',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      member.displayName,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: colorScheme.onSurface,
-                        fontWeight:
-                            member.isVisitor ? FontWeight.normal : FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      member.isVisitor ? 'Visitor' : 'Regular Member',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline, size: 20),
+                onPressed: onRemove,
+                tooltip: 'Remove from session',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
               ),
-              // Attendance Toggle
-              Switch(
-                value: isPresent,
-                onChanged: onToggle,
+              const SizedBox(width: 4),
+              Transform.scale(
+                scale: 0.8,
+                child: Switch(
+                  value: isPresent,
+                  onChanged: onToggle,
+                  activeColor: colorScheme.primary,
+                ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSwipeBackground(
-    BuildContext context,
-    String label,
-    Color color,
-    IconData icon,
-    bool isStart,
-  ) {
-    return Container(
-      color: color,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: isStart
-            ? [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ]
-            : [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(icon, color: Colors.white),
-              ],
       ),
     );
   }

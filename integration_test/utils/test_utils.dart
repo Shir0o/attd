@@ -14,6 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true}) async {
   // Use a temporary directory for local storage to isolate tests
@@ -30,8 +33,10 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   final sessionRepository = LocalJsonSessionRepository(storagePath: storagePath);
   final eventRepository = LocalJsonEventRepository(storagePath: storagePath);
 
-  // Mock GoogleSignIn for DriveService
-  final googleSignIn = GoogleSignIn();
+  // Mock GoogleSignIn for DriveService to avoid native hangs
+  final googleSignIn = MockGoogleSignIn();
+  when(() => googleSignIn.attemptLightweightAuthentication()).thenAnswer((_) async => null);
+  when(() => googleSignIn.signOut()).thenAnswer((_) async {});
 
   final driveService = DriveService(
     googleSignIn: googleSignIn,
@@ -55,53 +60,44 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   );
 }
 
-/// Call once at the start of the test to enable screenshot support on Android.
 Future<void> setupScreenshots(IntegrationTestWidgetsFlutterBinding binding) async {
   try {
-    await binding.convertFlutterSurfaceToImage();
-  } catch (_) {
-    // Ignore if not supported on this platform (e.g. iOS)
+    if (Platform.isAndroid || Platform.isIOS) {
+      // Any specific setup for mobile screenshots
+    }
+  } catch (e) {
+    debugPrint('Screenshot setup skipped: $e');
   }
 }
 
 extension PumpUntilFound on WidgetTester {
   Future<void> pumpUntilFound(
     Finder finder, {
-    Duration timeout = const Duration(seconds: 20),
+    Duration timeout = const Duration(seconds: 5),
   }) async {
+    bool found = false;
     final timer = Stopwatch()..start();
-    while (timer.elapsed < timeout) {
+    while (!found && timer.elapsed < timeout) {
       await pump(const Duration(milliseconds: 100));
-      if (any(finder)) {
-        return;
-      }
+      found = finder.evaluate().isNotEmpty;
     }
-    throw StateError('Pump failed: Finder $finder not found in $timeout');
+    if (!found) {
+      throw Exception('Timed out waiting for $finder');
+    }
   }
 
   Future<void> pumpUntilAbsent(
     Finder finder, {
-    Duration timeout = const Duration(seconds: 20),
+    Duration timeout = const Duration(seconds: 5),
   }) async {
+    bool absent = false;
     final timer = Stopwatch()..start();
-    while (timer.elapsed < timeout) {
+    while (!absent && timer.elapsed < timeout) {
       await pump(const Duration(milliseconds: 100));
-      if (!any(finder)) {
-        return;
-      }
+      absent = finder.evaluate().isEmpty;
     }
-    throw StateError('Pump failed: Finder $finder still present after $timeout');
-  }
-
-  Future<void> clearSnackBars() async {
-    if (find.byType(SnackBar).evaluate().isNotEmpty) {
-      final messenger = ScaffoldMessenger.maybeOf(
-        element(find.byType(MaterialApp).first),
-      );
-      if (messenger != null) {
-        messenger.clearSnackBars();
-        await pump(const Duration(milliseconds: 500));
-      }
+    if (!absent) {
+      throw Exception('Timed out waiting for $finder to disappear');
     }
   }
 
@@ -125,6 +121,11 @@ extension PumpUntilFound on WidgetTester {
         await pump(const Duration(milliseconds: 500));
       }
     }
-    await binding.takeScreenshot(name);
+    
+    try {
+      await binding.takeScreenshot(name);
+    } catch (e) {
+      debugPrint('Screenshot "$name" failed (expected in headless mode): $e');
+    }
   }
 }

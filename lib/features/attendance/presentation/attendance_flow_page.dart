@@ -279,7 +279,7 @@ class _FamilyAttendanceView extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: family.members.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
+                separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final member = family.members[index];
                   final status = statusBuilder(member);

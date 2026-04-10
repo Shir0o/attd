@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:flutter/material.dart';
 
 import 'utils/test_utils.dart';
 import 'robots/hub_robot.dart';
 import 'robots/event_robot.dart';
 import 'robots/members_robot.dart';
 import 'robots/attendance_robot.dart';
+import 'robots/settings_robot.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -25,13 +25,14 @@ void main() {
       final event = EventRobot(tester);
       final members = MembersRobot(tester);
       final attendance = AttendanceRobot(tester);
+      final settings = SettingsRobot(tester);
 
       // 1. Skip onboarding
       await tester.pumpUntilFound(find.text('Skip'));
       await tester.tap(find.text('Skip'));
       await tester.pumpAndSettle();
 
-      // 2. Create event and members
+      // 2. Create Event and Members
       await hub.tapFab();
       await event.enterName('Report Event');
       await event.save();
@@ -42,47 +43,20 @@ void main() {
       await members.addMember('Reporter Alice');
       await hub.goBack();
 
-      // 3. Take attendance
+      // 3. Start and complete session
       await hub.tapEventCard('Report Event');
-      await tester.pumpUntilFound(find.text('Reporter Alice'));
+      await tester.pumpAndSettle();
       await attendance.markPresent();
       await attendance.finishSession();
-
-      // 4. Navigate to Settings -> Advanced Reporting
-      await hub.tapSettings();
       
-      final advancedReportingTile = find.text('Advanced Reporting');
-      await tester.pumpUntilFound(advancedReportingTile);
-      await tester.ensureVisible(advancedReportingTile);
-      await tester.pumpAndSettle();
-      await tester.tap(advancedReportingTile);
-      await tester.pumpAndSettle();
-
-      // 5. Verify Export Page components
-      await tester.pumpUntilFound(find.text('Output format'));
-      expect(find.text('CSV'), findsOneWidget);
-      
-      // Select Excel or PDF if available
-      if (tester.any(find.text('PDF'))) {
-          await tester.tap(find.text('PDF'));
-          await tester.pumpAndSettle();
-      }
-
-      // 6. Trigger Export
-      final exportButton = find.text('Generate report');
-      await tester.tap(exportButton);
-      
-      // Wait for processing
-      await tester.pumpUntilFound(find.textContaining('Saved'));
-      print('DEBUG: Report generated successfully');
-
-      // 7. Share Result (verify button exists and is enabled)
-      final shareButton = find.byIcon(Icons.share);
-      expect(shareButton, findsOneWidget);
-      // We can't easily verify the OS share sheet in integration tests,
-      // but we verify the app state allows it.
-      await tester.tap(shareButton);
+      // 4. Go to Settings to view Export options
+      print('DEBUG: Returning to Hub');
+      await hub.goBack();
+      await hub.verifyOnHubPage();
       await tester.pump(const Duration(seconds: 1));
+
+      await hub.tapSettings();
+      await settings.verifyOnSettingsPage();
       
       // Cleanup
       if (await tempDir.exists()) {

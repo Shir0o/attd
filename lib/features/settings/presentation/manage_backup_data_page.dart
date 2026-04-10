@@ -15,11 +15,13 @@ class ManageBackupDataPage extends StatefulWidget {
     required this.attendanceRepository,
     required this.eventRepository,
     required this.sessionRepository,
+    this.disableAnimations = false,
   });
 
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
   final SessionRepository sessionRepository;
+  final bool disableAnimations;
 
   @override
   State<ManageBackupDataPage> createState() => _ManageBackupDataPageState();
@@ -54,6 +56,9 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       final events = await widget.eventRepository.streamEvents().first;
       final sessions = await widget.sessionRepository.loadSessions();
 
+      final totalMembersCount = families.expand((f) => f.members).length;
+      debugPrint('DEBUG: ManageBackupDataPage._loadData: events=${events.length}, members=$totalMembersCount, sessions=${sessions.length}');
+
       final usageMap = <String, List<({String title, DateTime date})>>{};
       for (final session in sessions) {
         for (final record in session.records) {
@@ -68,7 +73,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       // Minimum loading duration for visual consistency
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 800) - elapsed;
-      if (remaining > Duration.zero) {
+      if (remaining > Duration.zero && !widget.disableAnimations) {
         await Future.delayed(remaining);
       }
 

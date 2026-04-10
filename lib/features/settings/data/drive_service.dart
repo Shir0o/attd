@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:archive/archive_io.dart';
-import 'package:app_attest_integrity/app_attest_integrity.dart';
+import 'package:app_device_integrity/app_device_integrity.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -54,6 +54,7 @@ class DriveService extends ChangeNotifier {
   String? _appFolderId;
   String? _backupFolderId;
   bool _isDriveSyncEnabled = false;
+  GoogleSignInAccount? _currentUser;
 
   static const String _syncFolderName = 'Attendance Tracker Data';
   static const String _backupFolderName = 'Backups';
@@ -68,7 +69,7 @@ class DriveService extends ChangeNotifier {
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
-  GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
+  GoogleSignInAccount? get currentUser => _currentUser;
   bool get isDriveSyncEnabled => _isDriveSyncEnabled;
 
   Future<void> setDriveSyncEnabled(bool enabled) async {
@@ -90,7 +91,10 @@ class DriveService extends ChangeNotifier {
     }
 
     if (_isDriveSyncEnabled) {
-      await signInSilently();
+      final Future<GoogleSignInAccount?>? future = _googleSignIn.attemptLightweightAuthentication();
+      if (future != null) {
+        _currentUser = await future;
+      }
       if (currentUser != null) {
         // Only trigger sync if we successfully signed in
         syncFiles().catchError((e) => print('Initial sync failed: $e'));
@@ -107,17 +111,14 @@ class DriveService extends ChangeNotifier {
       final String nonce = base64Url.encode(
         utf8.encode(DateTime.now().toIso8601String()),
       );
-      const plugin = AppAttestIntegrity();
+      final plugin = AppDeviceIntegrity();
       if (Platform.isAndroid) {
-        await plugin.verify(
-          clientData: nonce,
-          androidCloudProjectNumber: yourGoogleProjectNumber,
+        await plugin.getAttestationServiceSupport(
+          challengeString: nonce,
+          gcp: yourGoogleProjectNumber,
         );
       } else if (Platform.isIOS) {
-        // Note: iOS requires iOSgenerateAttestation to be called once before verify.
-        // For simplicity and to match previous behavior, we'll try verify directly.
-        // If it fails, it will be caught by the try-catch.
-        await plugin.verify(clientData: nonce);
+        await plugin.getAttestationServiceSupport(challengeString: nonce);
       }
       print('App Integrity check passed.');
     } catch (e) {
@@ -128,7 +129,7 @@ class DriveService extends ChangeNotifier {
   Future<void> signIn() async {
     try {
       await _checkIntegrity();
-      await _googleSignIn.signIn();
+      _currentUser = await _googleSignIn.authenticate();
       await _initDriveApi();
       _isDriveSyncEnabled = true;
       final prefs = await SharedPreferences.getInstance();
@@ -140,10 +141,13 @@ class DriveService extends ChangeNotifier {
     }
   }
 
-  Future<void> signInSilently() async {
+  Future<void> attemptLightweightAuthentication() async {
     try {
-      await _googleSignIn.signInSilently();
-      if (_googleSignIn.currentUser != null) {
+      final Future<GoogleSignInAccount?>? future = _googleSignIn.attemptLightweightAuthentication();
+      if (future != null) {
+        _currentUser = await future;
+      }
+      if (_currentUser != null) {
         await _initDriveApi();
       }
       notifyListeners();
@@ -154,6 +158,7 @@ class DriveService extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _googleSignIn.signOut();
+    _currentUser = null;
     _driveApi = null;
     _appFolderId = null;
     _backupFolderId = null;
@@ -173,8 +178,11 @@ class DriveService extends ChangeNotifier {
 
   Future<void> _initDriveApi() async {
     if (_driveApi != null) return;
-    final client = await _googleSignIn.authenticatedClient();
-    if (client != null) {
+    final user = _currentUser;
+    if (user != null) {
+      final scopes = ['email', 'https://www.googleapis.com/auth/drive.file'];
+      final authorization = await user.authorizationClient.authorizeScopes(scopes);
+      final client = authorization.authClient(scopes: scopes);
       _driveApi = drive.DriveApi(client);
     }
   }
@@ -343,11 +351,11 @@ class DriveService extends ChangeNotifier {
 
       if (_driveApi == null) {
         // Try to initialize silently if signed in
-        if (_googleSignIn.currentUser != null) {
+        if (_currentUser != null) {
           await _initDriveApi();
         } else {
           // Attempt silent sign in
-          await _googleSignIn.signInSilently();
+          await attemptLightweightAuthentication();
           await _initDriveApi();
         }
       }

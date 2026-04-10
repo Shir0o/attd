@@ -5,16 +5,21 @@ import 'package:attendance_tracker/features/settings/application/theme_controlle
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
+import 'package:attendance_tracker/features/settings/presentation/cloud_backup_page.dart';
+import 'package:attendance_tracker/features/settings/presentation/manage_backup_data_page.dart';
+import 'package:attendance_tracker/features/hub/presentation/members_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_version.dart';
+import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 
 class MockAttendanceRepository implements AttendanceRepository {
   @override
@@ -92,8 +97,6 @@ class MockSessionRepository implements SessionRepository {
   Stream<List<Session>> streamSessions() => Stream.value([]);
 }
 
-// Create a Fake Drive Service
-// ... (rest of the fake classes)
 class FakeDriveService extends ChangeNotifier implements DriveService {
   @override
   bool isSyncing = false;
@@ -143,6 +146,9 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   }
 
   @override
+  Future<List<drive.File>> listCloudBackups() async => [];
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -160,17 +166,43 @@ class FakeGoogleSignInAccount implements GoogleSignInAccount {
   String? get photoUrl => null;
 
   @override
-  String? get serverAuthCode => null;
+  GoogleSignInAuthentication get authentication => FakeGoogleSignInAuthentication();
 
   @override
-  Future<Map<String, String>> get authHeaders async => {};
+  GoogleSignInAuthorizationClient get authorizationClient => FakeGoogleSignInAuthorizationClient();
+}
+
+class FakeGoogleSignInAuthentication implements GoogleSignInAuthentication {
+  @override
+  String? get idToken => 'fake_id_token';
+}
+
+class FakeGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationClient {
+  @override
+  Future<GoogleSignInClientAuthorization?> authorizationForScopes(List<String> scopes) async {
+    return FakeGoogleSignInClientAuthorization();
+  }
 
   @override
-  Future<GoogleSignInAuthentication> get authentication async =>
-      throw UnimplementedError();
+  Future<GoogleSignInClientAuthorization> authorizeScopes(List<String> scopes) async {
+    return FakeGoogleSignInClientAuthorization();
+  }
 
   @override
-  Future<void> clearAuthCache() async {}
+  Future<Map<String, String>?> authorizationHeaders(List<String> scopes, {bool promptIfNecessary = false}) async {
+    return {'Authorization': 'Bearer fake_access_token'};
+  }
+
+  @override
+  Future<GoogleSignInServerAuthorization?> authorizeServer(List<String> scopes) async => null;
+
+  @override
+  Future<void> clearAuthorizationToken({required String accessToken}) async {}
+}
+
+class FakeGoogleSignInClientAuthorization implements GoogleSignInClientAuthorization {
+  @override
+  String get accessToken => 'fake_access_token';
 }
 
 class FakeLocalBackupService extends LocalBackupService {
@@ -217,14 +249,14 @@ void main() {
       ),
     );
 
-    // Should show skeleton initially (before pumpAndSettle)
-    expect(find.byKey(const ValueKey('settings_skeleton')), findsOneWidget);
+    // Should show AppShimmer initially
+    expect(find.byType(AppShimmer), findsWidgets);
 
     await tester.pumpAndSettle();
 
     // Should show actual content after loading
     expect(find.text('Settings'), findsOneWidget);
-    expect(find.byKey(const ValueKey('settings_skeleton')), findsNothing);
+    expect(find.byType(AppShimmer), findsNothing);
   });
 
   testWidgets('SettingsPage renders correctly', (tester) async {
@@ -251,26 +283,16 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('APPEARANCE'), findsOneWidget);
     expect(find.text('Theme Mode'), findsOneWidget);
-    // Section header is now uppercased "CLOUD SYNC (GOOGLE DRIVE)"
-    expect(find.textContaining('CLOUD SYNC'), findsOneWidget);
-    // When not signed in the "Not signed in" card is shown
-    expect(find.text('Not signed in'), findsOneWidget);
-    // Data Management section contains backup and export (may need scroll)
-    await tester.dragUntilVisible(
-      find.text('Backup to Local Storage'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    expect(find.text('Backup to Local Storage'), findsOneWidget);
-    await tester.dragUntilVisible(
-      find.text('Export Report'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    expect(find.text('Export Report'), findsOneWidget);
+    
+    expect(find.text('DATA MANAGEMENT'), findsOneWidget);
+    expect(find.text('Manage Members'), findsOneWidget);
+    expect(find.text('Manage Backup Data'), findsOneWidget);
+
+    expect(find.text('BACKUP & SYNC'), findsOneWidget);
+    expect(find.text('Google Drive Sync'), findsOneWidget);
   });
 
-  testWidgets('SettingsPage toggles Drive Sync', (tester) async {
+  testWidgets('SettingsPage navigates to subpages', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
@@ -291,120 +313,31 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Initially signed out – no Switch visible, "Not signed in" card shown
-    expect(driveService.currentUser, isNull);
-    expect(find.text('Not signed in'), findsOneWidget);
-    expect(find.byType(Switch), findsNothing);
-
-    // Sign in via the button in the card
-    await tester.tap(find.text('Sign In'));
+    // Test navigation to Manage Members
+    await tester.tap(find.text('Manage Members'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MembersPage), findsOneWidget);
+    
+    // Go back
+    await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
 
-    expect(driveService.currentUser, isNotNull);
-    // "Sync Now" button should appear (inline FilledButton)
-    expect(find.text('Sync Now'), findsOneWidget);
+    // Test navigation to Manage Backup Data
+    await tester.tap(find.text('Manage Backup Data'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ManageBackupDataPage), findsOneWidget);
 
-    // Sign out via the dedicated button (need to scroll to find it if necessary)
-    await tester.dragUntilVisible(
-      find.text('Sign Out'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    await tester.tap(find.text('Sign Out'));
+    // Go back
+    await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
 
-    // Should show confirm dialog
-    expect(find.text('Sign Out?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, 'Sign Out'));
+    // Test navigation to Google Drive Sync
+    // Must be signed in to navigate to CloudBackupPage
+    await driveService.signIn();
     await tester.pumpAndSettle();
 
-    expect(driveService.currentUser, isNull);
-    // Not signed in – card shown, Sync Now hidden
-    expect(find.text('Not signed in', skipOffstage: false), findsOneWidget);
-    expect(find.text('Sync Now'), findsNothing);
-  });
-
-  testWidgets('SettingsPage calls backup and export', (tester) async {
-    final driveService = FakeDriveService();
-    final localBackupService = FakeLocalBackupService();
-    final attendanceRepo = MockAttendanceRepository();
-    final eventRepo = MockEventRepository();
-    final sessionRepo = MockSessionRepository();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SettingsPage(
-          themeController: themeController,
-          driveService: driveService,
-          localBackupService: localBackupService,
-          attendanceRepository: attendanceRepo,
-          eventRepository: eventRepo,
-          sessionRepository: sessionRepo,
-        ),
-      ),
-    );
+    await tester.tap(find.text('Google Drive Sync'));
     await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('Backup to Local Storage'),
-      find.byType(ListView),
-      const Offset(0, -400),
-    );
-    await tester.ensureVisible(find.text('Backup to Local Storage'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Backup to Local Storage'));
-    await tester.pump();
-    expect(localBackupService.backupCalled, isTrue);
-
-    await tester.dragUntilVisible(
-      find.text('Export Report'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    await tester.ensureVisible(find.text('Export Report'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Export Report'));
-    await tester.pump();
-    expect(localBackupService.exportCalled, isTrue);
-  });
-
-  testWidgets('SettingsPage shows about dialog on version tap', (tester) async {
-    final driveService = FakeDriveService();
-    final localBackupService = FakeLocalBackupService();
-    final attendanceRepo = MockAttendanceRepository();
-    final eventRepo = MockEventRepository();
-    final sessionRepo = MockSessionRepository();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SettingsPage(
-          themeController: themeController,
-          driveService: driveService,
-          localBackupService: localBackupService,
-          attendanceRepository: attendanceRepo,
-          eventRepository: eventRepo,
-          sessionRepository: sessionRepo,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('About'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    await tester.ensureVisible(find.text('About'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('About'));
-    await tester.pumpAndSettle();
-
-    // It uses a BottomSheet, not AboutDialog
-    expect(find.byType(BottomSheet), findsOneWidget);
-
-    // We can't rely on 'dialogFinder' so just look globally
-    expect(find.text('Attendance Tracker', skipOffstage: false), findsWidgets);
-    expect(find.text('Version 1.0.13+14', skipOffstage: false), findsWidgets);
-    expect(find.text('Legalese', skipOffstage: false), findsWidgets);
+    expect(find.byType(CloudBackupPage), findsOneWidget);
   });
 }

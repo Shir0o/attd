@@ -683,4 +683,3 @@ class _MockSettingsTile extends StatelessWidget {
     );
   }
 }
-

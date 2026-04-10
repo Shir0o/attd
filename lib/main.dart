@@ -47,13 +47,14 @@ Future<void> main() async {
     return true;
   };
 
-  final themeController = ThemeController(prefs);
-  final onboardingController = OnboardingController(prefs);
-
-  final googleSignIn = GoogleSignIn(
-    scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
+  // Initialize exactly once before use
+  final googleSignIn = GoogleSignIn.instance;
+  await googleSignIn.initialize(
     serverClientId: GoogleOAuthConfig.webServerClientId,
   );
+
+  final themeController = ThemeController(prefs);
+  final onboardingController = OnboardingController(prefs);
 
   final attendanceRepository = LocalJsonAttendanceRepository();
   final sessionRepository = LocalJsonSessionRepository();
@@ -218,4 +219,3 @@ class _AttendanceAppState extends State<AttendanceApp>
     );
   }
 }
-

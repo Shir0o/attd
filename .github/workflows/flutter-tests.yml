@@ -42,13 +42,21 @@ jobs:
   integration_tests:
     name: Integration Tests
     needs: unit_tests
-    # Only run integration tests on pull requests to save costs
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: 'read'
+      id-token: 'write'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
       - name: Create google-services.json
         env:
@@ -64,13 +72,43 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run Integration Tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 29
-          arch: x86_64
-          disable-animations: true
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: flutter test integration_test/app_test.dart
+      - name: Patch app_device_integrity bug (Remove unhandled TODOs)
+        run: |
+          find ~/.pub-cache/hosted/pub.dev -path "*/app_device_integrity*/android/*/AppDeviceIntegrityPlugin.kt" -exec sed -i 's/TODO("Not yet implemented")//g' {} +
 
+      - name: Bootstrap Android project (Generates gradlew)
+        run: flutter build apk --debug
+
+      - name: Build App APK (with tests bundled inside)
+        run: |
+          DART_DEFINES=$(echo -n "IS_TEST_MODE=true" | base64)
+          pushd android
+          ./gradlew app:assembleDebug \
+            -Ptarget=$(pwd)/../integration_test/app_test.dart \
+            -Pdart-defines="$DART_DEFINES"
+          popd
+
+      - name: Build Test APK (The Android wrapper)
+        run: |
+          pushd android
+          ./gradlew app:assembleAndroidTest
+          popd
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: '${{ secrets.WIF_PROVIDER }}'
+          service_account: '${{ secrets.WIF_SERVICE_ACCOUNT }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run on Firebase Test Lab
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app build/app/outputs/flutter-apk/app-debug.apk \
+            --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --device model=MediumPhone.arm,version=35,locale=en,orientation=portrait \
+            --timeout 10m \
+            --results-dir=integration-tests/${{ github.run_id }}

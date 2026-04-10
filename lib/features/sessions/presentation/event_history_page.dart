@@ -69,7 +69,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 800) - elapsed;
 
-    if (remaining > Duration.zero) {
+    if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
     }
   }
@@ -293,6 +293,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                               eventRepository:
                                                   widget.eventRepository,
                                               driveService: widget.driveService,
+                                              disableAnimations: widget.disableAnimations,
                                             ),
                                       ),
                                     );
@@ -307,28 +308,35 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  dateStr,
-                                                  style: TextStyle(
-                                                    fontSize: 22,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: colorScheme.onSurface,
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    dateStr,
+                                                    style: TextStyle(
+                                                      fontSize: 22,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: colorScheme.onSurface,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                ),
-                                                Text(
-                                                  dayTimeStr,
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    color: colorScheme
-                                                        .onSurfaceVariant,
+                                                  Text(
+                                                    dayTimeStr,
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      color: colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
+                                            const SizedBox(width: 8),
                                             Icon(
                                               Icons.chevron_right,
                                               color:
@@ -339,11 +347,13 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                         const SizedBox(height: 12),
                                         Row(
                                           children: [
-                                            _buildStatusBadge(
-                                              context,
-                                              Icons.check_circle,
-                                              colorScheme.primary,
-                                              '$totalPresent Present',
+                                            Expanded(
+                                              child: _buildStatusBadge(
+                                                context,
+                                                Icons.check_circle,
+                                                colorScheme.primary,
+                                                '$totalPresent Present',
+                                              ),
                                             ),
                                             Container(
                                               height: 16,
@@ -354,11 +364,13 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                   ),
                                               color: colorScheme.outlineVariant,
                                             ),
-                                            _buildStatusBadge(
-                                              context,
-                                              Icons.cancel,
-                                              colorScheme.error,
-                                              '$totalAbsent Absent',
+                                            Expanded(
+                                              child: _buildStatusBadge(
+                                                context,
+                                                Icons.cancel,
+                                                colorScheme.error,
+                                                '$totalAbsent Absent',
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -432,6 +444,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 sessionRepository: widget.sessionRepository,
                 attendanceRepository: widget.attendanceRepository,
                 eventRepository: widget.eventRepository,
+                disableAnimations: widget.disableAnimations,
               ),
         ),
       );
@@ -514,15 +527,19 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
   ) {
     final theme = Theme.of(context);
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurface,
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

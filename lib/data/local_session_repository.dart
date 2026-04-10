@@ -236,6 +236,9 @@ class LocalJsonSessionRepository implements SessionRepository {
     if (changed) {
       await _saveToFile(prunedSessions);
       
+      // Update cache
+      _sessionsCache = prunedSessions.where((s) => s.deletedAt == null).toList();
+      
       // Also clean up history for pruned sessions
       final prunedIds = allSessions
           .where((s) => s.deletedAt != null && s.deletedAt!.isBefore(threshold))
@@ -453,6 +456,12 @@ class LocalJsonSessionRepository implements SessionRepository {
         updatedAt: now,
       );
       await _saveToFile(allSessions);
+      
+      // Update cache immediately to reflect change in streams
+      if (_sessionsCache != null) {
+        _sessionsCache!.removeWhere((s) => s.id == sessionId);
+      }
+      
       _controller.add(await loadSessions());
     }
   }

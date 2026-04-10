@@ -47,6 +47,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -61,6 +62,25 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.test:runner:1.5.2")
+        force("androidx.test:rules:1.5.0")
+        force("androidx.test:core:1.5.0")
+        force("androidx.test:monitor:1.6.1")
+        force("androidx.test.ext:junit:1.1.5")
+        force("androidx.test.espresso:espresso-core:3.5.1")
+    }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:rules:1.5.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
 
 flutter {

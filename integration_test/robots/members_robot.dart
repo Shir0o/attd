@@ -21,7 +21,15 @@ class MembersRobot {
     final fabFinder = find.byKey(const ValueKey('member_add_fab'));
     await tester.pumpUntilFound(fabFinder);
     await tester.tap(fabFinder.last);
-    await tester.pump(const Duration(milliseconds: 800));
+    
+    // Wait for the member to be added (input cleared)
+    final timer = Stopwatch()..start();
+    while (tester.widget<TextField>(textField).controller?.text.isNotEmpty == true && 
+           timer.elapsed < const Duration(seconds: 5)) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   Future<void> search(String query) async {
@@ -54,8 +62,8 @@ class MembersRobot {
     final memberFinder = find.text(memberName).first;
     await tester.pumpUntilFound(memberFinder);
 
-    final itemFinder = find.ancestor(of: memberFinder, matching: find.byType(InkWell));
-    final switchFinder = find.descendant(of: itemFinder, matching: find.byType(Switch));
+    final rowFinder = find.ancestor(of: memberFinder, matching: find.byType(Row)).first;
+    final switchFinder = find.descendant(of: rowFinder, matching: find.byType(Switch));
     
     final switchWidget = tester.widget<Switch>(switchFinder);
     expect(switchWidget.value, isSelected);
@@ -78,7 +86,7 @@ class MembersRobot {
 
   Future<void> tapDeleteMember(String memberName) async {
     print('DEBUG: tapDeleteMember($memberName)');
-    final memberFinder = find.text(memberName).first;
+    final memberFinder = find.text(memberName).last;
     await tester.pumpUntilFound(memberFinder);
     
     // In new UI, we swipe left for delete

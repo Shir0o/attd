@@ -31,33 +31,32 @@ void main() {
 
       // 2. Hub Empty State
       print('DEBUG: Verifying Hub empty state');
-      await tester.pumpUntilFound(find.text('No events created yet'));
-      // No subtext check here as it is not in the widget tree
+      await tester.pumpUntilFound(find.text('No events scheduled'));
 
       // 3. Members Empty State
       print('DEBUG: Verifying Members empty state');
       await hub.tapSettings();
       await settings.tapManageMembers();
-      // Verifying by looking for the "Regular Members" header which should exist even if list is empty
+      // Verifying by looking for the "Regular Members" header
       await tester.pumpUntilFound(find.text('Regular Members'));
       // The count badge should show '0'
-      expect(find.text('0'), findsOneWidget);
+      final zeroFinder = find.descendant(of: find.byType(Container), matching: find.text('0'));
+      expect(zeroFinder, findsWidgets);
       
       // 4. Search Empty State
       print('DEBUG: Verifying Search empty state');
       await members.search('NonExistentPerson');
-      // On MembersPage, if search yields nothing, count badge should show 0/0 or just 0
-      // In non-event mode it shows just the count
-      expect(find.text('0'), findsOneWidget);
+      // On MembersPage, if search yields nothing, count badge should show 0
+      expect(find.text('0'), findsWidgets);
       await members.clearSearch();
 
       // 5. Manage Backup Data Empty State
       print('DEBUG: Verifying Backup empty state');
       await hub.goBack(); // Back to Settings
       await settings.tapManageBackupData();
+      await settings.verifyOnManageBackupDataPage();
       // Record count should be 0
-      await tester.pumpUntilFound(find.text('0'));
-      // No subtext check here if not exists
+      await settings.verifyRecordCount(0);
 
       // Cleanup
       if (await tempDir.exists()) {
