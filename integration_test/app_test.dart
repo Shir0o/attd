@@ -16,7 +16,8 @@ void main() {
   group('Attendance App Integration Tests', () {
     // Accessing environment variables from .env via --dart-define-from-file
     // Note: The keys must match exactly what is in your .env file
-    const projectNumber = String.fromEnvironment('GOOGLE_CLOUD_PROJECT_NUMBER', defaultValue: 'unknown');
+    const projectNumber = String.fromEnvironment('GOOGLE_CLOUD_PROJECT_NUMBER',
+        defaultValue: 'unknown');
     const isTest = bool.fromEnvironment('IS_TEST_MODE');
 
     testWidgets('Full System Scenario', (tester) async {
@@ -24,7 +25,8 @@ void main() {
       print('DEBUG: Test Mode Enabled: $isTest');
 
       // 1. Initial State: User downloads app and opens for the first time (no existing data)
-      final tempDir = await Directory.systemTemp.createTemp('attendance_full_scenario_');
+      final tempDir =
+          await Directory.systemTemp.createTemp('attendance_full_scenario_');
       final app = await createTestApp(tempDir);
 
       print('--- Starting Test ---');
@@ -60,19 +62,25 @@ void main() {
 
       print('DEBUG: Step 2b - Select frequency');
       // Use Daily to ensure it is "Today"
-      await event.selectFrequency('Weekly'); 
+      await event.selectFrequency('Weekly');
       // Actually daily is better for tests but we have specific robot for day selection
       // Let's use Weekly and select CURRENT day.
       final currentDay = [
-        'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday'
       ][DateTime.now().weekday % 7];
-      
+
       print('DEBUG: Step 2c - Select day ($currentDay)');
       await event.selectDay(currentDay);
-      
+
       print('DEBUG: Step 2d - Select time (10:00)');
       await event.selectTime(10, 0);
-      
+
       await tester.takeScreenshot(binding, '03_create_event_form');
 
       print('DEBUG: Step 2e - Save event');
@@ -90,12 +98,12 @@ void main() {
       await hub.tapEventMenu('Original Event');
       await tester.takeScreenshot(binding, '05_event_context_menu');
       await hub.selectMenuOption('Edit Event');
-      
+
       await tester.pump(const Duration(milliseconds: 500));
       await event.enterName('Updated Event');
       // Keep weekly + current day
       await tester.takeScreenshot(binding, '06_edit_event_form');
-      
+
       print('DEBUG: Step 4a - Update event');
       await event.update();
       await tester.pump(const Duration(milliseconds: 1000));
@@ -107,7 +115,7 @@ void main() {
       print('DEBUG: Step 5 - Manage members');
       await hub.tapEventMenu('Updated Event');
       await hub.selectMenuOption('Manage Members');
-      
+
       await tester.pump(const Duration(milliseconds: 1000));
       await members.addMember('Alice');
       await members.addMember('Bob');
@@ -132,14 +140,14 @@ void main() {
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
       await hub.verifyOnHubPage();
-      
+
       await hub.tapEventMenu('Updated Event');
       await hub.selectMenuOption('Manage Members');
       await tester.pump(const Duration(milliseconds: 1000));
       await members.verifyMemberSelected('Alice', true);
       await members.verifyMemberSelected('Bob', true);
       await members.verifyMemberSelected('Charlie', true);
-      
+
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
       await hub.verifyOnHubPage();
@@ -148,22 +156,22 @@ void main() {
       print('DEBUG: Step 7 - Start attendance session');
       await hub.tapEventCard('Updated Event');
       await tester.pump(const Duration(milliseconds: 1500));
-      
+
       // 8. User completes the session
       print('DEBUG: Step 8 - Complete session');
       // All 3 members should be in the deck
       await attendance.verifyCardName('Alice');
       await attendance.swipePresent();
-      
+
       await attendance.verifyCardName('Bob');
       await attendance.swipeAbsent();
-      
+
       await attendance.verifyCardName('Charlie');
       await attendance.swipePresent();
-      
+
       await attendance.verifyDeckComplete();
       await tester.takeScreenshot(binding, '11_deck_complete');
-      
+
       await attendance.finishSession();
       await tester.pump(const Duration(milliseconds: 1000));
 
@@ -171,7 +179,7 @@ void main() {
       print('DEBUG: Step 9 - Verify summary');
       await history.verifySummaryCounts(present: 2, absent: 1);
       await tester.takeScreenshot(binding, '12_session_summary');
-      
+
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
       await hub.verifyOnHubPage();
@@ -186,16 +194,16 @@ void main() {
       await hub.tapEventMenu('Updated Event');
       await hub.selectMenuOption('View History');
       await tester.pump(const Duration(milliseconds: 1000));
-      
+
       await history.verifySessionCount(1);
       await tester.takeScreenshot(binding, '14_event_history');
-      
+
       // 12. User deletes session
       print('DEBUG: Step 12 - Delete session');
       await history.tapSession(0);
       await history.deleteSession();
       await history.verifySessionCount(0);
-      
+
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
       await hub.verifyOnHubPage();
@@ -206,11 +214,11 @@ void main() {
       await hub.tapSettings();
       await settings.verifyOnSettingsPage();
       await tester.takeScreenshot(binding, '15_settings_page');
-      
+
       await settings.toggleTheme();
       await settings.verifyDarkTheme();
       await tester.takeScreenshot(binding, '16_settings_dark');
-      
+
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
       await hub.verifyOnHubPage();
