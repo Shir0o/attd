@@ -33,6 +33,7 @@ class LocalJsonSessionRepository implements SessionRepository {
   // Map<SessionId, List<SessionVersion>>
   final Map<String, List<SessionVersion>> _historyCache = {};
   List<Session>? _sessionsCache;
+  List<Session>? _activeSessionsCache;
 
   Future<File> get _storageFile async {
     if (_file != null) return _file!;
@@ -47,13 +48,16 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   Future<List<Session>> _loadFromFile() async {
     final decoded = await _loadRawSessions();
-    final activeSessions = decoded.where((s) => s.deletedAt == null).toList();
-    _sessionsCache = activeSessions;
-    return activeSessions;
+    _sessionsCache = decoded;
+    _activeSessionsCache = decoded.where((s) => s.deletedAt == null).toList()
+      ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+    return _activeSessionsCache!;
   }
 
   Future<void> _saveToFile(List<Session> sessions) async {
     _sessionsCache = sessions;
+    _activeSessionsCache = sessions.where((s) => s.deletedAt == null).toList()
+      ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
     final file = await _storageFile;
     final tempFile = File('${file.path}.tmp');
     final backupFile = File('${file.path}.bak');
@@ -236,9 +240,6 @@ class LocalJsonSessionRepository implements SessionRepository {
     if (changed) {
       await _saveToFile(prunedSessions);
       
-      // Update cache
-      _sessionsCache = prunedSessions.where((s) => s.deletedAt == null).toList();
-      
       // Also clean up history for pruned sessions
       final prunedIds = allSessions
           .where((s) => s.deletedAt != null && s.deletedAt!.isBefore(threshold))
@@ -264,6 +265,7 @@ class LocalJsonSessionRepository implements SessionRepository {
   @override
   Future<void> refresh() async {
     _sessionsCache = null;
+    _activeSessionsCache = null;
     _historyCache.clear();
     final sessions = await loadSessions();
     _controller.add(sessions);
@@ -277,16 +279,14 @@ class LocalJsonSessionRepository implements SessionRepository {
 
     void emit() {
       if (!controller.isClosed) {
-        final sessions = List<Session>.from(_sessionsCache ?? []);
-        // Sort by date descending
-        sessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+        final sessions = List<Session>.from(_activeSessionsCache ?? []);
         controller.add(sessions);
       }
     }
 
     // If we have a cache, emit it immediately.
     // If not, loadSessions will be called by _init or similar and trigger the broadcast stream.
-    if (_sessionsCache != null) {
+    if (_activeSessionsCache != null) {
       emit();
     } else {
       // Trigger a load if we don't have anything yet
@@ -307,18 +307,12 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   @override
   Future<List<Session>> loadSessions() async {
-    if (_sessionsCache != null) {
-      // Sort copy to avoid mutating cache incorrectly if sort is needed
-      final active = _sessionsCache!.where((s) => s.deletedAt == null).toList();
-      active.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-      _controller.add(active);
-      return active;
+    if (_activeSessionsCache != null) {
+      _controller.add(_activeSessionsCache!);
+      return _activeSessionsCache!;
     }
 
     final sessions = await _loadFromFile();
-    // Sort by date descending
-    sessions.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-
     _controller.add(sessions);
     return sessions;
   }
@@ -456,12 +450,7 @@ class LocalJsonSessionRepository implements SessionRepository {
         updatedAt: now,
       );
       await _saveToFile(allSessions);
-      
-      // Update cache immediately to reflect change in streams
-      if (_sessionsCache != null) {
-        _sessionsCache!.removeWhere((s) => s.id == sessionId);
-      }
-      
+      // _saveToFile already updates _sessionsCache and _activeSessionsCache
       _controller.add(await loadSessions());
     }
   }
