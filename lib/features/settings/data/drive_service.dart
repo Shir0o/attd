@@ -617,14 +617,16 @@ class DriveService extends ChangeNotifier {
     }
 
     // Clean up duplicates in background
-    for (final id in duplicatesToTrash) {
-      try {
-        await _driveApi!.files.update(drive.File()..trashed = true, id);
-        print('Trashed duplicate remote file: $id');
-      } catch (e) {
-        print('Failed to trash duplicate: $e');
-      }
-    }
+    await Future.wait(
+      duplicatesToTrash.map((id) async {
+        try {
+          await _driveApi!.files.update(drive.File()..trashed = true, id);
+          print('Trashed duplicate remote file: $id');
+        } catch (e) {
+          print('Failed to trash duplicate: $e');
+        }
+      }),
+    );
 
     return map;
   }
