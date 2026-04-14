@@ -1,3 +1,25 @@
+# 1.2.1+18
+*   **UI & UX**:
+    *   **Swipe Actions**: Implemented intuitive swipe-to-edit (right) and swipe-to-remove (left) gestures in the Session Summary page.
+    *   Added swipe-to-delete (left) for sessions in the Event History page for quicker session management.
+    *   **Layout Refinement**: Resolved `RenderFlex` overflows on the home page by removing the redundant member count display from event cards.
+*   **Performance**:
+    *   **⚡ Optimized Session Retrieval**: Implemented caching for sorted active sessions, significantly reducing load times when navigating session histories.
+    *   **Drive Service Optimization**: Optimized duplicate remote file trashing logic to improve cloud sync reliability and speed.
+*   **Integrity & Stability**:
+    *   Fixed a fatal crash in the `app_device_integrity` plugin and optimized the startup sequence to prevent ANR (Application Not Responding) errors.
+    *   Resolved data integrity issues and various UI layout overflows across the app.
+*   **Continuous Integration (CI)**:
+    *   **Consolidated Test Suite**: Migrated all integration tests into a single, unified suite for more efficient verification in the CI pipeline.
+    *   **Robo Tests**: Enhanced automated testing with `google-services.json` injection and updated Firebase Test Lab configurations to use modern Android devices (API 35).
+    *   **Automated Patching**: Implemented automatic CI patching for the `app_device_integrity` plugin to ensure consistent and reliable builds.
+*   **Testing & Reliability**:
+    *   Mocked **Google Sign-In** in all automated tests to prevent execution hangs and improve test reliability.
+    *   Refined integration test scenarios, navigation logic, and timings.
+    *   Optimized test speed by disabling skeleton loader delays during automated verification cycles.
+*   **Maintenance**:
+    *   Upgraded core dependencies and resolved Android manifest merger errors by enforcing modern `androidx.test` versions.
+
 # 1.0.16+17
 *   **Privacy & Cleanup**:
     *   **Removed Attendance Analytics**: To further prioritize user privacy and focus on core utility, the internal attendance stats and trend visualization features have been removed.
