@@ -57,5 +57,5 @@ jobs:
           gcloud firebase test android run \
             --type robo \
             --app build/app/outputs/flutter-apk/app-release.apk \
-            --device model=pixel6pro,version=33 \
+            --device model=MediumPhone.arm,version=35 \
             --timeout 10m
