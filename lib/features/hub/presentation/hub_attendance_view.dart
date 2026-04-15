@@ -12,7 +12,6 @@ import '../../settings/application/theme_controller.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 import '../utils/event_date_utils.dart';
-import '../../../core/design/swipe_action_track.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import 'members_page.dart';
@@ -376,7 +375,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           
           if (isTargetToday) {
             if (hasSession) {
-              attendanceStatus = 'Taken today';
+              attendanceStatus = 'Taken';
             } else {
               attendanceStatus = 'Start';
               isActionable = true;
@@ -804,45 +803,34 @@ class _EventCardState extends State<_EventCard>
                 ],
               ),
               const SizedBox(height: 16),
-              if (widget.isToday && widget.attendanceStatus.startsWith('Start'))
-                SizedBox(
-                  width: double.infinity,
-                  child: SwipeActionTrack(
-                    onSwipeComplete: widget.onTap,
-                    label: 'Swipe to Start Attendance',
-                    height: 56,
-                    disableAnimations: widget.disableAnimations,
-                  ),
-                )
-              else
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.schedule, size: 20, color: widget.onSurfaceVariantColor),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            widget.event.time.format(context),
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: widget.onSurfaceVariantColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.schedule, size: 20, color: widget.onSurfaceVariantColor),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          widget.event.time.format(context),
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: widget.onSurfaceVariantColor,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: _buildAttendanceStatusPill(widget.attendanceStatus),
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: _buildAttendanceStatusPill(widget.attendanceStatus),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

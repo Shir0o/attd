@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
-import 'package:attendance_tracker/core/design/swipe_action_track.dart';
 
 import '../utils/test_utils.dart';
 
@@ -60,29 +59,17 @@ class HubRobot {
       matching: find.byType(Card),
     ).last;
 
-    // Check if there is a SwipeActionTrack (today's event)
-    var swipeFinder = find.descendant(
+    // Check if there is a 'START' button
+    final startButtonFinder = find.descendant(
       of: cardFinder,
-      matching: find.byType(SwipeActionTrack),
+      matching: find.text('START'),
     );
 
-    if (swipeFinder.evaluate().isEmpty) {
-        print('DEBUG: SwipeActionTrack not found in card, searching globally');
-        swipeFinder = find.byType(SwipeActionTrack);
-    }
-
-    if (swipeFinder.evaluate().isNotEmpty) {
-      print('DEBUG: Found SwipeActionTrack, performing precise swipe');
-      // The handle is on the left initially. 
-      // Let's drag from left to right.
-      final trackRect = tester.getRect(swipeFinder.first);
-      final start = trackRect.centerLeft + const Offset(20, 0); // Start slightly inside
-      
-      await tester.dragFrom(start, Offset(trackRect.width, 0));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1000));
+    if (startButtonFinder.evaluate().isNotEmpty) {
+      print('DEBUG: Found START button, tapping it');
+      await tester.tap(startButtonFinder.last);
     } else {
-      print('DEBUG: No SwipeActionTrack, performing tap');
+      print('DEBUG: No START button, performing tap on card');
       await tester.tap(cardFinder);
     }
     
