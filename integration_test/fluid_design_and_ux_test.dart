@@ -19,9 +19,11 @@ void main() {
 
       print('--- Starting Skeleton Timing Test ---');
       await tester.pumpWidget(app);
+      await setupScreenshots(binding);
       
       // 1. Skip onboarding
       await tester.pumpUntilFound(find.text('Skip'));
+      await tester.takeScreenshot(binding, 'fluid_01_onboarding_before_skip');
       
       final startTime = DateTime.now();
       await tester.tap(find.text('Skip'));
@@ -37,6 +39,9 @@ void main() {
       while (detectTimer.elapsed < const Duration(seconds: 2)) {
         await tester.pump(const Duration(milliseconds: 50));
         if (shimmerFinder.evaluate().isNotEmpty) {
+          if (!sawShimmer) {
+            await tester.takeScreenshot(binding, 'fluid_02_skeleton_hub');
+          }
           sawShimmer = true;
           print('DEBUG: Skeleton detected at ${DateTime.now().difference(startTime).inMilliseconds}ms');
           break;
@@ -93,6 +98,7 @@ void main() {
 
       // Go to settings
       await hub.tapSettings();
+      await tester.takeScreenshot(binding, 'fluid_03_settings_initial');
       
       // Find theme mode dropdown or toggle
       // Based on settings_page.dart, it's a DropdownButton<ThemeMode>
@@ -102,9 +108,11 @@ void main() {
       print('DEBUG: Toggling Dark Mode');
       await tester.tap(themeDropdown);
       await tester.pumpAndSettle();
+      await tester.takeScreenshot(binding, 'fluid_04_theme_dropdown_open');
       
       await tester.tap(find.text('Dark').last);
       await tester.pumpAndSettle();
+      await tester.takeScreenshot(binding, 'fluid_05_settings_dark_mode');
       
       // Verify theme changed (check background color of Scaffold)
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).last);
@@ -132,14 +140,17 @@ void main() {
 
         // Skip onboarding
         await tester.pumpUntilFound(find.text('Skip'));
+        await tester.takeScreenshot(binding, 'fluid_06_large_text_onboarding');
         await tester.tap(find.text('Skip'));
         await tester.pumpAndSettle();
+        await tester.takeScreenshot(binding, 'fluid_07_large_text_hub');
 
         // Verify we can still see and tap the FAB
         final fab = find.byKey(const ValueKey('hub_fab'));
         expect(fab, findsOneWidget);
         await tester.tap(fab);
         await tester.pumpAndSettle();
+        await tester.takeScreenshot(binding, 'fluid_08_large_text_add_event');
 
         // Verify "New Event" title is still visible and not overflowed
         expect(find.text('New Event'), findsOneWidget);

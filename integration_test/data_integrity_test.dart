@@ -56,15 +56,18 @@ void main() {
       // 3. Test Duplicate Member Warning
       print('DEBUG: Testing Duplicate Member Warning');
       await members.addMember('John Doe');
+      await tester.takeScreenshot(binding, 'data_01_duplicate_member_dialog');
       await members.handleDuplicateMemberDialog(true); // Add anyway
       await members.verifyMember('John Doe'); // Should have two now
       
       await hub.goBack();
+      await tester.takeScreenshot(binding, 'data_02_hub_with_duplicates');
 
       // 4. Start attendance and mark John Doe
       await hub.tapEventCard('Test Event');
       await tester.pumpAndSettle();
       await tester.pumpUntilFound(find.text('John Doe'));
+      await tester.takeScreenshot(binding, 'data_03_attendance_card');
       await attendance.markPresent();
       await tester.pumpAndSettle();
       
@@ -72,18 +75,22 @@ void main() {
       print('DEBUG: Cancelling session partway');
       final cancelFinder = find.byTooltip('Cancel');
       await tester.pumpUntilFound(cancelFinder);
+      await tester.takeScreenshot(binding, 'data_04_attendance_cancel_confirmation');
       await tester.tap(cancelFinder);
       await tester.pumpAndSettle();
 
       // 5. Test Historical Accuracy Info
       print('DEBUG: Testing Historical Accuracy Info');
       await hub.tapSettings();
+      await tester.takeScreenshot(binding, 'data_05_settings');
       await settings.tapManageMembers();
+      await tester.takeScreenshot(binding, 'data_06_manage_members_accuracy_info');
       await members.handleHistoricalAccuracyInfo();
 
       // 6. Test Member Removal with linked data
       print('DEBUG: Testing Member deletion with dependencies');
       await members.tapDeleteMember('John Doe');
+      await tester.takeScreenshot(binding, 'data_07_confirm_delete_warning');
       // Should show warning because John Doe is in a session
       await members.handleConfirmDelete(true); // Final confirmation
       
@@ -94,16 +101,19 @@ void main() {
       await hub.goBack(); // Back to Settings
       await settings.tapManageBackupData();
       await settings.verifyOnManageBackupDataPage();
+      await tester.takeScreenshot(binding, 'data_08_manage_backup_data');
       
       // 1 Event + 2 Members (one was deleted) + 1 Session = 4.
       await settings.verifyRecordCount(4); 
 
       await settings.searchBackup('Test');
       await settings.verifyEventListed('Test Event');
+      await tester.takeScreenshot(binding, 'data_09_backup_search');
       
       // Cleanup: Delete the session from backup
       print('DEBUG: Deleting record from backup');
       await settings.deleteBackupRecord('Test Event'); // Deletes the session
+      await tester.takeScreenshot(binding, 'data_10_after_delete_backup_record');
       ScaffoldMessenger.maybeOf(tester.element(find.byType(MaterialApp).first))?.clearSnackBars();
       await tester.pump(const Duration(milliseconds: 500));
 

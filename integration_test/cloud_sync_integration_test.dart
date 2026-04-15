@@ -26,6 +26,7 @@ void main() {
 
       // 2. Navigate to Settings
       await hub.tapSettings();
+      await tester.takeScreenshot(binding, 'cloud_01_settings_sync');
 
       // 3. Find Sync Toggle or Sign In button
       final signInButton = find.widgetWithText(FilledButton, 'Sign In');
@@ -35,6 +36,7 @@ void main() {
       if (tester.any(signInButton)) {
           print('DEBUG: Not signed in, verifying Sign In button');
           expect(signInButton, findsOneWidget);
+          await tester.takeScreenshot(binding, 'cloud_02_not_signed_in');
       } else {
           print('DEBUG: Signed in, verifying Sync Switch');
           final switchFinder = find.descendant(
@@ -42,13 +44,16 @@ void main() {
               matching: find.byType(Switch),
           );
           expect(switchFinder, findsOneWidget);
+          await tester.takeScreenshot(binding, 'cloud_02_signed_in_sync_enabled');
           
           // 4. Verify Cloud Backup Page (only if signed in)
           final historyTile = find.text('Cloud Version History');
           await tester.pumpUntilFound(historyTile);
           await tester.ensureVisible(historyTile);
+          await tester.takeScreenshot(binding, 'cloud_03_cloud_history_tile');
           await tester.tap(historyTile);
           await tester.pumpAndSettle();
+          await tester.takeScreenshot(binding, 'cloud_04_cloud_history_empty');
           expect(find.text('No Cloud Backups'), findsOneWidget);
       }
 

@@ -36,6 +36,7 @@ void main() {
 
       // 2. Create event with one member
       await hub.tapFab();
+      await tester.takeScreenshot(binding, 'adv_01_create_event');
       await event.enterName('Advanced Event');
       // Ensure current day is selected for "today" logic
       final currentDay = [
@@ -44,16 +45,19 @@ void main() {
       await event.selectDay(currentDay);
       await event.save();
       await tester.pump(const Duration(milliseconds: 800));
+      await tester.takeScreenshot(binding, 'adv_02_hub_with_advanced_event');
 
       await hub.tapEventMenu('Advanced Event');
       await hub.selectMenuOption('Manage Members');
       await members.addMember('Regular Member 1');
       await members.addMember('Regular Member 2');
+      await tester.takeScreenshot(binding, 'adv_03_manage_members');
       await hub.goBack();
 
       // 3. Start attendance
       await hub.tapEventCard('Advanced Event');
       await tester.pumpAndSettle();
+      await tester.takeScreenshot(binding, 'adv_04_attendance_start');
 
       // 4. Test Undo functionality
       print('DEBUG: Testing Undo');
@@ -62,10 +66,12 @@ void main() {
       
       // We should now see Member 2
       await tester.pumpUntilFound(find.text('Regular Member 2'));
+      await tester.takeScreenshot(binding, 'adv_05_marked_member_1');
       
       // Undo
       await attendance.undo();
       await tester.pumpUntilFound(find.text('Regular Member 1'));
+      await tester.takeScreenshot(binding, 'adv_06_after_undo');
       print('DEBUG: Undo successful');
 
       // 5. Test Guest Handling
@@ -73,10 +79,13 @@ void main() {
       await attendance.markPresent(); // Mark Member 1 again
       await tester.pumpUntilFound(find.text('Regular Member 2'));
       await attendance.addGuest('Guest Visitor');
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.takeScreenshot(binding, 'adv_07_guest_input');
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
       
       await tester.pumpUntilFound(find.text('Regular Member 2'));
+      await tester.takeScreenshot(binding, 'adv_08_deck_with_guest_added');
       await attendance.markAbsent();
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
@@ -84,9 +93,11 @@ void main() {
       // Now we should be at completion
       await tester.pump(const Duration(milliseconds: 1000));
       await attendance.verifyDeckComplete();
+      await tester.takeScreenshot(binding, 'adv_09_deck_complete');
       
       // Verify guest is in summary (if summary is shown or by finishing and checking history)
       await attendance.finishSession();
+      await tester.takeScreenshot(binding, 'adv_10_session_summary_with_guest');
       
       // 6. Verify in history
       print('DEBUG: Returning to Hub');
@@ -96,6 +107,7 @@ void main() {
       
       await hub.tapEventMenu('Advanced Event');
       await hub.selectMenuOption('View History');
+      await tester.takeScreenshot(binding, 'adv_11_event_history');
       
       // Tap the first session record in the list
       final cardFinder = find.descendant(
@@ -107,6 +119,7 @@ void main() {
       
       await tester.pumpUntilFound(find.text('Regular Member 1'));
       await tester.pumpUntilFound(find.text('Guest Visitor'));
+      await tester.takeScreenshot(binding, 'adv_12_session_detail_with_guest');
       print('DEBUG: Guest verified in history');
 
       // Allow animations to settle before finishing to prevent 'DEFUNCT' overflows

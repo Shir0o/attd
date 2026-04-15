@@ -44,7 +44,15 @@ void main() {
       // 1. Skip the onboarding tutorial
       print('DEBUG: Step 1 - Skip onboarding tutorial');
       await tester.pumpUntilFound(find.text('Skip'));
-      await tester.takeScreenshot(binding, '01_onboarding_tutorial');
+      await tester.takeScreenshot(binding, '01_onboarding_tutorial_start');
+      
+      // Explore onboarding steps a bit more
+      if (find.text('Next').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Next'));
+        await tester.pump(const Duration(milliseconds: 1000));
+        await tester.takeScreenshot(binding, '01b_onboarding_tutorial_step2');
+      }
+
       await tester.tap(find.text('Skip'));
       await tester.pump(const Duration(milliseconds: 1000));
 
@@ -55,6 +63,7 @@ void main() {
       // 2. User adds a new event
       print('DEBUG: Step 2 - Add new event');
       await hub.tapFab();
+      await tester.pump(const Duration(milliseconds: 800));
       await tester.takeScreenshot(binding, '02b_add_event_initial');
 
       print('DEBUG: Step 2a - Enter event name');
@@ -63,6 +72,8 @@ void main() {
       print('DEBUG: Step 2b - Select frequency');
       // Use Daily to ensure it is "Today"
       await event.selectFrequency('Weekly');
+      await tester.takeScreenshot(binding, '02c_add_event_frequency_selection');
+
       // Actually daily is better for tests but we have specific robot for day selection
       // Let's use Weekly and select CURRENT day.
       final currentDay = [
@@ -77,10 +88,10 @@ void main() {
 
       print('DEBUG: Step 2c - Select day ($currentDay)');
       await event.selectDay(currentDay);
+      await tester.takeScreenshot(binding, '02d_add_event_day_selected');
 
       print('DEBUG: Step 2d - Select time (10:00)');
       await event.selectTime(10, 0);
-
       await tester.takeScreenshot(binding, '03_create_event_form');
 
       print('DEBUG: Step 2e - Save event');
@@ -96,10 +107,11 @@ void main() {
       // 4. User edits the event
       print('DEBUG: Step 4 - Edit event');
       await hub.tapEventMenu('Original Event');
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.takeScreenshot(binding, '05_event_context_menu');
       await hub.selectMenuOption('Edit Event');
 
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 800));
       await event.enterName('Updated Event');
       // Keep weekly + current day
       await tester.takeScreenshot(binding, '06_edit_event_form');
@@ -124,6 +136,7 @@ void main() {
 
       print('DEBUG: Step 5a - Search members');
       await members.search('Ali');
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.takeScreenshot(binding, '09_member_search');
       await members.clearSearch();
 
@@ -134,6 +147,7 @@ void main() {
       await tester.takeScreenshot(binding, '10_member_toggle_off');
       await members.toggleMember('Alice');
       await members.verifyMemberSelected('Alice', true);
+      await tester.takeScreenshot(binding, '10b_member_toggle_back_on');
 
       // 6. User verifies member selections persist
       print('DEBUG: Step 6 - Verify member persistence');
@@ -147,6 +161,7 @@ void main() {
       await members.verifyMemberSelected('Alice', true);
       await members.verifyMemberSelected('Bob', true);
       await members.verifyMemberSelected('Charlie', true);
+      await tester.takeScreenshot(binding, '10c_manage_members_final');
 
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
@@ -156,17 +171,21 @@ void main() {
       print('DEBUG: Step 7 - Start attendance session');
       await hub.tapEventCard('Updated Event');
       await tester.pump(const Duration(milliseconds: 1500));
+      await tester.takeScreenshot(binding, '10d_attendance_deck_start');
 
       // 8. User completes the session
       print('DEBUG: Step 8 - Complete session');
       // All 3 members should be in the deck
       await attendance.verifyCardName('Alice');
+      await tester.takeScreenshot(binding, '10e_attendance_deck_card_1');
       await attendance.swipePresent();
 
       await attendance.verifyCardName('Bob');
+      await tester.takeScreenshot(binding, '10f_attendance_deck_card_2');
       await attendance.swipeAbsent();
 
       await attendance.verifyCardName('Charlie');
+      await tester.takeScreenshot(binding, '10g_attendance_deck_card_3');
       await attendance.swipePresent();
 
       await attendance.verifyDeckComplete();
@@ -201,8 +220,11 @@ void main() {
       // 12. User deletes session
       print('DEBUG: Step 12 - Delete session');
       await history.tapSession(0);
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.takeScreenshot(binding, '14b_session_detail_from_history');
       await history.deleteSession();
       await history.verifySessionCount(0);
+      await tester.takeScreenshot(binding, '14c_event_history_empty_after_delete');
 
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
@@ -222,6 +244,7 @@ void main() {
       await hub.goBack();
       await tester.pump(const Duration(milliseconds: 1000));
       await hub.verifyOnHubPage();
+      await tester.takeScreenshot(binding, '17_hub_dark_mode');
 
       print('--- Test Completed Successfully ---');
     });

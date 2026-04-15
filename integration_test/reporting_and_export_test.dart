@@ -57,6 +57,12 @@ void main() {
 
       await hub.tapSettings();
       await settings.verifyOnSettingsPage();
+      await tester.takeScreenshot(binding, 'export_01_settings_reporting_section');
+      
+      final exportButton = find.text('Export to Google Sheets');
+      if (tester.any(exportButton)) {
+        await tester.takeScreenshot(binding, 'export_02_export_button');
+      }
       
       // Cleanup
       if (await tempDir.exists()) {
