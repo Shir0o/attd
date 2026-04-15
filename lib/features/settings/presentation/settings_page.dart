@@ -721,7 +721,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                               final Uri emailLaunchUri = Uri(
                                 scheme: 'mailto',
-                                path: 'support@attd.tracker',
+                                path: 'twangdeveloper@gmail.com',
                                 query: encodeQueryParameters(<String, String>{
                                   'subject': 'Attendance Tracker Feedback',
                                   'body':
