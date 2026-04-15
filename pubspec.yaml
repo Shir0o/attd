@@ -33,6 +33,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
+  golden_screenshot: ^11.0.1
 
 flutter:
   uses-material-design: true

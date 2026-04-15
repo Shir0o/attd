@@ -18,6 +18,7 @@
 - **Static Analysis:** `flutter analyze`
 - **Unit and Widget Tests:** `flutter test`
 - **Integration Tests:** `flutter test integration_test/app_test.dart` (requires a running emulator or device)
+- **Store Screenshots (Goldens):** `flutter test --update-goldens test/store_screenshots_test.dart` (generates high-quality screenshots in `metadata/en-US/images/` for Phone, 7" Tablet, and 10" Tablet)
 
 ## Architecture Patterns
 
