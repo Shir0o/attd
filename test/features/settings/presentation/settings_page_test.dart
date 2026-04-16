@@ -158,43 +158,27 @@ class FakeGoogleSignInAccount implements GoogleSignInAccount {
   String? get photoUrl => null;
 
   @override
-  GoogleSignInAuthentication get authentication => FakeGoogleSignInAuthentication();
+  String? get serverAuthCode => null;
 
   @override
-  GoogleSignInAuthorizationClient get authorizationClient => FakeGoogleSignInAuthorizationClient();
+  Future<GoogleSignInAuthentication> get authentication async => FakeGoogleSignInAuthentication();
+
+  @override
+  Future<Map<String, String>> get authHeaders async => {};
+
+  @override
+  Future<void> clearAuthCache() async {}
 }
 
 class FakeGoogleSignInAuthentication implements GoogleSignInAuthentication {
   @override
   String? get idToken => 'fake_id_token';
-}
-
-class FakeGoogleSignInAuthorizationClient implements GoogleSignInAuthorizationClient {
-  @override
-  Future<GoogleSignInClientAuthorization?> authorizationForScopes(List<String> scopes) async {
-    return FakeGoogleSignInClientAuthorization();
-  }
 
   @override
-  Future<GoogleSignInClientAuthorization> authorizeScopes(List<String> scopes) async {
-    return FakeGoogleSignInClientAuthorization();
-  }
+  String? get accessToken => 'fake_access_token';
 
   @override
-  Future<Map<String, String>?> authorizationHeaders(List<String> scopes, {bool promptIfNecessary = false}) async {
-    return {'Authorization': 'Bearer fake_access_token'};
-  }
-
-  @override
-  Future<GoogleSignInServerAuthorization?> authorizeServer(List<String> scopes) async => null;
-
-  @override
-  Future<void> clearAuthorizationToken({required String accessToken}) async {}
-}
-
-class FakeGoogleSignInClientAuthorization implements GoogleSignInClientAuthorization {
-  @override
-  String get accessToken => 'fake_access_token';
+  String? get serverAuthCode => null;
 }
 
 class FakeLocalBackupService extends LocalBackupService {
