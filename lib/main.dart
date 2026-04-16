@@ -48,8 +48,7 @@ Future<void> main() async {
   };
 
   // Initialize exactly once before use
-  final googleSignIn = GoogleSignIn.instance;
-  await googleSignIn.initialize(
+  final googleSignIn = GoogleSignIn(
     serverClientId: GoogleOAuthConfig.webServerClientId,
   );
 

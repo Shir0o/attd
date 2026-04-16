@@ -1,3 +1,14 @@
+# 1.2.2+19
+*   **UI & UX**:
+    *   **Simplified Attendance Start**: Replaced the "Swipe to Start Attendance" slider with a more direct "START" button on event cards.
+    *   **On-Demand Attendance**: The "START" button is now available for any event that hasn't had its attendance taken yet, regardless of whether it is scheduled for today.
+    *   **Status Text Refinement**: Simplified the attendance status text from "Taken today" to a cleaner "TAKEN".
+    *   **Restored Classic Layout**: Reverted to the side-by-side layout for event cards, with the event time on the left and the status action button on the right for better visual consistency.
+*   **Code Quality & Maintenance**:
+    *   **Component Cleanup**: Removed the unused `SwipeActionTrack` design component and its associated file to streamline the codebase.
+    *   **Test Synchronization**: Updated integration tests and test robots to align with the new "START" button interaction logic.
+    *   **Verified Fresh Install State**: Confirmed that the application starts with a clean, empty state without any default or sample events.
+
 # 1.2.1+18
 *   **UI & UX**:
     *   **Swipe Actions**: Implemented intuitive swipe-to-edit (right) and swipe-to-remove (left) gestures in the Session Summary page.

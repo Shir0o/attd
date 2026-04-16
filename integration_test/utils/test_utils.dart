@@ -35,7 +35,7 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
 
   // Mock GoogleSignIn for DriveService to avoid native hangs
   final googleSignIn = MockGoogleSignIn();
-  when(() => googleSignIn.attemptLightweightAuthentication()).thenAnswer((_) async => null);
+  when(() => googleSignIn.signInSilently()).thenAnswer((_) async => null);
   when(() => googleSignIn.signOut()).thenAnswer((_) async {});
 
   final driveService = DriveService(

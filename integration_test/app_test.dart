@@ -205,7 +205,7 @@ void main() {
 
       // 10. User verifies event status updated on Hub
       print('DEBUG: Step 10 - Verify hub status');
-      await hub.verifyEventStatus('Updated Event', 'Taken today');
+      await hub.verifyEventStatus('Updated Event', 'Taken');
       await tester.takeScreenshot(binding, '13_hub_with_status');
 
       // 11. User views history
