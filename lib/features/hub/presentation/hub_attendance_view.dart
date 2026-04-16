@@ -287,6 +287,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               padding: const EdgeInsets.all(16),
               sliver: _isLoading 
                 ? SliverList(
+                    key: const ValueKey('hub_skeleton'),
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => Padding(
                         padding: const EdgeInsets.only(bottom: 16),

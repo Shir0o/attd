@@ -31,40 +31,41 @@ void main() {
       // Wait for navigation and skeleton to appear
       await tester.pump();
       
-      final shimmerFinder = find.byType(AppShimmer);
-      bool sawShimmer = false;
+      final skeletonFinder = find.byKey(const ValueKey('hub_skeleton'));
+      bool sawSkeleton = false;
       
-      // Check for shimmer for a short while
+      // Check for skeleton for a short while
       final detectTimer = Stopwatch()..start();
       while (detectTimer.elapsed < const Duration(seconds: 2)) {
         await tester.pump(const Duration(milliseconds: 50));
-        if (shimmerFinder.evaluate().isNotEmpty) {
-          if (!sawShimmer) {
+        if (skeletonFinder.evaluate().isNotEmpty) {
+          if (!sawSkeleton) {
             await tester.takeScreenshot(binding, 'fluid_02_skeleton_hub');
           }
-          sawShimmer = true;
+          sawSkeleton = true;
           print('DEBUG: Skeleton detected at ${DateTime.now().difference(startTime).inMilliseconds}ms');
           break;
         }
       }
       
-      if (!sawShimmer) {
+      if (!sawSkeleton) {
         print('DEBUG: Skeleton NOT detected (might have finished too fast or never appeared)');
         // If it never appeared, it might be a bug, but on slow emulators it might be missed.
         // We'll proceed but this might fail later.
       } else {
-        // If we saw it, wait until at least 700ms from start
+        // If we saw it, wait until at least 600ms from start to check it's still there
+        // (Leaving some buffer before the 800ms cut-off)
         final elapsedSoFar = DateTime.now().difference(startTime);
-        if (elapsedSoFar < const Duration(milliseconds: 700)) {
-          await tester.pump(const Duration(milliseconds: 200));
-          expect(shimmerFinder, findsWidgets, reason: 'Skeleton should still be visible before 800ms');
+        if (elapsedSoFar < const Duration(milliseconds: 600)) {
+          await tester.pump(const Duration(milliseconds: 100));
+          expect(skeletonFinder, findsWidgets, reason: 'Skeleton should still be visible before 800ms');
           print('DEBUG: Skeleton still visible at ${DateTime.now().difference(startTime).inMilliseconds}ms');
         }
       }
 
       // Wait for it to disappear (total wait up to 3s)
       final disappearTimer = Stopwatch()..start();
-      while (shimmerFinder.evaluate().isNotEmpty && disappearTimer.elapsed < const Duration(seconds: 3)) {
+      while (skeletonFinder.evaluate().isNotEmpty && disappearTimer.elapsed < const Duration(seconds: 3)) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       
@@ -72,7 +73,7 @@ void main() {
       print('DEBUG: Skeleton gone at ${finalElapsed}ms');
       
       // Verification
-      if (sawShimmer) {
+      if (sawSkeleton) {
           expect(finalElapsed, greaterThanOrEqualTo(800), reason: 'Skeleton must be visible for at least 800ms total');
       }
 
