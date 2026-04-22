@@ -52,9 +52,16 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     final startTime = DateTime.now();
     setState(() => _isLoading = true);
     try {
-      final families = await widget.attendanceRepository.fetchFamilies();
-      final events = await widget.eventRepository.streamEvents().first;
-      final sessions = await widget.sessionRepository.loadSessions();
+      // Optimize: Load data concurrently
+      final results = await Future.wait([
+        widget.attendanceRepository.fetchFamilies(),
+        widget.eventRepository.streamEvents().first,
+        widget.sessionRepository.loadSessions(),
+      ]);
+
+      final families = results[0] as List<Family>;
+      final events = results[1] as List<Event>;
+      final sessions = results[2] as List<Session>;
 
       final totalMembersCount = families.expand((f) => f.members).length;
       debugPrint('DEBUG: ManageBackupDataPage._loadData: events=${events.length}, members=$totalMembersCount, sessions=${sessions.length}');
@@ -128,18 +135,14 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Delete selected events
-      for (final id in _eventsToDelete) {
-        await widget.eventRepository.deleteEvent(id);
-      }
-
-      // Delete selected sessions
-      for (final id in _sessionsToDelete) {
-        await widget.sessionRepository.deleteSession(
-          id,
-          actor: 'ManageBackup Data',
-        );
-      }
+      // Optimize: Delete events and sessions concurrently
+      await Future.wait([
+        ..._eventsToDelete.map((id) => widget.eventRepository.deleteEvent(id)),
+        ..._sessionsToDelete.map((id) => widget.sessionRepository.deleteSession(
+              id,
+              actor: 'ManageBackup Data',
+            )),
+      ]);
 
       // Delete selected members
       if (_membersToDelete.isNotEmpty) {

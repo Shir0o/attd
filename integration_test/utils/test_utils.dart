@@ -15,10 +15,14 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true}) async {
+  // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
+  GoogleFonts.config.allowRuntimeFetching = false;
+
   // Use a temporary directory for local storage to isolate tests
   final storagePath = tempDir.path;
 

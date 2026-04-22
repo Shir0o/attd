@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'utils/test_utils.dart';
 import 'robots/hub_robot.dart';
@@ -11,6 +12,8 @@ import 'robots/attendance_robot.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   group('Advanced Attendance Scenarios', () {
     testWidgets('Guest handling and Undo functionality', (tester) async {

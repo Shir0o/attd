@@ -19,6 +19,7 @@ import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MockEventRepository implements EventRepository {
   final _controller = StreamController<List<Event>>.broadcast();
@@ -153,6 +154,11 @@ class MockAuthRepository implements AuthRepository {
 }
 
 void main() {
+  setUpAll(() {
+    // Disable runtime fetching for Google Fonts in tests
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
+
   testWidgets('AttendanceApp loads HubPage without BottomNavigationBar', (
     tester,
   ) async {

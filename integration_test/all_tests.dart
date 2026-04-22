@@ -1,4 +1,5 @@
 import 'package:integration_test/integration_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'advanced_attendance_scenarios_test.dart' as advanced_attendance;
 import 'app_test.dart' as app;
@@ -11,6 +12,9 @@ import 'resilience_and_failure_test.dart' as resilience;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Run all test suites inside a single executable APK
   app.main();
