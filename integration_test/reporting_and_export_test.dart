@@ -13,7 +13,7 @@ import 'robots/settings_robot.dart';
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // GoogleFonts.config.allowRuntimeFetching = false;
 
   group('Reporting and Export Integration Tests', () {
     testWidgets('Complete session and export report', (tester) async {

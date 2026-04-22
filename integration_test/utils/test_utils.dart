@@ -21,7 +21,7 @@ class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true}) async {
   // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // GoogleFonts.config.allowRuntimeFetching = false;
 
   // Use a temporary directory for local storage to isolate tests
   final storagePath = tempDir.path;

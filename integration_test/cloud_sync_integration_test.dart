@@ -10,7 +10,7 @@ import 'robots/hub_robot.dart';
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // GoogleFonts.config.allowRuntimeFetching = false;
 
   group('Cloud Sync Integration (Conceptual)', () {
     testWidgets('Google Drive Sync toggle and Status', (tester) async {

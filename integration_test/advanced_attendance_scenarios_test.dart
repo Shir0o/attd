@@ -13,13 +13,10 @@ import 'robots/attendance_robot.dart';
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // GoogleFonts.config.allowRuntimeFetching = false;
 
   group('Advanced Attendance Scenarios', () {
     testWidgets('Guest handling and Undo functionality', (tester) async {
-      // Set a consistent surface size for integration tests
-      await tester.binding.setSurfaceSize(const Size(1080, 1920));
-
       final tempDir = await Directory.systemTemp.createTemp('advanced_test_');
       final app = await createTestApp(tempDir);
 
