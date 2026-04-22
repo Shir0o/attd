@@ -105,13 +105,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       updatedAt: DateTime.now(),
     );
 
+    if (mounted) {
+      setState(() {
+        _currentSession = updatedSession;
+      });
+    }
+
     try {
       await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
-      if (mounted) {
-        setState(() {
-          _currentSession = updatedSession;
-        });
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

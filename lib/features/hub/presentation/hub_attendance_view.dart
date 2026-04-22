@@ -428,8 +428,34 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ? _members
                       .where((m) => event.memberIds.contains(m.id))
                       .toList()
-                  : _members;
+                  : <Member>[];
               debugPrint('DEBUG: HubAttendanceView.onTap: foundSession=${foundSession?.id}, membersCount=${sessionMembers.length}');
+
+              if (sessionMembers.isEmpty && foundSession == null) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Please add members to the event before starting attendance.',
+                      ),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MembersPage(
+                        event: event,
+                        attendanceRepository: widget.attendanceRepository,
+                        eventRepository: widget.eventRepository,
+                        disableAnimations: widget.disableAnimations,
+                      ),
+                    ),
+                  );
+                  _refreshData();
+                }
+                return;
+              }
 
               if (foundSession != null) {
                 final bool isIncomplete = foundSession.records.length < sessionMembers.length;
