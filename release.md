@@ -1,3 +1,11 @@
+# 1.2.3+20
+*   **Stability & Fixes**:
+    *   **⚡ Resolved Race Condition**: Fixed a critical race condition when saving sessions with a single member, ensuring data consistency during rapid updates.
+*   **Documentation & Branding**:
+    *   **Refined Project Documentation**: Extensively updated the project's documentation site with a cleaner, full-width layout using the Cayman theme.
+    *   **Privacy & Alignment**: Removed redundant GitHub repository links, license labels, and external buttons to better align with private repository standards.
+    *   **Cleanup**: Removed legacy screenshots and updated all internal links and timestamps for accuracy.
+
 # 1.2.2+19
 *   **UI & UX**:
     *   **Simplified Attendance Start**: Replaced the "Swipe to Start Attendance" slider with a more direct "START" button on event cards.
