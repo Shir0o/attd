@@ -4,14 +4,6 @@
 
 A modern, fast, and privacy-focused Flutter application for tracking attendance, managing member engagement, and syncing data seamlessly with Google Sheets and Drive.
 
-## 📱 Screenshots
-
-<div align="center">
-  <img src="screenshots/phone/05_hub_multiple_events.png" width="250" alt="Hub View" />
-  <img src="screenshots/phone/06_attendance_taking.png" width="250" alt="Taking Attendance" />
-  <img src="screenshots/phone/07_session_summary.png" width="250" alt="Session Summary" />
-</div>
-
 ## ✨ Features
 
 - **Hub Dashboard**: Quick overview of all events and recent attendance sessions.

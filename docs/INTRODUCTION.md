@@ -10,14 +10,6 @@ A high-level overview of the Attendance Tracker application, its core features, 
 
 Attendance Tracker is a modern, fast, and privacy-focused Flutter application designed for tracking attendance, managing member engagement, and syncing data seamlessly with Google Sheets and Drive.
 
-## 📱 Screenshots
-
-<div align="center">
-  <img src="./images/03_hub_with_data.png" width="250" alt="Hub View" />
-  <img src="./images/04_attendance_taking.png" width="250" alt="Taking Attendance" />
-  <img src="./images/05_session_summary.png" width="250" alt="Session Summary" />
-</div>
-
 ## ✨ Features
 
 - **Hub Dashboard**: Quick overview of all events and recent attendance sessions.
