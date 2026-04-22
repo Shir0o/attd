@@ -11,6 +11,7 @@ import '../../hub/data/event_repository.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
+import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
@@ -365,71 +366,14 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final recordByMemberId = <String, SessionRecord>{};
-    final recordByVisitorName = <String, SessionRecord>{};
-    for (final r in _currentSession.records) {
-      if (r.memberId != null) {
-        recordByMemberId[r.memberId!] = r;
-      } else {
-        recordByVisitorName[r.attendee] = r;
-      }
-    }
-
-    final Map<String, Member> displayMembersMap = {};
-    final excludedIds = _currentSession.excludedMemberIds.toSet();
-    
-    for (final m in widget.members) {
-      if (excludedIds.contains(m.id)) continue;
-      
-      final record = recordByMemberId[m.id] ?? recordByVisitorName[m.displayName];
-      if (record != null) {
-        displayMembersMap[m.id] = Member(
-          id: m.id,
-          displayName: record.attendee,
-          isVisitor: false,
-        );
-      } else {
-        displayMembersMap[m.id] = m;
-      }
-    }
-
-    final memberNames = widget.members.map((m) => m.displayName).toSet();
-    for (final record in _currentSession.records) {
-      if (record.memberId != null) {
-        if (!displayMembersMap.containsKey(record.memberId) && !excludedIds.contains(record.memberId)) {
-          displayMembersMap[record.memberId!] = Member(
-            id: record.memberId!,
-            displayName: record.attendee,
-            isVisitor: false,
-          );
-        }
-      } else {
-        if (!memberNames.contains(record.attendee)) {
-          final visitorId = 'visitor_${record.attendee}';
-          if (!displayMembersMap.containsKey(visitorId)) {
-            displayMembersMap[visitorId] = Member(
-              id: visitorId,
-              displayName: record.attendee,
-              isVisitor: true,
-            );
-          }
-        }
-      }
-    }
-
-    final allDisplayMembers = displayMembersMap.values.toList()
-      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    final roster = SessionRoster(_currentSession, widget.members);
+    final allDisplayMembers = roster.sortedMembers;
 
     final presentMembers = <Member>[];
     final absentMembers = <Member>[];
 
     for (final member in allDisplayMembers) {
-      AttendanceStatus status;
-      if (member.isVisitor) {
-        status = recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
-      } else {
-        status = recordByMemberId[member.id]?.status ?? recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
-      }
+      final status = roster.getStatus(member);
 
       if (status == AttendanceStatus.present) {
         presentMembers.add(member);

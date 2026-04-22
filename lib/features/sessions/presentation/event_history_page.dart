@@ -13,6 +13,7 @@ import '../../hub/data/event_repository.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/models/attendance_status.dart';
+import '../../attendance/utils/session_roster_utils.dart';
 import '../../settings/data/drive_service.dart';
 
 class EventHistoryPage extends StatefulWidget {
@@ -240,69 +241,14 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                       .toList()
                                   : _members;
 
-                              // Consistency fix: use the same deduplication logic as SessionSummaryPage
-                              final recordByMemberId = <String, SessionRecord>{};
-                              final recordByVisitorName = <String, SessionRecord>{};
-                              for (final r in session.records) {
-                                if (r.memberId != null) {
-                                  recordByMemberId[r.memberId!] = r;
-                                } else {
-                                  recordByVisitorName[r.attendee] = r;
-                                }
-                              }
-
-                              final Map<String, Member> displayMembersMap = {};
-                              final excludedIds = session.excludedMemberIds.toSet();
-                              final memberNames = filteredMembers.map((m) => m.displayName).toSet();
-
-                              for (final m in filteredMembers) {
-                                if (excludedIds.contains(m.id)) continue;
-                                
-                                final record = recordByMemberId[m.id] ?? recordByVisitorName[m.displayName];
-                                if (record != null) {
-                                  displayMembersMap[m.id] = Member(
-                                    id: m.id,
-                                    displayName: record.attendee,
-                                    isVisitor: false,
-                                  );
-                                } else {
-                                  displayMembersMap[m.id] = m;
-                                }
-                              }
-
-                              for (final record in session.records) {
-                                if (record.memberId != null) {
-                                  if (!displayMembersMap.containsKey(record.memberId) && !excludedIds.contains(record.memberId)) {
-                                    displayMembersMap[record.memberId!] = Member(
-                                      id: record.memberId!,
-                                      displayName: record.attendee,
-                                      isVisitor: false,
-                                    );
-                                  }
-                                } else {
-                                  if (!memberNames.contains(record.attendee)) {
-                                    final visitorId = 'visitor_${record.attendee}';
-                                    if (!displayMembersMap.containsKey(visitorId)) {
-                                      displayMembersMap[visitorId] = Member(
-                                        id: visitorId,
-                                        displayName: record.attendee,
-                                        isVisitor: true,
-                                      );
-                                    }
-                                  }
-                                }
-                              }
+                              // Consistency fix: use the shared SessionRoster logic
+                              final roster = SessionRoster(session, filteredMembers);
 
                               int totalPresent = 0;
                               int totalAbsent = 0;
 
-                              for (final member in displayMembersMap.values) {
-                                AttendanceStatus status;
-                                if (member.isVisitor) {
-                                  status = recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
-                                } else {
-                                  status = recordByMemberId[member.id]?.status ?? recordByVisitorName[member.displayName]?.status ?? AttendanceStatus.absent;
-                                }
+                              for (final member in roster.displayMembersMap.values) {
+                                final status = roster.getStatus(member);
 
                                 if (status == AttendanceStatus.present) {
                                   totalPresent++;
