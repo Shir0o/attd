@@ -4,9 +4,6 @@ title: Home
 description: Attendance Tracker - Fluid Humanist Design System & Documentation
 ---
 
-# 📊 Attendance Tracker
-**The official documentation and design system for the Attendance Tracker application.**
-
 Welcome to the documentation suite. This guide provides a comprehensive overview of the app's features, architecture, and development processes, all built around our signature "Fluid Humanist" design philosophy.
 
 ## 📚 Documentation Table of Contents

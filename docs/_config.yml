@@ -1,5 +1,5 @@
 title: Attendance Tracker
 description: Official documentation for the Attendance Tracker application.
-theme: jekyll-theme-minimal
-repository: Shir0o/attd
-show_downloads: true
+theme: jekyll-theme-cayman
+# Repository removed to prevent "View on GitHub" links for private repo
+# show_downloads removed to keep layout clean and professional
