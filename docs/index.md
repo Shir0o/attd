@@ -9,7 +9,7 @@ Welcome to the documentation suite. This guide provides a comprehensive overview
 ## 📚 Documentation Table of Contents
 
 ### 🚀 Getting Started
-- **[Introduction](./INTRODUCTION.md)**: High-level overview of the app, key features, and license.
+- **[Introduction](./INTRODUCTION.md)**: High-level overview of the app and key features.
 - **[User Guide](./USER_GUIDE.md)**: How to use the app, manage members, and track attendance.
 
 ### 🛠 Development & Architecture

@@ -1,7 +1,5 @@
 # Attendance Tracker
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 A modern, fast, and privacy-focused Flutter application for tracking attendance, managing member engagement, and syncing data seamlessly with Google Sheets and Drive.
 
 ## ✨ Features
@@ -54,6 +52,3 @@ flutter test
 - `lib/features/auth/`: Google OAuth configuration and services.
 - `integration_test/`: Comprehensive E2E system scenarios.
 
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
