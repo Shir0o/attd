@@ -28,4 +28,4 @@ Welcome to the documentation suite. This guide provides a comprehensive overview
 - **Shared Preferences & JSON Storage**: High-performance local persistence.
 
 ---
-*Last updated: March 30, 2026*
+*Last updated: April 22, 2026*
