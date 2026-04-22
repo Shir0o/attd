@@ -22,7 +22,7 @@
 
 // Hide the "View on GitHub" and download buttons
 .page-header .btn {
-  display: none;
+  display: none !important;
 }
 
 // Reduce top padding for main content
