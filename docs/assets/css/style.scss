@@ -1,0 +1,26 @@
+---
+---
+@import "{{ site.theme }}";
+
+// Slim down the bulky Cayman header
+.page-header {
+  padding: 1.5rem 2rem; // Reduced from default ~5rem
+  text-align: left;    // Align left for a more professional, less "landing page" feel
+}
+
+.project-name {
+  font-size: 2rem;     // Slightly smaller title
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+.project-tagline {
+  font-size: 1rem;     // Smaller tagline
+  margin-bottom: 0;
+  opacity: 0.8;
+}
+
+// Reduce top padding for main content
+.main-content {
+  padding-top: 2rem;
+}
