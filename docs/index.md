@@ -1,11 +1,18 @@
-# Attendance Tracker Documentation
+---
+layout: default
+title: Home
+description: Attendance Tracker - Fluid Humanist Design System & Documentation
+---
 
-Welcome to the official documentation for the Attendance Tracker application. This guide provides comprehensive information on the app's features, architecture, and development processes.
+# 📊 Attendance Tracker
+**The official documentation and design system for the Attendance Tracker application.**
+
+Welcome to the documentation suite. This guide provides a comprehensive overview of the app's features, architecture, and development processes, all built around our signature "Fluid Humanist" design philosophy.
 
 ## 📚 Documentation Table of Contents
 
 ### 🚀 Getting Started
-- **[Introduction](../README.md)**: High-level overview of the app, key features, and license.
+- **[Introduction](./INTRODUCTION.md)**: High-level overview of the app, key features, and license.
 - **[User Guide](./USER_GUIDE.md)**: How to use the app, manage members, and track attendance.
 
 ### 🛠 Development & Architecture
@@ -14,7 +21,7 @@ Welcome to the official documentation for the Attendance Tracker application. Th
 - **[Backup & Sync System](./BACKUP_SYNC.md)**: Detailed explanation of the Google Drive sync engine and merge logic.
 
 ### 🎨 Design & Privacy
-- **[Design System Specification](../DESIGN_SPEC.md)**: Details on the "Fluid Humanist" design system (colors, typography, etc.).
+- **[Design System Specification](./DESIGN_SPEC.md)**: Details on the "Fluid Humanist" design system (colors, typography, etc.).
 - **[Privacy Policy](./PRIVACY_POLICY.md)**: Information on data handling and user privacy.
 
 ## 🔧 Core Technologies

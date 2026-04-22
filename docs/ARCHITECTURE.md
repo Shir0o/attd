@@ -1,4 +1,9 @@
-# Architecture Documentation
+---
+layout: default
+title: Architecture
+---
+
+# 🏗 Architecture Documentation
 
 ## Overview
 This application follows a **Feature-Sliced Architecture** (FSA) pattern, tailored for Flutter. The goal is to keep the codebase modular, testable, and maintainable by grouping related logic, models, and UI components into cohesive feature directories.
@@ -52,4 +57,4 @@ The UI adheres to the **Fluid Humanist** design system.
 - **No-Line Rule**: Sectioning is achieved through background tonal shifts rather than 1px borders.
 - **Pill-Shape**: All buttons and interactive tracks are pill-shaped.
 - **Tonal Depth**: Hierarchy is defined by luminance changes between surface containers.
-- See `DESIGN_SPEC.md` for full design tokens and rules.
+- See [Design System Specification](./DESIGN_SPEC.md) for full design tokens and rules.

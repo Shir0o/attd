@@ -1,4 +1,9 @@
-# Development Guide
+---
+layout: default
+title: Development Guide
+---
+
+# 🛠 Development Guide
 
 ## Prerequisites
 - **Flutter SDK**: ^3.10.3 (Stable channel recommended)
@@ -28,41 +33,41 @@ This project uses `--dart-define` to inject Client IDs at build time.
 
 ```bash
 flutter run \
-  --dart-define=GOOGLE_ANDROID_CLIENT_ID=your_android_id.apps.googleusercontent.com \
-  --dart-define=GOOGLE_IOS_CLIENT_ID=your_ios_id.apps.googleusercontent.com \
-  --dart-define=GOOGLE_WEB_CLIENT_ID=your_web_id.apps.googleusercontent.com
+  --dart-define=GOOGLE_ANDROID_CLIENT_ID=your_android_client_id.apps.googleusercontent.com \
+  --dart-define=GOOGLE_IOS_CLIENT_ID=your_ios_client_id.apps.googleusercontent.com \
+  --dart-define=GOOGLE_WEB_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
 ```
 
-## Testing
+## Testing Strategy
 
-### Static Analysis
-Always run `flutter analyze` to ensure the codebase remains clean and follows Dart linting rules.
+### 1. Static Analysis
+Run the linter to ensure code style consistency:
+```bash
+flutter analyze
+```
 
-### Unit & Widget Tests
-Run the full suite of unit and widget tests located in the `test/` directory.
-
+### 2. Unit & Widget Tests
+Execute the primary test suite:
 ```bash
 flutter test
 ```
 
-### Integration Tests
-Integration tests are located in `integration_test/` and require a running emulator or physical device.
-
+### 3. Integration Tests
+Run comprehensive end-to-end scenarios (requires a running emulator or physical device):
 ```bash
 flutter test integration_test/app_test.dart
 ```
 
-### Mocks and Helpers
-- `test/helpers/mocks.dart`: Contains generated mocks using `mockito` for repositories and services.
-- `test/helpers/pump_app.dart`: Provides an extension to `WidgetTester` for pumping a localized and themed version of the app.
+### 4. Golden Screenshots
+Update the visual regression tests and generate screenshots for marketing:
+```bash
+flutter test --update-goldens test/store_screenshots_test.dart
+```
 
-## Code Standards
-- **Linter**: Follows rules defined in `analysis_options.yaml`.
-- **Formatting**: Always run `flutter format .` before committing changes.
-- **Documentation**: New features must include updates to the relevant `docs/` files.
-- **Testing**: Every bug fix or new feature must be accompanied by a corresponding test.
+## CI/CD Pipeline
+We use GitHub Actions for automated testing.
+- **Flutter Tests**: Runs `analyze` and `test` on every pull request.
+- **Robo Tests**: (Optional) Automated UI traversal on Firebase Test Lab.
 
-## CI/CD
-The project uses GitHub Actions for continuous integration.
-- **Workflow**: `.github/workflows/flutter-tests.yml`.
-- **Checks**: Automatically runs `flutter analyze` and `flutter test` on every pull request and push to the main branch.
+---
+*Refer to [Architecture](./ARCHITECTURE.md) for a deep dive into the code structure.*

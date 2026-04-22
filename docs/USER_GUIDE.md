@@ -1,4 +1,9 @@
-# User Guide
+---
+layout: default
+title: User Guide
+---
+
+# 📖 User Guide
 
 ## Introduction
 The Attendance Tracker is designed to make event management and member engagement tracking effortless. It prioritizes privacy by keeping all your data in your personal Google account.
