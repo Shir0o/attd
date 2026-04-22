@@ -57,15 +57,18 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       final sessions = await widget.sessionRepository.loadSessions();
 
       final totalMembersCount = families.expand((f) => f.members).length;
-      debugPrint('DEBUG: ManageBackupDataPage._loadData: events=${events.length}, members=$totalMembersCount, sessions=${sessions.length}');
+      debugPrint(
+        'DEBUG: ManageBackupDataPage._loadData: events=${events.length}, members=$totalMembersCount, sessions=${sessions.length}',
+      );
 
       final usageMap = <String, List<({String title, DateTime date})>>{};
       for (final session in sessions) {
         for (final record in session.records) {
           if (record.memberId != null) {
-            usageMap
-                .putIfAbsent(record.memberId!, () => [])
-                .add((title: session.title, date: session.sessionDate));
+            usageMap.putIfAbsent(record.memberId!, () => []).add((
+              title: session.title,
+              date: session.sessionDate,
+            ));
           }
         }
       }
@@ -129,17 +132,19 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
 
     try {
       // Delete selected events
-      for (final id in _eventsToDelete) {
-        await widget.eventRepository.deleteEvent(id);
-      }
+      await Future.wait(
+        _eventsToDelete.map((id) => widget.eventRepository.deleteEvent(id)),
+      );
 
       // Delete selected sessions
-      for (final id in _sessionsToDelete) {
-        await widget.sessionRepository.deleteSession(
-          id,
-          actor: 'ManageBackup Data',
-        );
-      }
+      await Future.wait(
+        _sessionsToDelete.map(
+          (id) => widget.sessionRepository.deleteSession(
+            id,
+            actor: 'ManageBackup Data',
+          ),
+        ),
+      );
 
       // Delete selected members
       if (_membersToDelete.isNotEmpty) {
@@ -564,8 +569,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                         return AlertDialog(
                           title: const Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded,
-                                  color: Colors.orange),
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.orange,
+                              ),
                               SizedBox(width: 12),
                               Text('Historical Data Alert'),
                             ],
@@ -592,13 +599,16 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                       ...linkedSessions.take(3).map((session) {
                                         return Padding(
                                           padding: const EdgeInsets.only(
-                                              bottom: 8),
+                                            bottom: 8,
+                                          ),
                                           child: Row(
                                             children: [
-                                              Icon(Icons.event_note,
-                                                  size: 16,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant),
+                                              Icon(
+                                                Icons.event_note,
+                                                size: 16,
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Column(
@@ -616,8 +626,9 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                                           ),
                                                     ),
                                                     Text(
-                                                      DateFormat('MMM d, yyyy')
-                                                          .format(session.date),
+                                                      DateFormat(
+                                                        'MMM d, yyyy',
+                                                      ).format(session.date),
                                                       style: Theme.of(context)
                                                           .textTheme
                                                           .labelSmall
@@ -652,9 +663,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                               const SizedBox(height: 12),
                               Text(
                                 'Deleting them from the roster will make them appear as a "Visitor" in those reports, but their data will NOT be deleted.',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: colorScheme.onSurfaceVariant,
                                     ),
