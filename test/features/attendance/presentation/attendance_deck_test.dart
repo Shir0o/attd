@@ -380,4 +380,73 @@ void main() {
       expect(find.text('Bob'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'One member session is saved correctly without race condition for cleanup',
+    (tester) async {
+      final mockRepo = MockSessionRepository();
+      final session = Session(
+        id: 'session-1',
+        title: 'One Member Event',
+        sessionDate: DateTime.now(),
+        records: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'test-user',
+      );
+      final members = [Member(id: '1', displayName: 'Only Member')];
+
+      Session? resultSession;
+      bool deleteCalled = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () async {
+                  // Simulate HubAttendanceView logic
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AttendanceDeckPage(
+                        session: session,
+                        members: members,
+                        sessionRepository: mockRepo,
+                        attendanceRepository: MockAttendanceRepository(),
+                        eventRepository: MockEventRepository(),
+                        disableAnimations: true,
+                      ),
+                    ),
+                  );
+
+                  // This mimics the cleanup logic in HubAttendanceView
+                  // resultSession will be null because pushReplacement was used
+                  resultSession = await mockRepo.findSessionById(session.id);
+                  if (resultSession != null && resultSession!.records.isEmpty) {
+                    deleteCalled = true;
+                    await mockRepo.deleteSession(session.id, actor: 'Cleanup');
+                  }
+                },
+                child: const Text('Start'),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Start'));
+      await tester.pumpAndSettle();
+
+      // Mark the only member as present
+      await tester.tap(find.byKey(const Key('presentButton')));
+      
+      // Wait for all async operations to finish. 
+      // With the fix, this should wait for saveSnapshot to complete before navigating back.
+      await tester.pumpAndSettle();
+
+      expect(deleteCalled, isFalse, reason: 'Session should not be deleted');
+      expect(resultSession?.records.length, 1);
+      expect(resultSession?.records.first.attendee, 'Only Member');
+    },
+  );
 }

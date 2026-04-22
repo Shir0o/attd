@@ -122,17 +122,19 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
-  void _processAttendance(AttendanceStatus status) {
+  Future<void> _processAttendance(AttendanceStatus status) async {
     final member = widget.members[_currentIndex];
-    _recordAttendance(member.id, member.displayName, status);
+    await _recordAttendance(member.id, member.displayName, status);
 
-    if (_currentIndex < widget.members.length - 1) {
-      setState(() {
-        _currentIndex++;
-      });
-    } else {
-      // Finished all members
-      _finishAndNavigate();
+    if (mounted) {
+      if (_currentIndex < widget.members.length - 1) {
+        setState(() {
+          _currentIndex++;
+        });
+      } else {
+        // Finished all members
+        _finishAndNavigate();
+      }
     }
   }
 
