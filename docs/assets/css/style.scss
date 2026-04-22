@@ -20,6 +20,11 @@
   opacity: 0.8;
 }
 
+// Hide the "View on GitHub" and download buttons
+.page-header .btn {
+  display: none;
+}
+
 // Reduce top padding for main content
 .main-content {
   padding-top: 2rem;
