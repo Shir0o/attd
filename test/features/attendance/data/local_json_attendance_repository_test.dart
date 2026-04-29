@@ -29,7 +29,7 @@ void main() {
         Family(
           id: 'f1',
           displayName: 'Alpha',
-          labels: const LabelAssignments(manualLabels: {watchlistLabel}),
+          labels: LabelAssignments(manualLabels: {watchlistLabel}),
           members: [
             Member(
               id: 'm1',

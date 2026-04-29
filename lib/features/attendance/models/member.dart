@@ -28,7 +28,7 @@ class Member {
     this.deletedAt,
   }) : displayName = displayName.trim(),
        canonicalName = (canonicalName ?? displayName).trim(),
-       labels = labels ?? const LabelAssignments(),
+       labels = labels ?? LabelAssignments.empty,
        updatedAt = updatedAt ?? DateTime.now();
 
   Member copyWith({
