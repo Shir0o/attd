@@ -1,3 +1,10 @@
+# 1.2.4+21
+*   **Bug Fixes**:
+    *   **Permanent Member Association**: Adding a person from the Session Summary or Speed Swipe page now associates them with the event, so they appear in future sessions and on the event's member list.
+    *   **Real Members vs. Visitors**: Typing a brand-new name with "Add as Guest" off now creates a real global member (instead of a phantom record); "Add as Guest" on still records a one-off visitor for that session only.
+    *   **Live Roster Updates**: Session Summary now reflects member changes from Manage Members immediately, without re-navigation.
+    *   **Speed Swipe Suggestions**: The add-person sheet on the swipe page now suggests from the full member roster, not only members already on the event.
+
 # 1.2.3+20
 *   **Stability & Fixes**:
     *   **⚡ Resolved Race Condition**: Fixed a critical race condition when saving sessions with a single member, ensuring data consistency during rapid updates.
