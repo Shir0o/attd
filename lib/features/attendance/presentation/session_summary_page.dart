@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_theme.dart';
 import '../../../../data/session.dart';
@@ -8,6 +9,7 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
+import '../../hub/domain/event.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
@@ -22,6 +24,7 @@ class SessionSummaryPage extends StatefulWidget {
     required this.sessionRepository,
     this.attendanceRepository,
     this.eventRepository,
+    this.event,
     this.driveService,
     this.disableAnimations = false,
   });
@@ -31,6 +34,7 @@ class SessionSummaryPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
+  final Event? event;
   final DriveService? driveService;
   final bool disableAnimations;
 
@@ -42,20 +46,25 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
   bool _isLoading = true;
   List<Member> _allMembers = [];
+  Event? _currentEvent;
   StreamSubscription? _membersSubscription;
+  StreamSubscription? _eventsSubscription;
 
   @override
   void initState() {
     super.initState();
     _currentSession = widget.session;
+    _currentEvent = widget.event;
     debugPrint('DEBUG: SessionSummaryPage.initState: session=${_currentSession.id}, title=${_currentSession.title}');
     _refreshLatest();
     _subscribeToMembers();
+    _subscribeToEvents();
   }
 
   @override
   void dispose() {
     _membersSubscription?.cancel();
+    _eventsSubscription?.cancel();
     super.dispose();
   }
 
@@ -67,6 +76,30 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         });
       }
     });
+  }
+
+  void _subscribeToEvents() {
+    final eventId = widget.event?.id;
+    final repo = widget.eventRepository;
+    if (eventId == null || repo == null) return;
+    _eventsSubscription = repo.streamEvents().listen((events) {
+      if (!mounted) return;
+      for (final e in events) {
+        if (e.id == eventId) {
+          setState(() => _currentEvent = e);
+          return;
+        }
+      }
+    });
+  }
+
+  List<Member> get _displayMembers {
+    final ev = _currentEvent;
+    if (ev != null && _allMembers.isNotEmpty) {
+      final ids = ev.memberIds.toSet();
+      return _allMembers.where((m) => ids.contains(m.id)).toList();
+    }
+    return widget.members;
   }
 
   @override
@@ -84,6 +117,71 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       _membersSubscription?.cancel();
       _subscribeToMembers();
     }
+
+    if (widget.eventRepository != oldWidget.eventRepository ||
+        widget.event?.id != oldWidget.event?.id) {
+      _eventsSubscription?.cancel();
+      _eventsSubscription = null;
+      _currentEvent = widget.event;
+      _subscribeToEvents();
+    }
+  }
+
+  Future<void> _ensureMemberInEvent(String memberId) async {
+    final ev = _currentEvent;
+    final repo = widget.eventRepository;
+    if (ev == null || repo == null) return;
+    if (ev.memberIds.contains(memberId)) return;
+
+    final updated = ev.copyWith(
+      memberIds: [...ev.memberIds, memberId],
+      updatedAt: DateTime.now(),
+    );
+    setState(() => _currentEvent = updated);
+    try {
+      await repo.updateEvent(updated);
+    } catch (e) {
+      debugPrint('Error adding member to event: $e');
+    }
+  }
+
+  Future<Member?> _createGlobalMember(String name) async {
+    final repo = widget.attendanceRepository;
+    if (repo == null) return null;
+    try {
+      final family = await repo.addFamily(name);
+      final member = Member(id: const Uuid().v4(), displayName: name);
+      await repo.addMember(family.id, member);
+      return member;
+    } catch (e) {
+      debugPrint('Error creating global member: $e');
+      return null;
+    }
+  }
+
+  Future<void> _addAttendee(
+    String name,
+    bool isPresent,
+    bool isGuest,
+    Member? existingMember,
+  ) async {
+    Member resolved;
+    if (existingMember != null) {
+      resolved = existingMember;
+      await _ensureMemberInEvent(existingMember.id);
+    } else if (!isGuest && name.trim().isNotEmpty) {
+      final trimmed = name.trim();
+      final created = await _createGlobalMember(trimmed);
+      if (created != null) {
+        resolved = created;
+        await _ensureMemberInEvent(created.id);
+      } else {
+        resolved = Member(id: '', displayName: trimmed, isVisitor: true);
+      }
+    } else {
+      resolved = Member(id: '', displayName: name, isVisitor: true);
+    }
+    await _toggleAttendance(resolved, isPresent);
   }
 
   Future<void> _refreshLatest() async {
@@ -131,9 +229,12 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   Future<void> _toggleAttendance(Member member, bool isPresent) async {
     final status = isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
-    
+
+    final memberIdForRecord =
+        (member.isVisitor || member.id.trim().isEmpty) ? null : member.id;
+
     final newRecord = SessionRecord(
-      memberId: member.id,
+      memberId: memberIdForRecord,
       attendee: member.displayName,
       status: status,
       recordedAt: DateTime.now(),
@@ -141,9 +242,11 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     );
 
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    updatedRecords.removeWhere((r) => 
-      (r.memberId == member.id) || 
-      (r.attendee == member.displayName && r.memberId == null)
+    updatedRecords.removeWhere((r) =>
+      (memberIdForRecord != null && r.memberId == memberIdForRecord) ||
+      (memberIdForRecord == null &&
+          r.memberId == null &&
+          r.attendee == member.displayName)
     );
     updatedRecords.add(newRecord);
 
@@ -351,10 +454,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       backgroundColor: Colors.transparent,
       builder: (context) => AddMemberSheet(
         onAdd: (name, isPresent, isGuest, existingMember) {
-          _toggleAttendance(
-            existingMember ?? Member(id: '', displayName: name, isVisitor: isGuest), 
-            isPresent,
-          );
+          _addAttendee(name, isPresent, isGuest, existingMember);
         },
         availableMembers: _allMembers,
       ),
@@ -366,7 +466,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final roster = SessionRoster(_currentSession, widget.members);
+    final roster = SessionRoster(_currentSession, _displayMembers);
     final allDisplayMembers = roster.sortedMembers;
 
     final presentMembers = <Member>[];

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/design/app_shimmer.dart';
 import '../../../../data/session.dart';
@@ -8,6 +10,7 @@ import '../models/attendance_status.dart';
 import '../models/member.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
+import '../../hub/domain/event.dart';
 import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
 import 'session_summary_page.dart';
@@ -21,6 +24,7 @@ class AttendanceDeckPage extends StatefulWidget {
     required this.sessionRepository,
     required this.attendanceRepository,
     required this.eventRepository,
+    this.event,
     this.driveService,
     this.disableAnimations = false,
   });
@@ -30,6 +34,7 @@ class AttendanceDeckPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
+  final Event? event;
   final DriveService? driveService;
   final bool disableAnimations;
 
@@ -41,17 +46,24 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   late Session _currentSession;
   late int _currentIndex;
   final List<Member> _remainingMembers = [];
+  List<Member> _allMembers = [];
+  Event? _currentEvent;
+  StreamSubscription? _membersSubscription;
+  StreamSubscription? _eventsSubscription;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _currentSession = widget.session;
+    _currentEvent = widget.event;
     debugPrint('DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
     debugPrint('DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
     _remainingMembers.addAll(widget.members);
     _currentIndex = 0;
+    _subscribeToMembers();
+    _subscribeToEvents();
 
     final recordedIds = _currentSession.records.map((r) => r.memberId).toSet();
     final recordedNames = _currentSession.records.map((r) => r.attendee).toSet();
@@ -76,6 +88,96 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         }
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _membersSubscription?.cancel();
+    _eventsSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToMembers() {
+    _membersSubscription = widget.attendanceRepository.streamFamilies().listen((families) {
+      if (!mounted) return;
+      setState(() {
+        _allMembers = families.expand((f) => f.members).toList();
+      });
+    });
+  }
+
+  void _subscribeToEvents() {
+    final eventId = widget.event?.id;
+    if (eventId == null) return;
+    _eventsSubscription = widget.eventRepository.streamEvents().listen((events) {
+      if (!mounted) return;
+      for (final e in events) {
+        if (e.id == eventId) {
+          setState(() => _currentEvent = e);
+          return;
+        }
+      }
+    });
+  }
+
+  Future<void> _ensureMemberInEvent(String memberId) async {
+    final ev = _currentEvent;
+    if (ev == null) return;
+    if (ev.memberIds.contains(memberId)) return;
+
+    final updated = ev.copyWith(
+      memberIds: [...ev.memberIds, memberId],
+      updatedAt: DateTime.now(),
+    );
+    setState(() => _currentEvent = updated);
+    try {
+      await widget.eventRepository.updateEvent(updated);
+    } catch (e) {
+      debugPrint('Error adding member to event: $e');
+    }
+  }
+
+  Future<Member?> _createGlobalMember(String name) async {
+    try {
+      final family = await widget.attendanceRepository.addFamily(name);
+      final member = Member(id: const Uuid().v4(), displayName: name);
+      await widget.attendanceRepository.addMember(family.id, member);
+      return member;
+    } catch (e) {
+      debugPrint('Error creating global member: $e');
+      return null;
+    }
+  }
+
+  Future<void> _addAttendee(
+    String name,
+    bool isPresent,
+    bool isGuest,
+    Member? existingMember,
+  ) async {
+    Member resolved;
+    if (existingMember != null) {
+      resolved = existingMember;
+      await _ensureMemberInEvent(existingMember.id);
+    } else if (!isGuest && name.trim().isNotEmpty) {
+      final trimmed = name.trim();
+      final created = await _createGlobalMember(trimmed);
+      if (created != null) {
+        resolved = created;
+        await _ensureMemberInEvent(created.id);
+      } else {
+        resolved = Member(id: '', displayName: trimmed, isVisitor: true);
+      }
+    } else {
+      resolved = Member(id: '', displayName: name, isVisitor: true);
+    }
+    final memberIdForRecord =
+        (resolved.isVisitor || resolved.id.trim().isEmpty) ? null : resolved.id;
+    await _recordAttendance(
+      memberIdForRecord,
+      resolved.displayName,
+      isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+    );
   }
 
   Future<void> _recordAttendance(
@@ -154,6 +256,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           members: widget.members,
           sessionRepository: widget.sessionRepository,
           attendanceRepository: widget.attendanceRepository,
+          eventRepository: widget.eventRepository,
+          event: _currentEvent ?? widget.event,
           disableAnimations: widget.disableAnimations,
         ),
       ),
@@ -167,13 +271,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       backgroundColor: Colors.transparent,
       builder: (context) => AddMemberSheet(
         onAdd: (name, isPresent, isGuest, existingMember) {
-          _recordAttendance(
-            existingMember?.id,
-            name,
-            isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
-          );
+          _addAttendee(name, isPresent, isGuest, existingMember);
         },
-        availableMembers: widget.members,
+        availableMembers:
+            _allMembers.isNotEmpty ? _allMembers : widget.members,
       ),
     );
   }

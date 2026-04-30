@@ -10,8 +10,9 @@ class SessionRoster {
 
   SessionRoster(Session session, List<Member> baseMembers) {
     for (final r in session.records) {
-      if (r.memberId != null) {
-        recordByMemberId[r.memberId!] = r;
+      final mid = r.memberId;
+      if (mid != null && mid.trim().isNotEmpty) {
+        recordByMemberId[mid] = r;
       } else {
         recordByVisitorName[r.attendee] = r;
       }
@@ -37,11 +38,13 @@ class SessionRoster {
 
     final memberNames = baseMembers.map((m) => m.displayName).toSet();
     for (final record in session.records) {
-      if (record.memberId != null) {
-        if (!displayMembersMap.containsKey(record.memberId) &&
-            !excludedIds.contains(record.memberId)) {
-          displayMembersMap[record.memberId!] = Member(
-            id: record.memberId!,
+      final mid = record.memberId;
+      final hasValidId = mid != null && mid.trim().isNotEmpty;
+      if (hasValidId) {
+        if (!displayMembersMap.containsKey(mid) &&
+            !excludedIds.contains(mid)) {
+          displayMembersMap[mid] = Member(
+            id: mid,
             displayName: record.attendee,
             isVisitor: false,
           );
@@ -66,6 +69,10 @@ class SessionRoster {
       return recordByVisitorName[member.displayName]?.status ??
           AttendanceStatus.absent;
     } else {
+      if (member.id.trim().isEmpty) {
+        return recordByVisitorName[member.displayName]?.status ??
+            AttendanceStatus.absent;
+      }
       return recordByMemberId[member.id]?.status ??
           recordByVisitorName[member.displayName]?.status ??
           AttendanceStatus.absent;

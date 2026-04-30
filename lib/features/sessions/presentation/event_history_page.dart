@@ -299,6 +299,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                     widget.attendanceRepository,
                                                 eventRepository:
                                                     widget.eventRepository,
+                                                event: widget.event,
                                                 driveService: widget.driveService,
                                                 disableAnimations: widget.disableAnimations,
                                               ),
@@ -496,6 +497,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 sessionRepository: widget.sessionRepository,
                 attendanceRepository: widget.attendanceRepository,
                 eventRepository: widget.eventRepository,
+                event: widget.event,
                 disableAnimations: widget.disableAnimations,
               ),
         ),

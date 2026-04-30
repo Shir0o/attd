@@ -9,6 +9,8 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -128,7 +130,70 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Stream<List<Family>> streamFamilies() {
-    return _controller.stream;
+    final c = StreamController<List<Family>>();
+    c.add(List<Family>.from(_families));
+    final sub = _controller.stream.listen(c.add);
+    c.onCancel = () => sub.cancel();
+    return c.stream;
+  }
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+}
+
+class MockEventRepository implements EventRepository {
+  final List<Event> _events = [];
+  final _controller = StreamController<List<Event>>.broadcast();
+  final List<Event> updateCalls = [];
+
+  void seed(Event event) {
+    _events.add(event);
+    _controller.add(List<Event>.from(_events));
+  }
+
+  @override
+  Future<void> createEvent(Event event) async {
+    _events.add(event);
+    _controller.add(List<Event>.from(_events));
+  }
+
+  @override
+  Future<void> updateEvent(Event event) async {
+    updateCalls.add(event);
+    final i = _events.indexWhere((e) => e.id == event.id);
+    if (i >= 0) {
+      _events[i] = event;
+    } else {
+      _events.add(event);
+    }
+    _controller.add(List<Event>.from(_events));
+  }
+
+  @override
+  Future<void> deleteEvent(String eventId) async {
+    _events.removeWhere((e) => e.id == eventId);
+    _controller.add(List<Event>.from(_events));
+  }
+
+  @override
+  Future<Event?> findEventById(String eventId) async {
+    try {
+      return _events.firstWhere((e) => e.id == eventId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Stream<List<Event>> streamEvents() {
+    final c = StreamController<List<Event>>();
+    c.add(List<Event>.from(_events));
+    final sub = _controller.stream.listen(c.add);
+    c.onCancel = () => sub.cancel();
+    return c.stream;
   }
 
   @override
@@ -605,5 +670,297 @@ void main() {
     expect(updatedSession?.records.length, 1);
     expect(updatedSession?.records.first.attendee, 'Charlie');
     expect(updatedSession?.records.first.status, AttendanceStatus.present);
+  });
+
+  testWidgets('SessionSummaryPage adding an existing global member appends them to event.memberIds', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final mockEventRepo = MockEventRepository();
+
+    final inEventMember = Member(id: '1', displayName: 'Alice');
+    final globalOnlyMember = Member(id: '2', displayName: 'Bob');
+    final family = Family(
+      id: 'f1',
+      displayName: 'Family',
+      members: [inEventMember, globalOnlyMember],
+    );
+    mockAttendanceRepo.setFamilies([family]);
+
+    final event = Event(
+      id: 'e1',
+      title: 'Test Session',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      memberIds: const ['1'],
+      createdAt: DateTime.now(),
+    );
+    mockEventRepo.seed(event);
+
+    final session = Session(
+      id: 's1',
+      eventId: 'e1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: const [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [inEventMember],
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+          event: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Bob');
+    await tester.pumpAndSettle();
+    // Tap suggestion
+    await tester.tap(find.text('Bob').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add Existing'));
+    await tester.pumpAndSettle();
+
+    // Event was updated with Bob's id appended
+    expect(mockEventRepo.updateCalls.length, 1);
+    expect(mockEventRepo.updateCalls.last.memberIds, containsAll(['1', '2']));
+
+    // Session got a record for Bob
+    final updatedSession = await mockRepo.findSessionById('s1');
+    expect(updatedSession!.records.any((r) => r.memberId == '2'), isTrue);
+
+    // Bob is in roster
+    expect(find.text('Bob'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage adding a new name with Guest off creates a real global member', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final mockEventRepo = MockEventRepository();
+
+    final inEventMember = Member(id: '1', displayName: 'Alice');
+    final family = Family(
+      id: 'f0',
+      displayName: 'Family',
+      members: [inEventMember],
+    );
+    mockAttendanceRepo.setFamilies([family]);
+
+    final event = Event(
+      id: 'e1',
+      title: 'Test Session',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      memberIds: const ['1'],
+      createdAt: DateTime.now(),
+    );
+    mockEventRepo.seed(event);
+
+    final session = Session(
+      id: 's1',
+      eventId: 'e1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: const [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [inEventMember],
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+          event: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Charlie');
+    await tester.tap(find.text('Add & Continue'));
+    await tester.pumpAndSettle();
+
+    // A new family was created and member added
+    final families = await mockAttendanceRepo.fetchFamilies();
+    final allMembers = families.expand((f) => f.members).toList();
+    final charlie = allMembers.firstWhere((m) => m.displayName == 'Charlie');
+    expect(charlie.isVisitor, isFalse);
+
+    // Event was updated to include Charlie
+    expect(mockEventRepo.updateCalls.length, 1);
+    expect(mockEventRepo.updateCalls.last.memberIds, contains(charlie.id));
+
+    // Session record uses the real id, not null
+    final updatedSession = await mockRepo.findSessionById('s1');
+    final charlieRecord =
+        updatedSession!.records.firstWhere((r) => r.attendee == 'Charlie');
+    expect(charlieRecord.memberId, equals(charlie.id));
+  });
+
+  testWidgets('SessionSummaryPage adding a new name with Guest ON keeps it as a visitor', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final mockEventRepo = MockEventRepository();
+
+    final inEventMember = Member(id: '1', displayName: 'Alice');
+    mockAttendanceRepo.setFamilies([
+      Family(id: 'f0', displayName: 'Family', members: [inEventMember]),
+    ]);
+
+    final event = Event(
+      id: 'e1',
+      title: 'Test Session',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      memberIds: const ['1'],
+      createdAt: DateTime.now(),
+    );
+    mockEventRepo.seed(event);
+
+    final session = Session(
+      id: 's1',
+      eventId: 'e1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: const [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [inEventMember],
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+          event: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Daria');
+    await tester.pumpAndSettle();
+    // Toggle "Add as Guest"
+    final guestRow = find
+        .ancestor(of: find.text('Add as Guest'), matching: find.byType(Row));
+    await tester.tap(find.descendant(of: guestRow, matching: find.byType(Switch)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add & Continue'));
+    await tester.pumpAndSettle();
+
+    // No new family/member added globally
+    final families = await mockAttendanceRepo.fetchFamilies();
+    final allMembers = families.expand((f) => f.members).toList();
+    expect(allMembers.any((m) => m.displayName == 'Daria'), isFalse);
+
+    // Event was NOT updated
+    expect(mockEventRepo.updateCalls, isEmpty);
+
+    // Record stored with null memberId
+    final updatedSession = await mockRepo.findSessionById('s1');
+    final dariaRecord =
+        updatedSession!.records.firstWhere((r) => r.attendee == 'Daria');
+    expect(dariaRecord.memberId, isNull);
+  });
+
+  testWidgets('SessionSummaryPage rebuilds roster when event.memberIds changes via stream', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final mockEventRepo = MockEventRepository();
+
+    final m1 = Member(id: '1', displayName: 'Alice');
+    final m2 = Member(id: '2', displayName: 'Bob');
+    mockAttendanceRepo.setFamilies([
+      Family(id: 'f', displayName: 'F', members: [m1, m2]),
+    ]);
+
+    final event = Event(
+      id: 'e1',
+      title: 'Test Session',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      memberIds: const ['1'],
+      createdAt: DateTime.now(),
+    );
+    mockEventRepo.seed(event);
+
+    final session = Session(
+      id: 's1',
+      eventId: 'e1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: const [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [m1],
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+          event: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bob'), findsNothing);
+
+    // Simulate manage-members adding Bob to the event externally
+    await mockEventRepo.updateEvent(
+      event.copyWith(memberIds: const ['1', '2']),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bob'), findsOneWidget);
   });
 }
