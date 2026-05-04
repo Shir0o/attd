@@ -6,7 +6,6 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 
 import '../../../../data/session.dart';
-import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../hub/data/event_repository.dart';

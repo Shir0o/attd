@@ -7,6 +7,10 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/logging/app_logger.dart';
+
+final _log = AppLogger('LocalBackup');
+
 class LocalBackupService {
   Future<void> createBackup() async {
     try {
@@ -39,13 +43,13 @@ class LocalBackupService {
         );
 
         if (result.status == ShareResultStatus.success) {
-           print('Backup shared successfully');
+          _log.info('Backup shared successfully');
         }
       } else {
         throw Exception('Backup file creation failed');
       }
-    } catch (e) {
-      print('Backup failed: $e');
+    } catch (e, st) {
+      _log.error('Backup failed', e, st);
       rethrow;
     }
   }
@@ -74,8 +78,8 @@ class LocalBackupService {
               }
             }
           }
-        } catch (e) {
-          print('Error loading families for export: $e');
+        } catch (e, st) {
+          _log.warning('Error loading families for export', e, st);
         }
       }
 
@@ -118,8 +122,8 @@ class LocalBackupService {
         text: 'Attendance Data Export (CSV)',
       );
 
-    } catch (e) {
-      print('Export failed: $e');
+    } catch (e, st) {
+      _log.error('Export failed', e, st);
       rethrow;
     }
   }

@@ -8,6 +8,10 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/logging/app_logger.dart';
+
+final _log = AppLogger('GoogleSheets');
+
 class GoogleSheetsService {
   static const String _lastSheetsSyncKey = 'last_sheets_sync_time';
 
@@ -21,7 +25,7 @@ class GoogleSheetsService {
 
       final payload = await _buildPayload(lastSync);
       if (payload == null) {
-        print('No new records to sync to Google Sheets');
+        _log.info('No new records to sync to Google Sheets');
         return;
       }
 
@@ -35,11 +39,11 @@ class GoogleSheetsService {
         await prefs.setString(_lastSheetsSyncKey, DateTime.now().toIso8601String());
       }
 
-      print(
+      _log.info(
         'Google Sheets sync response: ${response.statusCode} ${response.body}',
       );
-    } catch (e) {
-      print('Google Sheets sync failed: $e');
+    } catch (e, st) {
+      _log.error('Google Sheets sync failed', e, st);
       rethrow;
     }
   }
@@ -66,8 +70,8 @@ class GoogleSheetsService {
             }
           }
         }
-      } catch (e) {
-        print('Error loading families for Google Sheets sync: $e');
+      } catch (e, st) {
+        _log.warning('Error loading families for Google Sheets sync', e, st);
       }
     }
 

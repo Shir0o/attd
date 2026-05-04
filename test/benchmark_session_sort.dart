@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:attendance_tracker/data/session.dart';
-import 'package:attendance_tracker/data/session_record.dart';
 import 'dart:io';
 
 class Benchmark {
@@ -28,7 +27,7 @@ class Benchmark {
       // loadSessions with many sessions in file.
 
       final file = File('${tempDir.path}/sessions.json');
-      final jsonContent = '[' + sessions.map((s) => '{"id":"${s.id}","title":"${s.title}","sessionDate":"${s.sessionDate.toIso8601String()}","records":[],"createdAt":"${s.createdAt.toIso8601String()}","updatedAt":"${s.updatedAt.toIso8601String()}","createdBy":"benchmark","currentVersion":1}').join(',') + ']';
+      final jsonContent = '[${sessions.map((s) => '{"id":"${s.id}","title":"${s.title}","sessionDate":"${s.sessionDate.toIso8601String()}","records":[],"createdAt":"${s.createdAt.toIso8601String()}","updatedAt":"${s.updatedAt.toIso8601String()}","createdBy":"benchmark","currentVersion":1}').join(',')}]';
       await file.writeAsString(jsonContent);
 
       await repository.loadSessions(); // Warm up and load into cache

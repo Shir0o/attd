@@ -2,8 +2,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:attendance_tracker/core/design/app_shimmer.dart';
 
 import 'utils/test_utils.dart';
 import 'robots/hub_robot.dart';

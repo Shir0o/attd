@@ -1,9 +1,12 @@
 import 'package:flutter/widgets.dart';
 
+import '../../../core/logging/app_logger.dart';
 import '../domain/entities/credentials.dart';
 import '../domain/entities/user.dart';
 import '../domain/repositories/auth_repository.dart';
 import 'google_auth_service.dart';
+
+final _log = AppLogger('AuthController');
 
 class AuthState {
   const AuthState({this.user, this.isLoading = false, this.errorMessage});
@@ -79,8 +82,7 @@ class AuthController extends ChangeNotifier {
         AuthState(user: null, isLoading: false, errorMessage: error.message),
       );
     } catch (error, stackTrace) {
-      print('AuthController Google Sign-In Error: $error');
-      print(stackTrace);
+      _log.error('Google Sign-In failed', error, stackTrace);
       _setState(
         const AuthState(
           user: null,
@@ -108,7 +110,9 @@ class AuthController extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       await googleAuthService?.signOut();
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      _log.warning('Google sign-out failed', error, stackTrace);
+    }
     await repository.logout();
     _setState(const AuthState());
   }
