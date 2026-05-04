@@ -4,8 +4,11 @@ import 'dart:async';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/logging/app_logger.dart';
 import '../domain/event.dart';
 import 'event_repository.dart';
+
+final _log = AppLogger('EventRepository');
 
 class LocalJsonEventRepository implements EventRepository {
   LocalJsonEventRepository({this.storagePath});
@@ -37,8 +40,8 @@ class LocalJsonEventRepository implements EventRepository {
       if (content.isEmpty) return [];
       final List<dynamic> jsonList = jsonDecode(content);
       return jsonList.map((e) => Event.fromJson(e)).toList();
-    } catch (e) {
-      print('Error loading raw events: $e');
+    } catch (e, st) {
+      _log.error('Error loading raw events', e, st);
       return [];
     }
   }
@@ -100,8 +103,8 @@ class LocalJsonEventRepository implements EventRepository {
 
       // 3. Move temp to current (Atomic rename)
       await tempFile.rename(file.path);
-    } catch (e) {
-      print('Error during events save: $e');
+    } catch (e, st) {
+      _log.error('Error during events save', e, st);
       // Restore from backup if possible
       if (await backupFile.exists() && !await file.exists()) {
         await backupFile.copy(file.path);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../../data/session_repository.dart';
@@ -8,6 +9,8 @@ import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../hub/domain/event.dart';
 import '../../../data/session.dart';
+
+final _log = AppLogger('ManageBackup');
 
 class ManageBackupDataPage extends StatefulWidget {
   const ManageBackupDataPage({
@@ -98,8 +101,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           _sessionsToDelete.clear();
         });
       }
-    } catch (e) {
-      print('Failed to load backup data: $e');
+    } catch (e, st) {
+      _log.error('Failed to load backup data', e, st);
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -164,8 +167,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       if (mounted) {
         Navigator.pop(context);
       }
-    } catch (e) {
-      print('Failed to save cleaned backup: $e');
+    } catch (e, st) {
+      _log.error('Failed to save cleaned backup', e, st);
       messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
       setState(() => _isLoading = false);
       _loadData(); // reload on error

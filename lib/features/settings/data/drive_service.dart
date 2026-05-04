@@ -13,8 +13,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../data/session_repository.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
+
+final _log = AppLogger('DriveService');
 
 class SyncStats {
   int newSessions = 0;
@@ -77,7 +80,9 @@ class DriveService extends ChangeNotifier {
     await prefs.setBool(_syncEnabledKey, enabled);
     notifyListeners();
     if (enabled) {
-      syncFiles().catchError((e) => print('Sync failed after enabling: $e'));
+      syncFiles().catchError(
+        (e) => _log.error('Sync failed after enabling', e as Object),
+      );
     }
   }
 
@@ -93,7 +98,9 @@ class DriveService extends ChangeNotifier {
       await signInSilently();
       if (currentUser != null) {
         // Only trigger sync if we successfully signed in
-        syncFiles().catchError((e) => print('Initial sync failed: $e'));
+        syncFiles().catchError(
+          (e) => _log.error('Initial sync failed', e as Object),
+        );
       }
     }
   }
@@ -101,7 +108,9 @@ class DriveService extends ChangeNotifier {
   Future<void> _checkIntegrity() async {
     try {
       if (Platform.isAndroid && yourGoogleProjectNumber == 0) {
-        print('CRITICAL: GOOGLE_CLOUD_PROJECT_NUMBER is not set. Play Integrity API will fail.');
+        _log.warning(
+          'GOOGLE_CLOUD_PROJECT_NUMBER not set; Play Integrity API will fail.',
+        );
         return; // Fail gracefully
       }
       final String nonce = base64Url.encode(
@@ -116,9 +125,9 @@ class DriveService extends ChangeNotifier {
       } else if (Platform.isIOS) {
         await plugin.verify(clientData: nonce);
       }
-      print('App Integrity check passed.');
-    } catch (e) {
-      print('App Integrity check failed: $e');
+      _log.info('App Integrity check passed.');
+    } catch (e, st) {
+      _log.warning('App Integrity check failed', e, st);
     }
   }
 
@@ -131,8 +140,8 @@ class DriveService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_syncEnabledKey, true);
       notifyListeners();
-    } catch (e) {
-      print('Sign in failed: $e');
+    } catch (e, st) {
+      _log.warning('Sign in failed', e, st);
       rethrow;
     }
   }
@@ -145,7 +154,7 @@ class DriveService extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('Silent sign in failed: $e');
+      _log.info('Silent sign in failed: $e');
     }
   }
 
@@ -260,10 +269,10 @@ class DriveService extends ChangeNotifier {
           if (localFile.existsSync()) {
             final remoteFile = remoteFiles[fileName];
             if (remoteFile != null) {
-              print('Overwriting remote $fileName...');
+              _log.info('Overwriting remote $fileName...');
               await _updateFile(remoteFile.id!, localFile);
             } else {
-              print('Uploading new remote $fileName...');
+              _log.info('Uploading new remote $fileName...');
               await _uploadFile(localFile, fileName, folderId);
             }
           }
@@ -308,7 +317,7 @@ class DriveService extends ChangeNotifier {
           final remoteFile = remoteFiles[fileName];
           if (remoteFile != null) {
             final localFile = File(p.join(docsDir.path, fileName));
-            print('Overwriting local $fileName...');
+            _log.info('Overwriting local $fileName...');
             await _downloadFile(remoteFile.id!, localFile);
           }
         }),
@@ -375,15 +384,15 @@ class DriveService extends ChangeNotifier {
 
           if (!localFile.existsSync() && remoteFile != null) {
             // Remote exists, local doesn't -> Download
-            print('Downloading $fileName...');
+            _log.info('Downloading $fileName...');
             await _downloadFile(remoteFile.id!, localFile);
           } else if (localFile.existsSync() && remoteFile == null) {
             // Local exists, remote doesn't -> Upload
-            print('Uploading $fileName...');
+            _log.info('Uploading $fileName...');
             await _uploadFile(localFile, fileName, folderId);
           } else if (localFile.existsSync() && remoteFile != null) {
             // Both exist -> MERGE data
-            print('Merging $fileName...');
+            _log.info('Merging $fileName...');
             await _mergeAndSyncFile(
               remoteFile.id!,
               localFile,
@@ -418,16 +427,19 @@ class DriveService extends ChangeNotifier {
       if (e.status == 403 &&
           e.message != null &&
           e.message!.contains('Google Drive API has not been used')) {
-        print('Sync failed: Google Drive API is not enabled.');
+        _log.warning('Sync failed: Google Drive API is not enabled.');
         throw Exception(
           'Google Drive API is disabled. Enable it here: '
           'https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=$yourGoogleProjectNumber',
         );
       }
-      print('Sync failed: DetailedApiRequestError(${e.status}, ${e.message})');
+      _log.error(
+        'Sync failed (DetailedApiRequestError ${e.status}: ${e.message})',
+        e,
+      );
       rethrow;
-    } catch (e) {
-      print('Sync failed: $e');
+    } catch (e, st) {
+      _log.error('Sync failed', e, st);
       rethrow;
     } finally {
       _isSyncing = false;
@@ -482,8 +494,8 @@ class DriveService extends ChangeNotifier {
 
       // Cleanup local ZIP
       await backupFile.delete();
-    } catch (e) {
-      print('Failed to create cloud backup: $e');
+    } catch (e, st) {
+      _log.error('Failed to create cloud backup', e, st);
     }
   }
 
@@ -556,8 +568,8 @@ class DriveService extends ChangeNotifier {
               // Fallback to overwrite if merge fails or types mismatch
               await localFile.writeAsBytes(data);
             }
-          } catch (e) {
-            print('Merge failed for $filename during restore: $e');
+          } catch (e, st) {
+            _log.warning('Merge failed for $filename during restore', e, st);
             await localFile.writeAsBytes(data);
           }
         } else {
@@ -621,9 +633,9 @@ class DriveService extends ChangeNotifier {
       duplicatesToTrash.map((id) async {
         try {
           await _driveApi!.files.update(drive.File()..trashed = true, id);
-          print('Trashed duplicate remote file: $id');
-        } catch (e) {
-          print('Failed to trash duplicate: $e');
+          _log.info('Trashed duplicate remote file: $id');
+        } catch (e, st) {
+          _log.warning('Failed to trash duplicate', e, st);
         }
       }),
     );
@@ -735,19 +747,23 @@ class DriveService extends ChangeNotifier {
         // but here we just fallback to time-based.
         await _timeBasedSync(fileId, localFile, folderId, fileName);
       }
-    } catch (e) {
-      print('Sync integrity check failed for $fileName: $e');
+    } catch (e, st) {
+      _log.warning('Sync integrity check failed for $fileName', e, st);
       // HEALING PATH:
       // If remote is corrupted (Format/Decode error), force upload local to "heal" cloud.
       // Only do this if local is healthy.
       try {
         final localCheck = jsonDecode(localContent);
         if (localCheck is List || localCheck is Map) {
-          print('Local data is healthy. Healing cloud with local copy.');
+          _log.info('Local data is healthy. Healing cloud with local copy.');
           await _updateFile(fileId, localFile);
         }
-      } catch (localError) {
-        print('Both local and remote corrupted. Manual restore required.');
+      } catch (localError, localStack) {
+        _log.error(
+          'Both local and remote corrupted. Manual restore required.',
+          localError,
+          localStack,
+        );
       }
     }
   }

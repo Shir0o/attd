@@ -2,6 +2,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/session_repository.dart';
 import '../../features/attendance/data/attendance_repository.dart';
 import '../../features/hub/data/event_repository.dart';
+import '../logging/app_logger.dart';
+
+final _log = AppLogger('DataMaintenance');
 
 class DataMaintenanceService {
   DataMaintenanceService({
@@ -40,9 +43,9 @@ class DataMaintenanceService {
         eventRepository.pruneSoftDeleted(threshold),
         sessionRepository.pruneSoftDeleted(threshold),
       ]);
-      print('Data maintenance: Pruning completed successfully.');
-    } catch (e) {
-      print('Data maintenance: Error during pruning: $e');
+      _log.info('Pruning completed successfully.');
+    } catch (e, st) {
+      _log.error('Error during pruning', e, st);
     }
   }
 }

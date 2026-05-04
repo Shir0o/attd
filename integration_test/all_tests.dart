@@ -1,5 +1,4 @@
 import 'package:integration_test/integration_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'advanced_attendance_scenarios_test.dart' as advanced_attendance;
 import 'app_test.dart' as app;

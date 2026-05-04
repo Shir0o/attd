@@ -1,7 +1,10 @@
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../core/logging/app_logger.dart';
 import '../application/google_auth_service.dart';
 import '../domain/entities/google_account.dart';
+
+final _log = AppLogger('GoogleSignIn');
 
 class GoogleSignInAuthService implements GoogleAuthService {
   GoogleSignInAuthService({required GoogleSignIn googleSignIn})
@@ -30,8 +33,7 @@ class GoogleSignInAuthService implements GoogleAuthService {
       );
       return _currentUser;
     } catch (error, stackTrace) {
-      print('Google Sign-In Error: $error');
-      print(stackTrace);
+      _log.warning('Google Sign-In Error', error, stackTrace);
       rethrow;
     }
   }

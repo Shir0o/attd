@@ -15,7 +15,6 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
@@ -40,7 +39,7 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   // Mock GoogleSignIn for DriveService to avoid native hangs
   final googleSignIn = MockGoogleSignIn();
   when(() => googleSignIn.signInSilently()).thenAnswer((_) async => null);
-  when(() => googleSignIn.signOut()).thenAnswer((_) async {});
+  when(() => googleSignIn.signOut()).thenAnswer((_) async => null);
 
   final driveService = DriveService(
     googleSignIn: googleSignIn,
