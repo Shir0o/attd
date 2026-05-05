@@ -47,8 +47,9 @@ Future<void> main() async {
     return true;
   };
 
-  // Initialize exactly once before use
-  final googleSignIn = GoogleSignIn(
+  // Initialize the GoogleSignIn singleton exactly once before use.
+  // v7 API: GoogleSignIn.instance.initialize(...) replaces the v6 constructor.
+  await GoogleSignIn.instance.initialize(
     serverClientId: GoogleOAuthConfig.webServerClientId,
   );
 
@@ -60,14 +61,13 @@ Future<void> main() async {
   final eventRepository = LocalJsonEventRepository();
 
   final driveService = DriveService(
-    googleSignIn: googleSignIn,
     attendanceRepository: attendanceRepository,
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,
   );
 
   final localBackupService = LocalBackupService();
-  final googleAuthService = GoogleSignInAuthService(googleSignIn: googleSignIn);
+  final googleAuthService = GoogleSignInAuthService();
 
   runApp(
     AttendanceApp(

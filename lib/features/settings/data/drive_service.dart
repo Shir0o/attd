@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -37,16 +38,27 @@ class SyncStats {
 
 class DriveService extends ChangeNotifier {
   DriveService({
-    required GoogleSignIn googleSignIn,
+    GoogleSignIn? googleSignIn,
     this.sessionRepository,
     this.attendanceRepository,
     this.eventRepository,
-  }) : _googleSignIn = googleSignIn;
+  }) : _googleSignIn = googleSignIn ?? GoogleSignIn.instance {
+    // v7: Track current user via the authenticationEvents stream rather
+    // than the removed `currentUser` getter.
+    _authSubscription = _googleSignIn.authenticationEvents.listen(
+      _handleAuthEvent,
+      onError: (Object e) => print('Auth event error: $e'),
+    );
+  }
 
   final GoogleSignIn _googleSignIn;
   final SessionRepository? sessionRepository;
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
+
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
+  GoogleSignInAccount? _currentUser;
+  GoogleSignInClientAuthorization? _authorization;
 
   drive.DriveApi? _driveApi;
   DateTime? _lastSyncTime;
@@ -54,6 +66,11 @@ class DriveService extends ChangeNotifier {
   String? _appFolderId;
   String? _backupFolderId;
   bool _isDriveSyncEnabled = false;
+
+  // Drive scope used for app-managed files. driveFileScope is the most
+  // privacy-preserving option that still allows full create/read/write
+  // on files this app creates.
+  static const List<String> _driveScopes = <String>[drive.DriveApi.driveFileScope];
 
   static const String _syncFolderName = 'Attendance Tracker Data';
   static const String _backupFolderName = 'Backups';
@@ -68,8 +85,26 @@ class DriveService extends ChangeNotifier {
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
-  GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;
+  GoogleSignInAccount? get currentUser => _currentUser;
   bool get isDriveSyncEnabled => _isDriveSyncEnabled;
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _handleAuthEvent(GoogleSignInAuthenticationEvent event) {
+    switch (event) {
+      case GoogleSignInAuthenticationEventSignIn():
+        _currentUser = event.user;
+      case GoogleSignInAuthenticationEventSignOut():
+        _currentUser = null;
+        _authorization = null;
+        _driveApi = null;
+    }
+    notifyListeners();
+  }
 
   Future<void> setDriveSyncEnabled(bool enabled) async {
     _isDriveSyncEnabled = enabled;
@@ -125,7 +160,17 @@ class DriveService extends ChangeNotifier {
   Future<void> signIn() async {
     try {
       await _checkIntegrity();
-      await _googleSignIn.signIn();
+      if (!_googleSignIn.supportsAuthenticate()) {
+        throw UnsupportedError(
+          'Interactive Google Sign-In is not supported on this platform.',
+        );
+      }
+      // v7: authenticate() handles authentication only. The returned
+      // account is also delivered via the authenticationEvents stream
+      // which updates _currentUser through _handleAuthEvent.
+      final account = await _googleSignIn.authenticate();
+      _currentUser = account;
+      await _ensureAuthorization(account);
       await _initDriveApi();
       _isDriveSyncEnabled = true;
       final prefs = await SharedPreferences.getInstance();
@@ -139,9 +184,19 @@ class DriveService extends ChangeNotifier {
 
   Future<void> signInSilently() async {
     try {
-      await _googleSignIn.signInSilently();
-      if (_googleSignIn.currentUser != null) {
-        await _initDriveApi();
+      // v7: attemptLightweightAuthentication replaces signInSilently.
+      // It can return null synchronously on some platforms (hence the ?).
+      final result = _googleSignIn.attemptLightweightAuthentication();
+      final account = result == null ? null : await result;
+      if (account != null) {
+        _currentUser = account;
+        // Silent path: only use cached authorization. Do NOT call
+        // authorizeScopes(), which would prompt for consent.
+        _authorization = await account.authorizationClient
+            .authorizationForScopes(_driveScopes);
+        if (_authorization != null) {
+          await _initDriveApi();
+        }
       }
       notifyListeners();
     } catch (e) {
@@ -151,6 +206,8 @@ class DriveService extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _googleSignIn.signOut();
+    _currentUser = null;
+    _authorization = null;
     _driveApi = null;
     _appFolderId = null;
     _backupFolderId = null;
@@ -162,6 +219,15 @@ class DriveService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ensures we hold a valid [GoogleSignInClientAuthorization] for the
+  /// Drive scopes, requesting interactive consent only if needed.
+  Future<void> _ensureAuthorization(GoogleSignInAccount account) async {
+    var auth = await account.authorizationClient
+        .authorizationForScopes(_driveScopes);
+    auth ??= await account.authorizationClient.authorizeScopes(_driveScopes);
+    _authorization = auth;
+  }
+
   Future<void> _saveLastSyncTime(DateTime time) async {
     _lastSyncTime = time;
     final prefs = await SharedPreferences.getInstance();
@@ -170,10 +236,16 @@ class DriveService extends ChangeNotifier {
 
   Future<void> _initDriveApi() async {
     if (_driveApi != null) return;
-    final client = await _googleSignIn.authenticatedClient();
-    if (client != null) {
-      _driveApi = drive.DriveApi(client);
+    if (_authorization == null) {
+      // Caller is expected to have called _ensureAuthorization first; if
+      // not, no-op rather than crashing — sync paths re-check _driveApi.
+      return;
     }
+    // v3 of extension_google_sign_in_as_googleapis_auth: authClient now
+    // hangs off GoogleSignInClientAuthorization and requires the same
+    // scopes that were authorized.
+    final client = _authorization!.authClient(scopes: _driveScopes);
+    _driveApi = drive.DriveApi(client);
   }
 
   Future<String> _getOrCreateAppFolder() async {
@@ -340,7 +412,10 @@ class DriveService extends ChangeNotifier {
 
       if (_driveApi == null) {
         // Try to initialize silently if signed in
-        if (_googleSignIn.currentUser != null) {
+        if (_currentUser != null) {
+          if (_authorization == null) {
+            await _ensureAuthorization(_currentUser!);
+          }
           await _initDriveApi();
         } else {
           // Attempt silent sign in
