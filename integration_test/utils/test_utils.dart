@@ -15,7 +15,6 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 

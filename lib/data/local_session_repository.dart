@@ -5,10 +5,13 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/logging/app_logger.dart';
 import 'session.dart';
 import 'session_repository.dart';
 import 'session_version.dart';
 import 'session_record.dart';
+
+final _log = AppLogger('SessionRepository');
 
 class LocalJsonSessionRepository implements SessionRepository {
   LocalJsonSessionRepository({this.storagePath}) {
@@ -79,8 +82,8 @@ class LocalJsonSessionRepository implements SessionRepository {
 
       // 3. Move temp to current (Atomic rename)
       await tempFile.rename(file.path);
-    } catch (e) {
-      print('Error during atomic save: $e');
+    } catch (e, st) {
+      _log.error('Error during atomic save', e, st);
       // If we failed, try to restore current from backup if possible
       if (await backupFile.exists() && !await file.exists()) {
         await backupFile.copy(file.path);
@@ -122,8 +125,8 @@ class LocalJsonSessionRepository implements SessionRepository {
               .toList();
         }
       });
-    } catch (e) {
-      print('Error loading history: $e');
+    } catch (e, st) {
+      _log.error('Error loading history', e, st);
     }
   }
 
@@ -218,8 +221,8 @@ class LocalJsonSessionRepository implements SessionRepository {
       if (content.isEmpty) return [];
       final List<dynamic> jsonList = jsonDecode(content);
       return jsonList.map((e) => Session.fromJson(e)).toList();
-    } catch (e) {
-      print('Error loading raw sessions: $e');
+    } catch (e, st) {
+      _log.error('Error loading raw sessions', e, st);
       return [];
     }
   }

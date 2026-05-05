@@ -5,8 +5,11 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/logging/app_logger.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+
+final _log = AppLogger('AttendanceRepository');
 
 abstract class AttendanceRepository {
   Future<List<Family>> fetchFamilies();
@@ -62,8 +65,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
           .toList();
       _allFamilies = families;
       return List<Family>.from(families);
-    } catch (e) {
-      print('Error loading raw families: $e');
+    } catch (e, st) {
+      _log.error('Error loading raw families', e, st);
       return [];
     }
   }
@@ -135,8 +138,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
       // 3. Move temp to current (Atomic rename)
       await tempFile.rename(file.path);
-    } catch (e) {
-      print('Error during attendance save: $e');
+    } catch (e, st) {
+      _log.error('Error during attendance save', e, st);
       // Restore from backup if possible
       if (await backupFile.exists() && !await file.exists()) {
         await backupFile.copy(file.path);

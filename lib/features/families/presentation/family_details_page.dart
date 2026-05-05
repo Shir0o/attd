@@ -1,6 +1,5 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/family.dart';
@@ -34,7 +33,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
     if (name == null) return;
 
     final member = Member(
-      id: 'member-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000)}',
+      id: 'member-${const Uuid().v4()}',
       displayName: name,
       isVisitor: false,
       defaultStatus: AttendanceStatus.absent,

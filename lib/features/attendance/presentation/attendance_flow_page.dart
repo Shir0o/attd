@@ -1,7 +1,6 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 
 import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
@@ -56,7 +55,7 @@ class _AttendanceFlowPageState extends State<AttendanceFlowPage> {
     if (name == null) return;
 
     final visitor = Member(
-      id: 'visitor-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000)}',
+      id: 'visitor-${const Uuid().v4()}',
       displayName: name,
       isVisitor: true,
       defaultStatus: AttendanceStatus.present,
