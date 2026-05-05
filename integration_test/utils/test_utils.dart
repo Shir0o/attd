@@ -18,7 +18,8 @@ import 'package:mocktail/mocktail.dart';
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
-Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true}) async {
+Future<Widget> createTestApp(Directory tempDir,
+    {bool disableAnimations = true}) async {
   // Disable runtime fetching for Google Fonts in integration tests to avoid network errors
   // GoogleFonts.config.allowRuntimeFetching = false;
 
@@ -32,8 +33,10 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   final onboardingController = OnboardingController(prefs);
 
   // Initialize Repositories with custom storage path
-  final attendanceRepository = LocalJsonAttendanceRepository(storagePath: '$storagePath/families.json');
-  final sessionRepository = LocalJsonSessionRepository(storagePath: storagePath);
+  final attendanceRepository =
+      LocalJsonAttendanceRepository(storagePath: '$storagePath/families.json');
+  final sessionRepository =
+      LocalJsonSessionRepository(storagePath: storagePath);
   final eventRepository = LocalJsonEventRepository(storagePath: storagePath);
 
   // Mock GoogleSignIn for DriveService to avoid native hangs.
@@ -68,10 +71,13 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   );
 }
 
-Future<void> setupScreenshots(IntegrationTestWidgetsFlutterBinding binding) async {
+Future<void> setupScreenshots(
+    IntegrationTestWidgetsFlutterBinding binding) async {
   try {
-    if (Platform.isAndroid || Platform.isIOS) {
-      // Any specific setup for mobile screenshots
+    if (Platform.isAndroid) {
+      await binding.convertFlutterSurfaceToImage();
+    } else if (Platform.isIOS) {
+      // No additional setup needed.
     }
   } catch (e) {
     debugPrint('Screenshot setup skipped: $e');
@@ -129,7 +135,7 @@ extension PumpUntilFound on WidgetTester {
         await pump(const Duration(milliseconds: 500));
       }
     }
-    
+
     try {
       await binding.takeScreenshot(name);
     } catch (e) {

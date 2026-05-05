@@ -70,6 +70,7 @@ firestore.indexes.json
 # IDE and Environment files
 .env
 .gemini/
+.claude/
 .vscode/
 .idea/
 .DS_Store
