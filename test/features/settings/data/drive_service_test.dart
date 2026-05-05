@@ -14,6 +14,11 @@ void main() {
 
     setUp(() {
       mockGoogleSignIn = MockGoogleSignIn();
+      // v7: DriveService subscribes to authenticationEvents in its
+      // constructor, so the mock must return a stream.
+      when(() => mockGoogleSignIn.authenticationEvents).thenAnswer(
+        (_) => const Stream<GoogleSignInAuthenticationEvent>.empty(),
+      );
       // We don't need real dependencies for testing static merge logic
       driveService = DriveService(googleSignIn: mockGoogleSignIn);
     });

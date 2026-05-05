@@ -144,6 +144,8 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+// v7: GoogleSignInAccount surface is much smaller; authentication is a
+// sync getter and auth/scope work happens via authorizationClient.
 class FakeGoogleSignInAccount implements GoogleSignInAccount {
   @override
   String get email => 'test@example.com';
@@ -158,27 +160,11 @@ class FakeGoogleSignInAccount implements GoogleSignInAccount {
   String? get photoUrl => null;
 
   @override
-  String? get serverAuthCode => null;
+  GoogleSignInAuthentication get authentication =>
+      const GoogleSignInAuthentication(idToken: 'fake_id_token');
 
   @override
-  Future<GoogleSignInAuthentication> get authentication async => FakeGoogleSignInAuthentication();
-
-  @override
-  Future<Map<String, String>> get authHeaders async => {};
-
-  @override
-  Future<void> clearAuthCache() async {}
-}
-
-class FakeGoogleSignInAuthentication implements GoogleSignInAuthentication {
-  @override
-  String? get idToken => 'fake_id_token';
-
-  @override
-  String? get accessToken => 'fake_access_token';
-
-  @override
-  String? get serverAuthCode => null;
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeLocalBackupService extends LocalBackupService {

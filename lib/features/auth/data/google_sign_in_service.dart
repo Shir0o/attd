@@ -6,9 +6,13 @@ import '../domain/entities/google_account.dart';
 
 final _log = AppLogger('GoogleSignIn');
 
+/// Basic OAuth scopes used to obtain a usable access token alongside the
+/// id token produced during authentication.
+const List<String> _basicScopes = <String>['email', 'profile'];
+
 class GoogleSignInAuthService implements GoogleAuthService {
-  GoogleSignInAuthService({required GoogleSignIn googleSignIn})
-    : _googleSignIn = googleSignIn;
+  GoogleSignInAuthService({GoogleSignIn? googleSignIn})
+    : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
   final GoogleSignIn _googleSignIn;
   GoogleAccount? _currentUser;
@@ -19,19 +23,35 @@ class GoogleSignInAuthService implements GoogleAuthService {
   @override
   Future<GoogleAccount?> signIn() async {
     try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) return null;
+      // v7: signIn() was split into authenticate() (interactive auth) and
+      // authorizeScopes() (per-scope OAuth authorization).
+      if (!_googleSignIn.supportsAuthenticate()) {
+        return null;
+      }
+      final account = await _googleSignIn.authenticate();
 
-      final auth = await account.authentication;
+      // Authorize basic scopes so we can return an accessToken too.
+      var authz = await account.authorizationClient
+          .authorizationForScopes(_basicScopes);
+      authz ??= await account.authorizationClient.authorizeScopes(_basicScopes);
+
+      // v7: account.authentication is now a synchronous getter that
+      // returns only the idToken.
+      final idToken = account.authentication.idToken;
 
       _currentUser = GoogleAccount(
         id: account.id,
         email: account.email,
         displayName: account.displayName,
-        idToken: auth.idToken,
-        accessToken: auth.accessToken,
+        idToken: idToken,
+        accessToken: authz.accessToken,
       );
       return _currentUser;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return null;
+      }
+      rethrow;
     } catch (error, stackTrace) {
       _log.warning('Google Sign-In Error', error, stackTrace);
       rethrow;

@@ -36,10 +36,15 @@ Future<Widget> createTestApp(Directory tempDir, {bool disableAnimations = true})
   final sessionRepository = LocalJsonSessionRepository(storagePath: storagePath);
   final eventRepository = LocalJsonEventRepository(storagePath: storagePath);
 
-  // Mock GoogleSignIn for DriveService to avoid native hangs
+  // Mock GoogleSignIn for DriveService to avoid native hangs.
+  // v7: subscribe to authenticationEvents stream and call
+  // attemptLightweightAuthentication / signOut.
   final googleSignIn = MockGoogleSignIn();
-  when(() => googleSignIn.signInSilently()).thenAnswer((_) async => null);
-  when(() => googleSignIn.signOut()).thenAnswer((_) async => null);
+  when(() => googleSignIn.authenticationEvents)
+      .thenAnswer((_) => const Stream<GoogleSignInAuthenticationEvent>.empty());
+  when(() => googleSignIn.attemptLightweightAuthentication())
+      .thenReturn(null);
+  when(() => googleSignIn.signOut()).thenAnswer((_) async {});
 
   final driveService = DriveService(
     googleSignIn: googleSignIn,
