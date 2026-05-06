@@ -1,20 +1,23 @@
 class LabelAssignments {
-  const LabelAssignments({
-    this.autoLabels = const <String>{},
-    this.manualLabels = const <String>{},
-  });
+  LabelAssignments({
+    Set<String> autoLabels = const <String>{},
+    Set<String> manualLabels = const <String>{},
+  })  : autoLabels = Set.unmodifiable(autoLabels),
+        manualLabels = Set.unmodifiable(manualLabels),
+        all = Set.unmodifiable({...autoLabels, ...manualLabels});
+
+  static final LabelAssignments empty = LabelAssignments();
 
   final Set<String> autoLabels;
   final Set<String> manualLabels;
-
-  Set<String> get all => {...autoLabels, ...manualLabels};
+  final Set<String> all;
 
   bool hasLabel(String label) => all.contains(label);
 
   bool isManual(String label) => manualLabels.contains(label);
 
   factory LabelAssignments.fromJson(Map<String, dynamic>? json) {
-    if (json == null) return const LabelAssignments();
+    if (json == null) return LabelAssignments.empty;
 
     Set<String> parseLabels(dynamic value) {
       if (value is List) {
