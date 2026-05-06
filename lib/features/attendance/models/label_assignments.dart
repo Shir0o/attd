@@ -9,7 +9,8 @@ class LabelAssignments {
 
   Set<String> get all => {...autoLabels, ...manualLabels};
 
-  bool hasLabel(String label) => all.contains(label);
+  bool hasLabel(String label) =>
+      autoLabels.contains(label) || manualLabels.contains(label);
 
   bool isManual(String label) => manualLabels.contains(label);
 
