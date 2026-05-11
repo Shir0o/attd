@@ -27,25 +27,20 @@ import 'features/auth/config/google_oauth_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Parallelize heavy initialization to prevent ANR and reduce startup time
-  final initialization = await Future.wait([
-    Firebase.initializeApp(),
-    SharedPreferences.getInstance(),
-  ]);
 
-  final prefs = initialization[1] as SharedPreferences;
+  // Initialize Firebase first so Crashlytics is available, then install error
+  // handlers before any further async work so startup failures are captured.
+  await Firebase.initializeApp();
 
-  // Pass all uncaught "Fatal" errors from the framework to Crashlytics
   FlutterError.onError = (errorDetails) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
   };
-
-  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };
+
+  final prefs = await SharedPreferences.getInstance();
 
   // Initialize the GoogleSignIn singleton exactly once before use.
   // v7 API: GoogleSignIn.instance.initialize(...) replaces the v6 constructor.
