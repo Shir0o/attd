@@ -1,3 +1,11 @@
+# 1.2.5+22
+*   **Bug Fixes**:
+    *   **iOS White Screen on Launch**: Fixed a regression from the Swift Package Manager migration that caused iOS to show a blank white screen on startup. Plugins are now registered synchronously in `AppDelegate.didFinishLaunchingWithOptions` so Firebase and SharedPreferences initialize correctly before `runApp()`.
+*   **Stability & Observability**:
+    *   **Earlier Crash Reporting**: Crashlytics error handlers are now installed immediately after Firebase initialization, capturing failures in the remaining startup sequence (SharedPreferences, Google Sign-In, repository wiring) that were previously silent.
+*   **Testing**:
+    *   **AppDelegate Regression Guard**: Added a static test that asserts the iOS plugin-registration pattern, so this specific launch regression cannot recur.
+
 # 1.2.4+21
 *   **Bug Fixes**:
     *   **Permanent Member Association**: Adding a person from the Session Summary or Speed Swipe page now associates them with the event, so they appear in future sessions and on the event's member list.
