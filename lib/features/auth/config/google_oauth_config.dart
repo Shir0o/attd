@@ -1,16 +1,7 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class GoogleOAuthConfig {
-  static const androidServerClientId = String.fromEnvironment(
-    'GOOGLE_ANDROID_CLIENT_ID',
-    defaultValue: '',
-  );
-
-  static const iosClientId = String.fromEnvironment(
-    'GOOGLE_IOS_CLIENT_ID',
-    defaultValue: '',
-  );
-
-  static const webServerClientId = String.fromEnvironment(
-    'GOOGLE_WEB_CLIENT_ID',
-    defaultValue: '',
-  );
+  static String get androidServerClientId => dotenv.get('GOOGLE_ANDROID_CLIENT_ID', fallback: '');
+  static String get iosClientId => dotenv.get('GOOGLE_IOS_CLIENT_ID', fallback: '');
+  static String get webServerClientId => dotenv.get('GOOGLE_WEB_CLIENT_ID', fallback: '');
 }

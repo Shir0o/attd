@@ -25,12 +25,21 @@ import 'core/maintenance/data_maintenance_service.dart';
 
 import 'features/auth/config/google_oauth_config.dart';
 
+import 'firebase_options.dart';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables from .env file
+  await dotenv.load(fileName: ".env");
 
   // Initialize Firebase first so Crashlytics is available, then install error
   // handlers before any further async work so startup failures are captured.
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   FlutterError.onError = (errorDetails) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);

@@ -21,17 +21,18 @@ To use Google Drive Sync, you must enable the Google Drive API in the Google Clo
 
 ### Build Configuration
 
-This project requires Google OAuth Client IDs to be passed at build time via `--dart-define`.
+This project uses a `.env` file to manage sensitive configuration values like Google OAuth Client IDs and Firebase keys.
 
-1.  **Android**: Replace `YOUR_ANDROID_CLIENT_ID` in `android/app/src/main/res/values/strings.xml` with your actual Android Client ID from Google Cloud Console.
-2.  **iOS**: Replace `YOUR_IOS_CLIENT_ID` in `ios/Runner/Info.plist` with your actual iOS Client ID from Google Cloud Console.
-3.  **Run/Build Command**:
+1.  **Environment Setup**:
+    *   Copy the example environment file: `cp .env.example .env`
+    *   Fill in your specific IDs and keys in the `.env` file.
+2.  **Android**: The project is configured to automatically read the `.env` file for build settings.
+3.  **iOS**: The project is configured to automatically read the `.env` file for build settings.
+4.  **Run Command**:
     ```bash
-    flutter run \
-      --dart-define=GOOGLE_ANDROID_CLIENT_ID=your_android_client_id.apps.googleusercontent.com \
-      --dart-define=GOOGLE_IOS_CLIENT_ID=your_ios_client_id.apps.googleusercontent.com \
-      --dart-define=GOOGLE_WEB_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
+    flutter run
     ```
+    The app will automatically pick up the configuration from your `.env` file at runtime.
 
 ## 🛠 Development
 

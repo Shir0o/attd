@@ -1,10 +1,19 @@
-# 1.2.5+22
-*   **Bug Fixes**:
-    *   **iOS White Screen on Launch**: Fixed a regression from the Swift Package Manager migration that caused iOS to show a blank white screen on startup. Plugins are now registered synchronously in `AppDelegate.didFinishLaunchingWithOptions` so Firebase and SharedPreferences initialize correctly before `runApp()`.
+# 1.3.0+22
+*   **Infrastructure & Security**:
+    *   **⚡ Environment Variable System**: Integrated `flutter_dotenv` to manage sensitive configuration values (Google OAuth IDs, Firebase keys) via a `.env` file. This removes hard-coded identifiers from the source code and simplifies the development workflow.
+    *   **Open Source Readiness**: Added `.env.example` and updated `README.md` with clear instructions for project setup and environment configuration.
+*   **iOS Platform Fixes**:
+    *   **Resolved White Screen on Startup**: Fixed an unhandled exception in Firebase initialization that caused the app to hang on a white screen on iOS devices. Plugins are now registered synchronously in `AppDelegate.didFinishLaunchingWithOptions` to ensure Firebase and SharedPreferences initialize correctly.
+    *   **Xcode Project Stabilization**: 
+        *   Correctly linked `GoogleService-Info.plist` to the resources build phase.
+        *   Resolved Swift Package dependency conflicts by updating the Firebase iOS SDK to `12.12.0`.
+        *   Fixed linker errors by properly inheriting flags for CocoaPods-managed plugins.
+        *   Removed broken build scripts to ensure a clean and reliable build process.
 *   **Stability & Observability**:
     *   **Earlier Crash Reporting**: Crashlytics error handlers are now installed immediately after Firebase initialization, capturing failures in the remaining startup sequence (SharedPreferences, Google Sign-In, repository wiring) that were previously silent.
-*   **Testing**:
-    *   **AppDelegate Regression Guard**: Added a static test that asserts the iOS plugin-registration pattern, so this specific launch regression cannot recur.
+*   **Maintenance**:
+    *   Updated `google_sign_in` to v7 and related extensions to ensure compatibility with modern authentication standards.
+    *   Performed project-wide clean-up of tests and technical debt.
 
 # 1.2.4+21
 *   **Bug Fixes**:
