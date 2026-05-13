@@ -24,6 +24,7 @@ import 'features/settings/data/local_backup_service.dart';
 import 'features/settings/presentation/app_lock_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/maintenance/data_maintenance_service.dart';
+import 'core/quick_actions/quick_actions_service.dart';
 
 import 'features/auth/config/google_oauth_config.dart';
 
@@ -132,17 +133,21 @@ class AttendanceApp extends StatefulWidget {
 
 class _AttendanceAppState extends State<AttendanceApp>
     with WidgetsBindingObserver {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  final _quickActions = QuickActionsService();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Defer heavy initialization to prevent blocking the first frame paint
     Future.microtask(() {
       _runMaintenance();
       _runMigration();
       // Restore sync session and trigger initial sync if enabled
       widget.driveService?.init();
+      _quickActions.initialize(navigatorKey: _navigatorKey);
     });
   }
 
@@ -223,6 +228,7 @@ class _AttendanceAppState extends State<AttendanceApp>
                 disableAnimations: widget.disableAnimations,
               );
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           title: 'Attendance',
           debugShowCheckedModeBanner: false,
           themeMode: widget.themeController.themeMode,
