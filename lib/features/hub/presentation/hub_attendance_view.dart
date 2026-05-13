@@ -8,6 +8,7 @@ import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
+import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -28,6 +29,7 @@ class HubAttendanceView extends StatefulWidget {
     required this.attendanceRepository,
     this.driveService,
     this.localBackupService,
+    this.appLockController,
     this.disableAnimations = false,
   });
 
@@ -37,6 +39,7 @@ class HubAttendanceView extends StatefulWidget {
   final AttendanceRepository attendanceRepository;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final AppLockController? appLockController;
   final bool disableAnimations;
 
   @override
@@ -243,6 +246,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           attendanceRepository: widget.attendanceRepository,
           eventRepository: widget.eventRepository,
           sessionRepository: widget.sessionRepository,
+          appLockController: widget.appLockController,
           disableAnimations: widget.disableAnimations,
         ),
       ),

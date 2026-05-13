@@ -17,9 +17,11 @@ import 'features/onboarding/presentation/onboarding_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'features/auth/data/google_sign_in_service.dart';
+import 'features/settings/application/app_lock_controller.dart';
 import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
 import 'features/settings/data/local_backup_service.dart';
+import 'features/settings/presentation/app_lock_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/maintenance/data_maintenance_service.dart';
 
@@ -59,6 +61,7 @@ Future<void> main() async {
 
   final themeController = ThemeController(prefs);
   final onboardingController = OnboardingController(prefs);
+  final appLockController = AppLockController(prefs);
 
   final attendanceRepository = LocalJsonAttendanceRepository();
   final sessionRepository = LocalJsonSessionRepository();
@@ -77,6 +80,7 @@ Future<void> main() async {
     AttendanceApp(
       themeController: themeController,
       onboardingController: onboardingController,
+      appLockController: appLockController,
       driveService: driveService,
       localBackupService: localBackupService,
       googleAuthService: googleAuthService,
@@ -95,6 +99,7 @@ class AttendanceApp extends StatefulWidget {
     required this.themeController,
     required this.onboardingController,
     required this.prefs,
+    AppLockController? appLockController,
     AttendanceRepository? repository,
     SessionRepository? sessionRepository,
     EventRepository? eventRepository,
@@ -105,10 +110,12 @@ class AttendanceApp extends StatefulWidget {
     this.disableAnimations = false,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository = sessionRepository ?? LocalJsonSessionRepository(),
-       eventRepository = eventRepository ?? LocalJsonEventRepository();
+       eventRepository = eventRepository ?? LocalJsonEventRepository(),
+       appLockController = appLockController ?? AppLockController(prefs);
 
   final ThemeController themeController;
   final OnboardingController onboardingController;
+  final AppLockController appLockController;
   final SharedPreferences prefs;
   final AttendanceRepository repository;
   final SessionRepository sessionRepository;
@@ -185,10 +192,13 @@ class _AttendanceAppState extends State<AttendanceApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
+      widget.appLockController.markBackgrounded();
       // Trigger sync when app is backgrounded or closed, if enabled
       if (widget.driveService?.isDriveSyncEnabled ?? false) {
         widget.driveService?.syncFiles();
       }
+    } else if (state == AppLifecycleState.resumed) {
+      widget.appLockController.onResumed();
     }
   }
 
@@ -200,23 +210,28 @@ class _AttendanceAppState extends State<AttendanceApp>
         widget.onboardingController,
       ]),
       builder: (context, child) {
+        final home = widget.onboardingController.shouldShowOnboarding
+            ? OnboardingPage(onboardingController: widget.onboardingController)
+            : HubPage(
+                themeController: widget.themeController,
+                sessionRepository: widget.sessionRepository,
+                eventRepository: widget.eventRepository,
+                attendanceRepository: widget.repository,
+                driveService: widget.driveService,
+                localBackupService: widget.localBackupService,
+                appLockController: widget.appLockController,
+                disableAnimations: widget.disableAnimations,
+              );
         return MaterialApp(
           title: 'Attendance',
           debugShowCheckedModeBanner: false,
           themeMode: widget.themeController.themeMode,
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
-          home: widget.onboardingController.shouldShowOnboarding
-              ? OnboardingPage(onboardingController: widget.onboardingController)
-              : HubPage(
-                  themeController: widget.themeController,
-                  sessionRepository: widget.sessionRepository,
-                  eventRepository: widget.eventRepository,
-                  attendanceRepository: widget.repository,
-                  driveService: widget.driveService,
-                  localBackupService: widget.localBackupService,
-                  disableAnimations: widget.disableAnimations,
-                ),
+          home: AppLockGate(
+            controller: widget.appLockController,
+            child: home,
+          ),
         );
       },
     );

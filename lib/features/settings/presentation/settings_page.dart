@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../reports/report_export_page.dart';
+import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/google_sheets_service.dart';
 import '../../settings/data/drive_service.dart';
@@ -27,6 +28,7 @@ class SettingsPage extends StatefulWidget {
     required this.attendanceRepository,
     required this.eventRepository,
     required this.sessionRepository,
+    this.appLockController,
     this.disableAnimations = false,
   });
 
@@ -36,6 +38,7 @@ class SettingsPage extends StatefulWidget {
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
   final SessionRepository sessionRepository;
+  final AppLockController? appLockController;
   final bool disableAnimations;
 
   @override
@@ -236,6 +239,22 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // ── Privacy ───────────────────────────────────────────────
+                    if (widget.appLockController != null) ...[
+                      _SectionHeader(title: 'Privacy'),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _AppLockTile(
+                          controller: widget.appLockController!,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     // ── Cloud Sync (Google Drive) ─────────────────────────────
                     _SectionHeader(title: 'Cloud Sync (Google Drive)'),
@@ -1445,6 +1464,118 @@ class _SettingsTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AppLockTile extends StatefulWidget {
+  const _AppLockTile({required this.controller});
+
+  final AppLockController controller;
+
+  @override
+  State<_AppLockTile> createState() => _AppLockTileState();
+}
+
+class _AppLockTileState extends State<_AppLockTile> {
+  bool _supported = true;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChange);
+    _probe();
+  }
+
+  Future<void> _probe() async {
+    final ok = await widget.controller.canUseAppLock();
+    if (!mounted) return;
+    setState(() => _supported = ok);
+  }
+
+  void _onChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onChange);
+    super.dispose();
+  }
+
+  Future<void> _toggle(bool value) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final ok = value
+        ? await widget.controller.enable()
+        : await widget.controller.disable();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            value
+                ? 'Authentication failed. App lock not enabled.'
+                : 'Authentication failed. App lock still enabled.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.lock_outline,
+              color: colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'App Lock',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _supported
+                      ? 'Require biometrics or device passcode to open Attendance'
+                      : 'Set up biometrics or a device passcode to use App Lock',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: widget.controller.isEnabled,
+            onChanged: (!_supported || _busy) ? null : _toggle,
+          ),
+        ],
       ),
     );
   }
