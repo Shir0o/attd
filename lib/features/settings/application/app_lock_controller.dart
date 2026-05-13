@@ -72,18 +72,21 @@ class AppLockController extends ChangeNotifier {
     _backgroundedAt = DateTime.now();
   }
 
-  /// Called when app resumes. Locks if inactivity exceeds threshold.
+  /// Called when app resumes. Locks if inactivity exceeds threshold, or if
+  /// the app was already locked (e.g. user cancelled the prompt and
+  /// backgrounded). Always notifies on resume while locked so the gate can
+  /// re-prompt for authentication.
   void onResumed() {
     if (!_enabled) return;
     final at = _backgroundedAt;
-    if (at == null) return;
-    if (DateTime.now().difference(at) >= _backgroundLockThreshold) {
-      if (!_isLocked) {
-        _isLocked = true;
-        notifyListeners();
-      }
-    }
     _backgroundedAt = null;
+    final shouldLock = _isLocked ||
+        (at != null &&
+            DateTime.now().difference(at) >= _backgroundLockThreshold);
+    if (shouldLock) {
+      _isLocked = true;
+      notifyListeners();
+    }
   }
 
   /// Prompts for authentication to unlock. Returns true on success.

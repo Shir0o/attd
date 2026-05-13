@@ -228,10 +228,15 @@ class _AttendanceAppState extends State<AttendanceApp>
           themeMode: widget.themeController.themeMode,
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
-          home: AppLockGate(
+          // Use `builder` rather than wrapping `home` so the lock overlay
+          // covers dialogs, bottom sheets, and snackbars — those are pushed
+          // as separate routes by the Navigator and would otherwise render
+          // above a gate placed at `home`.
+          builder: (context, child) => AppLockGate(
             controller: widget.appLockController,
-            child: home,
+            child: child ?? const SizedBox.shrink(),
           ),
+          home: home,
         );
       },
     );

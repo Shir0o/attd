@@ -108,6 +108,27 @@ void main() {
       expect(c.isLocked, isFalse);
     });
 
+    test('onResumed re-notifies when already locked so gate can re-prompt',
+        () async {
+      await prefs.setBool('app_lock_enabled', true);
+      final c = AppLockController(
+        prefs,
+        auth: auth,
+        backgroundLockThreshold: const Duration(seconds: 30),
+      );
+      expect(c.isLocked, isTrue);
+
+      var notifications = 0;
+      c.addListener(() => notifications++);
+
+      // User backgrounds briefly (under threshold) while still locked.
+      c.markBackgrounded();
+      c.onResumed();
+
+      expect(c.isLocked, isTrue);
+      expect(notifications, greaterThanOrEqualTo(1));
+    });
+
     test('onResumed is a no-op when lock is disabled', () async {
       final c = AppLockController(
         prefs,
