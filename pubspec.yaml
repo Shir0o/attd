@@ -27,6 +27,7 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_dotenv: ^6.0.1
   local_auth: ^2.3.0
+  quick_actions: ^1.0.7
 
 dev_dependencies:
   flutter_test:
