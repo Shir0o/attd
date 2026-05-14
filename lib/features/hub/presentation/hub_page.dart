@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
@@ -16,6 +17,7 @@ class HubPage extends StatefulWidget {
     required this.themeController,
     this.driveService,
     this.localBackupService,
+    this.appLockController,
     this.disableAnimations = false,
   });
 
@@ -25,6 +27,7 @@ class HubPage extends StatefulWidget {
   final ThemeController themeController;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final AppLockController? appLockController;
   final bool disableAnimations;
 
   @override
@@ -41,6 +44,7 @@ class _HubPageState extends State<HubPage> {
       themeController: widget.themeController,
       driveService: widget.driveService,
       localBackupService: widget.localBackupService,
+      appLockController: widget.appLockController,
       disableAnimations: widget.disableAnimations,
     );
   }
