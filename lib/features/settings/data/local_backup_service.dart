@@ -11,10 +11,27 @@ import '../../../core/logging/app_logger.dart';
 
 final _log = AppLogger('LocalBackup');
 
+typedef DocumentsDirectoryProvider = Future<Directory> Function();
+typedef ShareFiles = Future<ShareResult> Function(
+  List<XFile> files, {
+  String? text,
+});
+
 class LocalBackupService {
+  LocalBackupService({
+    DocumentsDirectoryProvider? documentsDirectoryProvider,
+    ShareFiles? shareFiles,
+  })  : _documentsDirectoryProvider =
+            documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
+        _shareFiles = shareFiles ??
+            ((files, {text}) => Share.shareXFiles(files, text: text));
+
+  final DocumentsDirectoryProvider _documentsDirectoryProvider;
+  final ShareFiles _shareFiles;
+
   Future<void> createBackup() async {
     try {
-      final docsDir = await getApplicationDocumentsDirectory();
+      final docsDir = await _documentsDirectoryProvider();
       final filesToBackup = [
         'sessions.json',
         'families.json',
@@ -37,7 +54,7 @@ class LocalBackupService {
 
       final backupFile = File(backupPath);
       if (await backupFile.exists()) {
-        final result = await Share.shareXFiles(
+        final result = await _shareFiles(
           [XFile(backupPath)],
           text: 'Attendance Tracker Backup',
         );
@@ -56,7 +73,7 @@ class LocalBackupService {
 
   Future<void> exportData() async {
     try {
-      final docsDir = await getApplicationDocumentsDirectory();
+      final docsDir = await _documentsDirectoryProvider();
       final sessionsFile = File(p.join(docsDir.path, 'sessions.json'));
       final familiesFile = File(p.join(docsDir.path, 'families.json'));
 
@@ -106,9 +123,11 @@ class LocalBackupService {
             final memberName = _escapeCsv(memberNames[memberId] ?? memberId);
             final status = r['status'];
             final recordedAt = DateTime.parse(r['recordedAt']);
-            final recordedAtStr = '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
+            final recordedAtStr =
+                '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
 
-            buffer.writeln('$dateStr,$title,$memberName,$status,$recordedAtStr');
+            buffer
+                .writeln('$dateStr,$title,$memberName,$status,$recordedAtStr');
           }
         }
       }
@@ -117,11 +136,10 @@ class LocalBackupService {
       final csvFile = File(csvPath);
       await csvFile.writeAsString(buffer.toString());
 
-      await Share.shareXFiles(
+      await _shareFiles(
         [XFile(csvPath)],
         text: 'Attendance Data Export (CSV)',
       );
-
     } catch (e, st) {
       _log.error('Export failed', e, st);
       rethrow;
