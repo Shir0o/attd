@@ -5,6 +5,7 @@ import 'package:attendance_tracker/features/settings/data/google_sheets_service.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 // ignore: depend_on_referenced_packages
@@ -61,7 +62,7 @@ void main() {
     });
 
     test('posts changed attendance records and stores sync time', () async {
-      final sessionsFile = File('${tempDir.path}/sessions.json');
+      final sessionsFile = File(p.join(tempDir.path, 'sessions.json'));
       await sessionsFile.writeAsString(
         jsonEncode([
           {

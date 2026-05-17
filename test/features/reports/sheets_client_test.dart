@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:attendance_tracker/features/reports/report_models.dart';
 import 'package:attendance_tracker/features/reports/sheets_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   group('LocalSheetsClient', () {
@@ -32,7 +33,8 @@ void main() {
         suggestedFileName: 'attendance.csv',
       );
 
-      final output = File('${tempDir.path}/sheets_sync/attendance.csv');
+      final output =
+          File(p.join(tempDir.path, 'sheets_sync', 'attendance.csv'));
       expect(await output.readAsBytes(), bytes);
       expect(result.attempted, isTrue);
       expect(result.success, isTrue);
@@ -50,7 +52,7 @@ void main() {
       );
 
       final output =
-          File('${tempDir.path}/sheets_sync/sheets_report_123456.pdf');
+          File(p.join(tempDir.path, 'sheets_sync', 'sheets_report_123456.pdf'));
       expect(await output.exists(), isTrue);
       expect(result.shareLink, output.uri.toString());
     });

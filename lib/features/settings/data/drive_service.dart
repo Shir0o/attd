@@ -968,8 +968,8 @@ class DriveService extends ChangeNotifier {
       }
     }
 
-    process(remote, isRemote: true);
     process(local);
+    process(remote, isRemote: true);
 
     return merged.values.toList();
   }

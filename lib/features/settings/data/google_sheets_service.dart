@@ -13,9 +13,12 @@ import '../../../core/logging/app_logger.dart';
 final _log = AppLogger('GoogleSheets');
 
 class GoogleSheetsService {
-  GoogleSheetsService({http.Client? client}) : _client = client ?? http.Client();
+  GoogleSheetsService({http.Client? client})
+      : _client = client ?? http.Client(),
+        _ownsClient = client == null;
 
   final http.Client _client;
+  final bool _ownsClient;
 
   static const String _lastSheetsSyncKey = 'last_sheets_sync_time';
 
@@ -49,6 +52,12 @@ class GoogleSheetsService {
     } catch (e, st) {
       _log.error('Google Sheets sync failed', e, st);
       rethrow;
+    }
+  }
+
+  void close() {
+    if (_ownsClient) {
+      _client.close();
     }
   }
 

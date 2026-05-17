@@ -98,6 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    _googleSheetsService.close();
     _sheetsUrlController.dispose();
     super.dispose();
   }

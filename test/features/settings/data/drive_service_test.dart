@@ -62,9 +62,9 @@ void main() {
       );
 
       expect(result.length, 2);
-      expect(stats.newSessions, 2);
+      expect(stats.newSessions, 1);
       expect(stats.hasChanges, isTrue);
-      expect(stats.toTags(), ['+2 Sessions']);
+      expect(stats.toTags(), ['+1 Sessions']);
     });
 
     test('Scenario: Legacy family member merge updates member stats', () {
@@ -99,7 +99,7 @@ void main() {
       expect(members.map((member) => member['id']),
           containsAll(['member_1', 'member_2']));
       expect(stats.newMembers, 1);
-      expect(stats.toTags(), ['+1 Members', '+1 Families']);
+      expect(stats.toTags(), ['+1 Members']);
     });
 
     test('Scenario: Independent changes should be merged (Union)', () {
