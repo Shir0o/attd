@@ -17,17 +17,30 @@ typedef ShareFiles = Future<ShareResult> Function(
   String? text,
 });
 
+class LocalBackupShareText {
+  const LocalBackupShareText({
+    this.backup = 'Attendance Tracker Backup',
+    this.exportCsv = 'Attendance Data Export (CSV)',
+  });
+
+  final String backup;
+  final String exportCsv;
+}
+
 class LocalBackupService {
   LocalBackupService({
     DocumentsDirectoryProvider? documentsDirectoryProvider,
     ShareFiles? shareFiles,
+    LocalBackupShareText shareText = const LocalBackupShareText(),
   })  : _documentsDirectoryProvider =
             documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
         _shareFiles = shareFiles ??
-            ((files, {text}) => Share.shareXFiles(files, text: text));
+            ((files, {text}) => Share.shareXFiles(files, text: text)),
+        _shareText = shareText;
 
   final DocumentsDirectoryProvider _documentsDirectoryProvider;
   final ShareFiles _shareFiles;
+  final LocalBackupShareText _shareText;
 
   Future<void> createBackup() async {
     try {
@@ -56,7 +69,7 @@ class LocalBackupService {
       if (await backupFile.exists()) {
         final result = await _shareFiles(
           [XFile(backupPath)],
-          text: 'Attendance Tracker Backup',
+          text: _shareText.backup,
         );
 
         if (result.status == ShareResultStatus.success) {
@@ -121,7 +134,7 @@ class LocalBackupService {
           for (final r in records) {
             final memberId = r['attendee'];
             final memberName = _escapeCsv(memberNames[memberId] ?? memberId);
-            final status = r['status'];
+            final status = _escapeCsv(r['status']?.toString() ?? '');
             final recordedAt = DateTime.parse(r['recordedAt']);
             final recordedAtStr =
                 '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
@@ -138,7 +151,7 @@ class LocalBackupService {
 
       await _shareFiles(
         [XFile(csvPath)],
-        text: 'Attendance Data Export (CSV)',
+        text: _shareText.exportCsv,
       );
     } catch (e, st) {
       _log.error('Export failed', e, st);

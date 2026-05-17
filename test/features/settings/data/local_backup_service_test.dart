@@ -35,6 +35,18 @@ void main() {
     );
   }
 
+  LocalBackupService serviceWithShareText(LocalBackupShareText shareText) {
+    return LocalBackupService(
+      documentsDirectoryProvider: () async => tempDir,
+      shareText: shareText,
+      shareFiles: (files, {text}) async {
+        sharedFiles = files;
+        sharedText = text;
+        return const ShareResult('success', ShareResultStatus.success);
+      },
+    );
+  }
+
   test('createBackup zips existing local data files and shares the zip',
       () async {
     await File(p.join(tempDir.path, 'sessions.json')).writeAsString('[]');
@@ -50,6 +62,16 @@ void main() {
     final archive = ZipDecoder().decodeBytes(bytes);
     expect(archive.files.map((file) => file.name), contains('sessions.json'));
     expect(archive.files.map((file) => file.name), contains('families.json'));
+  });
+
+  test('createBackup uses injected share text', () async {
+    await File(p.join(tempDir.path, 'sessions.json')).writeAsString('[]');
+
+    await serviceWithShareText(
+      const LocalBackupShareText(backup: 'Localized backup'),
+    ).createBackup();
+
+    expect(sharedText, 'Localized backup');
   });
 
   test('exportData throws when there is no session data', () async {
@@ -70,7 +92,7 @@ void main() {
         'records': [
           {
             'attendee': 'member-1',
-            'status': 'present',
+            'status': 'present, "checked"\nin',
             'recordedAt': '2024-01-09T10:15:30.000',
           },
           {
@@ -114,7 +136,8 @@ void main() {
         'Date,Session Title,Member Name,Status,Recorded At\n'
         '2024-01-09,"Morning, ""Check""\n'
         'In","Alice, ""Ace""\n'
-        'Smith",present,2024-01-09 10:15:30\n',
+        'Smith","present, ""checked""\n'
+        'in",2024-01-09 10:15:30\n',
       ),
     );
     expect(
@@ -124,5 +147,15 @@ void main() {
         'In","Unknown, Guest",absent,2024-01-09 10:16:30\n',
       ),
     );
+  });
+
+  test('exportData uses injected share text', () async {
+    await File(p.join(tempDir.path, 'sessions.json')).writeAsString('[]');
+
+    await serviceWithShareText(
+      const LocalBackupShareText(exportCsv: 'Localized CSV export'),
+    ).exportData();
+
+    expect(sharedText, 'Localized CSV export');
   });
 }
