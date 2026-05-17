@@ -23,17 +23,113 @@ void main() {
       driveService = DriveService(googleSignIn: mockGoogleSignIn);
     });
 
-    test('Scenario: Independent changes should be merged (Union)', () {
+    test('SyncStats reports changes as ordered tags', () {
+      final stats = SyncStats()
+        ..newSessions = 2
+        ..newEvents = 1
+        ..newMembers = 3;
+
+      expect(stats.hasChanges, isTrue);
+      expect(stats.toTags(), [
+        '+2 Sessions',
+        '+1 Events',
+        '+3 Members',
+      ]);
+    });
+
+    test('SyncStats stays empty when no remote records were added', () {
+      final stats = SyncStats();
+
+      expect(stats.hasChanges, isFalse);
+      expect(stats.toTags(), isEmpty);
+    });
+
+    test('Scenario: Remote-only sync additions update file-specific stats', () {
+      final stats = SyncStats();
       final local = [
-        {'id': 'member_1', 'name': 'Member A', 'updatedAt': '2025-02-27T10:00:00Z'},
-        {'id': 'member_2', 'name': 'Member B', 'updatedAt': '2025-02-27T10:00:00Z'},
+        {'id': 'session_1', 'title': 'Local'},
       ];
       final remote = [
-        {'id': 'member_1', 'name': 'Member A', 'updatedAt': '2025-02-27T10:00:00Z'},
-        {'id': 'member_3', 'name': 'Member C', 'updatedAt': '2025-02-27T10:00:00Z'},
+        {'id': 'session_1', 'title': 'Local'},
+        {'id': 'session_2', 'title': 'Remote'},
       ];
 
-      final result = driveService.testMergeJsonLists(local, remote, 'members.json');
+      final result = driveService.testMergeJsonLists(
+        local,
+        remote,
+        'sessions.json',
+        stats: stats,
+      );
+
+      expect(result.length, 2);
+      expect(stats.newSessions, 2);
+      expect(stats.hasChanges, isTrue);
+      expect(stats.toTags(), ['+2 Sessions']);
+    });
+
+    test('Scenario: Legacy family member merge updates member stats', () {
+      final stats = SyncStats();
+      final local = [
+        {
+          'id': 'family_1',
+          'displayName': 'Smith',
+          'members': [
+            {'id': 'member_1', 'displayName': 'Alice'},
+          ],
+        },
+      ];
+      final remote = [
+        {
+          'id': 'family_1',
+          'displayName': 'Smith',
+          'members': [
+            {'id': 'member_2', 'displayName': 'Bob'},
+          ],
+        },
+      ];
+
+      final result = driveService.testMergeJsonLists(
+        local,
+        remote,
+        'families.json',
+        stats: stats,
+      );
+
+      final members = result.first['members'] as List;
+      expect(members.map((member) => member['id']),
+          containsAll(['member_1', 'member_2']));
+      expect(stats.newMembers, 1);
+      expect(stats.toTags(), ['+1 Members', '+1 Families']);
+    });
+
+    test('Scenario: Independent changes should be merged (Union)', () {
+      final local = [
+        {
+          'id': 'member_1',
+          'name': 'Member A',
+          'updatedAt': '2025-02-27T10:00:00Z'
+        },
+        {
+          'id': 'member_2',
+          'name': 'Member B',
+          'updatedAt': '2025-02-27T10:00:00Z'
+        },
+      ];
+      final remote = [
+        {
+          'id': 'member_1',
+          'name': 'Member A',
+          'updatedAt': '2025-02-27T10:00:00Z'
+        },
+        {
+          'id': 'member_3',
+          'name': 'Member C',
+          'updatedAt': '2025-02-27T10:00:00Z'
+        },
+      ];
+
+      final result =
+          driveService.testMergeJsonLists(local, remote, 'members.json');
 
       expect(result.length, 3);
       expect(result.any((m) => m['id'] == 'member_1'), true);
@@ -41,21 +137,34 @@ void main() {
       expect(result.any((m) => m['id'] == 'member_3'), true);
     });
 
-    test('Scenario: Conflict resolution favors the most recent change (UpdatedAt)', () {
+    test(
+        'Scenario: Conflict resolution favors the most recent change (UpdatedAt)',
+        () {
       final local = [
-        {'id': 'member_1', 'name': 'Member A (Local Edit)', 'updatedAt': '2025-02-27T11:00:00Z'},
+        {
+          'id': 'member_1',
+          'name': 'Member A (Local Edit)',
+          'updatedAt': '2025-02-27T11:00:00Z'
+        },
       ];
       final remote = [
-        {'id': 'member_1', 'name': 'Member A (Remote Edit)', 'updatedAt': '2025-02-27T12:00:00Z'},
+        {
+          'id': 'member_1',
+          'name': 'Member A (Remote Edit)',
+          'updatedAt': '2025-02-27T12:00:00Z'
+        },
       ];
 
-      final result = driveService.testMergeJsonLists(local, remote, 'members.json');
+      final result =
+          driveService.testMergeJsonLists(local, remote, 'members.json');
 
       expect(result.length, 1);
       expect(result.first['name'], 'Member A (Remote Edit)');
     });
 
-    test('Scenario: Session history merging combines all versions sorted by version number', () {
+    test(
+        'Scenario: Session history merging combines all versions sorted by version number',
+        () {
       final local = {
         'session_id_1': [
           {'version': 2, 'recordedAt': '2025-02-27T10:30:00Z'},
@@ -81,17 +190,24 @@ void main() {
     test('Scenario: Edge Case - One side has empty data', () {
       final local = <Map<String, dynamic>>[];
       final remote = [
-        {'id': 'member_1', 'name': 'Remote User', 'updatedAt': '2025-02-27T10:00:00Z'},
+        {
+          'id': 'member_1',
+          'name': 'Remote User',
+          'updatedAt': '2025-02-27T10:00:00Z'
+        },
       ];
 
-      final result = driveService.testMergeJsonLists(local, remote, 'members.json');
+      final result =
+          driveService.testMergeJsonLists(local, remote, 'members.json');
 
       expect(result.length, 1);
       expect(result.first['name'], 'Remote User');
     });
 
     group('Corruption Handling & Self-Healing', () {
-      test('Scenario: Corrupted Remote JSON should not crash and should be detectable', () {
+      test(
+          'Scenario: Corrupted Remote JSON should not crash and should be detectable',
+          () {
         // This simulates the logic in _mergeAndSyncFile where it catches FormatException
         final remoteContent = '{"invalid": json...'; // Corrupted JSON
 
@@ -102,11 +218,15 @@ void main() {
           caughtError = true;
         }
 
-        expect(caughtError, true, reason: 'Invalid JSON should throw a FormatException');
+        expect(caughtError, true,
+            reason: 'Invalid JSON should throw a FormatException');
       });
 
       test('Scenario: Schema Type Mismatch (List vs Map) is caught', () {
-        final dynamic remoteJsonAsMap = {'id': '1', 'name': 'I should be a list'};
+        final dynamic remoteJsonAsMap = {
+          'id': '1',
+          'name': 'I should be a list'
+        };
         const fileName = 'members.json'; // Expected to be a List
 
         // Logic from _mergeAndSyncFile:
@@ -115,12 +235,16 @@ void main() {
             ? remoteJsonAsMap is Map<String, dynamic>
             : remoteJsonAsMap is List;
 
-        expect(isValidRemote, false, reason: 'A Map instead of a List for members.json should be invalid');
+        expect(isValidRemote, false,
+            reason:
+                'A Map instead of a List for members.json should be invalid');
       });
 
-      test('Scenario: Self-Healing Logic - Local healthy List, Remote corrupted', () {
+      test(
+          'Scenario: Self-Healing Logic - Local healthy List, Remote corrupted',
+          () {
         final localContent = '[{"id": "1", "name": "Healthy Local"}]';
-        
+
         dynamic localJson;
         bool localIsHealthy = false;
         try {
@@ -134,9 +258,10 @@ void main() {
         expect(localJson[0]['name'], 'Healthy Local');
       });
 
-      test('Scenario: Self-Healing Logic - Local healthy Map, Remote corrupted', () {
+      test('Scenario: Self-Healing Logic - Local healthy Map, Remote corrupted',
+          () {
         final localContent = '{"session_1": [{"version": 1}]}';
-        
+
         dynamic localJson;
         bool localIsHealthy = false;
         try {
@@ -170,13 +295,15 @@ void main() {
           },
         ];
 
-        final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+        final result =
+            driveService.testMergeJsonLists(local, remote, 'families.json');
 
         expect(result.length, 1);
         expect(result.first['displayName'], 'Smith (remote edit)');
       });
 
-      test('Scenario: Family conflict resolved by updatedAt (local is newer)', () {
+      test('Scenario: Family conflict resolved by updatedAt (local is newer)',
+          () {
         final local = [
           {
             'id': 'f1',
@@ -194,13 +321,16 @@ void main() {
           },
         ];
 
-        final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+        final result =
+            driveService.testMergeJsonLists(local, remote, 'families.json');
 
         expect(result.length, 1);
         expect(result.first['displayName'], 'Smith (local edit)');
       });
 
-      test('Scenario: Legacy families without updatedAt still merge member lists', () {
+      test(
+          'Scenario: Legacy families without updatedAt still merge member lists',
+          () {
         final local = [
           {
             'id': 'f1',
@@ -220,7 +350,8 @@ void main() {
           },
         ];
 
-        final result = driveService.testMergeJsonLists(local, remote, 'families.json');
+        final result =
+            driveService.testMergeJsonLists(local, remote, 'families.json');
 
         expect(result.length, 1);
         final members = result.first['members'] as List;
@@ -229,7 +360,8 @@ void main() {
         expect(members.any((m) => m['id'] == 'm2'), true);
       });
 
-      test('Scenario: Member with updatedAt conflict is resolved correctly', () {
+      test('Scenario: Member with updatedAt conflict is resolved correctly',
+          () {
         final local = [
           {
             'id': 'm1',
@@ -245,7 +377,8 @@ void main() {
           },
         ];
 
-        final result = driveService.testMergeJsonLists(local, remote, 'members');
+        final result =
+            driveService.testMergeJsonLists(local, remote, 'members');
 
         expect(result.length, 1);
         expect(result.first['displayName'], 'John (local)');

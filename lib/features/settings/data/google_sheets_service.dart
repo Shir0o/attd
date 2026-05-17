@@ -13,6 +13,10 @@ import '../../../core/logging/app_logger.dart';
 final _log = AppLogger('GoogleSheets');
 
 class GoogleSheetsService {
+  GoogleSheetsService({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+
   static const String _lastSheetsSyncKey = 'last_sheets_sync_time';
 
   Future<void> syncAttendance(String webAppUrl) async {
@@ -29,7 +33,7 @@ class GoogleSheetsService {
         return;
       }
 
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse(webAppUrl),
         body: jsonEncode(payload),
         headers: {'Content-Type': 'text/plain'},

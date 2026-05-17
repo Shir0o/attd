@@ -1001,9 +1001,10 @@ class DriveService extends ChangeNotifier {
   List<dynamic> testMergeJsonLists(
     List<dynamic> local,
     List<dynamic> remote,
-    String fileName,
-  ) {
-    return _mergeJsonLists(local, remote, fileName);
+    String fileName, {
+    SyncStats? stats,
+  }) {
+    return _mergeJsonLists(local, remote, fileName, stats: stats);
   }
 
   @visibleForTesting
