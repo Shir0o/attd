@@ -41,11 +41,17 @@ void main() {
     expect(named.copyWith(displayName: 'New Name').resolvedName, 'New Name');
   });
 
-  test('GoogleOAuthConfig reads dotenv values with fallbacks', () async {
-    await dotenv.load(fileName: '.env');
+  test('GoogleOAuthConfig reads dotenv values', () {
+    dotenv.loadFromString(
+      envString: '''
+GOOGLE_ANDROID_CLIENT_ID=android-id
+GOOGLE_IOS_CLIENT_ID=ios-id
+GOOGLE_WEB_CLIENT_ID=web-id
+''',
+    );
 
-    expect(GoogleOAuthConfig.androidServerClientId, isA<String>());
-    expect(GoogleOAuthConfig.iosClientId, isA<String>());
-    expect(GoogleOAuthConfig.webServerClientId, isA<String>());
+    expect(GoogleOAuthConfig.androidServerClientId, 'android-id');
+    expect(GoogleOAuthConfig.iosClientId, 'ios-id');
+    expect(GoogleOAuthConfig.webServerClientId, 'web-id');
   });
 }

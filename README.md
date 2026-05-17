@@ -44,7 +44,8 @@ Ensure the project's health by running the test suite:
 flutter analyze
 
 # Unit and Widget Tests
-flutter test
+flutter test --coverage
+dart run tool/check_coverage.dart
 ```
 
 ### Folder Structure
@@ -52,4 +53,3 @@ flutter test
 - `lib/features/`: Feature-sliced architecture (Attendance, Auth, Hub, Settings, etc.).
 - `lib/features/auth/`: Google OAuth configuration and services.
 - `integration_test/`: Comprehensive E2E system scenarios.
-
