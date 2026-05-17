@@ -49,8 +49,13 @@ flutter analyze
 ### 2. Unit & Widget Tests
 Execute the primary test suite:
 ```bash
-flutter test
+flutter test --coverage
+dart run tool/check_coverage.dart
 ```
+
+The coverage check reads `coverage/lcov.info`, sums LCOV `LH` and `LF`
+line totals, and enforces a 66.9% minimum line coverage baseline. Raise the
+threshold in `tool/check_coverage.dart` as follow-up coverage work lands.
 
 ### 3. Integration Tests
 Run comprehensive end-to-end scenarios (requires a running emulator or physical device):

@@ -121,7 +121,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), '  Choir Practice  ');
     await tester.tap(find.byKey(const ValueKey('save_event_button')));
@@ -144,7 +144,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('save_event_button')));
     await tester.pump();
@@ -188,7 +188,7 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Edit Event'), findsOneWidget);
 
