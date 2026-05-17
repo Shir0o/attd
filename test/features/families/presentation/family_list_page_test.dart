@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 class MockAttendanceRepository implements AttendanceRepository {
   List<Family> _families = [];
   Completer<void>? _fetchCompleter;
+  int fetchCount = 0;
+  String? addedFamilyName;
 
   void setFamilies(List<Family> families) {
     _families = families;
@@ -27,6 +29,7 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<List<Family>> fetchFamilies() async {
+    fetchCount++;
     if (_fetchCompleter != null) {
       await _fetchCompleter!.future;
     }
@@ -45,7 +48,14 @@ class MockAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<Family> addFamily(String displayName) async {
-    throw UnimplementedError();
+    addedFamilyName = displayName;
+    final family = Family(
+      id: 'family-${_families.length + 1}',
+      displayName: displayName,
+      members: const [],
+    );
+    _families = [..._families, family];
+    return family;
   }
 
   @override
@@ -130,5 +140,60 @@ void main() {
     // Accessibility check
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(textContrastGuideline));
+  });
+
+  testWidgets('FamilyListPage opens add flow and reloads after save', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockAttendanceRepository();
+    mockRepo.setFamilies([]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: FamilyListPage(repository: mockRepo)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add Family'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add Family'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField), '  Parker Family  ');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(mockRepo.addedFamilyName, 'Parker Family');
+    expect(mockRepo.fetchCount, 2);
+    expect(find.text('Parker Family'), findsOneWidget);
+  });
+
+  testWidgets('FamilyListPage opens details and reloads when returning', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockAttendanceRepository();
+    mockRepo.setFamilies([
+      Family(
+        id: '1',
+        displayName: 'Doe Family',
+        members: [Member(id: 'm1', displayName: 'John Doe')],
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: FamilyListPage(repository: mockRepo)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Doe Family'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Members'), findsOneWidget);
+    expect(find.text('John Doe'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Manage Families'), findsOneWidget);
+    expect(mockRepo.fetchCount, 2);
   });
 }
