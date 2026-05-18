@@ -346,8 +346,7 @@ class _MembersPageState extends State<MembersPage> {
       if (confirmed != true) return;
     }
 
-    final controller = TextEditingController(text: member.displayName);
-    final focusNode = FocusNode();
+    var editedName = member.displayName;
 
     final newName = await showDialog<String>(
       context: context,
@@ -357,13 +356,13 @@ class _MembersPageState extends State<MembersPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: controller,
-              focusNode: focusNode,
+            TextFormField(
+              initialValue: member.displayName,
               textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(hintText: 'Member Name'),
               autofocus: true,
-              onSubmitted: (val) => Navigator.of(context).pop(val),
+              onChanged: (value) => editedName = value,
+              onFieldSubmitted: (val) => Navigator.of(context).pop(val),
             ),
             const SizedBox(height: 12),
             Text(
@@ -380,15 +379,12 @@ class _MembersPageState extends State<MembersPage> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
+            onPressed: () => Navigator.of(context).pop(editedName),
             child: const Text('Save'),
           ),
         ],
       ),
     );
-
-    controller.dispose();
-    focusNode.dispose();
 
     if (newName == null) return;
 
