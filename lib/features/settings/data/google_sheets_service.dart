@@ -13,6 +13,13 @@ import '../../../core/logging/app_logger.dart';
 final _log = AppLogger('GoogleSheets');
 
 class GoogleSheetsService {
+  GoogleSheetsService({http.Client? client})
+      : _client = client ?? http.Client(),
+        _ownsClient = client == null;
+
+  final http.Client _client;
+  final bool _ownsClient;
+
   static const String _lastSheetsSyncKey = 'last_sheets_sync_time';
 
   Future<void> syncAttendance(String webAppUrl) async {
@@ -29,7 +36,7 @@ class GoogleSheetsService {
         return;
       }
 
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse(webAppUrl),
         body: jsonEncode(payload),
         headers: {'Content-Type': 'text/plain'},
@@ -45,6 +52,12 @@ class GoogleSheetsService {
     } catch (e, st) {
       _log.error('Google Sheets sync failed', e, st);
       rethrow;
+    }
+  }
+
+  void close() {
+    if (_ownsClient) {
+      _client.close();
     }
   }
 

@@ -968,8 +968,8 @@ class DriveService extends ChangeNotifier {
       }
     }
 
-    process(remote, isRemote: true);
     process(local);
+    process(remote, isRemote: true);
 
     return merged.values.toList();
   }
@@ -1001,9 +1001,10 @@ class DriveService extends ChangeNotifier {
   List<dynamic> testMergeJsonLists(
     List<dynamic> local,
     List<dynamic> remote,
-    String fileName,
-  ) {
-    return _mergeJsonLists(local, remote, fileName);
+    String fileName, {
+    SyncStats? stats,
+  }) {
+    return _mergeJsonLists(local, remote, fileName, stats: stats);
   }
 
   @visibleForTesting
