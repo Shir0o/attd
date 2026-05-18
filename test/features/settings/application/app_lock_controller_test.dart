@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_auth/local_auth.dart';
@@ -62,6 +64,97 @@ void main() {
       expect(c.isEnabled, isTrue);
       expect(c.isLocked, isFalse);
       expect(prefs.getBool('app_lock_enabled'), isTrue);
+    });
+
+    test('canUseAppLock returns false when unsupported or auth throws',
+        () async {
+      when(() => auth.isDeviceSupported()).thenAnswer((_) async => false);
+      final unsupported = AppLockController(prefs, auth: auth);
+      expect(await unsupported.canUseAppLock(), isFalse);
+
+      when(() => auth.isDeviceSupported()).thenThrow(Exception('no auth'));
+      final throwing = AppLockController(prefs, auth: auth);
+      expect(await throwing.canUseAppLock(), isFalse);
+    });
+
+    test('disable() requires auth and clears persisted state on success',
+        () async {
+      await prefs.setBool('app_lock_enabled', true);
+      when(
+        () => auth.authenticate(
+          localizedReason: any(named: 'localizedReason'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) async => false);
+
+      final c = AppLockController(prefs, auth: auth);
+      expect(await c.disable(), isFalse);
+      expect(c.isEnabled, isTrue);
+      expect(prefs.getBool('app_lock_enabled'), isTrue);
+
+      when(
+        () => auth.authenticate(
+          localizedReason: any(named: 'localizedReason'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) async => true);
+
+      expect(await c.disable(), isTrue);
+      expect(c.isEnabled, isFalse);
+      expect(c.isLocked, isFalse);
+      expect(prefs.getBool('app_lock_enabled'), isFalse);
+    });
+
+    test('unlock returns true when disabled or already unlocked', () async {
+      final disabled = AppLockController(prefs, auth: auth);
+      expect(await disabled.unlock(), isTrue);
+
+      when(
+        () => auth.authenticate(
+          localizedReason: any(named: 'localizedReason'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) async => true);
+
+      await disabled.enable();
+      expect(disabled.isLocked, isFalse);
+      expect(await disabled.unlock(), isTrue);
+    });
+
+    test('unlock keeps the app locked when authentication fails', () async {
+      await prefs.setBool('app_lock_enabled', true);
+      when(
+        () => auth.authenticate(
+          localizedReason: any(named: 'localizedReason'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) async => false);
+
+      final c = AppLockController(prefs, auth: auth);
+      expect(await c.unlock(), isFalse);
+      expect(c.isLocked, isTrue);
+    });
+
+    test('second auth request is rejected while authentication is active',
+        () async {
+      final completer = Completer<bool>();
+      when(
+        () => auth.authenticate(
+          localizedReason: any(named: 'localizedReason'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) => completer.future);
+
+      final c = AppLockController(prefs, auth: auth);
+      final first = c.enable();
+
+      await pumpEventQueue();
+      expect(c.isAuthenticating, isTrue);
+      expect(await c.disable(), isFalse);
+
+      completer.complete(true);
+      expect(await first, isTrue);
+      expect(c.isAuthenticating, isFalse);
     });
 
     test('locks on resume after threshold elapses', () async {
