@@ -9,9 +9,14 @@ import 'report_export_service.dart';
 import 'report_models.dart';
 
 class ReportExportPage extends StatefulWidget {
-  const ReportExportPage({super.key, required this.sessionRepository});
+  const ReportExportPage({
+    super.key,
+    required this.sessionRepository,
+    this.exportService,
+  });
 
   final SessionRepository sessionRepository;
+  final ReportExportService? exportService;
 
   @override
   State<ReportExportPage> createState() => _ReportExportPageState();
@@ -38,9 +43,8 @@ class _ReportExportPageState extends State<ReportExportPage> {
       start: now.subtract(const Duration(days: 30)),
       end: now,
     );
-    _exportService = ReportExportService(
-      sessionRepository: widget.sessionRepository,
-    );
+    _exportService = widget.exportService ??
+        ReportExportService(sessionRepository: widget.sessionRepository);
     _syncSheets = _exportService.supportsGoogleSheets;
     _loadEventTitles();
   }
@@ -427,4 +431,3 @@ class _ReportExportPageState extends State<ReportExportPage> {
     );
   }
 }
-

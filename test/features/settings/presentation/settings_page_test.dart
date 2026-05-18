@@ -65,7 +65,8 @@ class MockSessionRepository implements SessionRepository {
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
   @override
   Future<void> deleteSession(String sessionId, {required String actor}) async {}
   @override
@@ -87,7 +88,8 @@ class MockSessionRepository implements SessionRepository {
   Future<Session> saveSnapshot(
     Session session, {
     required String actor,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
   @override
   Stream<List<Session>> streamSessions() => Stream.value([]);
 }
@@ -170,16 +172,41 @@ class FakeGoogleSignInAccount implements GoogleSignInAccount {
 class FakeLocalBackupService extends LocalBackupService {
   bool backupCalled = false;
   bool exportCalled = false;
+  bool throwOnBackup = false;
+  bool throwOnExport = false;
 
   @override
   Future<void> createBackup() async {
+    if (throwOnBackup) {
+      throw StateError('backup failed');
+    }
     backupCalled = true;
   }
 
   @override
   Future<void> exportData() async {
+    if (throwOnExport) {
+      throw StateError('export failed');
+    }
     exportCalled = true;
   }
+}
+
+Widget _settingsPage({
+  required ThemeController themeController,
+  FakeDriveService? driveService,
+  FakeLocalBackupService? localBackupService,
+}) {
+  return MaterialApp(
+    home: SettingsPage(
+      themeController: themeController,
+      driveService: driveService ?? FakeDriveService(),
+      localBackupService: localBackupService ?? FakeLocalBackupService(),
+      attendanceRepository: MockAttendanceRepository(),
+      eventRepository: MockEventRepository(),
+      sessionRepository: MockSessionRepository(),
+    ),
+  );
 }
 
 void main() {
@@ -191,7 +218,8 @@ void main() {
     themeController = ThemeController(prefs);
   });
 
-  testWidgets('SettingsPage shows skeleton loader while loading', (tester) async {
+  testWidgets('SettingsPage shows skeleton loader while loading',
+      (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
@@ -400,5 +428,92 @@ void main() {
     expect(find.text('Attendance Tracker', skipOffstage: false), findsWidgets);
     expect(find.text('Version 1.2.0+13', skipOffstage: false), findsWidgets);
     expect(find.text('Legalese', skipOffstage: false), findsWidgets);
+  });
+
+  testWidgets('SettingsPage persists theme changes', (tester) async {
+    await tester.pumpWidget(_settingsPage(themeController: themeController));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<ThemeMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark').last);
+    await tester.pumpAndSettle();
+
+    expect(themeController.themeMode, ThemeMode.dark);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('theme_mode'), ThemeMode.dark.index);
+  });
+
+  testWidgets('SettingsPage shows backup and export failure snackbars', (
+    tester,
+  ) async {
+    final localBackupService = FakeLocalBackupService()
+      ..throwOnBackup = true
+      ..throwOnExport = true;
+
+    await tester.pumpWidget(
+      _settingsPage(
+        themeController: themeController,
+        localBackupService: localBackupService,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Backup to Local Storage'),
+      find.byType(ListView),
+      const Offset(0, -400),
+    );
+    await tester.tap(find.text('Backup to Local Storage'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Backup failed: Bad state: backup failed'),
+        findsOneWidget);
+
+    ScaffoldMessenger.of(tester.element(find.byType(SettingsPage)))
+        .hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Export Report'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.tap(find.text('Export Report'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Export failed: Bad state: export failed'),
+        findsOneWidget);
+  });
+
+  testWidgets('SettingsPage opens manage backup data and advanced reporting', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_settingsPage(themeController: themeController));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Manage Backup Data'),
+      find.byType(ListView),
+      const Offset(0, -400),
+    );
+    await tester.tap(find.text('Manage Backup Data'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Local Records Snapshot'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Advanced Reporting'),
+      find.byType(ListView),
+      const Offset(0, -400),
+    );
+    await tester.tap(find.text('Advanced Reporting'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Export reports'), findsOneWidget);
   });
 }
