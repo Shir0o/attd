@@ -21,6 +21,20 @@ void main() {
       expect(result, DateTime(2023, 11, 1));
     });
 
+    test('returns today for One-time event without a scheduled date', () {
+      final now = DateTime(2023, 10, 25, 10, 0);
+      final event = Event(
+        id: '1',
+        title: 'One Time',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'One-time',
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      final result = calculateTargetDate(event, now);
+      expect(result, DateTime(2023, 10, 25));
+    });
+
     test('returns today if time is AFTER event time (Weekly)', () {
       final now = DateTime(2023, 10, 25, 13, 0); // Wednesday, 1 PM
       final event = Event(
@@ -69,7 +83,8 @@ void main() {
       expect(result, DateTime(2023, 10, 18));
     });
 
-    test('returns last occurrence if time is BEFORE event time for Monthly', () {
+    test('returns last occurrence if time is BEFORE event time for Monthly',
+        () {
       final now = DateTime(2023, 10, 25, 10, 0); // Wednesday
       final event = Event(
         id: '1',
@@ -84,6 +99,36 @@ void main() {
       // Logic finds the most recent valid weekday (excluding today since time hasn't passed)
       // Expect 7 days ago (the last Wednesday): Oct 18
       expect(result, DateTime(2023, 10, 18));
+    });
+
+    test('returns today when no repeating days are selected', () {
+      final now = DateTime(2023, 10, 25, 10, 0);
+      final event = Event(
+        id: '1',
+        title: 'Weekly Event',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: const [],
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      final result = calculateTargetDate(event, now);
+      expect(result, DateTime(2023, 10, 25));
+    });
+
+    test('does not return an occurrence before the event was created', () {
+      final now = DateTime(2023, 10, 25, 10, 0);
+      final event = Event(
+        id: '1',
+        title: 'New Weekly Event',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Wednesday'],
+        createdAt: DateTime(2023, 10, 24),
+      );
+
+      final result = calculateTargetDate(event, now);
+      expect(result, DateTime(2023, 10, 25));
     });
   });
 }
