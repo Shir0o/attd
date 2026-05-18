@@ -43,22 +43,10 @@ class SettingsRobot {
   Future<void> tapManageMembers() async {
     print('DEBUG: tapManageMembers');
     await verifyOnSettingsPage();
-    
+
     final finder = find.byKey(const ValueKey('manage_members_tile'));
-    await tester.pumpUntilFound(finder);
-    
-    await tester.dragUntilVisible(
-      finder,
-      find.byType(ListView), // This is actually inside CustomScrollView but dragUntilVisible needs a scrollable
-      const Offset(0, -300),
-    ).catchError((e) {
-        // Fallback for CustomScrollView
-        print('DEBUG: dragUntilVisible failed, trying alternative scroll');
-    });
-    
-    await tester.ensureVisible(finder);
-    await tester.pumpAndSettle();
-    
+    await _scrollContentUntilVisible(finder);
+
     await tester.tap(finder);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1000));
@@ -69,14 +57,25 @@ class SettingsRobot {
     await verifyOnSettingsPage();
 
     final finder = find.byKey(const ValueKey('manage_backup_data_tile'));
-    await tester.pumpUntilFound(finder);
-    
-    await tester.ensureVisible(finder);
-    await tester.pumpAndSettle();
-    
+    await _scrollContentUntilVisible(finder);
+
     await tester.tap(finder);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1000));
+  }
+
+  Future<void> _scrollContentUntilVisible(Finder finder) async {
+    final content = find.byKey(const ValueKey('content'));
+    for (var attempts = 0; attempts < 20; attempts++) {
+      if (finder.evaluate().isNotEmpty) {
+        await tester.ensureVisible(finder);
+        await tester.pumpAndSettle();
+        return;
+      }
+      await tester.drag(content, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    await tester.pumpUntilFound(finder);
   }
 
   Future<void> verifyOnManageBackupDataPage() async {
