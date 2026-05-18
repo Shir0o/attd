@@ -1,7 +1,8 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:attendance_tracker/data/local_session_repository.dart';
+import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -114,7 +115,7 @@ void main() {
 
       // Soft delete it
       await repository.deleteSession(session.id, actor: 'Admin');
-      
+
       // Threshold is in the future relative to deletion time, so it should be pruned
       final threshold = now.add(const Duration(seconds: 1));
       await repository.pruneSoftDeleted(threshold);
@@ -138,7 +139,7 @@ void main() {
         sessionDate: now,
         actor: 'Admin',
         records: [
-           SessionRecord(
+          SessionRecord(
             memberId: 'm1',
             attendee: 'John',
             status: AttendanceStatus.present,
@@ -148,7 +149,8 @@ void main() {
         ],
       );
 
-      final duplicate = await repository.duplicate(original.id, actor: 'Tester');
+      final duplicate =
+          await repository.duplicate(original.id, actor: 'Tester');
 
       expect(duplicate.id, isNot(original.id));
       expect(duplicate.title, contains('Original (redo)'));
@@ -171,6 +173,110 @@ void main() {
 
       expect(sessions.length, 1);
       expect(sessions.first.title, 'Persisted');
+    });
+
+    test('loadSessions handles empty and malformed files', () async {
+      final file = File('${tempDir.path}/sessions.json');
+      await file.writeAsString('');
+
+      expect(await repository.loadSessions(), isEmpty);
+
+      await file.writeAsString('{not json');
+      await repository.refresh();
+
+      expect(await repository.loadSessions(), isEmpty);
+    });
+
+    test('findSessionById returns null for missing sessions', () async {
+      expect(await repository.findSessionById('missing'), isNull);
+    });
+
+    test('duplicate throws when the source session is missing', () async {
+      await expectLater(
+        repository.duplicate('missing', actor: 'Tester'),
+        throwsStateError,
+      );
+    });
+
+    test('streamSessions emits initial and updated sessions', () async {
+      final emissions = <List<Session>>[];
+      final subscription = repository.streamSessions().listen(emissions.add);
+
+      await pumpEventQueue();
+      final session = await repository.createSession(
+        title: 'Streamed',
+        sessionDate: DateTime.now(),
+        actor: 'Admin',
+        records: const [],
+      );
+      await repository.saveSnapshot(
+        session.copyWith(title: 'Streamed Update'),
+        actor: 'Admin',
+      );
+      await pumpEventQueue();
+      await subscription.cancel();
+
+      expect(emissions.first, isEmpty);
+      expect(emissions.last.single.title, 'Streamed Update');
+    });
+
+    test('migrateRecords updates sessions and history snapshots', () async {
+      final now = DateTime(2026, 5, 17);
+      final session = await repository.createSession(
+        title: 'Migration',
+        sessionDate: now,
+        actor: 'Admin',
+        records: [
+          SessionRecord(
+            attendee: 'Alice',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'Admin',
+          ),
+          SessionRecord(
+            memberId: 'existing',
+            attendee: 'Bob',
+            status: AttendanceStatus.absent,
+            recordedAt: now,
+            recordedBy: 'Admin',
+          ),
+        ],
+      );
+      await repository.saveSnapshot(session.copyWith(title: 'Migration 2'),
+          actor: 'Admin');
+
+      await repository.migrateRecords({'Alice': 'alice-id', 'Bob': 'bob-id'});
+
+      final loaded = await repository.findSessionById(session.id);
+      expect(loaded!.records.first.memberId, 'alice-id');
+      expect(loaded.records.last.memberId, 'existing');
+
+      final history = await repository.history(session.id);
+      expect(history, hasLength(2));
+      expect(history.first.snapshot.records.first.memberId, 'alice-id');
+      expect(history.last.snapshot.records.first.memberId, 'alice-id');
+    });
+
+    test('migrateRecords is a no-op when no names match', () async {
+      final now = DateTime(2026, 5, 17);
+      await repository.createSession(
+        title: 'No Migration',
+        sessionDate: now,
+        actor: 'Admin',
+        records: [
+          SessionRecord(
+            attendee: 'Alice',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'Admin',
+          ),
+        ],
+      );
+
+      await repository.migrateRecords({'Other': 'other-id'});
+
+      final loaded = await repository.loadSessions();
+      expect(loaded.single.records.single.memberId, isNull);
     });
   });
 }

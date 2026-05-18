@@ -12,6 +12,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _EventRepository implements EventRepository {
   final List<Event> events;
+  Object? createError;
+  Object? updateError;
+  Object? deleteError;
   int createCount = 0;
   int updateCount = 0;
   int deleteCount = 0;
@@ -21,12 +24,18 @@ class _EventRepository implements EventRepository {
   @override
   Future<void> createEvent(Event event) async {
     createCount++;
+    if (createError != null) {
+      throw createError!;
+    }
     events.add(event);
   }
 
   @override
   Future<void> deleteEvent(String eventId) async {
     deleteCount++;
+    if (deleteError != null) {
+      throw deleteError!;
+    }
     events.removeWhere((event) => event.id == eventId);
   }
 
@@ -46,6 +55,9 @@ class _EventRepository implements EventRepository {
   @override
   Future<void> updateEvent(Event event) async {
     updateCount++;
+    if (updateError != null) {
+      throw updateError!;
+    }
     final index = events.indexWhere((item) => item.id == event.id);
     if (index == -1) {
       events.add(event);
@@ -98,7 +110,8 @@ class _SessionRepository implements SessionRepository {
   Future<void> refresh() async {}
 
   @override
-  Future<Session> saveSnapshot(Session session, {required String actor}) async =>
+  Future<Session> saveSnapshot(Session session,
+          {required String actor}) async =>
       session;
 
   @override
@@ -133,6 +146,73 @@ void main() {
     expect(repository.events.single.repeatingDays, isNotEmpty);
   });
 
+  testWidgets('creates a one-time event', (tester) async {
+    final repository = _EventRepository();
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Workshop');
+    await tester.tap(find.text('Weekly'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('One-time').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Date'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('save_event_button')));
+    await tester.pumpAndSettle();
+
+    expect(repository.createCount, 1);
+    expect(repository.events.single.frequency, 'One-time');
+    expect(repository.events.single.oneTimeDate, isNotNull);
+    expect(repository.events.single.repeatingDays, isEmpty);
+  });
+
+  testWidgets('edits an existing event and preserves identifiers', (
+    tester,
+  ) async {
+    final createdAt = DateTime(2025, 1, 1);
+    final event = Event(
+      id: 'event-1',
+      title: 'Original',
+      time: const TimeOfDay(hour: 9, minute: 30),
+      frequency: 'Weekly',
+      repeatingDays: const ['Sunday'],
+      memberIds: const ['member-1'],
+      createdAt: createdAt,
+    );
+    final repository = _EventRepository([event]);
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          eventToEdit: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Updated Event');
+    await tester.tap(find.byKey(const ValueKey('save_event_button')));
+    await tester.pumpAndSettle();
+
+    expect(repository.updateCount, 1);
+    expect(repository.events.single.id, 'event-1');
+    expect(repository.events.single.title, 'Updated Event');
+    expect(repository.events.single.memberIds, ['member-1']);
+    expect(repository.events.single.createdAt, createdAt);
+  });
+
   testWidgets('validates event name before saving', (tester) async {
     final repository = _EventRepository();
 
@@ -151,6 +231,27 @@ void main() {
 
     expect(find.text('Please enter an event name'), findsOneWidget);
     expect(repository.createCount, 0);
+  });
+
+  testWidgets('shows a snackbar when saving fails', (tester) async {
+    final repository = _EventRepository()..createError = StateError('boom');
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Broken Event');
+    await tester.tap(find.byKey(const ValueKey('save_event_button')));
+    await tester.pump();
+
+    expect(repository.createCount, 1);
+    expect(find.textContaining('Error saving event'), findsOneWidget);
   });
 
   testWidgets('deletes an event with linked session warning', (
@@ -201,5 +302,69 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.deleteCount, 1);
+  });
+
+  testWidgets('canceling delete keeps the event', (tester) async {
+    final createdAt = DateTime(2025, 1, 1);
+    final event = Event(
+      id: 'event-1',
+      title: 'Original',
+      time: const TimeOfDay(hour: 9, minute: 30),
+      frequency: 'Monthly',
+      createdAt: createdAt,
+    );
+    final repository = _EventRepository([event]);
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          eventToEdit: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(repository.deleteCount, 0);
+    expect(repository.events.single.id, 'event-1');
+    expect(find.text('Edit Event'), findsOneWidget);
+  });
+
+  testWidgets('shows a snackbar when deleting fails', (tester) async {
+    final createdAt = DateTime(2025, 1, 1);
+    final event = Event(
+      id: 'event-1',
+      title: 'Original',
+      time: const TimeOfDay(hour: 9, minute: 30),
+      frequency: 'Monthly',
+      createdAt: createdAt,
+    );
+    final repository = _EventRepository([event])
+      ..deleteError = StateError('delete failed');
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          eventToEdit: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+
+    expect(repository.deleteCount, 1);
+    expect(find.textContaining('Error deleting event'), findsOneWidget);
   });
 }

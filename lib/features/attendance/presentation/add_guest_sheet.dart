@@ -118,7 +118,8 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                       controller: _nameController,
                       autofocus: true,
                       textCapitalization: TextCapitalization.words,
-                      style: TextStyle(color: colorScheme.onSurface, fontSize: 18),
+                      style:
+                          TextStyle(color: colorScheme.onSurface, fontSize: 18),
                       onChanged: (val) {
                         if (_selectedExistingMember != null &&
                             val != _selectedExistingMember!.displayName) {
@@ -135,7 +136,8 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         filled: true,
                         fillColor: colorScheme.surfaceContainerHigh,
                         suffixIcon: _selectedExistingMember != null
-                            ? Icon(Icons.check_circle, color: colorScheme.primary)
+                            ? Icon(Icons.check_circle,
+                                color: colorScheme.primary)
                             : null,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -161,21 +163,24 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         ),
                         child: Column(
                           children: suggestions.map((member) {
-                            return ListTile(
-                              leading: CircleAvatar(
-                                radius: 16,
-                                backgroundColor: colorScheme.primaryContainer,
-                                child: Text(
-                                  member.displayName[0].toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onPrimaryContainer,
+                            return Material(
+                              color: Colors.transparent,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: colorScheme.primaryContainer,
+                                  child: Text(
+                                    member.displayName[0].toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
                                   ),
                                 ),
+                                title: Text(member.displayName),
+                                subtitle: const Text('Existing Member'),
+                                onTap: () => _selectMember(member),
                               ),
-                              title: Text(member.displayName),
-                              subtitle: const Text('Existing Member'),
-                              onTap: () => _selectMember(member),
                             );
                           }).toList(),
                         ),
@@ -191,7 +196,8 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           ? Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Add as Guest',

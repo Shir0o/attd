@@ -540,13 +540,16 @@ class DriveService extends ChangeNotifier {
       final backupPath = p.join(docsDir.path, backupName);
       encoder.create(backupPath);
 
-      for (final fileName in filesToBackup) {
-        final file = File(p.join(docsDir.path, fileName));
-        if (await file.exists()) {
-          encoder.addFile(file);
+      try {
+        for (final fileName in filesToBackup) {
+          final file = File(p.join(docsDir.path, fileName));
+          if (await file.exists()) {
+            await encoder.addFile(file);
+          }
         }
+      } finally {
+        await encoder.close();
       }
-      encoder.close();
 
       // Upload ZIP
       final backupFile = File(backupPath);

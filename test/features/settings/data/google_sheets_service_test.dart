@@ -63,6 +63,16 @@ void main() {
 
     test('posts changed attendance records and stores sync time', () async {
       final sessionsFile = File(p.join(tempDir.path, 'sessions.json'));
+      await File(p.join(tempDir.path, 'families.json')).writeAsString(
+        jsonEncode([
+          {
+            'id': 'family-1',
+            'members': [
+              {'id': 'member-1', 'displayName': 'Alex'},
+            ],
+          },
+        ]),
+      );
       await sessionsFile.writeAsString(
         jsonEncode([
           {
@@ -113,6 +123,120 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('last_sheets_sync_time'), isNotNull);
+    });
+
+    test('skips sessions without updatedAt or sessionDate', () async {
+      final sessionsFile = File(p.join(tempDir.path, 'sessions.json'));
+      await sessionsFile.writeAsString(
+        jsonEncode([
+          {
+            'title': 'Missing Updated At',
+            'sessionDate': '2026-05-17T09:00:00.000',
+            'records': [
+              {'attendee': 'Alex', 'status': 'present'},
+            ],
+          },
+          {
+            'title': 'Missing Date',
+            'updatedAt': '2026-05-17T10:00:00.000',
+            'records': [
+              {'attendee': 'Jordan', 'status': 'absent'},
+            ],
+          },
+        ]),
+      );
+      var requestCount = 0;
+      final client = MockClient((request) async {
+        requestCount++;
+        return http.Response('', HttpStatus.ok);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      expect(requestCount, 0);
+    });
+
+    test('uses fallback title, attendee, and status values', () async {
+      await File(p.join(tempDir.path, 'sessions.json')).writeAsString(
+        jsonEncode([
+          {
+            'sessionDate': '2026-05-17T09:00:00.000',
+            'updatedAt': '2026-05-17T10:00:00.000',
+            'records': [{}],
+          },
+        ]),
+      );
+      await File(p.join(tempDir.path, 'families.json')).writeAsString(
+        '{not json',
+      );
+
+      final receivedBodies = <String>[];
+      final client = MockClient((request) async {
+        receivedBodies.add(request.body);
+        return http.Response('', HttpStatus.ok);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      final payload = jsonDecode(receivedBodies.single) as Map<String, dynamic>;
+      expect((payload['records'] as List).single, {
+        'name': '[2026-05-17] Untitled - Unknown',
+        'status': 'absent',
+      });
+    });
+
+    test('does not store sync time when server returns an error', () async {
+      await File(p.join(tempDir.path, 'sessions.json')).writeAsString(
+        jsonEncode([
+          {
+            'title': 'Sunday Service',
+            'sessionDate': '2026-05-17T09:00:00.000',
+            'updatedAt': '2026-05-17T10:00:00.000',
+            'records': [
+              {'attendee': 'Alex', 'status': 'present'},
+            ],
+          },
+        ]),
+      );
+      final client = MockClient((request) async {
+        return http.Response('bad', HttpStatus.internalServerError);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('last_sheets_sync_time'), isNull);
+    });
+
+    test('rethrows client errors', () async {
+      await File(p.join(tempDir.path, 'sessions.json')).writeAsString(
+        jsonEncode([
+          {
+            'title': 'Sunday Service',
+            'sessionDate': '2026-05-17T09:00:00.000',
+            'updatedAt': '2026-05-17T10:00:00.000',
+            'records': [
+              {'attendee': 'Alex', 'status': 'present'},
+            ],
+          },
+        ]),
+      );
+      final client = MockClient((request) async {
+        throw const SocketException('offline');
+      });
+
+      await expectLater(
+        GoogleSheetsService(client: client).syncAttendance(
+          'https://script.google.test/sync',
+        ),
+        throwsA(isA<SocketException>()),
+      );
     });
   });
 }
