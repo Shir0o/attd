@@ -28,7 +28,7 @@ class LocalBackupService {
 
       for (final fileName in filesToBackup) {
         final file = File(p.join(docsDir.path, fileName));
-        if (await file.exists()) {
+        if (file.existsSync()) {
           encoder.addFile(file);
         }
       }
@@ -36,11 +36,10 @@ class LocalBackupService {
       encoder.close();
 
       final backupFile = File(backupPath);
-      if (await backupFile.exists()) {
-        final result = await Share.shareXFiles(
-          [XFile(backupPath)],
-          text: 'Attendance Tracker Backup',
-        );
+      if (backupFile.existsSync()) {
+        final result = await Share.shareXFiles([
+          XFile(backupPath),
+        ], text: 'Attendance Tracker Backup');
 
         if (result.status == ShareResultStatus.success) {
           _log.info('Backup shared successfully');
@@ -60,13 +59,13 @@ class LocalBackupService {
       final sessionsFile = File(p.join(docsDir.path, 'sessions.json'));
       final familiesFile = File(p.join(docsDir.path, 'families.json'));
 
-      if (!await sessionsFile.exists()) {
+      if (!sessionsFile.existsSync()) {
         throw Exception('No session data found to export');
       }
 
       // Load families for name resolution
       final Map<String, String> memberNames = {};
-      if (await familiesFile.exists()) {
+      if (familiesFile.existsSync()) {
         try {
           final content = await familiesFile.readAsString();
           final List<dynamic> familiesJson = jsonDecode(content);
@@ -106,9 +105,12 @@ class LocalBackupService {
             final memberName = _escapeCsv(memberNames[memberId] ?? memberId);
             final status = r['status'];
             final recordedAt = DateTime.parse(r['recordedAt']);
-            final recordedAtStr = '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
+            final recordedAtStr =
+                '${dateFormat.format(recordedAt)} ${timeFormat.format(recordedAt)}';
 
-            buffer.writeln('$dateStr,$title,$memberName,$status,$recordedAtStr');
+            buffer.writeln(
+              '$dateStr,$title,$memberName,$status,$recordedAtStr',
+            );
           }
         }
       }
@@ -117,11 +119,9 @@ class LocalBackupService {
       final csvFile = File(csvPath);
       await csvFile.writeAsString(buffer.toString());
 
-      await Share.shareXFiles(
-        [XFile(csvPath)],
-        text: 'Attendance Data Export (CSV)',
-      );
-
+      await Share.shareXFiles([
+        XFile(csvPath),
+      ], text: 'Attendance Data Export (CSV)');
     } catch (e, st) {
       _log.error('Export failed', e, st);
       rethrow;
