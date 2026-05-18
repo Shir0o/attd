@@ -63,6 +63,16 @@ void main() {
 
     test('posts changed attendance records and stores sync time', () async {
       final sessionsFile = File(p.join(tempDir.path, 'sessions.json'));
+      await File(p.join(tempDir.path, 'families.json')).writeAsString(
+        jsonEncode([
+          {
+            'id': 'family-1',
+            'members': [
+              {'id': 'member-1', 'displayName': 'Alex'},
+            ],
+          },
+        ]),
+      );
       await sessionsFile.writeAsString(
         jsonEncode([
           {

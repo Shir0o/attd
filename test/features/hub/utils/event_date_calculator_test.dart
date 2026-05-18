@@ -116,6 +116,21 @@ void main() {
       expect(result, DateTime(2023, 10, 25));
     });
 
+    test('getLastSupposedOccurrence returns one-time date directly', () {
+      final now = DateTime(2023, 10, 25, 10, 0);
+      final event = Event(
+        id: '1',
+        title: 'One Time',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'One-time',
+        oneTimeDate: DateTime(2023, 11, 1, 18, 30),
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      final result = getLastSupposedOccurrence(event, now);
+      expect(result, DateTime(2023, 11, 1));
+    });
+
     test('does not return an occurrence before the event was created', () {
       final now = DateTime(2023, 10, 25, 10, 0);
       final event = Event(

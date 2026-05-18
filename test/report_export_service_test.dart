@@ -28,15 +28,15 @@ class _FakeSessionRepository implements SessionRepository {
     required DateTime sessionDate,
     required String actor,
     required List<SessionRecord> records,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<Session> duplicate(String sessionId, {required String actor}) async =>
       throw UnimplementedError();
 
   @override
-  Future<List<Session>> loadSessions() async =>
-      sessions;
+  Future<List<Session>> loadSessions() async => sessions;
 
   @override
   Future<Session?> findSessionById(String id) async {
@@ -51,7 +51,8 @@ class _FakeSessionRepository implements SessionRepository {
   Future<Session> saveSnapshot(
     Session session, {
     required String actor,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> deleteSession(String sessionId, {required String actor}) async {}
@@ -164,6 +165,48 @@ void main() {
       expect(content, contains('Morning Standup'));
       expect(content, contains('Alex'));
       expect(result.summary.recordCount, 2);
+    });
+
+    test('filters exported sessions by selected event titles', () async {
+      final otherSession = Session(
+        id: '2',
+        title: 'Evening Standup',
+        sessionDate: DateTime(2024, 1, 10),
+        records: [
+          SessionRecord(
+            memberId: 'm3',
+            attendee: 'Sam',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'test',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'test',
+        currentVersion: 1,
+      );
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository([...sessions, otherSession]),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+        sheetsClient: fakeSheetsClient,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.csv,
+          selectedEventTitles: const ['Evening Standup'],
+        ),
+      );
+
+      final content = await File(result.filePath).readAsString();
+      expect(content, contains('Evening Standup'));
+      expect(content, isNot(contains('Morning Standup')));
+      expect(result.summary.sessionCount, 1);
+      expect(result.summary.recordCount, 1);
     });
 
     test('creates image summary with attendance rate', () async {
