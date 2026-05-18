@@ -56,14 +56,16 @@ class LocalBackupService {
       final backupPath = p.join(docsDir.path, 'attendance_backup.zip');
       encoder.create(backupPath);
 
-      for (final fileName in filesToBackup) {
-        final file = File(p.join(docsDir.path, fileName));
-        if (await file.exists()) {
-          await encoder.addFile(file);
+      try {
+        for (final fileName in filesToBackup) {
+          final file = File(p.join(docsDir.path, fileName));
+          if (await file.exists()) {
+            await encoder.addFile(file);
+          }
         }
+      } finally {
+        await encoder.close();
       }
-
-      encoder.close();
 
       final backupFile = File(backupPath);
       if (await backupFile.exists()) {
