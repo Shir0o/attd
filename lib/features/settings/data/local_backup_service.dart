@@ -59,7 +59,7 @@ class LocalBackupService {
       for (final fileName in filesToBackup) {
         final file = File(p.join(docsDir.path, fileName));
         if (await file.exists()) {
-          encoder.addFile(file);
+          await encoder.addFile(file);
         }
       }
 
