@@ -1,4 +1,5 @@
 import 'package:attendance_tracker/features/reports/report_models.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -58,6 +59,51 @@ void main() {
         ).attendanceRate,
         0,
       );
+    });
+  });
+
+  group('report result models', () {
+    test('store constructor values', () async {
+      final summary = const ReportSummary(
+        sessionCount: 2,
+        recordCount: 5,
+        present: 4,
+        absent: 1,
+      );
+      final sheetSync = const SheetSyncResult(
+        attempted: true,
+        success: false,
+        shareLink: 'https://sheet.test/report',
+        error: 'denied',
+      );
+      final export = ReportExportResult(
+        filePath: '/tmp/report.csv',
+        format: ReportFormat.csv,
+        summary: summary,
+        sheetSync: sheetSync,
+      );
+
+      var tapped = false;
+      final shareOption = ReportShareOption(
+        label: 'Share',
+        icon: Icons.share,
+        onTap: () async {
+          tapped = true;
+        },
+      );
+      await shareOption.onTap();
+
+      expect(export.filePath, '/tmp/report.csv');
+      expect(export.format, ReportFormat.csv);
+      expect(export.summary, summary);
+      expect(export.sheetSync, sheetSync);
+      expect(sheetSync.attempted, isTrue);
+      expect(sheetSync.success, isFalse);
+      expect(sheetSync.shareLink, 'https://sheet.test/report');
+      expect(sheetSync.error, 'denied');
+      expect(shareOption.label, 'Share');
+      expect(shareOption.icon, Icons.share);
+      expect(tapped, isTrue);
     });
   });
 }
