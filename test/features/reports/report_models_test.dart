@@ -27,6 +27,26 @@ void main() {
       expect(updated.selectedEventTitles, ['Sunday']);
     });
 
+    test('copyWith keeps all values when no overrides are provided', () {
+      final request = ReportRequest(
+        startDate: DateTime(2026, 5, 1),
+        endDate: DateTime(2026, 5, 17),
+        format: ReportFormat.image,
+        syncToGoogleSheets: true,
+        includeWatchlist: false,
+        selectedEventTitles: const ['Sunday'],
+      );
+
+      final updated = request.copyWith();
+
+      expect(updated.startDate, request.startDate);
+      expect(updated.endDate, request.endDate);
+      expect(updated.format, request.format);
+      expect(updated.syncToGoogleSheets, request.syncToGoogleSheets);
+      expect(updated.includeWatchlist, request.includeWatchlist);
+      expect(updated.selectedEventTitles, request.selectedEventTitles);
+    });
+
     test('rejects an end date before the start date', () {
       expect(
         () => ReportRequest(
