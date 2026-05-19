@@ -170,6 +170,26 @@ void main() {
       expect(members.map((entry) => entry['id']), ['recent-member']);
     });
 
+    test('pruneSoftDeleted is a no-op when nothing is stale', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final now = DateTime.now();
+      await repo.saveFamilies([
+        Family(
+          id: 'keep',
+          displayName: 'Keep',
+          updatedAt: now,
+          members: [Member(id: 'm1', displayName: 'Alice')],
+        ),
+      ]);
+
+      // No deletions -> repository should not rewrite the file.
+      final beforeContent = await File(dbPath).readAsString();
+      await repo.pruneSoftDeleted(now);
+      final afterContent = await File(dbPath).readAsString();
+
+      expect(afterContent, beforeContent);
+    });
+
     test('invalid or non-list files load as empty', () async {
       await File(dbPath).create(recursive: true);
       await File(dbPath).writeAsString('{"unexpected": true}');

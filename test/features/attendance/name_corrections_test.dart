@@ -32,6 +32,35 @@ void main() {
     expect(result.first.members[1].displayName, 'Alex Kim');
   });
 
+  test('applyNameCorrection returns the original list when nothing changes',
+      () {
+    final families = [
+      Family(id: 'fam-1', displayName: 'Patel Family', members: const []),
+    ];
+
+    final result = applyNameCorrection(
+      families: families,
+      subject: 'Patel Family',
+    );
+
+    expect(identical(result, families), isTrue);
+  });
+
+  test('applyNameCorrection returns the original list when targets are empty',
+      () {
+    final families = [
+      Family(id: 'fam-1', displayName: 'Patel Family', members: const []),
+    ];
+
+    final result = applyNameCorrection(
+      families: families,
+      subject: '',
+      correctedName: 'Anything',
+    );
+
+    expect(identical(result, families), isTrue);
+  });
+
   test('applyNameCorrection updates family names when provided', () {
     final families = [
       Family(id: 'fam-1', displayName: 'Patel Family', members: []),

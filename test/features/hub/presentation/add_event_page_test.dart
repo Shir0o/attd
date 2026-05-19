@@ -336,6 +336,110 @@ void main() {
     expect(find.text('Edit Event'), findsOneWidget);
   });
 
+  testWidgets('tapping the event time field opens a time picker',
+      (tester) async {
+    final repository = _EventRepository();
+
+    await tester.pumpWidget(_wrap(
+      AddEventPage(
+        eventRepository: repository,
+        disableAnimations: true,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Tap the time row, identified by the schedule icon.
+    await tester.tap(find.byIcon(Icons.schedule));
+    await tester.pumpAndSettle();
+
+    // Material time picker renders Cancel and a confirm action.
+    expect(find.text('Cancel'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('tapping the date field in one-time mode opens a date picker',
+      (tester) async {
+    final repository = _EventRepository();
+
+    await tester.pumpWidget(_wrap(
+      AddEventPage(
+        eventRepository: repository,
+        disableAnimations: true,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Weekly'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('One-time').last);
+    await tester.pumpAndSettle();
+
+    // The InputDecorator wrapping the Date field is the third one in the form.
+    final decorators = find.byType(InputDecorator);
+    await tester.tap(decorators.last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('OK'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('weekday chips toggle on tap', (tester) async {
+    // Seed with a known event so the initial state is deterministic
+    // (Wednesday selected). Tapping Wednesday should remove it; tapping
+    // Friday should add it.
+    final event = Event(
+      id: 'event-1',
+      title: 'Toggle',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: const ['Wednesday'],
+      createdAt: DateTime(2025, 1, 1),
+    );
+    final repository = _EventRepository([event]);
+
+    await tester.pumpWidget(_wrap(
+      AddEventPage(
+        eventRepository: repository,
+        eventToEdit: event,
+        disableAnimations: true,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // The weekday chips are 44x44 GestureDetectors; locate them by their
+    // single-letter labels. "W" appears once (Wednesday).
+    await tester.tap(find.text('W'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('F'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('save_event_button')));
+    await tester.pumpAndSettle();
+
+    expect(repository.events.single.repeatingDays, ['Friday']);
+  });
+
+  testWidgets('save button renders inside a Hero when animations are enabled',
+      (tester) async {
+    final repository = _EventRepository();
+
+    await tester.pumpWidget(_wrap(
+      AddEventPage(
+        eventRepository: repository,
+        // disableAnimations omitted, defaults to false -> Hero path.
+      ),
+    ));
+    // Animations enabled, so wait out the 800ms minimum loading window
+    // before tapping save.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Hero), findsWidgets);
+    expect(find.byKey(const ValueKey('save_event_button')), findsOneWidget);
+  });
+
   testWidgets('shows a snackbar when deleting fails', (tester) async {
     final createdAt = DateTime(2025, 1, 1);
     final event = Event(

@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
+
+class MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
 
 void main() {
   group('DriveService Merge Logic Scenarios', () {
@@ -383,6 +387,168 @@ void main() {
         expect(result.length, 1);
         expect(result.first['displayName'], 'John (local)');
       });
+    });
+  });
+
+  group('DriveService state and auth lifecycle', () {
+    late MockGoogleSignIn mockGoogleSignIn;
+    late StreamController<GoogleSignInAuthenticationEvent> authController;
+
+    setUp(() {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+      mockGoogleSignIn = MockGoogleSignIn();
+      authController =
+          StreamController<GoogleSignInAuthenticationEvent>.broadcast();
+      when(() => mockGoogleSignIn.authenticationEvents)
+          .thenAnswer((_) => authController.stream);
+      when(() => mockGoogleSignIn.signOut())
+          .thenAnswer((_) async => null);
+      when(() => mockGoogleSignIn.attemptLightweightAuthentication())
+          .thenReturn(null);
+    });
+
+    tearDown(() async {
+      await authController.close();
+    });
+
+    test('setDriveSyncEnabled(false) persists state without syncing', () async {
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      await service.setDriveSyncEnabled(false);
+
+      expect(service.isDriveSyncEnabled, isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('drive_sync_enabled'), isFalse);
+    });
+
+    test('setDriveSyncEnabled(true) persists and swallows sync errors',
+        () async {
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      await service.setDriveSyncEnabled(true);
+      // Let the fire-and-forget syncFiles().catchError settle.
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.isDriveSyncEnabled, isTrue);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('drive_sync_enabled'), isTrue);
+    });
+
+    test('init reads disabled flag and skips sign-in', () async {
+      SharedPreferences.setMockInitialValues({'drive_sync_enabled': false});
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      await service.init();
+
+      expect(service.isDriveSyncEnabled, isFalse);
+      expect(service.currentUser, isNull);
+      expect(service.lastSyncTime, isNull);
+      verifyNever(() => mockGoogleSignIn.attemptLightweightAuthentication());
+    });
+
+    test('init parses persisted lastSyncTime', () async {
+      final fixed = DateTime.utc(2025, 1, 2, 3, 4, 5);
+      SharedPreferences.setMockInitialValues({
+        'drive_sync_enabled': false,
+        'drive_last_sync_time': fixed.toIso8601String(),
+      });
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      await service.init();
+
+      expect(service.lastSyncTime, fixed);
+    });
+
+    test('init with sync enabled attempts silent sign-in and stays signed out '
+        'when no cached user is available', () async {
+      SharedPreferences.setMockInitialValues({'drive_sync_enabled': true});
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      await service.init();
+
+      expect(service.isDriveSyncEnabled, isTrue);
+      expect(service.currentUser, isNull);
+      verify(() => mockGoogleSignIn.attemptLightweightAuthentication())
+          .called(1);
+    });
+
+    test('signOut clears state and resets preferences', () async {
+      SharedPreferences.setMockInitialValues({
+        'drive_sync_enabled': true,
+        'drive_last_sync_time': DateTime.utc(2025, 1, 1).toIso8601String(),
+      });
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+      await service.init();
+
+      var notified = 0;
+      service.addListener(() => notified++);
+
+      await service.signOut();
+
+      expect(service.currentUser, isNull);
+      expect(service.isDriveSyncEnabled, isFalse);
+      expect(service.lastSyncTime, isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('drive_sync_enabled'), isFalse);
+      expect(prefs.getString('drive_last_sync_time'), isNull);
+      expect(notified, greaterThan(0));
+      verify(() => mockGoogleSignIn.signOut()).called(1);
+    });
+
+    test('sign-in auth event updates currentUser and notifies listeners',
+        () async {
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      final account = MockGoogleSignInAccount();
+      var notified = 0;
+      service.addListener(() => notified++);
+
+      authController.add(GoogleSignInAuthenticationEventSignIn(user: account));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.currentUser, same(account));
+      expect(notified, greaterThan(0));
+    });
+
+    test('sign-out auth event clears currentUser', () async {
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      authController.add(
+        GoogleSignInAuthenticationEventSignIn(user: MockGoogleSignInAccount()),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(service.currentUser, isNotNull);
+
+      authController.add(GoogleSignInAuthenticationEventSignOut());
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.currentUser, isNull);
+    });
+
+    test('listCloudBackups returns empty list when DriveApi is not initialized',
+        () async {
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      expect(await service.listCloudBackups(), isEmpty);
+    });
+
+    test('restoreFromBackup is a no-op when DriveApi is not initialized',
+        () async {
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      // Should complete without throwing despite no DriveApi being set up.
+      await service.restoreFromBackup('any-file-id');
     });
   });
 }

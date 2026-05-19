@@ -1001,6 +1001,12 @@ class DriveService extends ChangeNotifier {
   }
 
   @visibleForTesting
+  // ignore: use_setters_to_change_properties
+  void debugSetDriveApi(drive.DriveApi api) {
+    _driveApi = api;
+  }
+
+  @visibleForTesting
   List<dynamic> testMergeJsonLists(
     List<dynamic> local,
     List<dynamic> remote,

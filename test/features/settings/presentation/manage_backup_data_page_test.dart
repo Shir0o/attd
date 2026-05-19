@@ -15,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 class _AttendanceRepository implements AttendanceRepository {
   List<Family> families;
   int saveCount = 0;
+  Object? fetchError;
+  Object? saveError;
 
   _AttendanceRepository(this.families);
 
@@ -29,7 +31,10 @@ class _AttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<List<Family>> fetchFamilies() async => families;
+  Future<List<Family>> fetchFamilies() async {
+    if (fetchError != null) throw fetchError!;
+    return families;
+  }
 
   @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
@@ -40,6 +45,7 @@ class _AttendanceRepository implements AttendanceRepository {
   @override
   Future<void> saveFamilies(List<Family> families) async {
     saveCount++;
+    if (saveError != null) throw saveError!;
     this.families = families;
   }
 
@@ -235,6 +241,28 @@ void main() {
     expect(sessions.deleteCount, 1);
     expect(attendance.saveCount, 1);
     expect(attendance.families.single.members, isEmpty);
+  });
+
+  testWidgets('logs and recovers when fetchFamilies throws on load',
+      (tester) async {
+    final attendance = _AttendanceRepository([])..fetchError = Exception('io');
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The page must render its scaffold rather than crash.
+    expect(find.text('Local Records Snapshot'), findsOneWidget);
   });
 
   testWidgets('handles empty and failed backup loads', (tester) async {
