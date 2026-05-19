@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../data/session_repository.dart';
+import '../../auth/config/google_oauth_config.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
@@ -80,11 +81,7 @@ class DriveService extends ChangeNotifier {
   static const String _syncEnabledKey = 'drive_sync_enabled';
   static const String _lastSyncTimeKey = 'drive_last_sync_time';
 
-  // Read Google Project Number from environment variable via --dart-define or --dart-define-from-file
-  static const int yourGoogleProjectNumber = int.fromEnvironment(
-    'GOOGLE_CLOUD_PROJECT_NUMBER',
-    defaultValue: 0,
-  );
+  int get yourGoogleProjectNumber => GoogleOAuthConfig.googleCloudProjectNumber;
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
@@ -129,14 +126,14 @@ class DriveService extends ChangeNotifier {
       _lastSyncTime = DateTime.tryParse(lastSyncStr);
     }
 
-    if (_isDriveSyncEnabled) {
-      await signInSilently();
-      if (currentUser != null) {
-        // Only trigger sync if we successfully signed in
-        syncFiles().catchError(
-          (e) => _log.error('Initial sync failed', e as Object),
-        );
-      }
+    // Always attempt silent sign-in to restore the session if possible.
+    await signInSilently();
+
+    if (_isDriveSyncEnabled && currentUser != null) {
+      // Only trigger sync if we successfully signed in and sync is enabled
+      syncFiles().catchError(
+        (e) => _log.error('Initial sync failed', e as Object),
+      );
     }
   }
 

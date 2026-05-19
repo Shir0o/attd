@@ -12,6 +12,7 @@ import 'features/attendance/data/attendance_repository.dart';
 import 'features/hub/data/event_repository.dart';
 import 'features/hub/data/local_event_repository.dart';
 import 'features/hub/presentation/hub_page.dart';
+import 'features/auth/presentation/google_sign_in_page.dart';
 import 'features/onboarding/application/onboarding_controller.dart';
 import 'features/onboarding/presentation/onboarding_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -213,20 +214,32 @@ class _AttendanceAppState extends State<AttendanceApp>
       listenable: Listenable.merge([
         widget.themeController,
         widget.onboardingController,
+        if (widget.driveService != null) widget.driveService!,
       ]),
       builder: (context, child) {
-        final home = widget.onboardingController.shouldShowOnboarding
-            ? OnboardingPage(onboardingController: widget.onboardingController)
-            : HubPage(
-                themeController: widget.themeController,
-                sessionRepository: widget.sessionRepository,
-                eventRepository: widget.eventRepository,
-                attendanceRepository: widget.repository,
-                driveService: widget.driveService,
-                localBackupService: widget.localBackupService,
-                appLockController: widget.appLockController,
-                disableAnimations: widget.disableAnimations,
-              );
+        Widget home;
+        if (widget.onboardingController.shouldShowOnboarding) {
+          home = OnboardingPage(
+            onboardingController: widget.onboardingController,
+          );
+        } else if (widget.onboardingController.shouldShowSignIn &&
+            (widget.driveService?.currentUser == null)) {
+          home = GoogleSignInPage(
+            driveService: widget.driveService!,
+            onComplete: () => widget.onboardingController.completeSignInPrompt(),
+          );
+        } else {
+          home = HubPage(
+            themeController: widget.themeController,
+            sessionRepository: widget.sessionRepository,
+            eventRepository: widget.eventRepository,
+            attendanceRepository: widget.repository,
+            driveService: widget.driveService,
+            localBackupService: widget.localBackupService,
+            appLockController: widget.appLockController,
+            disableAnimations: widget.disableAnimations,
+          );
+        }
         return MaterialApp(
           navigatorKey: _navigatorKey,
           title: 'Attendance',
