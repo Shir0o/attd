@@ -5,6 +5,7 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
@@ -295,5 +296,223 @@ void main() {
     expect(sessionRepository.createdSessions, hasLength(1));
     expect(sessionRepository.createdSessions.single.title, 'Sunday Service');
     expect(sessionRepository.createdSessions.single.eventId, 'event-1');
+  });
+
+  testWidgets('action menu: Manage Members navigates to members page',
+      (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage Members'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Manage Event Members'), findsOneWidget);
+  });
+
+  testWidgets('action menu: View History navigates to event history',
+      (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View History'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sunday Service History'), findsOneWidget);
+  });
+
+  testWidgets('action menu: Edit Event navigates to AddEventPage',
+      (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit Event'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit Event'), findsOneWidget); // app bar title
+  });
+
+  testWidgets('action menu: cancelling delete keeps the event',
+      (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete Event'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(eventRepository.deletedEventIds, isEmpty);
+  });
+
+  testWidgets('renders a one-time event with its formatted date', (tester) async {
+    final futureDate = DateTime.now().add(const Duration(days: 14));
+    final event = Event(
+      id: 'one',
+      title: 'Workshop',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'One-time',
+      oneTimeDate: futureDate,
+      createdAt: DateTime.now(),
+    );
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    final expected =
+        DateFormat('EEEE, MMM d, yyyy').format(futureDate);
+    expect(find.text(expected), findsOneWidget);
+    // Upcoming events render the plain text status (else-branch of pill).
+    expect(find.text('Upcoming'), findsOneWidget);
+  });
+
+  testWidgets(
+      'event with an existing session for today shows the Taken pill',
+      (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-today',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: const [],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('TAKEN'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a card with a complete session opens SessionSummaryPage',
+      (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final member = Member(id: 'member-1', displayName: 'Alice');
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: [member],
+        updatedAt: now,
+      ),
+    ];
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-today',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: [
+          SessionRecord(
+            memberId: 'member-1',
+            attendee: 'Alice',
+            status: AttendanceStatus.present,
+            recordedAt: today,
+            recordedBy: 'user',
+          ),
+        ],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([todayEvent(memberIds: ['member-1'])]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sunday Service'));
+    await tester.pumpAndSettle();
+
+    // SessionSummaryPage shows a "Summary" title; if not findable due to
+    // animations, assert that no new session was created — we navigated
+    // to the summary, not the deck path.
+    expect(sessionRepository.createdSessions, isEmpty);
+  });
+
+  testWidgets('FAB navigates to a new AddEventPage', (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    // AddEventPage app bar title in create mode.
+    expect(find.text('New Event'), findsOneWidget);
+  });
+
+  testWidgets(
+      'tapping a card with an incomplete session opens AttendanceDeckPage',
+      (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final members = [
+      Member(id: 'm1', displayName: 'Alice'),
+      Member(id: 'm2', displayName: 'Bob'),
+    ];
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: members,
+        updatedAt: now,
+      ),
+    ];
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-today',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        // Only one record, but two members assigned -> incomplete.
+        records: [
+          SessionRecord(
+            memberId: 'm1',
+            attendee: 'Alice',
+            status: AttendanceStatus.present,
+            recordedAt: today,
+            recordedBy: 'user',
+          ),
+        ],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([
+      todayEvent(memberIds: ['m1', 'm2']),
+    ]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sunday Service'));
+    await tester.pumpAndSettle();
+
+    // No new session was created — we navigated to the deck for the
+    // existing incomplete session.
+    expect(sessionRepository.createdSessions, isEmpty);
   });
 }

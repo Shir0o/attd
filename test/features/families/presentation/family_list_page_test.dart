@@ -33,6 +33,7 @@ class MockAttendanceRepository implements AttendanceRepository {
     if (_fetchCompleter != null) {
       await _fetchCompleter!.future;
     }
+    if (fetchError != null) throw fetchError!;
     return _families;
   }
 
@@ -64,6 +65,8 @@ class MockAttendanceRepository implements AttendanceRepository {
   @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 
+  Object? fetchError;
+
   @override
   Stream<List<Family>> streamFamilies() {
     return Stream.value(_families);
@@ -94,6 +97,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AppShimmer), findsNothing);
+  });
+
+  testWidgets('FamilyListPage shows error message when fetching fails',
+      (WidgetTester tester) async {
+    final mockRepo = MockAttendanceRepository();
+    mockRepo.fetchError = Exception('disk unavailable');
+
+    await tester.pumpWidget(
+      MaterialApp(home: FamilyListPage(repository: mockRepo)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Error:'), findsOneWidget);
   });
 
   testWidgets('FamilyListPage shows empty message when no families', (

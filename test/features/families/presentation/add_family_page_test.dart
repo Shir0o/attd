@@ -87,6 +87,21 @@ void main() {
     expect(find.text('Open'), findsOneWidget);
   });
 
+  testWidgets('submitting the field via the keyboard saves the family',
+      (tester) async {
+    final repository = FakeAttendanceRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(home: AddFamilyPage(repository: repository)),
+    );
+
+    await tester.enterText(find.byType(TextFormField), 'Doe Family');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(repository.addedFamilyName, 'Doe Family');
+  });
+
   testWidgets('shows an error when adding a family fails', (tester) async {
     final repository = FakeAttendanceRepository()
       ..addFamilyError = Exception('disk full');

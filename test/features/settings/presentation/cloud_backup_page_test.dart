@@ -61,6 +61,53 @@ void main() {
     ).called(1);
   });
 
+  testWidgets('Cancel button dismisses the restore confirmation dialog',
+      (tester) async {
+    final service = _MockDriveService();
+    final backup = drive.File()
+      ..id = 'backup-1'
+      ..createdTime = DateTime(2025, 2, 3, 14, 30);
+    when(service.listCloudBackups).thenAnswer((_) async => [backup]);
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Restore'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Restore from Cloud'), findsNothing);
+    verifyNever(() => service.restoreFromBackup(any(),
+        backupDateLabel: any(named: 'backupDateLabel')));
+  });
+
+  testWidgets('shows a failure snackbar when restore throws',
+      (tester) async {
+    final service = _MockDriveService();
+    final backup = drive.File()
+      ..id = 'backup-1'
+      ..createdTime = DateTime(2025, 2, 3, 14, 30);
+    when(service.listCloudBackups).thenAnswer((_) async => [backup]);
+    when(() => service.restoreFromBackup(any(),
+            backupDateLabel: any(named: 'backupDateLabel')))
+        .thenThrow(Exception('network unavailable'));
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Restore'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Restore'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Restoration failed'), findsOneWidget);
+  });
+
   testWidgets('shows load failure and retries', (tester) async {
     final service = _MockDriveService();
     var calls = 0;

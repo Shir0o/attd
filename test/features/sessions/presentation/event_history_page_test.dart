@@ -58,6 +58,12 @@ class MockEventRepository implements EventRepository {
 class MockSessionRepository implements SessionRepository {
   final _controller = StreamController<List<Session>>();
 
+  List<String> deletedIds = [];
+  Object? deleteError;
+  List<({String title, DateTime date, String? eventId})> createdSessions = [];
+  Session? findSessionByIdResult;
+  int refreshCalls = 0;
+
   void emit(List<Session> sessions) {
     _controller.add(sessions);
   }
@@ -71,7 +77,7 @@ class MockSessionRepository implements SessionRepository {
   Future<List<Session>> loadSessions() async => [];
 
   @override
-  Future<Session?> findSessionById(String id) async => null;
+  Future<Session?> findSessionById(String id) async => findSessionByIdResult;
 
   @override
   Future<Session> createSession({
@@ -81,7 +87,18 @@ class MockSessionRepository implements SessionRepository {
     required String actor,
     required List<SessionRecord> records,
   }) async {
-    throw UnimplementedError();
+    createdSessions
+        .add((title: title, date: sessionDate, eventId: eventId));
+    return Session(
+      id: 'created-${createdSessions.length}',
+      eventId: eventId,
+      title: title,
+      sessionDate: sessionDate,
+      records: records,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: actor,
+    );
   }
 
   @override
@@ -95,7 +112,10 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+  Future<void> deleteSession(String sessionId, {required String actor}) async {
+    if (deleteError != null) throw deleteError!;
+    deletedIds.add(sessionId);
+  }
 
   @override
   Future<List<SessionVersion>> history(String sessionId) async {
@@ -106,7 +126,9 @@ class MockSessionRepository implements SessionRepository {
   Future<void> migrateRecords(Map<String, String> nameToIdMap) async {}
 
   @override
-  Future<void> refresh() async {}
+  Future<void> refresh() async {
+    refreshCalls++;
+  }
 
   @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
@@ -290,6 +312,8 @@ void main() {
     expect(fab.heroTag, 'fab');
     expect(find.byIcon(Icons.add), findsOneWidget);
   });
+
+  _registerUncoveredPathTests();
 }
 
 class _MockAttendanceRepoWithMembers extends MockAttendanceRepository {
@@ -300,4 +324,154 @@ class _MockAttendanceRepoWithMembers extends MockAttendanceRepository {
   Future<List<Family>> fetchFamilies() async {
     return [Family(id: 'f1', displayName: 'Family', members: members)];
   }
+}
+
+void _registerUncoveredPathTests() {
+  group('EventHistoryPage uncovered paths', () {
+    late MockSessionRepository sessions;
+    late MockAttendanceRepository attendance;
+    late Event event;
+
+    setUp(() {
+      sessions = MockSessionRepository();
+      attendance = MockAttendanceRepository();
+      event = Event(
+        id: 'e1',
+        title: 'History Event',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Monday'],
+        createdAt: DateTime.now(),
+      );
+    });
+
+    Widget host() => MaterialApp(
+          home: EventHistoryPage(
+            event: event,
+            sessionRepository: sessions,
+            attendanceRepository: attendance,
+            eventRepository: MockEventRepository(),
+            disableAnimations: true,
+          ),
+        );
+
+    Session sampleSession({
+      String id = 's1',
+      String title = 'History Event',
+      String? eventId = 'e1',
+    }) {
+      return Session(
+        id: id,
+        eventId: eventId,
+        title: title,
+        sessionDate: DateTime(2024, 1, 1),
+        records: const [],
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+        createdBy: 'tester',
+      );
+    }
+
+    testWidgets('renders the empty state when there are no event sessions',
+        (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No history found'), findsOneWidget);
+      expect(find.byIcon(Icons.history_outlined), findsOneWidget);
+    });
+
+    testWidgets('legacy sessions without eventId match by title', (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([sampleSession(eventId: null)]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Jan 1, 2024'), findsOneWidget);
+    });
+
+    testWidgets('pull-to-refresh triggers repository refresh', (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([sampleSession()]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.fling(
+        find.byType(RefreshIndicator),
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      expect(sessions.refreshCalls, greaterThanOrEqualTo(1));
+    });
+
+    testWidgets('swipe-to-delete cancel keeps the session', (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([sampleSession()]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text('Jan 1, 2024'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Session'), findsAtLeastNWidgets(1));
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(sessions.deletedIds, isEmpty);
+    });
+
+    testWidgets('swipe-to-delete confirm deletes the session', (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([sampleSession()]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text('Jan 1, 2024'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(sessions.deletedIds, ['s1']);
+      expect(find.text('Session deleted'), findsOneWidget);
+    });
+
+    testWidgets('swipe-to-delete surfaces errors via snackbar', (tester) async {
+      sessions.deleteError = Exception('disk full');
+      await tester.pumpWidget(host());
+      sessions.emit([sampleSession()]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.text('Jan 1, 2024'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Error deleting session'), findsOneWidget);
+    });
+
+    testWidgets('FAB opens the date picker', (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // showDatePicker renders OK and Cancel actions.
+      expect(find.text('OK'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Dismiss to avoid leaving the picker open.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(sessions.createdSessions, isEmpty);
+    });
+  });
 }
