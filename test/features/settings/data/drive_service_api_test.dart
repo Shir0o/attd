@@ -8,8 +8,6 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
-// ignore: depend_on_referenced_packages, implementation_imports
-import 'package:_discoveryapis_commons/src/requests.dart' as commons;
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 // ignore: depend_on_referenced_packages
@@ -36,7 +34,7 @@ class MockFilesResource extends Mock implements drive.FilesResource {}
 
 class _FakeDriveFile extends Fake implements drive.File {}
 
-class _FakeDownloadOptions extends Fake implements commons.DownloadOptions {}
+class _FakeDownloadOptions extends Fake implements drive.DownloadOptions {}
 
 class _FakeMedia extends Fake implements drive.Media {}
 
@@ -134,7 +132,7 @@ void main() {
             orderBy: any(named: 'orderBy'),
             pageSize: any(named: 'pageSize'),
           )).thenAnswer((invocation) async {
-        final q = invocation.namedArguments[#q] as String;
+        final q = invocation.namedArguments[#q] as String? ?? '';
         if (q.contains("name = 'Attendance Tracker Data'")) {
           return drive.FileList(files: [_file('app', 'Attendance Tracker Data')]);
         }
@@ -258,7 +256,7 @@ void main() {
             $fields: any(named: r'$fields'),
             orderBy: any(named: 'orderBy'),
             pageSize: any(named: 'pageSize'),
-          )).thenThrow(commons.DetailedApiRequestError(
+          )).thenThrow(drive.DetailedApiRequestError(
               403, 'Google Drive API has not been used in project...'));
 
       await expectLater(
@@ -274,11 +272,11 @@ void main() {
             $fields: any(named: r'$fields'),
             orderBy: any(named: 'orderBy'),
             pageSize: any(named: 'pageSize'),
-          )).thenThrow(commons.DetailedApiRequestError(500, 'boom'));
+          )).thenThrow(drive.DetailedApiRequestError(500, 'boom'));
 
       await expectLater(
         service.syncFiles(),
-        throwsA(isA<commons.DetailedApiRequestError>()),
+        throwsA(isA<drive.DetailedApiRequestError>()),
       );
     });
 
