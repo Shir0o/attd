@@ -609,12 +609,11 @@ void main() {
       ),
     );
     eventRepository.emit([]);
-    // First frames: still in skeleton.
+    // First frame: still in skeleton.
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    // Advance past 800ms minimum and let scheduled callback fire.
-    await tester.pump(const Duration(milliseconds: 900));
-    await tester.pump(const Duration(milliseconds: 100));
+    // Advance past 800ms minimum and let animations settle.
+    await tester.pump(const Duration(milliseconds: 801));
+    await tester.pumpAndSettle();
     expect(find.text('No events scheduled'), findsOneWidget);
   });
 

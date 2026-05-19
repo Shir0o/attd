@@ -780,8 +780,8 @@ void main() {
     await tester.tap(find.text('Cloud Version History'));
     await tester.pump();
     expect(observer.pushes >= 1, isTrue);
-    // Let CloudBackupPage finish its initial-load delay (~1200ms).
-    await tester.pump(const Duration(milliseconds: 1500));
+    // Let CloudBackupPage finish its initial-load delay (800ms).
+    await tester.pump(const Duration(milliseconds: 801));
     await tester.pumpAndSettle();
     // Pop back to SettingsPage so _markDataModified() runs.
     final navigator = tester.state<NavigatorState>(find.byType(Navigator));

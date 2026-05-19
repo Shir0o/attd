@@ -1272,9 +1272,9 @@ void main() {
       );
       // Initial frame: skeleton (no title yet)
       await tester.pump();
-      // Advance past the 800ms delay
-      await tester.pump(const Duration(milliseconds: 900));
-      await tester.pump(const Duration(milliseconds: 700));
+      // Advance past the 800ms delay and let animations settle.
+      await tester.pump(const Duration(milliseconds: 801));
+      await tester.pumpAndSettle();
       // Eventually content shows
       expect(find.text('Delayed'), findsOneWidget);
     },
