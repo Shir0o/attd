@@ -473,5 +473,103 @@ void _registerUncoveredPathTests() {
 
       expect(sessions.createdSessions, isEmpty);
     });
+
+    testWidgets('back button pops the page', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => EventHistoryPage(
+                      event: event,
+                      sessionRepository: sessions,
+                      attendanceRepository: attendance,
+                      eventRepository: MockEventRepository(),
+                      disableAnimations: true,
+                    ),
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      sessions.emit([]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      expect(find.text('History Event History'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+      expect(find.text('Open'), findsOneWidget);
+    });
+
+    testWidgets('tapping a session navigates to SessionSummaryPage', (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([sampleSession()]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Jan 1, 2024'));
+      await tester.pumpAndSettle();
+
+      // SessionSummaryPage shows the session date label.
+      expect(find.text('Session Date: January 1, 2024'), findsOneWidget);
+    });
+
+    testWidgets('FAB date picker confirm creates a make-up session and cleans up if empty',
+        (tester) async {
+      await tester.pumpWidget(host());
+      sessions.emit([]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // Date picker initial date is today; just confirm by tapping OK.
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      // A new session was created for the make-up.
+      expect(sessions.createdSessions.length, 1);
+      expect(sessions.createdSessions.first.eventId, 'e1');
+
+      // AttendanceDeckPage gets pushed; pop it back without recording anything
+      // so the cleanup path deletes the empty session.
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      navigator.pop();
+      await tester.pumpAndSettle();
+
+      // findSessionById returns null by default -> finalSession from result
+      // is null path; deletion only happens when finalSession non-null & empty.
+      // To exercise deletion, set findSessionByIdResult to a non-null empty session.
+      sessions.findSessionByIdResult = Session(
+        id: 'created-2',
+        eventId: 'e1',
+        title: 'History Event',
+        sessionDate: DateTime(2024, 1, 1),
+        records: const [],
+        createdAt: DateTime(2024, 1, 1),
+        updatedAt: DateTime(2024, 1, 1),
+        createdBy: 'tester',
+      );
+
+      // Re-run the picker flow to trigger cleanup.
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      final navigator2 = tester.state<NavigatorState>(find.byType(Navigator));
+      navigator2.pop();
+      await tester.pumpAndSettle();
+
+      expect(sessions.deletedIds, contains('created-2'));
+    });
   });
 }

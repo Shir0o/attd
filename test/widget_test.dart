@@ -8,7 +8,10 @@ import 'package:attendance_tracker/features/auth/domain/entities/credentials.dar
 import 'package:attendance_tracker/features/auth/domain/entities/google_account.dart';
 import 'package:attendance_tracker/features/auth/domain/entities/user.dart';
 import 'package:attendance_tracker/features/auth/domain/repositories/auth_repository.dart';
+import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
+import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
@@ -198,4 +201,236 @@ void main() {
     // Verify default view is Attendance Hub
     expect(find.text('Attendance Hub'), findsOneWidget);
   });
+
+  testWidgets('AttendanceApp renders onboarding when not completed',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final themeController = ThemeController(prefs);
+    final onboardingController = OnboardingController(prefs);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        themeController: themeController,
+        onboardingController: onboardingController,
+        repository: MockAttendanceRepository(),
+        sessionRepository: MockSessionRepository(),
+        eventRepository: MockEventRepository(),
+        authRepository: MockAuthRepository(),
+        prefs: prefs,
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    // Onboarding page renders some welcome content; HubPage's "Attendance Hub"
+    // header should be absent.
+    expect(find.text('Attendance Hub'), findsNothing);
+  });
+
+  testWidgets('AttendanceApp triggers migration when families have unique names',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final prefs = await SharedPreferences.getInstance();
+    final themeController = ThemeController(prefs);
+    final onboardingController = OnboardingController(prefs);
+
+    final attendanceRepo = _RecordingAttendanceRepository(families: [
+      Family(
+        id: 'fam1',
+        displayName: 'Smith',
+        members: [
+          Member(id: 'm1', displayName: 'Alice Smith'),
+          Member(id: 'm2', displayName: 'Bob Smith'),
+        ],
+      ),
+    ]);
+    final sessionRepo = _RecordingSessionRepository();
+    final eventRepo = MockEventRepository()..emit([]);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        themeController: themeController,
+        onboardingController: onboardingController,
+        repository: attendanceRepo,
+        sessionRepository: sessionRepo,
+        eventRepository: eventRepo,
+        prefs: prefs,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    expect(sessionRepo.migrateCalls, hasLength(1));
+    expect(sessionRepo.migrateCalls.first, {
+      'Alice Smith': 'm1',
+      'Bob Smith': 'm2',
+    });
+  });
+
+  testWidgets('AttendanceApp swallows migration errors', (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final prefs = await SharedPreferences.getInstance();
+    final themeController = ThemeController(prefs);
+    final onboardingController = OnboardingController(prefs);
+
+    final attendanceRepo = _RecordingAttendanceRepository(families: [
+      Family(
+        id: 'fam1',
+        displayName: 'Smith',
+        members: [Member(id: 'm1', displayName: 'Solo')],
+      ),
+    ]);
+    final sessionRepo = _ThrowingMigrateSessionRepository();
+    final eventRepo = MockEventRepository()..emit([]);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        themeController: themeController,
+        onboardingController: onboardingController,
+        repository: attendanceRepo,
+        sessionRepository: sessionRepo,
+        eventRepository: eventRepo,
+        prefs: prefs,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1500));
+
+    // migrate was called but threw; app didn't crash.
+    expect(sessionRepo.migrateAttempts, 1);
+  });
+
+  testWidgets('AttendanceApp lifecycle paused triggers drive sync and lock',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
+    final prefs = await SharedPreferences.getInstance();
+    final themeController = ThemeController(prefs);
+    final onboardingController = OnboardingController(prefs);
+    final appLockController = _RecordingAppLockController(prefs);
+    final driveService = _RecordingDriveService()..isDriveSyncEnabled = true;
+
+    final eventRepo = MockEventRepository()..emit([]);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        themeController: themeController,
+        onboardingController: onboardingController,
+        appLockController: appLockController,
+        driveService: driveService,
+        repository: MockAttendanceRepository(),
+        sessionRepository: MockSessionRepository(),
+        eventRepository: eventRepo,
+        prefs: prefs,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(appLockController.markBackgroundedCalls, 1);
+    expect(driveService.syncCalls, 1);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(appLockController.onResumedCalls, 1);
+
+    // Disabled sync should still mark backgrounded but skip syncFiles.
+    driveService.isDriveSyncEnabled = false;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.detached);
+    await tester.pump();
+    expect(appLockController.markBackgroundedCalls, 2);
+    expect(driveService.syncCalls, 1);
+  });
+}
+
+class _RecordingAttendanceRepository implements AttendanceRepository {
+  _RecordingAttendanceRepository({required this.families});
+  final List<Family> families;
+
+  @override
+  Future<List<Family>> fetchFamilies() async => families;
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
+  @override
+  Future<Family> addMember(String familyId, Member member) async =>
+      throw UnimplementedError();
+  @override
+  Future<Family> addFamily(String displayName) async =>
+      throw UnimplementedError();
+  @override
+  Stream<List<Family>> streamFamilies() => Stream.value(families);
+  @override
+  Future<void> refresh() async {}
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+}
+
+class _RecordingSessionRepository extends MockSessionRepository {
+  final List<Map<String, String>> migrateCalls = [];
+
+  @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {
+    migrateCalls.add(Map.of(nameToIdMap));
+  }
+}
+
+class _ThrowingMigrateSessionRepository extends MockSessionRepository {
+  int migrateAttempts = 0;
+
+  @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {
+    migrateAttempts++;
+    throw StateError('boom');
+  }
+}
+
+class _RecordingAppLockController extends AppLockController {
+  _RecordingAppLockController(super.prefs);
+  int markBackgroundedCalls = 0;
+  int onResumedCalls = 0;
+
+  @override
+  void markBackgrounded() {
+    markBackgroundedCalls++;
+    super.markBackgrounded();
+  }
+
+  @override
+  void onResumed() {
+    onResumedCalls++;
+    super.onResumed();
+  }
+}
+
+class _RecordingDriveService extends ChangeNotifier implements DriveService {
+  int syncCalls = 0;
+  int initCalls = 0;
+
+  @override
+  bool isDriveSyncEnabled = false;
+  @override
+  bool isSyncing = false;
+  @override
+  DateTime? lastSyncTime;
+  @override
+  GoogleSignInAccount? currentUser;
+
+  @override
+  Future<void> init() async {
+    initCalls++;
+  }
+
+  @override
+  Future<void> syncFiles({
+    String actionTitle = 'Manual Sync',
+    List<String> tags = const [],
+    bool isInitialSetup = false,
+  }) async {
+    syncCalls++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

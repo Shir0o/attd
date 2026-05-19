@@ -903,6 +903,455 @@ void main() {
     expect(dariaRecord.memberId, isNull);
   });
 
+  testWidgets('SessionSummaryPage back button pops with the current session', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    Session? popped;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  popped = await Navigator.of(context).push<Session>(
+                    MaterialPageRoute(
+                      builder: (_) => SessionSummaryPage(
+                        session: session,
+                        members: const [],
+                        sessionRepository: mockRepo,
+                        disableAnimations: true,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    expect(popped?.id, 's1');
+  });
+
+  testWidgets('SessionSummaryPage info button shows the data policy dialog', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: const [],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('View data policy'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Historical Snapshot'), findsOneWidget);
+    await tester.tap(find.text('Got it'));
+    await tester.pumpAndSettle();
+    expect(find.text('Historical Snapshot'), findsNothing);
+  });
+
+  testWidgets('SessionSummaryPage edit member with empty/unchanged name is a no-op', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Open edit dialog and cancel -> returns null
+    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Alice'), findsOneWidget);
+
+    // Open edit dialog, clear text, save -> empty path early-return
+    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Alice'), findsOneWidget);
+
+    // Open edit dialog, keep same name, save -> unchanged early-return
+    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Alice'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage edit visitor renames matching record by name', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: null,
+          attendee: 'Bob',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: const [],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bob'), findsOneWidget);
+    await tester.drag(find.text('Bob'), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Bobby');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bobby'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage remove visitor cleans matching record', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: null,
+          attendee: 'Bob',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: const [],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.text('Bob'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Remove'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bob'), findsNothing);
+    expect(find.text('removed from this report'), findsNothing);
+    // Snackbar present
+    expect(find.textContaining('removed from this report'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage remove confirmation can be cancelled', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from Report'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Alice'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage delete error surfaces snackbar (does not pop)', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = _ThrowingSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.seed(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: const [],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Delete session'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Error deleting session'), findsOneWidget);
+  });
+
+  testWidgets(
+    'SessionSummaryPage toggle attendance swallows repo errors and updates UI optimistically',
+    (WidgetTester tester) async {
+      final mockRepo = _ThrowingSessionRepository();
+      final member1 = Member(id: '1', displayName: 'Alice');
+      final session = Session(
+        id: 's1',
+        title: 'Test',
+        sessionDate: DateTime(2023, 10, 27),
+        records: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'User',
+      );
+      mockRepo.seed(session);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionSummaryPage(
+            session: session,
+            members: [member1],
+            sessionRepository: mockRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      // No crash; switch flipped (member moved to Present list).
+      expect(find.text('Alice'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SessionSummaryPage delayed loading (animations enabled) shows skeleton then content',
+    (WidgetTester tester) async {
+      final mockRepo = MockSessionRepository();
+      final session = Session(
+        id: 's1',
+        title: 'Delayed',
+        sessionDate: DateTime(2023, 10, 27),
+        records: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'User',
+      );
+      mockRepo.addSession(session);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionSummaryPage(
+            session: session,
+            members: const [],
+            sessionRepository: mockRepo,
+            // disableAnimations defaults to false -> delayed loading path
+          ),
+        ),
+      );
+      // Initial frame: skeleton (no title yet)
+      await tester.pump();
+      // Advance past the 800ms delay
+      await tester.pump(const Duration(milliseconds: 900));
+      await tester.pump(const Duration(milliseconds: 700));
+      // Eventually content shows
+      expect(find.text('Delayed'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'SessionSummaryPage didUpdateWidget swaps to a newer session and resubscribes',
+    (WidgetTester tester) async {
+      final mockRepo = MockSessionRepository();
+      final mockAttendanceRepo = MockAttendanceRepository();
+      final mockEventRepo = MockEventRepository();
+      final event = Event(
+        id: 'e1',
+        title: 'T',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        memberIds: const [],
+        createdAt: DateTime.now(),
+      );
+      mockEventRepo.seed(event);
+
+      final s1 = Session(
+        id: 's1',
+        title: 'V1',
+        sessionDate: DateTime(2023, 10, 27),
+        records: const [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'User',
+        currentVersion: 1,
+      );
+      mockRepo.addSession(s1);
+
+      Widget build(Session s) => MaterialApp(
+            home: SessionSummaryPage(
+              session: s,
+              members: const [],
+              sessionRepository: mockRepo,
+              attendanceRepository: mockAttendanceRepo,
+              eventRepository: mockEventRepo,
+              event: event,
+              disableAnimations: true,
+            ),
+          );
+
+      await tester.pumpWidget(build(s1));
+      await tester.pumpAndSettle();
+      expect(find.text('V1'), findsOneWidget);
+
+      final s2 = s1.copyWith(
+        title: 'V2',
+        updatedAt: DateTime.now().add(const Duration(days: 1)),
+      );
+      await tester.pumpWidget(build(s2));
+      await tester.pumpAndSettle();
+      expect(find.text('V2'), findsOneWidget);
+
+      // Now change attendance repo identity to trigger resubscribe branch.
+      final newAttendance = MockAttendanceRepository();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionSummaryPage(
+            session: s2,
+            members: const [],
+            sessionRepository: mockRepo,
+            attendanceRepository: newAttendance,
+            eventRepository: mockEventRepo,
+            event: event,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('V2'), findsOneWidget);
+    },
+  );
+
   testWidgets('SessionSummaryPage rebuilds roster when event.memberIds changes via stream', (
     WidgetTester tester,
   ) async {
@@ -963,4 +1412,55 @@ void main() {
 
     expect(find.text('Bob'), findsOneWidget);
   });
+}
+
+class _ThrowingSessionRepository implements SessionRepository {
+  Session? _seeded;
+  void seed(Session s) => _seeded = s;
+
+  @override
+  Future<Session> createSession({
+    required String title,
+    String? eventId,
+    required DateTime sessionDate,
+    required String actor,
+    required List<SessionRecord> records,
+  }) async => throw UnimplementedError();
+
+  @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {
+    throw StateError('boom');
+  }
+
+  @override
+  Future<Session> duplicate(String sessionId, {required String actor}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Session?> findSessionById(String id) async => _seeded;
+
+  @override
+  Future<List<SessionVersion>> history(String sessionId) async => [];
+
+  @override
+  Future<List<Session>> loadSessions() async =>
+      _seeded != null ? [_seeded!] : [];
+
+  @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {}
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+
+  @override
+  Future<Session> saveSnapshot(Session session, {required String actor}) async {
+    throw StateError('save boom');
+  }
+
+  @override
+  Stream<List<Session>> streamSessions() =>
+      Stream.value(_seeded != null ? [_seeded!] : []);
 }
