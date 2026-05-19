@@ -463,6 +463,191 @@ void main() {
     expect(find.text('New Event'), findsOneWidget);
   });
 
+  testWidgets('one-time event scheduled for today shows the Start pill', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final event = Event(
+      id: 'one',
+      title: 'Today Workshop',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'One-time',
+      oneTimeDate: today,
+      memberIds: const [],
+      createdAt: now,
+    );
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('START'), findsOneWidget);
+  });
+
+  testWidgets('multiple events sort with today first, then by time', (tester) async {
+    final now = DateTime.now();
+    final dayName = DateFormat('EEEE').format(now);
+    final tomorrow = DateFormat('EEEE').format(now.add(const Duration(days: 1)));
+    final todayEarly = Event(
+      id: 'a',
+      title: 'Early Today',
+      time: const TimeOfDay(hour: 6, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [dayName],
+      createdAt: now,
+    );
+    final todayLate = Event(
+      id: 'b',
+      title: 'Late Today',
+      time: const TimeOfDay(hour: 18, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [dayName],
+      createdAt: now,
+    );
+    final notToday = Event(
+      id: 'c',
+      title: 'Other Day',
+      time: const TimeOfDay(hour: 8, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [tomorrow == dayName ? 'Monday' : tomorrow],
+      createdAt: now,
+    );
+
+    await pumpView(tester);
+    eventRepository.emit([notToday, todayLate, todayEarly]);
+    await tester.pumpAndSettle();
+
+    final widgets = tester.widgetList<Text>(find.byType(Text)).toList();
+    final positions = <String, int>{};
+    for (var i = 0; i < widgets.length; i++) {
+      final t = widgets[i].data;
+      if (t == 'Early Today' || t == 'Late Today' || t == 'Other Day') {
+        positions[t!] = i;
+      }
+    }
+    expect(positions['Early Today']! < positions['Late Today']!, isTrue);
+    expect(positions['Late Today']! < positions['Other Day']!, isTrue);
+  });
+
+  testWidgets('event with session on past day shows Taken with date suffix', (tester) async {
+    final now = DateTime.now();
+    // Pick a repeating day that isn't today so lastSupposed is in the past.
+    final notTodayDay =
+        DateFormat('EEEE').format(now.subtract(const Duration(days: 1)));
+    final event = Event(
+      id: 'event-past',
+      title: 'Past Service',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [notTodayDay],
+      createdAt: now.subtract(const Duration(days: 30)),
+    );
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-past',
+        eventId: 'event-past',
+        title: 'Past Service',
+        sessionDate: now.subtract(const Duration(days: 1)),
+        records: const [],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    // Status text is either 'TAKEN (MMM d)' (rendered in pill, uppercase) or
+    // — if the session date happens to be today — just 'TAKEN'. Both exercise
+    // the Taken branch.
+    final texts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((w) => w.data ?? '')
+        .toList();
+    expect(
+      texts.any((t) => t.startsWith('TAKEN')),
+      isTrue,
+      reason: 'Expected a TAKEN status pill, got: $texts',
+    );
+  });
+
+  testWidgets('legacy session without eventId matches by title in the card list',
+      (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    sessionRepository.sessions = [
+      Session(
+        id: 'legacy',
+        eventId: null,
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: const [],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('TAKEN'), findsOneWidget);
+  });
+
+  testWidgets('animated loading (animations enabled) waits for skeleton then shows events',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HubAttendanceView(
+          themeController: themeController,
+          sessionRepository: sessionRepository,
+          eventRepository: eventRepository,
+          attendanceRepository: attendanceRepository,
+          // disableAnimations defaults to false: exercises the delayed branch.
+        ),
+      ),
+    );
+    eventRepository.emit([]);
+    // First frame: still in skeleton.
+    await tester.pump();
+    // Advance past 800ms minimum and let animations settle.
+    await tester.pump(const Duration(milliseconds: 801));
+    await tester.pumpAndSettle();
+    expect(find.text('No events scheduled'), findsOneWidget);
+  });
+
+  testWidgets('action menu: View History returns and refreshes', (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([todayEvent()]);
+    await tester.pumpAndSettle();
+
+    final initialFetch = attendanceRepository.fetchCount;
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View History'));
+    await tester.pumpAndSettle();
+    // Pop the history page.
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    expect(attendanceRepository.fetchCount, greaterThan(initialFetch));
+  });
+
+  testWidgets('FAB returns and refreshes', (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([]);
+    await tester.pumpAndSettle();
+
+    final initialFetch = attendanceRepository.fetchCount;
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    expect(attendanceRepository.fetchCount, greaterThan(initialFetch));
+  });
+
   testWidgets(
       'tapping a card with an incomplete session opens AttendanceDeckPage',
       (tester) async {

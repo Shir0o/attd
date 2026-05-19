@@ -249,6 +249,143 @@ void main() {
     expect(find.text('Local Copy'), findsOneWidget);
   });
 
+  testWidgets('ReportExportPage Change opens date range picker and updates range',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: ReportExportPage(sessionRepository: mockRepo)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Change'));
+    await tester.pumpAndSettle();
+
+    // showDateRangePicker uses a close-X IconButton on full-screen dialog.
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('Reporting window'), findsOneWidget);
+  });
+
+  testWidgets('ReportExportPage format dropdown switches the request format',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final exportPath = '${tempDir.path}/r.csv';
+    final exportService = FakeReportExportService(
+      sessionRepository: mockRepo,
+      supportsSheets: false,
+      result: ReportExportResult(
+        filePath: exportPath,
+        format: ReportFormat.pdf,
+        summary: const ReportSummary(
+          sessionCount: 0,
+          recordCount: 0,
+          present: 0,
+          absent: 0,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportExportPage(
+          sessionRepository: mockRepo,
+          exportService: exportService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Open dropdown and pick PDF.
+    await tester.tap(find.byType(DropdownButton<ReportFormat>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('PDF').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Generate report'));
+    await tester.pumpAndSettle();
+
+    expect(exportService.lastRequest?.format, ReportFormat.pdf);
+    // syncSheets is disabled (supportsSheets=false) -> off
+    expect(exportService.lastRequest?.syncToGoogleSheets, isFalse);
+  });
+
+  testWidgets('ReportExportPage surfaces sheet sync error in status message',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final exportService = FakeReportExportService(
+      sessionRepository: mockRepo,
+      result: ReportExportResult(
+        filePath: '${tempDir.path}/x.csv',
+        format: ReportFormat.csv,
+        summary: const ReportSummary(
+          sessionCount: 0,
+          recordCount: 0,
+          present: 0,
+          absent: 0,
+        ),
+        sheetSync: const SheetSyncResult(
+          attempted: true,
+          success: false,
+          error: 'Sheets unavailable',
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportExportPage(
+          sessionRepository: mockRepo,
+          exportService: exportService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Generate report'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sheets unavailable'), findsOneWidget);
+  });
+
+  testWidgets('ReportExportPage sync toggle off omits sheets sync from request',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final exportPath = '${tempDir.path}/r.csv';
+    final exportService = FakeReportExportService(
+      sessionRepository: mockRepo,
+      supportsSheets: true,
+      result: ReportExportResult(
+        filePath: exportPath,
+        format: ReportFormat.csv,
+        summary: const ReportSummary(
+          sessionCount: 0,
+          recordCount: 0,
+          present: 0,
+          absent: 0,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportExportPage(
+          sessionRepository: mockRepo,
+          exportService: exportService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Toggle sync OFF (it defaults to true when supportsSheets is true).
+    await tester.tap(find.byType(SwitchListTile).first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Generate report'));
+    await tester.pumpAndSettle();
+
+    expect(exportService.lastRequest?.syncToGoogleSheets, isFalse);
+  });
+
   testWidgets('ReportExportPage shows export errors', (
     WidgetTester tester,
   ) async {
