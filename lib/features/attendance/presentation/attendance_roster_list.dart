@@ -137,6 +137,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                     alignment: Alignment.centerLeft,
                     child: SegmentedButton<RosterGrouping>(
                       key: const Key('rosterGroupingToggle'),
+                      style: const ButtonStyle(
+                        side: WidgetStatePropertyAll(BorderSide.none),
+                      ),
                       segments: const [
                         ButtonSegment(
                           value: RosterGrouping.byFamily,
@@ -254,10 +257,11 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       return _emptyState(theme, colorScheme);
     }
 
-    return ListView(
+    return ListView.builder(
       key: const PageStorageKey('rosterFamilyList'),
       padding: const EdgeInsets.only(bottom: 80),
-      children: children,
+      itemCount: children.length,
+      itemBuilder: (context, i) => children[i],
     );
   }
 
@@ -323,10 +327,11 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       return _emptyState(theme, colorScheme);
     }
 
-    return ListView(
+    return ListView.builder(
       key: const PageStorageKey('rosterStatusList'),
       padding: const EdgeInsets.only(bottom: 80),
-      children: children,
+      itemCount: children.length,
+      itemBuilder: (context, i) => children[i],
     );
   }
 

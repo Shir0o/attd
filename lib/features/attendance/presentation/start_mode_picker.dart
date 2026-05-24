@@ -126,7 +126,7 @@ class _ModeTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: selected ? 2 : 1),
+          border: selected ? Border.all(color: borderColor, width: 2) : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

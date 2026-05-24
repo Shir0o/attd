@@ -297,8 +297,37 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 
   Future<void> _toggleFamilyAttendance(Family family, bool isPresent) async {
+    // Batch every family member into a single saveSnapshot call — much
+    // cheaper than one write per member.
+    final now = DateTime.now();
+    final status =
+        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
+    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     for (final m in family.members) {
-      await _toggleAttendance(m, isPresent);
+      final mid =
+          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
+      updatedRecords.removeWhere((r) =>
+          (mid != null && r.memberId == mid) ||
+          (mid == null && r.memberId == null && r.attendee == m.displayName));
+      updatedRecords.add(SessionRecord(
+        memberId: mid,
+        attendee: m.displayName,
+        status: status,
+        recordedAt: now,
+        recordedBy: 'User',
+      ));
+    }
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: now,
+    );
+    setState(() {
+      _currentSession = updatedSession;
+    });
+    try {
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      debugPrint('Error updating session records: $e');
     }
   }
 

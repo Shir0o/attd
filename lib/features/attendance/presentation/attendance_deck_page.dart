@@ -287,15 +287,53 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
+  /// Applies a single bulk attendance update for every member in [family]
+  /// using one saveSnapshot call — much cheaper than one write per member.
+  Future<void> _bulkRecordFamily(Family family, bool present) async {
+    final now = DateTime.now();
+    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
+    final status =
+        present ? AttendanceStatus.present : AttendanceStatus.absent;
+    for (final m in family.members) {
+      final mid =
+          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
+      updatedRecords.removeWhere((r) =>
+          (mid != null && r.memberId == mid) ||
+          (mid == null && r.memberId == null && r.attendee == m.displayName) ||
+          (r.attendee == m.displayName));
+      updatedRecords.add(SessionRecord(
+        memberId: mid,
+        attendee: m.displayName,
+        status: status,
+        recordedAt: now,
+        recordedBy: 'User',
+      ));
+    }
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: now,
+    );
+    if (mounted) {
+      setState(() => _currentSession = updatedSession);
+    }
+    try {
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save records: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _markCurrentFamilyPresent() async {
     if (_currentIndex >= widget.members.length) return;
     final currentMember = widget.members[_currentIndex];
     final family = _familyForMember(currentMember);
     if (family == null) return;
     final memberIdSet = family.members.map((m) => m.id).toSet();
-    for (final m in family.members) {
-      await _recordAttendance(m.id, m.displayName, AttendanceStatus.present);
-    }
+    await _bulkRecordFamily(family, true);
     if (!mounted) return;
     // Advance past the entire family in the deck.
     int next = _currentIndex;
@@ -321,9 +359,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Future<void> _toggleFamilyFromList(Family family, bool isPresent) async {
-    for (final m in family.members) {
-      await _toggleMemberFromList(m, isPresent);
-    }
+    await _bulkRecordFamily(family, isPresent);
   }
 
   void _undo() {
@@ -460,6 +496,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             alignment: Alignment.centerLeft,
             child: SegmentedButton<bool>(
               key: const Key('deckListModeToggle'),
+              style: const ButtonStyle(
+                side: WidgetStatePropertyAll(BorderSide.none),
+              ),
               segments: const [
                 ButtonSegment(
                   value: false,
@@ -716,7 +755,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             if (showFamilyContext && family.members.length > 1)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: OutlinedButton.icon(
+                child: FilledButton.tonalIcon(
                   key: const Key('markFamilyPresentButton'),
                   onPressed: _markCurrentFamilyPresent,
                   icon: const Icon(Icons.groups),

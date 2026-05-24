@@ -75,6 +75,18 @@ class HubRobot {
     
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1500));
+
+    // Starting a new session opens the "Start mode" picker. Auto-confirm
+    // the default so existing scenarios that expected an immediate jump
+    // into attendance continue to work.
+    final startModeButton = find.byKey(const Key('startModeConfirmButton'));
+    if (startModeButton.evaluate().isNotEmpty) {
+      print('DEBUG: start mode picker present, confirming');
+      await tester.tap(startModeButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+    }
   }
 
   Future<void> tapEventMenu(String title) async {
