@@ -293,6 +293,11 @@ void main() {
     await tester.tap(find.text('Sunday Service'));
     await tester.pumpAndSettle();
 
+    // The start-mode picker appears. Confirm the default.
+    expect(find.byKey(const Key('startModeConfirmButton')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('startModeConfirmButton')));
+    await tester.pumpAndSettle();
+
     expect(sessionRepository.createdSessions, hasLength(1));
     expect(sessionRepository.createdSessions.single.title, 'Sunday Service');
     expect(sessionRepository.createdSessions.single.eventId, 'event-1');

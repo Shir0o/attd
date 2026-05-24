@@ -5,9 +5,12 @@ import '../../../core/design/app_shimmer.dart';
 import '../../../data/session.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
+import '../../attendance/presentation/start_mode_picker.dart';
+import '../../attendance/utils/session_preseed.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/event_repository.dart';
@@ -48,6 +51,7 @@ class HubAttendanceView extends StatefulWidget {
 
 class _HubAttendanceViewState extends State<HubAttendanceView> {
   List<Member> _members = [];
+  List<Family> _families = [];
   bool _isLoading = true;
   List<Event> _events = [];
   List<Session> _sessions = [];
@@ -100,11 +104,25 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final sessions = await widget.sessionRepository.loadSessions();
     if (mounted) {
       setState(() {
+        _families = families;
         _members = families.expand((f) => f.members).toList();
         _sessions = sessions;
       });
       debugPrint('DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
     }
+  }
+
+  List<Family> _familiesForEvent(Event event) {
+    final eventIds = event.memberIds.toSet();
+    final result = <Family>[];
+    for (final family in _families) {
+      final filtered = family.members
+          .where((m) => eventIds.contains(m.id))
+          .toList();
+      if (filtered.isEmpty) continue;
+      result.add(family.copyWith(members: filtered));
+    }
+    return result;
   }
 
   bool _isEventToday(Event event) {
@@ -461,6 +479,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 return;
               }
 
+              final sessionFamilies = _familiesForEvent(event);
+
               if (foundSession != null) {
                 final bool isIncomplete = foundSession.records.length < sessionMembers.length;
 
@@ -470,6 +490,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       builder: (_) => AttendanceDeckPage(
                         session: foundSession!,
                         members: sessionMembers,
+                        families: sessionFamilies,
                         sessionRepository: widget.sessionRepository,
                         attendanceRepository: widget.attendanceRepository,
                         eventRepository: widget.eventRepository,
@@ -485,6 +506,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       builder: (_) => SessionSummaryPage(
                         session: foundSession!,
                         members: sessionMembers,
+                        families: sessionFamilies,
                         sessionRepository: widget.sessionRepository,
                         attendanceRepository: widget.attendanceRepository,
                         eventRepository: widget.eventRepository,
@@ -495,12 +517,38 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   );
                 }
               } else {
+                final pickedMode = await showStartModePicker(
+                  context,
+                  initial: event.defaultAttendanceStartMode,
+                );
+                if (pickedMode == null) return;
+                if (!context.mounted) return;
+
+                if (event.defaultAttendanceStartMode != pickedMode) {
+                  final updatedEvent = event.copyWith(
+                    defaultAttendanceStartMode: pickedMode,
+                    updatedAt: DateTime.now(),
+                  );
+                  try {
+                    await widget.eventRepository.updateEvent(updatedEvent);
+                  } catch (e) {
+                    debugPrint('Error saving start mode preference: $e');
+                  }
+                  if (!context.mounted) return;
+                }
+
+                final preseed = buildPreseededRecords(
+                  members: sessionMembers,
+                  mode: pickedMode,
+                  recordedAt: DateTime.now(),
+                );
+
                 final session = await widget.sessionRepository.createSession(
                   title: event.title,
                   eventId: event.id,
                   sessionDate: targetDate,
                   actor: 'User',
-                  records: [],
+                  records: preseed,
                 );
 
                 if (!context.mounted) return;
@@ -510,6 +558,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     builder: (_) => AttendanceDeckPage(
                       session: session,
                       members: sessionMembers,
+                      families: sessionFamilies,
                       sessionRepository: widget.sessionRepository,
                       attendanceRepository: widget.attendanceRepository,
                       eventRepository: widget.eventRepository,
@@ -522,7 +571,17 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
                 resultSession ??= await widget.sessionRepository.findSessionById(session.id);
 
-                if (resultSession != null && resultSession.records.isEmpty) {
+                final preseedKeys = preseed
+                    .map((r) => r.memberId ?? r.attendee)
+                    .toSet();
+                final hasUserEdits = resultSession != null &&
+                    resultSession.records.any((r) {
+                      final key = r.memberId ?? r.attendee;
+                      if (!preseedKeys.contains(key)) return true;
+                      return r.recordedBy != 'System (Preseed)';
+                    });
+
+                if (resultSession != null && !hasUserEdits) {
                   await widget.sessionRepository.deleteSession(
                     session.id,
                     actor: 'System (Cleanup)',

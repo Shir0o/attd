@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../attendance/models/attendance_start_mode.dart';
+
 class Event {
   final String id;
   final String title;
@@ -9,6 +11,7 @@ class Event {
   final List<String>
   repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final List<String> memberIds; // Members associated with this event
+  final AttendanceStartMode? defaultAttendanceStartMode;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -21,6 +24,7 @@ class Event {
     this.oneTimeDate,
     this.repeatingDays = const [],
     this.memberIds = const [],
+    this.defaultAttendanceStartMode,
     required this.createdAt,
     DateTime? updatedAt,
     this.deletedAt,
@@ -36,6 +40,8 @@ class Event {
       'oneTimeDate': oneTimeDate?.toIso8601String(),
       'repeatingDays': repeatingDays,
       'memberIds': memberIds,
+      if (defaultAttendanceStartMode != null)
+        'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -50,6 +56,7 @@ class Event {
     DateTime? oneTimeDate,
     List<String>? repeatingDays,
     List<String>? memberIds,
+    AttendanceStartMode? defaultAttendanceStartMode,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -63,6 +70,8 @@ class Event {
       oneTimeDate: oneTimeDate ?? this.oneTimeDate,
       repeatingDays: repeatingDays ?? this.repeatingDays,
       memberIds: memberIds ?? this.memberIds,
+      defaultAttendanceStartMode:
+          defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
@@ -71,6 +80,16 @@ class Event {
 
   factory Event.fromJson(Map<String, dynamic> json) {
     final timeParts = (json['time'] as String).split(':');
+    AttendanceStartMode? startMode;
+    final modeName = json['defaultAttendanceStartMode'] as String?;
+    if (modeName != null) {
+      for (final m in AttendanceStartMode.values) {
+        if (m.name == modeName) {
+          startMode = m;
+          break;
+        }
+      }
+    }
     return Event(
       id: json['id'] as String,
       title: (json['title'] as String).trim(),
@@ -92,8 +111,9 @@ class Event {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      defaultAttendanceStartMode: startMode,
       createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: json['updatedAt'] != null 
+      updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : DateTime.parse(json['createdAt'] as String),
       deletedAt: json['deletedAt'] != null

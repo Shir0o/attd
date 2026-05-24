@@ -7,12 +7,14 @@ import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
+import '../models/family.dart';
 import '../models/member.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
+import 'attendance_roster_list.dart';
 import 'session_summary_page.dart';
 import 'swipeable_card.dart';
 
@@ -21,6 +23,7 @@ class AttendanceDeckPage extends StatefulWidget {
     super.key,
     required this.session,
     required this.members,
+    this.families,
     required this.sessionRepository,
     required this.attendanceRepository,
     required this.eventRepository,
@@ -31,6 +34,7 @@ class AttendanceDeckPage extends StatefulWidget {
 
   final Session session;
   final List<Member> members;
+  final List<Family>? families;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
@@ -47,10 +51,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   late int _currentIndex;
   final List<Member> _remainingMembers = [];
   List<Member> _allMembers = [];
+  List<Family> _allFamilies = [];
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
   bool _isLoading = true;
+  bool _isListMode = false;
 
   @override
   void initState() {
@@ -65,13 +71,21 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _subscribeToMembers();
     _subscribeToEvents();
 
-    final recordedIds = _currentSession.records.map((r) => r.memberId).toSet();
-    final recordedNames = _currentSession.records.map((r) => r.attendee).toSet();
-    
+    // Treat preseed records as not-yet-user-touched so we land on the first
+    // member rather than skipping the whole roster.
+    final touchedIds = <String>{};
+    final touchedNames = <String>{};
+    for (final r in _currentSession.records) {
+      if (r.recordedBy == 'System (Preseed)') continue;
+      if (r.memberId != null) touchedIds.add(r.memberId!);
+      touchedNames.add(r.attendee);
+    }
+
     int firstUnrecorded = 0;
     for (int i = 0; i < widget.members.length; i++) {
       final member = widget.members[i];
-      if (!recordedIds.contains(member.id) && !recordedNames.contains(member.displayName)) {
+      if (!touchedIds.contains(member.id) &&
+          !touchedNames.contains(member.displayName)) {
         firstUnrecorded = i;
         break;
       }
@@ -101,6 +115,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _membersSubscription = widget.attendanceRepository.streamFamilies().listen((families) {
       if (!mounted) return;
       setState(() {
+        _allFamilies = families;
         _allMembers = families.expand((f) => f.members).toList();
       });
     });
@@ -118,6 +133,38 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         }
       }
     });
+  }
+
+  /// Families restricted to the members in this event. Falls back to a single
+  /// synthetic family wrapping `widget.members` if no family context exists.
+  List<Family> get _sessionFamilies {
+    if (widget.families != null && widget.families!.isNotEmpty) {
+      return widget.families!;
+    }
+    if (_allFamilies.isNotEmpty) {
+      final eventIds = widget.members.map((m) => m.id).toSet();
+      final result = <Family>[];
+      for (final f in _allFamilies) {
+        final filtered = f.members.where((m) => eventIds.contains(m.id)).toList();
+        if (filtered.isEmpty) continue;
+        result.add(f.copyWith(members: filtered));
+      }
+      if (result.isNotEmpty) return result;
+    }
+    return [
+      Family(
+        id: '_synthetic_all',
+        displayName: 'All members',
+        members: widget.members,
+      ),
+    ];
+  }
+
+  Family? _familyForMember(Member member) {
+    for (final f in _sessionFamilies) {
+      if (f.members.any((m) => m.id == member.id)) return f;
+    }
+    return null;
   }
 
   Future<void> _ensureMemberInEvent(String memberId) async {
@@ -196,8 +243,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     // Remove any existing record for this attendee if exists (overwrite)
-    updatedRecords.removeWhere((r) => 
-      (memberId != null && r.memberId == memberId) || 
+    updatedRecords.removeWhere((r) =>
+      (memberId != null && r.memberId == memberId) ||
       (r.attendee == attendeeName)
     );
     updatedRecords.add(newRecord);
@@ -240,6 +287,45 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
+  Future<void> _markCurrentFamilyPresent() async {
+    if (_currentIndex >= widget.members.length) return;
+    final currentMember = widget.members[_currentIndex];
+    final family = _familyForMember(currentMember);
+    if (family == null) return;
+    final memberIdSet = family.members.map((m) => m.id).toSet();
+    for (final m in family.members) {
+      await _recordAttendance(m.id, m.displayName, AttendanceStatus.present);
+    }
+    if (!mounted) return;
+    // Advance past the entire family in the deck.
+    int next = _currentIndex;
+    while (next < widget.members.length &&
+        memberIdSet.contains(widget.members[next].id)) {
+      next++;
+    }
+    if (next >= widget.members.length) {
+      _finishAndNavigate();
+    } else {
+      setState(() => _currentIndex = next);
+    }
+  }
+
+  Future<void> _toggleMemberFromList(Member member, bool isPresent) async {
+    final memberIdForRecord =
+        (member.isVisitor || member.id.trim().isEmpty) ? null : member.id;
+    await _recordAttendance(
+      memberIdForRecord,
+      member.displayName,
+      isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+    );
+  }
+
+  Future<void> _toggleFamilyFromList(Family family, bool isPresent) async {
+    for (final m in family.members) {
+      await _toggleMemberFromList(m, isPresent);
+    }
+  }
+
   void _undo() {
     if (_currentIndex > 0) {
       setState(() {
@@ -254,6 +340,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         builder: (_) => SessionSummaryPage(
           session: _currentSession,
           members: widget.members,
+          families: widget.families,
           sessionRepository: widget.sessionRepository,
           attendanceRepository: widget.attendanceRepository,
           eventRepository: widget.eventRepository,
@@ -284,330 +371,424 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    if (_currentIndex >= widget.members.length) {
-        return Scaffold(
-            body: Center(
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                        const Text('Session Complete'),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                            onPressed: _finishAndNavigate,
-                            child: const Text('Finalize Report'),
-                        ),
-                    ],
-                ),
-            ),
-        );
-    }
-
-    final currentMember = widget.members[_currentIndex];
-    final progress = (_currentIndex + 1) / widget.members.length;
-
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
-            // Header Stack (Progress + Add Guest)
-            Stack(
-              children: [
-                // Progress Bar
-                Container(
-                  height: 4,
-                  width: double.infinity,
-                  color: colorScheme.surfaceContainerHigh,
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: progress,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(999),
-                          bottomRight: Radius.circular(999),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Cancel Button
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12, left: 16),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(_currentSession),
-                      icon: const Icon(Icons.close),
-                      color: colorScheme.onSurfaceVariant,
-                      tooltip: 'Cancel',
-                    ),
-                  ),
-                ),
-                // Add Person Button
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8, right: 8),
-                    child: IconButton(
-                      onPressed: _showAddMemberSheet,
-                      icon: const Icon(Icons.person_add),
-                      color: colorScheme.onSurfaceVariant,
-                      tooltip: 'Add Person',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Card Area
+            _buildHeader(colorScheme),
             Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: AspectRatio(
-                    aspectRatio: 3 / 4,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Background Cards (Visual effect)
-                        Positioned.fill(
-                          child: Transform.translate(
-                            offset: const Offset(0, 32),
-                            child: Transform.scale(
-                              scale: 0.9,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer.withValues(
-                                    alpha: 0.4,
-                                  ),
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 3,
-                                      offset: Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+              child: _isListMode
+                  ? _buildListBody()
+                  : _buildDeckBody(theme, colorScheme),
+            ),
+            if (!_isListMode) _buildDeckFooter(colorScheme),
+          ],
+        ),
+      ),
+    );
+  }
 
-                        Positioned.fill(
-                          child: Transform.translate(
-                            offset: const Offset(0, 16),
-                            child: Transform.scale(
-                              scale: 0.95,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 3,
-                                      offset: Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+  Widget _buildHeader(ColorScheme colorScheme) {
+    final progress = widget.members.isEmpty
+        ? 0.0
+        : (_currentIndex.clamp(0, widget.members.length)) /
+            widget.members.length;
 
-                        // Main Card
-                        Positioned.fill(
-                          child: RepaintBoundary(
-                            child: AnimatedSwitcher(
-                              duration: widget.disableAnimations
-                                  ? Duration.zero
-                                  : const Duration(milliseconds: 600),
-                              child: _isLoading
-                                  ? Container(
-                                      key: const ValueKey('skeleton'),
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                      decoration: BoxDecoration(
-                                        color: colorScheme.surfaceContainer.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        borderRadius: BorderRadius.circular(24),
-                                      ),
-                                      child: Center(
-                                        child: AppShimmer(
-                                          width: 96,
-                                          height: 96,
-                                          borderRadius: BorderRadius.circular(48),
-                                          disableAnimations: widget.disableAnimations,
-                                        ),
-                                      ),
-                                    )
-                                  : SwipeableCard(
-                                      key: ValueKey(
-                                        currentMember.id,
-                                      ), // Important for resetting state
-                                      rightSwipeColor: colorScheme.primary,
-                                      leftSwipeColor: colorScheme.error,
-                                      onSwipeLeft: () => _processAttendance(
-                                        AttendanceStatus.absent,
-                                      ),
-                                      onSwipeRight: () => _processAttendance(
-                                        AttendanceStatus.present,
-                                      ),
-                                      child: Container(
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        decoration: BoxDecoration(
-                                          color: colorScheme.surfaceContainer,
-                                          borderRadius: BorderRadius.circular(24),
-                                          boxShadow: const [
-                                            BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 3,
-                                              offset: Offset(0, 1),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Center(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(16),
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                // Avatar
-                                                Flexible(
-                                                  child: Container(
-                                                    width: 96,
-                                                    height: 96,
-                                                    constraints: const BoxConstraints(
-                                                      minWidth: 48,
-                                                      minHeight: 48,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: colorScheme.surfaceContainerHigh,
-                                                      shape: BoxShape.circle,
-                                                      boxShadow: const [
-                                                        BoxShadow(
-                                                          color: Colors.black12,
-                                                          blurRadius: 2,
-                                                          offset: Offset(0, 1),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    clipBehavior: Clip.antiAlias,
-                                                    child: Center(
-                                                      child: Text(
-                                                        currentMember.displayName.isNotEmpty
-                                                            ? currentMember.displayName[0]
-                                                                  .toUpperCase()
-                                                            : '?',
-                                                        style: TextStyle(
-                                                          fontSize: 32,
-                                                          fontWeight: FontWeight.bold,
-                                                          color: colorScheme.primary,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 24),
-                                                Text(
-                                                  currentMember.displayName,
-                                                  style: theme.textTheme.displaySmall?.copyWith(
-                                                    color: colorScheme.onSurface,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Stack(
+          children: [
+            Container(
+              height: 4,
+              width: double.infinity,
+              color: colorScheme.surfaceContainerHigh,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: _isListMode ? 0.0 : progress,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(999),
+                      bottomRight: Radius.circular(999),
                     ),
                   ),
                 ),
               ),
             ),
+            Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12, left: 16),
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(_currentSession),
+                  icon: const Icon(Icons.close),
+                  color: colorScheme.onSurfaceVariant,
+                  tooltip: 'Cancel',
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8, right: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      key: const Key('finishSessionButton'),
+                      onPressed: () => _finishAndNavigate(),
+                      child: const Text('Done'),
+                    ),
+                    IconButton(
+                      onPressed: _showAddMemberSheet,
+                      icon: const Icon(Icons.person_add),
+                      color: colorScheme.onSurfaceVariant,
+                      tooltip: 'Add Person',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 56, 16, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<bool>(
+              key: const Key('deckListModeToggle'),
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  label: Text('Deck'),
+                  icon: Icon(Icons.style_outlined),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text('List'),
+                  icon: Icon(Icons.list_alt),
+                ),
+              ],
+              selected: {_isListMode},
+              onSelectionChanged: (sel) =>
+                  setState(() => _isListMode = sel.first),
+              showSelectedIcon: false,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-            // Footer Buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildListBody() {
+    return AttendanceRosterList(
+      session: _currentSession,
+      families: _sessionFamilies,
+      onToggle: _toggleMemberFromList,
+      onFamilyToggle: _toggleFamilyFromList,
+      initialGrouping: RosterGrouping.byFamily,
+    );
+  }
+
+  Widget _buildDeckBody(ThemeData theme, ColorScheme colorScheme) {
+    if (_currentIndex >= widget.members.length) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Session Complete'),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _finishAndNavigate,
+              child: const Text('Finalize Report'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final currentMember = widget.members[_currentIndex];
+    final family = _familyForMember(currentMember);
+    final showFamilyContext =
+        family != null && family.id != '_synthetic_all';
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: AspectRatio(
+              aspectRatio: 3 / 4,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
                 children: [
-                  // Undo Button
-                  SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: Material(
-                      color: colorScheme.surfaceContainerHigh,
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        key: const Key('undoButton'),
-                        onTap: _currentIndex > 0 ? _undo : null,
-                        child: Icon(
-                          Icons.undo,
-                          color: _currentIndex > 0
-                              ? colorScheme.onSurface
-                              : colorScheme.onSurface.withValues(alpha: 0.3),
+                  Positioned.fill(
+                    child: Transform.translate(
+                      offset: const Offset(0, 32),
+                      child: Transform.scale(
+                        scale: 0.9,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainer.withValues(
+                              alpha: 0.4,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 3,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 24),
-                  // Absent Button
-                  SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: Material(
-                      color: colorScheme.surfaceContainerHigh,
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        key: const Key('absentButton'),
-                        onTap: () => _processAttendance(AttendanceStatus.absent),
-                        child: Icon(Icons.close, color: colorScheme.error),
+                  Positioned.fill(
+                    child: Transform.translate(
+                      offset: const Offset(0, 16),
+                      child: Transform.scale(
+                        scale: 0.95,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainer.withValues(
+                              alpha: 0.7,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 3,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 24),
-                  // Present Button
-                  SizedBox(
-                    width: 80,
-                    height: 80,
-                    child: Material(
-                      color: colorScheme.primary,
-                      shape: const CircleBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        key: const Key('presentButton'),
-                        onTap: () => _processAttendance(AttendanceStatus.present),
-                        child: Icon(Icons.check, color: colorScheme.onPrimary),
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: AnimatedSwitcher(
+                        duration: widget.disableAnimations
+                            ? Duration.zero
+                            : const Duration(milliseconds: 600),
+                        child: _isLoading
+                            ? Container(
+                                key: const ValueKey('skeleton'),
+                                width: double.infinity,
+                                height: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainer.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Center(
+                                  child: AppShimmer(
+                                    width: 96,
+                                    height: 96,
+                                    borderRadius: BorderRadius.circular(48),
+                                    disableAnimations: widget.disableAnimations,
+                                  ),
+                                ),
+                              )
+                            : SwipeableCard(
+                                key: ValueKey(currentMember.id),
+                                rightSwipeColor: colorScheme.primary,
+                                leftSwipeColor: colorScheme.error,
+                                onSwipeLeft: () => _processAttendance(
+                                  AttendanceStatus.absent,
+                                ),
+                                onSwipeRight: () => _processAttendance(
+                                  AttendanceStatus.present,
+                                ),
+                                child: Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(24),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 3,
+                                        offset: Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Flexible(
+                                            child: Container(
+                                              width: 96,
+                                              height: 96,
+                                              constraints: const BoxConstraints(
+                                                minWidth: 48,
+                                                minHeight: 48,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: colorScheme
+                                                    .surfaceContainerHigh,
+                                                shape: BoxShape.circle,
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                    color: Colors.black12,
+                                                    blurRadius: 2,
+                                                    offset: Offset(0, 1),
+                                                  ),
+                                                ],
+                                              ),
+                                              clipBehavior: Clip.antiAlias,
+                                              child: Center(
+                                                child: Text(
+                                                  currentMember
+                                                          .displayName
+                                                          .isNotEmpty
+                                                      ? currentMember
+                                                            .displayName[0]
+                                                            .toUpperCase()
+                                                      : '?',
+                                                  style: TextStyle(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: colorScheme.primary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          Text(
+                                            currentMember.displayName,
+                                            style: theme
+                                                .textTheme
+                                                .displaySmall
+                                                ?.copyWith(
+                                                  color: colorScheme.onSurface,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (showFamilyContext) ...[
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              family.displayName,
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    color: colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+            ),
+            if (showFamilyContext && family.members.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: OutlinedButton.icon(
+                  key: const Key('markFamilyPresentButton'),
+                  onPressed: _markCurrentFamilyPresent,
+                  icon: const Icon(Icons.groups),
+                  label: Text('Mark ${family.displayName} all present'),
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDeckFooter(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: Material(
+              color: colorScheme.surfaceContainerHigh,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const Key('undoButton'),
+                onTap: _currentIndex > 0 ? _undo : null,
+                child: Icon(
+                  Icons.undo,
+                  color: _currentIndex > 0
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurface.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 24),
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: Material(
+              color: colorScheme.surfaceContainerHigh,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const Key('absentButton'),
+                onTap: _currentIndex < widget.members.length
+                    ? () => _processAttendance(AttendanceStatus.absent)
+                    : null,
+                child: Icon(Icons.close, color: colorScheme.error),
+              ),
+            ),
+          ),
+          const SizedBox(width: 24),
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: Material(
+              color: colorScheme.primary,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: const Key('presentButton'),
+                onTap: _currentIndex < widget.members.length
+                    ? () => _processAttendance(AttendanceStatus.present)
+                    : null,
+                child: Icon(Icons.check, color: colorScheme.onPrimary),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
