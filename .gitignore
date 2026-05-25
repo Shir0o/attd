@@ -71,6 +71,8 @@ firestore.indexes.json
 .env
 .gemini/
 .claude/
+.antigravity/
+.antigravitycli/
 .vscode/
 .idea/
 .DS_Store
