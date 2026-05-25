@@ -4,7 +4,7 @@
 
 Convocation is an editorial take on attendance. Where the prior "Fluid Humanist" system was warm and tonal, Convocation pairs a serif display voice with a clinical sans body, then adds postcard-style stamps, segmented controls, and big tabular numerals. The goal is an interface that feels like a beautifully printed weekly bulletin — calm, considered, and human.
 
-The source-of-truth prototype is the handoff bundle at `/tmp/design/attd/` (see `Attendance Redesign.html` for the entry point and `screens.jsx` / `parts.jsx` / `marketing.jsx` for component-level detail).
+The source-of-truth prototype is the handoff bundle vendored at [`docs/design-handoff/`](docs/design-handoff/) (see `project/Attendance Redesign.html` for the entry point and `project/screens.jsx` / `project/parts.jsx` / `project/marketing.jsx` for component-level detail).
 
 ## 2. Color tokens
 

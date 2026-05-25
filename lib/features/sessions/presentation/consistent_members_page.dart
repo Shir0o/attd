@@ -14,7 +14,7 @@ import '../../hub/domain/event.dart';
 /// Members who attended ≥ 80% of the last 8 sessions of an event.
 ///
 /// Mirrors `RegularsPreview` in
-/// `/tmp/design/attd/project/marketing.jsx` (lines 205–267).
+/// `docs/design-handoff/project/marketing.jsx` (lines 205–267).
 class ConsistentMembersPage extends StatefulWidget {
   const ConsistentMembersPage({
     super.key,

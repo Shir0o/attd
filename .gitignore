@@ -82,3 +82,9 @@ firestore.indexes.json
 .pub-cache/
 .pub/
 /build/
+
+# Design handoff reference PNGs — keep local for browsing, but text JSX/CSS
+# under docs/design-handoff/project/ is the spec source-of-truth and stays
+# committed. Re-fetch PNGs from the handoff URL if needed.
+docs/design-handoff/project/uploads/
+docs/design-handoff/project/screenshots/

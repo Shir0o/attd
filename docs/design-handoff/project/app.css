@@ -1,0 +1,263 @@
+/* Convocation — design tokens, themes, shared primitives */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&display=swap');
+
+:root {
+  --font-display: 'Fraunces', 'Times New Roman', serif;
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Brand */
+  --violet: oklch(54% 0.18 285);
+  --violet-soft: oklch(76% 0.10 285);
+  --violet-deep: oklch(38% 0.18 285);
+  --violet-wash: oklch(94% 0.04 285);
+  --clay: oklch(72% 0.12 55);
+  --clay-deep: oklch(58% 0.16 50);
+  --clay-wash: oklch(95% 0.03 60);
+  --coral: oklch(68% 0.18 25);
+  --coral-wash: oklch(94% 0.04 25);
+
+  /* Light theme */
+  --bg: oklch(98.5% 0.006 295);
+  --bg-2: oklch(96% 0.012 290);
+  --bg-3: oklch(93% 0.018 288);
+  --card: oklch(99.5% 0.003 295);
+  --card-soft: oklch(95.5% 0.016 288);
+  --ink: oklch(22% 0.025 285);
+  --ink-2: oklch(40% 0.020 285);
+  --ink-3: oklch(60% 0.015 285);
+  --ink-4: oklch(78% 0.012 285);
+  --hair: oklch(88% 0.012 285);
+  --primary: var(--violet);
+  --on-primary: #fff;
+  --present: var(--violet);
+  --absent: var(--coral);
+  --shadow-soft: 0 4px 18px -8px oklch(40% 0.05 285 / 0.18), 0 1px 2px oklch(40% 0.05 285 / 0.05);
+  --shadow-card: 0 1px 2px oklch(40% 0.05 285 / 0.04), 0 8px 24px -10px oklch(40% 0.05 285 / 0.12);
+}
+
+[data-theme="light"] {
+  --bg: oklch(98.5% 0.006 295);
+  --bg-2: oklch(96% 0.012 290);
+  --bg-3: oklch(93% 0.018 288);
+  --card: oklch(99.5% 0.003 295);
+  --card-soft: oklch(95.5% 0.016 288);
+  --ink: oklch(22% 0.025 285);
+  --ink-2: oklch(40% 0.020 285);
+  --ink-3: oklch(60% 0.015 285);
+  --ink-4: oklch(78% 0.012 285);
+  --hair: oklch(88% 0.012 285);
+  --primary: var(--violet);
+  --on-primary: #fff;
+  --present: var(--violet);
+  --absent: var(--coral);
+  --shadow-card: 0 1px 2px oklch(40% 0.05 285 / 0.04), 0 8px 24px -10px oklch(40% 0.05 285 / 0.12);
+}
+
+[data-theme="dark"] {
+  --bg: oklch(16% 0.018 290);
+  --bg-2: oklch(20% 0.022 290);
+  --bg-3: oklch(24% 0.026 290);
+  --card: oklch(22% 0.024 290);
+  --card-soft: oklch(26% 0.028 290);
+  --ink: oklch(96% 0.008 285);
+  --ink-2: oklch(82% 0.012 285);
+  --ink-3: oklch(62% 0.020 285);
+  --ink-4: oklch(45% 0.024 285);
+  --hair: oklch(30% 0.022 285);
+  --primary: oklch(76% 0.12 285);
+  --on-primary: oklch(20% 0.04 285);
+  --present: oklch(80% 0.10 285);
+  --absent: oklch(74% 0.14 25);
+  --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px -12px rgba(0,0,0,.5);
+}
+
+/* Tweakable accents — overridden by tweaks panel */
+[data-accent="violet"] { --primary: var(--violet); --present: var(--violet); }
+[data-accent="forest"] { --primary: oklch(48% 0.14 165); --present: oklch(48% 0.14 165); }
+[data-accent="sea"]    { --primary: oklch(52% 0.13 235); --present: oklch(52% 0.13 235); }
+[data-accent="clay"]   { --primary: var(--clay-deep); --present: var(--clay-deep); }
+
+.screen {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--bg);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  position: relative;
+}
+
+.screen *, .screen *::before, .screen *::after { box-sizing: border-box; }
+
+/* Type primitives */
+.t-display { font-family: var(--font-display); font-weight: 360; font-style: normal; letter-spacing: -0.03em; font-variation-settings: 'opsz' 144, 'SOFT' 50; line-height: 1; }
+.t-headline { font-family: var(--font-display); font-weight: 420; letter-spacing: -0.02em; font-variation-settings: 'opsz' 72; line-height: 1.08; }
+.t-eyebrow { font-family: var(--font-sans); font-weight: 500; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); }
+.t-body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.t-label { font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.t-num { font-family: var(--font-display); font-variation-settings: 'opsz' 144; font-weight: 360; font-feature-settings: 'tnum'; letter-spacing: -0.04em; }
+
+/* Card primitives */
+.card {
+  background: var(--card);
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+}
+.card-soft {
+  background: var(--card-soft);
+  border-radius: 22px;
+}
+
+/* Pills + chips */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px; font-weight: 500;
+  font-family: var(--font-sans);
+  background: var(--card-soft);
+  color: var(--ink);
+  border: none;
+  cursor: pointer;
+}
+.pill.is-on { background: var(--primary); color: var(--on-primary); }
+.pill-ghost { background: transparent; color: var(--ink-2); }
+
+/* Avatars */
+.avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--card-soft);
+  color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 500; font-size: 18px;
+  font-variation-settings: 'opsz' 72;
+  flex-shrink: 0;
+}
+.avatar-lg { width: 88px; height: 88px; font-size: 36px; }
+.avatar-present { background: color-mix(in oklch, var(--present) 18%, transparent); color: var(--present); }
+.avatar-absent { background: color-mix(in oklch, var(--absent) 18%, transparent); color: var(--absent); }
+
+/* Buttons */
+.btn {
+  font-family: var(--font-sans); font-weight: 500; font-size: 15px;
+  border: 0; cursor: pointer;
+  padding: 14px 22px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .12s, background .15s;
+}
+.btn-primary { background: var(--primary); color: var(--on-primary); }
+.btn-primary:hover { transform: translateY(-1px); }
+.btn-soft { background: var(--card-soft); color: var(--ink); }
+.btn-ghost { background: transparent; color: var(--primary); }
+.btn-danger { background: transparent; color: var(--absent); }
+
+/* Header */
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 10px;
+  gap: 8px;
+}
+.icon-btn {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 0; cursor: pointer;
+  color: var(--ink);
+}
+.icon-btn:hover { background: var(--card-soft); }
+
+/* Postcard stamp (used on swipe overlays + onboarding) */
+.stamp {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 500;
+  font-variation-settings: 'opsz' 72, 'SOFT' 100;
+  font-size: 22px; letter-spacing: 0.06em;
+  padding: 8px 18px;
+  border: 2.5px solid currentColor;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+.stamp-present { color: var(--present); transform: rotate(-6deg); }
+.stamp-absent { color: var(--absent); transform: rotate(8deg); }
+
+/* Segmented control (replaces deck/list, by-family/by-status) */
+.seg {
+  display: inline-flex;
+  padding: 4px;
+  background: var(--bg-2);
+  border-radius: 999px;
+  gap: 2px;
+}
+.seg button {
+  border: 0; cursor: pointer;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-weight: 500; font-size: 13px;
+  color: var(--ink-3);
+  background: transparent;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: color .15s, background .15s;
+}
+.seg button.is-on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 12px -4px rgba(0,0,0,.08);
+}
+
+/* Toggle (the present/absent inline toggle) */
+.toggle {
+  width: 56px; height: 32px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  position: relative;
+  cursor: pointer;
+  border: 0; padding: 0;
+  flex-shrink: 0;
+  transition: background .18s;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 4px; left: 4px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  transition: transform .2s cubic-bezier(.2,.7,.3,1), background .18s;
+}
+.toggle.is-on { background: color-mix(in oklch, var(--present) 30%, transparent); }
+.toggle.is-on::after { transform: translateX(24px); background: var(--present); }
+
+/* FAB */
+.fab {
+  position: absolute;
+  bottom: 28px; right: 22px;
+  width: 60px; height: 60px;
+  border-radius: 22px;
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex; align-items: center; justify-content: center;
+  border: 0; cursor: pointer;
+  box-shadow: 0 10px 30px -8px color-mix(in oklch, var(--primary) 50%, transparent);
+}
+
+/* Tabular numbers everywhere they read as data */
+.tabular { font-feature-settings: 'tnum'; }
+
+/* Reusable status bar for non-android-frame screens */
+.statusbar {
+  height: 28px; padding: 6px 18px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  color: var(--ink);
+}
