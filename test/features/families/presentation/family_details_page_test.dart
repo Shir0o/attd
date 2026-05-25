@@ -117,7 +117,7 @@ void main() {
     );
 
     expect(find.text('Smith Family'), findsOneWidget);
-    expect(find.text('Members'), findsOneWidget);
+    expect(find.text('MEMBERS'), findsOneWidget);
     expect(find.text('Alice Smith'), findsOneWidget);
     expect(find.text('Bob Guest'), findsOneWidget);
     expect(find.text('Visitor'), findsOneWidget);

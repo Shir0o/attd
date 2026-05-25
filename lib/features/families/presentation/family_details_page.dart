@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/design/app_typography.dart';
+import '../../../core/design/widgets/conv_widgets.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/family.dart';
@@ -184,28 +186,45 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
   Widget build(BuildContext context) {
     final suggestions = _suggestedMembers();
     final theme = Theme.of(context);
+    final c = context.conv;
     return Scaffold(
+      backgroundColor: c.bg,
       appBar: AppBar(
-        title: Text(
-          _family.displayName,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-        ),
+        backgroundColor: c.bg,
+        elevation: 0,
+        title: Text('Edit family', style: AppTypography.eyebrow(color: c.ink3)),
+        centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.fromLTRB(22, 10, 22, 100),
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Members',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+          Text(
+            _family.displayName,
+            style: AppTypography.fraunces(
+              fontSize: 44,
+              fontWeight: FontWeight.w400,
+              color: c.ink,
+              letterSpacing: -1.32,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            '${_family.members.length} ${_family.members.length == 1 ? 'member' : 'members'}',
+            style: TextStyle(color: c.ink2, fontSize: 14),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Text('MEMBERS', style: AppTypography.eyebrow(color: c.ink3)),
+              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 10),
           if (_family.members.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text('No members yet.', style: TextStyle(fontSize: 16)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No members yet.',
+                  style: TextStyle(fontSize: 15, color: c.ink2)),
             ),
           ..._family.members.map((member) {
             return ListTile(
