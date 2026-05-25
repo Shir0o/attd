@@ -174,8 +174,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
         members: newMembers,
         updatedAt: now,
         // Adding a second live member promotes the family out of singleton.
-        isAutoSingleton:
-            family.isAutoSingleton && liveCount <= 1 ? true : false,
+        isAutoSingleton: family.isAutoSingleton && liveCount <= 1,
       );
     }).toList();
     await saveFamilies(updated);
@@ -235,8 +234,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       return family.copyWith(
         members: newMembers,
         updatedAt: now,
-        isAutoSingleton:
-            family.isAutoSingleton && liveCount <= 1 ? true : false,
+        isAutoSingleton: family.isAutoSingleton && liveCount <= 1,
       );
     }).toList();
     if (!updated.any((f) => f.id == targetFamilyId)) {

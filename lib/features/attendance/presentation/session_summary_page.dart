@@ -13,6 +13,7 @@ import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../utils/bulk_attendance.dart';
 import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
@@ -335,33 +336,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final previousRecords =
         List<SessionRecord>.from(_currentSession.records);
     final now = DateTime.now();
-    final status =
-        present ? AttendanceStatus.present : AttendanceStatus.absent;
     final allMembers = _displayFamilies.expand((f) => f.members).toList();
-    final updatedRecords = <SessionRecord>[];
-    // Drop everything we're about to overwrite, then re-add.
-    final memberIds = allMembers
-        .where((m) => !m.isVisitor && m.id.trim().isNotEmpty)
-        .map((m) => m.id)
-        .toSet();
-    final memberNames = allMembers.map((m) => m.displayName).toSet();
-    for (final r in previousRecords) {
-      final byId = r.memberId != null && memberIds.contains(r.memberId);
-      final byName = r.memberId == null && memberNames.contains(r.attendee);
-      if (byId || byName) continue;
-      updatedRecords.add(r);
-    }
-    for (final m in allMembers) {
-      final mid =
-          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
-      updatedRecords.add(SessionRecord(
-        memberId: mid,
-        attendee: m.displayName,
-        status: status,
-        recordedAt: now,
-        recordedBy: 'User (Bulk)',
-      ));
-    }
+    final updatedRecords = applyBulkRecords(
+      previousRecords: previousRecords,
+      members: allMembers,
+      present: present,
+      recordedAt: now,
+    );
     final updatedSession = _currentSession.copyWith(
       records: updatedRecords,
       updatedAt: now,
