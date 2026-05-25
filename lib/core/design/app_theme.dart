@@ -1,38 +1,50 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
-import 'app_shadows.dart';
+import 'app_radii.dart';
 import 'app_typography.dart';
 import '../presentation/no_transitions_builder.dart';
 
-/// Composes [ThemeData] from the "Fluid Humanist" design tokens.
-///
-/// Call [lightTheme] / [darkTheme] from your [MaterialApp].
+/// Composes [ThemeData] for the Convocation design system.
 class AppTheme {
   AppTheme._();
 
-  // ── Corner radii ──────────────────────────────────────────────────
-  /// Standard container radius ("rounded-md" ≈ 1.5rem / 24px)
-  static const double radiusMd = 24;
+  /// Backwards-compatible alias used by older screens that still reference
+  /// `AppTheme.radiusMd`.
+  static const double radiusMd = AppRadii.card;
 
-  /// Bottom‑sheet / modal top radius
-  static const double radiusSheet = 28;
+  /// Bottom-sheet top radius.
+  static const double radiusSheet = AppRadii.sheet;
 
-  /// Pill / fully rounded
+  /// Pill / fully rounded.
   static const ShapeBorder pillShape = StadiumBorder();
 
-  // ── Light theme ───────────────────────────────────────────────────
-  static ThemeData lightTheme() {
-    final colorScheme = AppColors.lightColorScheme;
-    final textTheme = AppTypography.textTheme(ThemeData.light().textTheme);
+  static ThemeData lightTheme() => _buildTheme(
+    colorScheme: AppColors.lightColorScheme,
+    convColors: ConvocationColors.light,
+    baseTextTheme: ThemeData.light().textTheme,
+  );
+
+  static ThemeData darkTheme() => _buildTheme(
+    colorScheme: AppColors.darkColorScheme,
+    convColors: ConvocationColors.dark,
+    baseTextTheme: ThemeData.dark().textTheme,
+  );
+
+  static ThemeData _buildTheme({
+    required ColorScheme colorScheme,
+    required ConvocationColors convColors,
+    required TextTheme baseTextTheme,
+  }) {
+    final textTheme = AppTypography.textTheme(baseTextTheme);
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       textTheme: textTheme,
-      scaffoldBackgroundColor: colorScheme.surface,
+      scaffoldBackgroundColor: convColors.bg,
+      extensions: <ThemeExtension<dynamic>>[convColors],
 
-      // ── Page transitions (instant) ────────────────────────────────
       pageTransitionsTheme: PageTransitionsTheme(
         builders: {
           for (var platform in TargetPlatform.values)
@@ -40,307 +52,126 @@ class AppTheme {
         },
       ),
 
-      // ── App Bar ───────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
+        backgroundColor: convColors.bg,
+        foregroundColor: convColors.ink,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
 
-      // ── Cards (tonal layering, no shadow) ─────────────────────────
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colorScheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
+        color: convColors.card,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.cardR),
         margin: EdgeInsets.zero,
       ),
 
-      // ── Filled button (primary gradient pill) ─────────────────────
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
+          backgroundColor: convColors.primary,
+          foregroundColor: convColors.onPrimary,
           shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
           textStyle: textTheme.labelLarge,
         ),
       ),
 
-      // ── Elevated button ───────────────────────────────────────────
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.surfaceContainerHighest,
-          foregroundColor: colorScheme.onSurface,
+          backgroundColor: convColors.cardSoft,
+          foregroundColor: convColors.ink,
           shape: const StadiumBorder(),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
         ),
       ),
 
-      // ── Text button ───────────────────────────────────────────────
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: colorScheme.primary,
+          foregroundColor: convColors.primary,
           shape: const StadiumBorder(),
         ),
       ),
 
-      // ── Outlined button ───────────────────────────────────────────
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: colorScheme.onSurface,
+          foregroundColor: convColors.ink,
           shape: const StadiumBorder(),
-          side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.2),
-          ),
+          side: BorderSide(color: convColors.hair),
         ),
       ),
 
-      // ── FAB ───────────────────────────────────────────────────────
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
+        backgroundColor: convColors.primary,
+        foregroundColor: convColors.onPrimary,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.fabR),
         elevation: 0,
       ),
 
-      // ── Input fields (filled, no border) ──────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerLow,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+        fillColor: convColors.cardSoft,
+        border: const OutlineInputBorder(
+          borderRadius: AppRadii.compactR,
           borderSide: BorderSide.none,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: AppRadii.compactR,
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: AppShadows.ghostBorder,
+          borderRadius: AppRadii.compactR,
+          borderSide: BorderSide(color: convColors.primary, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
+        hintStyle: textTheme.bodyMedium?.copyWith(color: convColors.ink3),
       ),
 
-      // ── Bottom sheet ──────────────────────────────────────────────
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colorScheme.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(radiusSheet),
-          ),
-        ),
+        backgroundColor: convColors.card,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.sheetR),
       ),
 
-      // ── Dialog ────────────────────────────────────────────────────
       dialogTheme: DialogThemeData(
-        backgroundColor: colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
+        backgroundColor: convColors.card,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.cardR),
       ),
 
-      // ── Divider (invisible – spec forbids divider lines) ──────────
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.1),
-        thickness: 0,
-        space: 0,
+        color: convColors.hair,
+        thickness: 1,
+        space: 1,
       ),
 
-      // ── List tile ─────────────────────────────────────────────────
       listTileTheme: ListTileThemeData(
-        iconColor: colorScheme.onSurfaceVariant,
-        textColor: colorScheme.onSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+        iconColor: convColors.ink2,
+        textColor: convColors.ink,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.compactR),
+      ),
+
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? convColors.primary
+              : convColors.ink4,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Color.alphaBlend(
+                  convColors.primary.withValues(alpha: 0.3),
+                  convColors.bg,
+                )
+              : convColors.bg3,
         ),
       ),
 
-      // ── Switch ────────────────────────────────────────────────────
-      switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return colorScheme.onPrimary;
-          }
-          return colorScheme.onSurfaceVariant;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary;
-          }
-          return colorScheme.surfaceContainerHighest;
-        }),
-        thumbIcon: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Icon(Icons.check, color: colorScheme.onPrimary);
-          }
-          return null;
-        }),
-      ),
-
-      // ── Snack bar ─────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
-      ),
-    );
-  }
-
-  // ── Dark theme ────────────────────────────────────────────────────
-  static ThemeData darkTheme() {
-    final colorScheme = AppColors.darkColorScheme;
-    final textTheme = AppTypography.textTheme(ThemeData.dark().textTheme);
-
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: colorScheme,
-      textTheme: textTheme,
-      scaffoldBackgroundColor: colorScheme.surface,
-      pageTransitionsTheme: PageTransitionsTheme(
-        builders: {
-          for (var platform in TargetPlatform.values)
-            platform: const NoTransitionsBuilder(),
-        },
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: colorScheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
-        margin: EdgeInsets.zero,
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
-          shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: textTheme.labelLarge,
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.surfaceContainerHighest,
-          foregroundColor: colorScheme.onSurface,
-          shape: const StadiumBorder(),
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: colorScheme.primary,
-          shape: const StadiumBorder(),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: colorScheme.onSurface,
-          shape: const StadiumBorder(),
-          side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.2),
-          ),
-        ),
-      ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
-        elevation: 0,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: colorScheme.surfaceContainerLow,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: AppShadows.ghostBorder,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: colorScheme.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(radiusSheet),
-          ),
-        ),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
-      ),
-      dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.1),
-        thickness: 0,
-        space: 0,
-      ),
-      listTileTheme: ListTileThemeData(
-        iconColor: colorScheme.onSurfaceVariant,
-        textColor: colorScheme.onSurface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
-      ),
-      switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return colorScheme.onPrimary;
-          }
-          return colorScheme.onSurfaceVariant;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary;
-          }
-          return colorScheme.surfaceContainerHighest;
-        }),
-        thumbIcon: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Icon(Icons.check, color: colorScheme.onPrimary);
-          }
-          return null;
-        }),
-      ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.compactR),
       ),
     );
   }

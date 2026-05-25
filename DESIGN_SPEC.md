@@ -1,91 +1,84 @@
-# Design System Specification: The Fluid Humanist
+# Design System Specification: Convocation
 
-## 1. Overview & Creative North Star
-**Creative North Star: "The Welcoming Curator"**
-This design system moves beyond the rigid, utilitarian nature of typical attendance software. Instead of a cold, administrative tool, we are building a "Digital Concierge"—an experience that feels as fluid and effortless as a physical swipe.
+## 1. Creative North Star
 
-To achieve this, we reject the "spreadsheet" aesthetic. We embrace **intentional asymmetry**, where large, expressive illustrations break the container bounds, and **tonal depth**, where hierarchy is defined by soft shifts in color rather than harsh lines. The goal is an interface that breathes, prioritizing high-end editorial layouts that guide the user through onboarding with warmth and absolute clarity.
+Convocation is an editorial take on attendance. Where the prior "Fluid Humanist" system was warm and tonal, Convocation pairs a serif display voice with a clinical sans body, then adds postcard-style stamps, segmented controls, and big tabular numerals. The goal is an interface that feels like a beautifully printed weekly bulletin — calm, considered, and human.
 
----
+The source-of-truth prototype is the handoff bundle at `/tmp/design/attd/` (see `Attendance Redesign.html` for the entry point and `screens.jsx` / `parts.jsx` / `marketing.jsx` for component-level detail).
 
-## 2. Colors & Surface Architecture
-The palette is rooted in a sophisticated violet and soft lily-white base, designed to reduce cognitive load and eye strain.
+## 2. Color tokens
 
-### The "No-Line" Rule
-**Explicit Instruction:** Traditional 1px solid borders are strictly prohibited for sectioning or containment.
-* **The Technique:** Define boundaries through background shifts. For example, a `surface-container-low` (#f9f1fb) card should sit on a `surface` (#fef7ff) background.
-* **Tonal Transitions:** Use the contrast between `surface-container` tiers to create "islands of information" that feel integrated, not boxed in.
+All values are sRGB approximations of the OKLCH tokens in `attd/project/app.css`. The Flutter source of truth is [`lib/core/design/app_colors.dart`](lib/core/design/app_colors.dart) plus the `ConvocationColors` `ThemeExtension`, surfaced via `Theme.of(context).extension<ConvocationColors>()!`.
 
-### Surface Hierarchy & Nesting
-Treat the UI as a physical stack of fine, semi-transparent paper.
-* **Level 0 (Base):** `background` (#fef7ff)
-* **Level 1 (Sections):** `surface-container-low` (#f9f1fb)
-* **Level 2 (Active Cards):** `surface-container-lowest` (#ffffff)
-* **Level 3 (Floating Elements):** Use **Glassmorphism**. Floating modals or menus should use `surface` at 80% opacity with a `24px` backdrop blur to allow the brand colors to bleed through softly.
+### Brand
+| Token | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `primary` | `#6750A5` | `#B5A4D8` | Buttons, "TODAY" pill, day-chip active, FAB |
+| `present` | `= primary` | `#C2B5DA` | Present semantic — avatars, stamp, summary numerals |
+| `absent` | `#E5754D` (coral) | `#EAA585` | Absent semantic — stamp, avatar, summary numerals |
+| `clayDeep` | `#B47744` | `#DBA572` | Review / medium-confidence cues |
 
-### Signature Textures
-Main CTAs and Hero onboarding sections should utilize a **Linear Gradient** (135°) transitioning from `primary` (#6750a5) to `primary-container` (#cab6ff). This adds a "soul" and professional luster that flat hex codes cannot replicate.
+### Surface ladder
+`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the present/absent vertical rule on the Session Summary hero).
 
----
+### Ink ladder
+`ink` (primary text), `ink2` (body), `ink3` (captions / eyebrow), `ink4` (faint / decorative).
 
-## 3. Typography: The Editorial Scale
-We use **IBM Plex Sans** (interpreted through the Plus Jakarta and Be Vietnam scales for weight/feel) to balance technical precision with human warmth.
+## 3. Typography
 
-* **Display (Large/Medium):** `3.5rem` / `2.75rem`. Use for high-impact onboarding welcomes. Tracking should be tightened (-2%) to create a "compact-premium" feel.
-* **Headline (Small/Medium):** `1.5rem` / `1.75rem`. Use these to ask direct questions (e.g., "Ready to swipe in?").
-* **Body (Large/Medium):** `1rem` / `0.875rem`. Set with generous line-height (1.6) to ensure the "Soft Humanist" aesthetic is maintained.
-* **Labels:** `0.75rem`. Use `on-surface-variant` (#625d68) to keep these secondary but legible.
+Two-font pairing wired up in [`app_typography.dart`](lib/core/design/app_typography.dart):
 
-**Hierarchy Note:** Always pair a `display-lg` headline with a `body-lg` subtext. The extreme contrast in scale creates a high-end, editorial look that screams "intentional design."
+* **Fraunces** (display + headline). Optical-size 72/144. Used for display numerals, screen titles, family/member headlines.
+* **Geist** (body + label + title). Used everywhere else.
 
----
+Key scale:
 
-## 4. Elevation & Depth
-We eschew the "Material 2" drop-shadow style in favor of **Tonal Layering**.
+| Style | Family | Size | Purpose |
+| --- | --- | --- | --- |
+| `displayLarge` | Fraunces | 56 | Onboarding welcomes |
+| `displayMedium` | Fraunces | 44 | Family edit name, Members "17 people" |
+| `displaySmall` | Fraunces | 36 | "What are we tracking?" |
+| `headlineMedium` | Fraunces | 26 | "Mark attendance", Family card name |
+| `headlineSmall` | Fraunces | 22 | Family card name (compact), event title in rows |
+| `bodyMedium` | Geist | 15 | Default body |
+| `labelSmall` | Geist | 11 (uppercase, +14% tracking) | Eyebrow / all-caps captions |
 
-* **The Layering Principle:** Place a `surface-container-lowest` (#ffffff) card atop a `surface-container-high` (#ede5f2) background. The delta in luminance creates a natural, soft lift.
-* **Ambient Shadows:** If a floating action button (FAB) requires a shadow, use a large blur (`32px`) at `4%` opacity. The shadow color must be a tinted `primary-dim` (#5b4497) rather than grey, simulating natural light passing through a violet lens.
-* **The "Ghost Border" Fallback:** For accessibility on input fields, use `outline-variant` (#b7afbc) at **20% opacity**. Never use 100% opaque borders.
+For editorial numerals (Present / Absent counts, "0 events" empty state), use `AppTypography.displayNumber(fontSize: 96, color: …)`.
 
----
+## 4. Components
 
-## 5. Components
+The prototype's primitives map to Flutter widgets under `lib/core/design/widgets/`:
 
-### Buttons (The Signature Pill)
-* **Primary:** Pill-shaped (`rounded-full`), using the Primary-to-Container gradient. Text: `on-primary` (#fdf7ff).
-* **Secondary:** Pill-shaped, `surface-container-highest` (#e8dfed) background with `on-surface` (#35313b) text.
-* **Interaction:** On hover, increase the `surface-tint` (#6750a5) overlay by 8%.
+* `ConvAvatar` — letter avatar; `tone: present | absent | neutral`.
+* `ConvPill` / `ConvPill.on` — capsule chip, optional leading icon.
+* `ConvStamp` — rotated postcard stamp (PRESENT / ABSENT).
+* `ConvSegmented` — two-button segmented control with capsule active state.
+* `ConvToggle` — 56×32 present/absent inline toggle.
+* `ConvDayChip` — 28px circle S/M/T/W/T/F/S indicator.
+* `ConvStatChip` — Present/Absent/Total tile with editorial numeral.
+* `ConvSectionLabel` — eyebrow row with leading 3×12 bar in semantic tone.
+* `ConvFab` — 60×60 squircle with primary glow.
+* `ConvCard` / `ConvCardSoft` — 24px / 22px radius surfaces.
 
-### Input Fields
-* **Structure:** No bottom line. Use a `surface-container-low` (#f9f1fb) filled container with a `rounded-md` (1.5rem) corner radius.
-* **State:** On focus, the container shifts to `surface-container-lowest` (#ffffff) with a 2px `primary` ghost-border (20% opacity).
+## 5. Elevation
 
-### Cards & Lists
-* **Rule:** Divider lines are forbidden.
-* **Separation:** Use `spacing-6` (2rem) of vertical white space or a subtle shift from `surface` to `surface-container-low` to separate list items.
-* **Illustration Placement:** Cards should often feature "bleeding" illustrations—graphics that extend beyond the card’s top or right boundary to break the grid.
+Most surfaces are flat — depth comes from tonal layering (e.g. `card` on `bg2`). Soft tinted shadows live in `app_shadows.dart` and are reserved for:
 
-### Progress Indicators (Onboarding)
-* Use a sequence of varying-width pills. The active step is a long `primary` pill; inactive steps are small, circular `primary-container` dots.
+* The editorial Hub "Up Next" card.
+* Onboarding postcards.
+* The FAB (uses `AppShadows.fab(primary)` glow).
 
----
+## 6. Motion
 
-## 6. Do’s and Don’ts
+* Toggle thumb slides 200 ms with `cubic-bezier(0.2, 0.7, 0.3, 1)`.
+* Page transitions are intentionally **off** (we keep `NoTransitionsBuilder`). The editorial layout reads better when screens snap.
+* Swipe-deck stamps fade in proportional to drag distance and rotate per `swipe.jsx`.
 
-### Do:
-* **Do** use asymmetrical layouts. Place a large illustration on the top-right and a display headline on the bottom-left to create visual "rhythm."
-* **Do** use `spacing-16` (5.5rem) for hero-section padding. Breathing room is a luxury signal.
-* **Do** ensure illustrations use the `secondary` (#4d6645) and `tertiary` (#376b21) palettes to provide a natural, organic contrast to the violet UI.
+## 7. Two screens unique to Convocation
 
-### Don't:
-* **Don't** use pure black (#000000) for text. Use `on-surface` (#35313b) to maintain the soft aesthetic.
-* **Don't** use sharp corners. Everything must adhere to the `rounded-md` or `rounded-full` scale.
-* **Don't** stack more than three levels of surface containers. Too much nesting leads to visual clutter.
+These don't exist in the prototype HTML — they're invented from Play-Store promo frames in `attd/project/marketing.jsx`:
 
----
+* **Consistent members** — members at ≥80% across the last 8 sessions. Hero gradient card + ranked list with 8-segment attendance ribbons. Reachable from Session Summary.
+* **Trends** — 12-week sparkline of present-rate, present/absent split with trend arrow, regulars strip. Reachable from Session Summary.
 
-## 7. Contextual Component: The "Swipe-Action" Track
-Given the "Speed Swipe" context, the core interaction component is a horizontal track.
-* **Track:** `surface-container-highest` (#e8dfed), `rounded-full`.
-* **Handle:** A `primary` gradient pill with a "chevron-right" icon.
-* **Micro-interaction:** As the handle is swiped, the track color should dynamically fill with `primary-fixed` (#cab6ff), creating a tactile sense of progress.
+Both rely on data already available from `SessionRepository` and `AttendanceRepository`; no schema changes.

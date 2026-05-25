@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
@@ -290,13 +291,25 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               backgroundColor: colorScheme.surface,
               surfaceTintColor: Colors.transparent,
               pinned: true,
-              centerTitle: true,
-              title: const Text(
-                'Attendance Hub',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
+              centerTitle: false,
+              titleSpacing: 20,
+              toolbarHeight: 72,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ConvEyebrow(
+                    DateFormat('EEEE · MMM d').format(DateTime.now()),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Today',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: context.conv.ink,
+                      fontSize: 30,
+                    ),
+                  ),
+                ],
               ),
               actions: [
                 IconButton(
@@ -338,9 +351,58 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
   Widget _buildEventList(ColorScheme colorScheme) {
     if (_events.isEmpty) {
-      return const SliverFillRemaining(
+      final c = context.conv;
+      return SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('No events scheduled')),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                height: 180,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      '0',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 180,
+                        color: c.primary.withValues(alpha: 0.1),
+                        height: 1,
+                      ),
+                    ),
+                    ConvEyebrow('Events', color: c.ink3),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Nothing on the calendar yet.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: c.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 280,
+                child: Text(
+                  'Create your first event to start taking attendance. It only takes a moment.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: c.ink2, height: 1.5),
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: _createNewSession,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New event'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
