@@ -56,7 +56,9 @@ class _SuggestFamiliesPageState extends State<SuggestFamiliesPage> {
   }
 
   Future<List<FamilyCluster>> _loadClusters() async {
-    await Future.delayed(const Duration(milliseconds: 800));
+    if (!widget.disableAnimations) {
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
     return clusterByLastName(widget.ungroupedMembers);
   }
 
@@ -71,7 +73,8 @@ class _SuggestFamiliesPageState extends State<SuggestFamiliesPage> {
     final clusters = <FamilyCluster>[];
     for (final entry in groups.entries) {
       if (entry.value.length < 2) continue;
-      final name = entry.value.first.displayName.split(RegExp(r'\s+')).last;
+      final name =
+          entry.value.first.displayName.trim().split(RegExp(r'\s+')).last;
       final confidence = entry.value.length >= 3
           ? FamilyConfidence.high
           : FamilyConfidence.medium;
@@ -110,6 +113,12 @@ class _SuggestFamiliesPageState extends State<SuggestFamiliesPage> {
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating families: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _creating = false);
     }
@@ -458,12 +467,7 @@ class _SuggestCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Container(
-                height: 1,
-                color: c.hair,
-                margin: const EdgeInsets.only(bottom: 12),
-              ),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   TextButton(
