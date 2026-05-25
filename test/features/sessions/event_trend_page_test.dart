@@ -322,6 +322,53 @@ void main() {
       );
     });
 
+    testWidgets('truncates to the last windowSize sessions', (tester) async {
+      final members = [Member(id: 'm1', displayName: 'Alice')];
+      // 14 sessions — more than the default windowSize of 12.
+      final sessions = List.generate(
+        14,
+        (i) => sessionWith(
+          id: 's$i',
+          date: DateTime(2026, 1, i + 1),
+          statuses: {'m1': AttendanceStatus.present},
+        ),
+      );
+
+      await tester.pumpWidget(
+        wrap(
+          EventTrendPage(
+            event: event,
+            sessions: sessions,
+            members: members,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // With > windowSize sessions the "12 weeks ago" caption shows.
+      expect(find.text('12 weeks ago'), findsOneWidget);
+    });
+
+    testWidgets('renders trend skeleton while animating', (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          EventTrendPage(
+            event: event,
+            sessions: const [],
+            members: const [],
+            disableAnimations: false,
+          ),
+        ),
+      );
+      // First frame is the skeleton; the empty state shows after the 800ms
+      // delay resolves.
+      await tester.pump();
+      expect(find.byType(EventTrendPage), findsOneWidget);
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+      expect(find.text('No sessions yet'), findsOneWidget);
+    });
+
     testWidgets('shows "None yet — keep going" when nobody qualifies', (
       tester,
     ) async {
