@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/design/app_shimmer.dart';
-import '../../../core/design/app_theme.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
@@ -12,15 +11,18 @@ import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
+import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
+import 'attendance_roster_list.dart';
 
 class SessionSummaryPage extends StatefulWidget {
   const SessionSummaryPage({
     super.key,
     required this.session,
     required this.members,
+    this.families,
     required this.sessionRepository,
     this.attendanceRepository,
     this.eventRepository,
@@ -31,6 +33,7 @@ class SessionSummaryPage extends StatefulWidget {
 
   final Session session;
   final List<Member> members;
+  final List<Family>? families;
   final SessionRepository sessionRepository;
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
@@ -46,6 +49,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
   bool _isLoading = true;
   List<Member> _allMembers = [];
+  List<Family> _allFamilies = [];
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
@@ -72,6 +76,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     _membersSubscription = widget.attendanceRepository?.streamFamilies().listen((families) {
       if (mounted) {
         setState(() {
+          _allFamilies = families;
           _allMembers = families.expand((f) => f.members).toList();
         });
       }
@@ -102,6 +107,32 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     return widget.members;
   }
 
+  List<Family> get _displayFamilies {
+    if (widget.families != null && widget.families!.isNotEmpty) {
+      return widget.families!;
+    }
+    final ev = _currentEvent;
+    if (_allFamilies.isNotEmpty) {
+      final ids = ev?.memberIds.toSet() ??
+          widget.members.map((m) => m.id).toSet();
+      final result = <Family>[];
+      for (final f in _allFamilies) {
+        final filtered =
+            f.members.where((m) => ids.contains(m.id)).toList();
+        if (filtered.isEmpty) continue;
+        result.add(f.copyWith(members: filtered));
+      }
+      if (result.isNotEmpty) return result;
+    }
+    return [
+      Family(
+        id: '_synthetic_all',
+        displayName: 'All members',
+        members: _displayMembers,
+      ),
+    ];
+  }
+
   @override
   void didUpdateWidget(covariant SessionSummaryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -112,7 +143,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         _currentSession = widget.session;
       });
     }
-    
+
     if (widget.attendanceRepository != oldWidget.attendanceRepository) {
       _membersSubscription?.cancel();
       _subscribeToMembers();
@@ -186,7 +217,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   Future<void> _refreshLatest() async {
     final startTime = DateTime.now();
-    
+
     final latestFuture = widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
@@ -204,9 +235,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           });
         }
       }
-      
+
       if (widget.disableAnimations) {
-        // Synchronous update for tests
         setState(() => _isLoading = false);
         debugPrint('DEBUG: SessionSummaryPage loading finished immediately (sync)');
       } else {
@@ -266,10 +296,45 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
+  Future<void> _toggleFamilyAttendance(Family family, bool isPresent) async {
+    // Batch every family member into a single saveSnapshot call — much
+    // cheaper than one write per member.
+    final now = DateTime.now();
+    final status =
+        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
+    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
+    for (final m in family.members) {
+      final mid =
+          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
+      updatedRecords.removeWhere((r) =>
+          (mid != null && r.memberId == mid) ||
+          (mid == null && r.memberId == null && r.attendee == m.displayName));
+      updatedRecords.add(SessionRecord(
+        memberId: mid,
+        attendee: m.displayName,
+        status: status,
+        recordedAt: now,
+        recordedBy: 'User',
+      ));
+    }
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: now,
+    );
+    setState(() {
+      _currentSession = updatedSession;
+    });
+    try {
+      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      debugPrint('Error updating session records: $e');
+    }
+  }
+
   Future<void> _editMemberName(Member member) async {
     final isVisitor = member.isVisitor;
     final controller = TextEditingController(text: member.displayName);
-    
+
     final newName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -297,7 +362,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final updatedRecords = _currentSession.records.map((r) {
       final matchesById = !isVisitor && r.memberId == member.id;
       final matchesByName = isVisitor && r.attendee == member.displayName && r.memberId == null;
-      
+
       if (matchesById || matchesByName) {
         return r.copyWith(attendee: newName);
       }
@@ -434,7 +499,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           _currentSession.id,
           actor: 'You',
         );
-        
+
         navigator.pop(null);
         messenger.showSnackBar(
           const SnackBar(content: Text('Session deleted')),
@@ -469,527 +534,287 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final roster = SessionRoster(_currentSession, _displayMembers);
     final allDisplayMembers = roster.sortedMembers;
 
-    final presentMembers = <Member>[];
-    final absentMembers = <Member>[];
-
+    int presentCount = 0;
+    int absentCount = 0;
     for (final member in allDisplayMembers) {
       final status = roster.getStatus(member);
-
       if (status == AttendanceStatus.present) {
-        presentMembers.add(member);
+        presentCount++;
       } else {
-        absentMembers.add(member);
+        absentCount++;
       }
     }
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: Stack(
-        children: [
-          RepaintBoundary(
-            child: AnimatedSwitcher(
-              duration: widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 600),
-              child: _isLoading
-                  ? _buildSkeleton(context)
-                  : CustomScrollView(
-                      key: const ValueKey('content'),
-                      slivers: [
-                        // Header
-                        SliverAppBar(
-                          backgroundColor: colorScheme.surface.withValues(
-                            alpha: 0.95,
-                          ),
-                          surfaceTintColor: Colors.transparent,
-                          pinned: true,
-                          leading: IconButton(
-                            icon: const Icon(Icons.arrow_back),
-                            color: colorScheme.onSurface,
-                            onPressed: () =>
-                                Navigator.of(context).pop(_currentSession),
-                          ),
-                          title: Text(
-                            _currentSession.title.trim(),
-                            style: TextStyle(
-                              color: colorScheme.onSurface,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          centerTitle: true,
-                          actions: [
-                            IconButton(
-                              tooltip: 'View data policy',
-                              onPressed: _showHistoryInfo,
-                              icon: const Icon(Icons.info_outline),
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            IconButton(
-                              tooltip: 'Add attendee',
-                              onPressed: _showAddMemberSheet,
-                              icon: const Icon(Icons.person_add),
-                              color: colorScheme.primary,
-                            ),
-                            IconButton(
-                              tooltip: 'Delete session',
-                              onPressed: _deleteSession,
-                              icon: Icon(
-                                Icons.delete_outline,
-                                color: colorScheme.error,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primaryContainer,
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                        blurRadius: 3,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Wrap(
-                                    alignment: WrapAlignment.spaceEvenly,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 16,
-                                    runSpacing: 16,
-                                    children: [
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'PRESENT',
-                                            style: TextStyle(
-                                              color: colorScheme
-                                                  .onPrimaryContainer,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              letterSpacing: 1.0,
-                                            ),
-                                            maxLines: 1,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            child: Text(
-                                              '${presentMembers.length}',
-                                              style: TextStyle(
-                                                color: colorScheme.primary,
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.w500,
-                                                height: 1.0,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Container(
-                                        width: 1,
-                                        height: 30,
-                                        color: colorScheme.onPrimaryContainer
-                                            .withValues(alpha: 0.2),
-                                      ),
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'ABSENT',
-                                            style: TextStyle(
-                                              color: colorScheme
-                                                  .onPrimaryContainer,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              letterSpacing: 1.0,
-                                            ),
-                                            maxLines: 1,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            child: Text(
-                                              '${absentMembers.length}',
-                                              style: TextStyle(
-                                                color: colorScheme.error,
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.w500,
-                                                height: 1.0,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Attendance Roster',
-                                        style: TextStyle(
-                                          color: colorScheme.onSurface,
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${allDisplayMembers.length} Total',
-                                      style: TextStyle(
-                                        color: colorScheme.onSurfaceVariant,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        SliverToBoxAdapter(
-                          child: _SectionHeader(
-                            title: 'Marked Present',
-                            color: colorScheme.primary,
-                          ),
-                        ),
-
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
-                            final member = presentMembers[index];
-                            return _MemberListItem(
-                              member: member,
-                              isPresent: true,
-                              onToggle: (value) =>
-                                  _toggleAttendance(member, value),
-                              onEdit: () => _editMemberName(member),
-                              onRemove: () => _removeMemberFromSession(member),
-                            );
-                          }, childCount: presentMembers.length),
-                        ),
-
-                        SliverToBoxAdapter(
-                          child: _SectionHeader(
-                            title: 'Marked Absent',
-                            color: colorScheme.error,
-                          ),
-                        ),
-
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
-                            final member = absentMembers[index];
-                            return _MemberListItem(
-                              member: member,
-                              isPresent: false,
-                              onToggle: (value) =>
-                                  _toggleAttendance(member, value),
-                              onEdit: () => _editMemberName(member),
-                              onRemove: () => _removeMemberFromSession(member),
-                            );
-                          }, childCount: absentMembers.length),
-                        ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                      ],
-                    ),
+      appBar: AppBar(
+        backgroundColor: colorScheme.surface.withValues(alpha: 0.95),
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          color: colorScheme.onSurface,
+          onPressed: () => Navigator.of(context).pop(_currentSession),
+        ),
+        title: Text(
+          _currentSession.title.trim(),
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'View data policy',
+            onPressed: _showHistoryInfo,
+            icon: const Icon(Icons.info_outline),
+            color: colorScheme.onSurfaceVariant,
+          ),
+          IconButton(
+            tooltip: 'Add attendee',
+            onPressed: _showAddMemberSheet,
+            icon: const Icon(Icons.person_add),
+            color: colorScheme.primary,
+          ),
+          IconButton(
+            tooltip: 'Delete session',
+            onPressed: _deleteSession,
+            icon: Icon(
+              Icons.delete_outline,
+              color: colorScheme.error,
             ),
           ),
         ],
+      ),
+      body: RepaintBoundary(
+        child: AnimatedSwitcher(
+          duration: widget.disableAnimations
+              ? Duration.zero
+              : const Duration(milliseconds: 600),
+          child: _isLoading
+              ? _buildSkeleton(context)
+              : Column(
+                  key: const ValueKey('content'),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _StatsCard(
+                            presentCount: presentCount,
+                            absentCount: absentCount,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Attendance Roster',
+                                  style: TextStyle(
+                                    color: colorScheme.onSurface,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${allDisplayMembers.length} Total',
+                                style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: AttendanceRosterList(
+                        session: _currentSession,
+                        families: _displayFamilies,
+                        onToggle: _toggleAttendance,
+                        onFamilyToggle: _toggleFamilyAttendance,
+                        onEdit: _editMemberName,
+                        onRemove: _removeMemberFromSession,
+                        initialGrouping: RosterGrouping.byStatus,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
 
   Widget _buildSkeleton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          backgroundColor: colorScheme.surface,
-          pinned: true,
-          title: AppShimmer(
-            width: 150,
-            height: 24,
-            borderRadius: BorderRadius.circular(12),
-            disableAnimations: widget.disableAnimations,
-          ),
-          centerTitle: true,
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppShimmer(
-                  width: 200,
-                  height: 16,
-                  borderRadius: BorderRadius.circular(8),
-                  disableAnimations: widget.disableAnimations,
-                ),
-                const SizedBox(height: 12),
-                AppShimmer(
-                  width: double.infinity,
-                  height: 140,
-                  borderRadius: BorderRadius.circular(24),
-                  disableAnimations: widget.disableAnimations,
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    AppShimmer(
-                      width: 180,
-                      height: 32,
-                      borderRadius: BorderRadius.circular(12),
-                      disableAnimations: widget.disableAnimations,
-                    ),
-                    AppShimmer(
-                      width: 80,
-                      height: 20,
-                      borderRadius: BorderRadius.circular(8),
-                      disableAnimations: widget.disableAnimations,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: AppShimmer(
-                width: double.infinity,
-                height: 72,
-                borderRadius: BorderRadius.circular(16),
+    return ListView(
+      key: const ValueKey('skeleton'),
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppShimmer(
+                width: 200,
+                height: 16,
+                borderRadius: BorderRadius.circular(8),
                 disableAnimations: widget.disableAnimations,
               ),
-            ),
-            childCount: 5,
+              const SizedBox(height: 12),
+              AppShimmer(
+                width: double.infinity,
+                height: 140,
+                borderRadius: BorderRadius.circular(24),
+                disableAnimations: widget.disableAnimations,
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AppShimmer(
+                    width: 180,
+                    height: 32,
+                    borderRadius: BorderRadius.circular(12),
+                    disableAnimations: widget.disableAnimations,
+                  ),
+                  AppShimmer(
+                    width: 80,
+                    height: 20,
+                    borderRadius: BorderRadius.circular(8),
+                    disableAnimations: widget.disableAnimations,
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
+        for (int i = 0; i < 5; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: AppShimmer(
+              width: double.infinity,
+              height: 72,
+              borderRadius: BorderRadius.circular(16),
+              disableAnimations: widget.disableAnimations,
+            ),
+          ),
       ],
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final Color color;
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.presentCount, required this.absentCount});
 
-  const _SectionHeader({required this.title, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      color: colorScheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 16,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MemberListItem extends StatelessWidget {
-  final Member member;
-  final bool isPresent;
-  final ValueChanged<bool> onToggle;
-  final VoidCallback onEdit;
-  final VoidCallback onRemove;
-
-  const _MemberListItem({
-    required this.member,
-    required this.isPresent,
-    required this.onToggle,
-    required this.onEdit,
-    required this.onRemove,
-  });
+  final int presentCount;
+  final int absentCount;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Dismissible(
-        key: ValueKey('dismiss_${member.id}_${member.displayName}'),
-        direction: DismissDirection.horizontal,
-        background: _buildSwipeBackground(
-          context,
-          'Edit Name',
-          colorScheme.secondary,
-          Icons.edit_outlined,
-          true,
-        ),
-        secondaryBackground: _buildSwipeBackground(
-          context,
-          'Remove',
-          colorScheme.error,
-          Icons.remove_circle_outline,
-          false,
-        ),
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd) {
-            onEdit();
-          } else {
-            onRemove();
-          }
-          return false; // Handle state externally
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
-          child: ListTile(
-            visualDensity: VisualDensity.compact,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            leading: CircleAvatar(
-              backgroundColor: isPresent
-                  ? colorScheme.primary.withValues(alpha: 0.1)
-                  : colorScheme.error.withValues(alpha: 0.1),
-              child: Text(
-                member.displayName.isNotEmpty
-                    ? member.displayName[0].toUpperCase()
-                    : '?',
-                style: TextStyle(
-                  color: isPresent ? colorScheme.primary : colorScheme.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            title: Text(
-              member.displayName,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: member.isVisitor
-                ? Text(
-                    'Visitor',
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  )
-                : null,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Transform.scale(
-                  scale: 0.8,
-                  child: Switch(
-                    value: isPresent,
-                    onChanged: onToggle,
-                    activeColor: colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
+        ],
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.spaceEvenly,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 16,
+        runSpacing: 16,
+        children: [
+          _StatColumn(
+            label: 'PRESENT',
+            value: presentCount,
+            valueColor: colorScheme.primary,
+            labelColor: colorScheme.onPrimaryContainer,
           ),
-        ),
+          Container(
+            width: 1,
+            height: 30,
+            color: colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+          ),
+          _StatColumn(
+            label: 'ABSENT',
+            value: absentCount,
+            valueColor: colorScheme.error,
+            labelColor: colorScheme.onPrimaryContainer,
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildSwipeBackground(
-    BuildContext context,
-    String label,
-    Color color,
-    IconData icon,
-    bool isStart,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: isStart
-            ? [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ]
-            : [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(icon, color: Colors.white),
-              ],
-      ),
+class _StatColumn extends StatelessWidget {
+  const _StatColumn({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+    required this.labelColor,
+  });
+
+  final String label;
+  final int value;
+  final Color valueColor;
+  final Color labelColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1.0,
+          ),
+          maxLines: 1,
+        ),
+        const SizedBox(height: 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '$value',
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 32,
+              fontWeight: FontWeight.w500,
+              height: 1.0,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

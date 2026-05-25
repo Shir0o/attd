@@ -484,7 +484,7 @@ void main() {
 
     // Check dialog
     expect(find.text('Edit Member'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Alicia');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Alicia');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
@@ -652,7 +652,7 @@ void main() {
     expect(find.text('Add Person'), findsOneWidget);
 
     // Enter name "Charlie"
-    await tester.enterText(find.byType(TextField), 'Charlie');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Charlie');
     
     // Tap "Add & Continue"
     await tester.tap(find.text('Add & Continue'));
@@ -728,7 +728,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.person_add));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Bob');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Bob');
     await tester.pumpAndSettle();
     // Tap suggestion
     await tester.tap(find.text('Bob').last);
@@ -804,7 +804,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.person_add));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Charlie');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Charlie');
     await tester.tap(find.text('Add & Continue'));
     await tester.pumpAndSettle();
 
@@ -877,7 +877,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.person_add));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Daria');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Daria');
     await tester.pumpAndSettle();
     // Toggle "Add as Guest"
     final guestRow = find
@@ -1035,7 +1035,7 @@ void main() {
     // Open edit dialog, clear text, save -> empty path early-return
     await tester.drag(find.text('Alice'), const Offset(500, 0));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), '');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(find.text('Alice'), findsOneWidget);
@@ -1086,7 +1086,7 @@ void main() {
     expect(find.text('Bob'), findsOneWidget);
     await tester.drag(find.text('Bob'), const Offset(500, 0));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Bobby');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Bobby');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 

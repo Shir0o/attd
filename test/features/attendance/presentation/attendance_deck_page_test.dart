@@ -406,4 +406,129 @@ void main() {
       equals(newId),
     );
   });
+
+  testWidgets('AttendanceDeckPage toggles to list mode and back preserves state',
+      (WidgetTester tester) async {
+    final fakeRepo = MockSessionRepository();
+    final alice = Member(id: 'a', displayName: 'Alice');
+    final bob = Member(id: 'b', displayName: 'Bob');
+    final family = Family(
+      id: 'fam',
+      displayName: 'The Family',
+      members: [alice, bob],
+    );
+
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime.now(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+      currentVersion: 1,
+      records: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [alice, bob],
+          families: [family],
+          sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Deck mode: SwipeableCard present.
+    expect(find.byType(SwipeableCard), findsOneWidget);
+
+    // Switch to list mode.
+    await tester.tap(find.text('List'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SwipeableCard), findsNothing);
+    expect(find.text('The Family'), findsOneWidget);
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.text('Bob'), findsOneWidget);
+
+    // Tap "all present" on the family — should save attendance for both.
+    await tester.tap(find.byKey(const ValueKey('familyAllPresent_fam')));
+    await tester.pumpAndSettle();
+
+    final saved = fakeRepo.savedSessions.last;
+    expect(saved.records.length, 2);
+    expect(
+      saved.records.every((r) => r.status == AttendanceStatus.present),
+      isTrue,
+    );
+
+    // Switch back to deck mode — first member still queued.
+    await tester.tap(find.text('Deck'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SwipeableCard), findsOneWidget);
+  });
+
+  testWidgets(
+      'AttendanceDeckPage shows family label and "mark family present" button',
+      (WidgetTester tester) async {
+    final fakeRepo = MockSessionRepository();
+    final alice = Member(id: 'a', displayName: 'Alice');
+    final bob = Member(id: 'b', displayName: 'Bob');
+    final family = Family(
+      id: 'fam',
+      displayName: 'The Family',
+      members: [alice, bob],
+    );
+
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime.now(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+      currentVersion: 1,
+      records: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [alice, bob],
+          families: [family],
+          sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Family name visible on the card.
+    expect(find.text('The Family'), findsOneWidget);
+
+    // The "mark family present" button is shown for multi-member families.
+    expect(find.byKey(const Key('markFamilyPresentButton')), findsOneWidget);
+
+    // Tapping it records all family members present and advances past them.
+    await tester.tap(find.byKey(const Key('markFamilyPresentButton')));
+    await tester.pumpAndSettle();
+
+    expect(fakeRepo.savedSessions.last.records.length, 2);
+    expect(
+      fakeRepo.savedSessions.last.records
+          .every((r) => r.status == AttendanceStatus.present),
+      isTrue,
+    );
+
+    // Since we advanced past all members, we land on the summary page.
+    expect(find.text('Test'), findsOneWidget);
+  });
 }
