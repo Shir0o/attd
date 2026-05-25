@@ -202,5 +202,71 @@ void main() {
 
       expect(await repo.fetchFamilies(), isEmpty);
     });
+
+    test('addFamily honors isAutoSingleton flag', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final auto = await repo.addFamily('Alice', isAutoSingleton: true);
+      expect(auto.isAutoSingleton, isTrue);
+      final real = await repo.addFamily('The Smiths');
+      expect(real.isAutoSingleton, isFalse);
+    });
+
+    test('addMember on singleton flips isAutoSingleton off at 2 live members',
+        () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final solo = await repo.addFamily('Alice', isAutoSingleton: true);
+      await repo.addMember(
+        solo.id,
+        Member(id: 'm1', displayName: 'Alice'),
+      );
+      var families = await repo.fetchFamilies();
+      expect(families.single.isAutoSingleton, isTrue);
+      await repo.addMember(
+        solo.id,
+        Member(id: 'm2', displayName: 'Bob'),
+      );
+      families = await repo.fetchFamilies();
+      expect(families.single.isAutoSingleton, isFalse);
+    });
+
+    test('moveMemberToFamily moves and unflags target', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final singleton =
+          await repo.addFamily('Alice Smith', isAutoSingleton: true);
+      await repo.addMember(
+        singleton.id,
+        Member(id: 'm1', displayName: 'Alice Smith'),
+      );
+      final target = await repo.addFamily('Smith');
+      await repo.addMember(
+        target.id,
+        Member(id: 'm2', displayName: 'Bob Smith'),
+      );
+      final updatedTarget = await repo.moveMemberToFamily('m1', target.id);
+      expect(updatedTarget.members.map((m) => m.id), containsAll(['m1', 'm2']));
+      expect(updatedTarget.isAutoSingleton, isFalse);
+      final all = await repo.fetchFamilies();
+      final source = all.firstWhere((f) => f.id == singleton.id);
+      expect(source.members, isEmpty);
+    });
+
+    test('detachMember creates a singleton family for the member', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final fam = await repo.addFamily('Smith');
+      await repo.addMember(
+        fam.id,
+        Member(id: 'm1', displayName: 'Alice Smith'),
+      );
+      await repo.addMember(
+        fam.id,
+        Member(id: 'm2', displayName: 'Bob Smith'),
+      );
+      final singleton = await repo.detachMember('m1');
+      expect(singleton.isAutoSingleton, isTrue);
+      expect(singleton.members.single.id, 'm1');
+      final all = await repo.fetchFamilies();
+      final source = all.firstWhere((f) => f.id == fam.id);
+      expect(source.members.map((m) => m.id), ['m2']);
+    });
   });
 }

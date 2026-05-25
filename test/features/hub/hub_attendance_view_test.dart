@@ -17,7 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class FakeAttendanceRepository implements AttendanceRepository {
+class FakeAttendanceRepository extends AttendanceRepository {
   List<Family> families = [];
   int fetchCount = 0;
 
@@ -33,7 +33,7 @@ class FakeAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     throw UnimplementedError();
   }
 

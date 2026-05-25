@@ -217,4 +217,107 @@ void main() {
     expect(find.text('MARKED PRESENT'), findsOneWidget);
     expect(find.text('MARKED ABSENT'), findsOneWidget);
   });
+
+  testWidgets(
+    'auto-singleton families render as flat rows without a header',
+    (tester) async {
+      final dan = Member(id: 'd', displayName: 'Dan Solo');
+      final eve = Member(id: 'e', displayName: 'Eve Lonely');
+      final danFam = Family(
+        id: 'dan-fam',
+        displayName: 'Dan Solo',
+        members: [dan],
+        isAutoSingleton: true,
+      );
+      final eveFam = Family(
+        id: 'eve-fam',
+        displayName: 'Eve Lonely',
+        members: [eve],
+        isAutoSingleton: true,
+      );
+      final session = sessionWith(members: [alice, bob, dan, eve]);
+      final log = <ToggleCall>[];
+      await pumpRoster(
+        tester,
+        session: session,
+        families: [smiths, danFam, eveFam],
+        toggleLog: log,
+      );
+      // The real Smith family still gets a header.
+      expect(find.text('Smith Family'), findsOneWidget);
+      // Singletons do NOT get a per-family header — neither their name as a
+      // header (which would be the bug) nor a "0 of 1 present" count.
+      expect(find.text('Dan Solo'), findsOneWidget); // one row only
+      expect(find.text('0 of 1 present'), findsNothing);
+      // The shared "Members" section header is rendered above singletons.
+      expect(find.text('MEMBERS'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'mark-all menu shows a confirmation dialog before calling onMarkAll',
+    (tester) async {
+      final session = sessionWith(members: [alice, bob, carol]);
+      final log = <ToggleCall>[];
+      final markedAll = <bool>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 800,
+              child: AttendanceRosterList(
+                session: session,
+                families: [smiths, jones],
+                onToggle: (m, p) async {
+                  log.add((id: m.id, present: p));
+                },
+                onMarkAll: (present) async => markedAll.add(present),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
+      await tester.pumpAndSettle();
+      // Dialog up — confirm.
+      expect(find.text('Mark everyone present?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('rosterMarkAllConfirm')));
+      await tester.pumpAndSettle();
+      expect(markedAll, [true]);
+    },
+  );
+
+  testWidgets('mark-all cancel does not invoke the callback', (tester) async {
+    final session = sessionWith(members: [alice, bob, carol]);
+    final log = <ToggleCall>[];
+    final markedAll = <bool>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 800,
+            child: AttendanceRosterList(
+              session: session,
+              families: [smiths, jones],
+              onToggle: (m, p) async {
+                log.add((id: m.id, present: p));
+              },
+              onMarkAll: (present) async => markedAll.add(present),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rosterMarkAllAbsent')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rosterMarkAllCancel')));
+    await tester.pumpAndSettle();
+    expect(markedAll, isEmpty);
+  });
 }

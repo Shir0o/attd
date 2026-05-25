@@ -8,7 +8,7 @@ import 'package:attendance_tracker/features/families/presentation/family_list_pa
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   List<Family> _families = [];
   Completer<void>? _fetchCompleter;
   int fetchCount = 0;
@@ -48,7 +48,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     addedFamilyName = displayName;
     final family = Family(
       id: 'family-${_families.length + 1}',

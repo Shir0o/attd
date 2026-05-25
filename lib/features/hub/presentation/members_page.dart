@@ -161,6 +161,7 @@ class _MembersPageState extends State<MembersPage> {
 
       final newFamily = await widget.attendanceRepository.addFamily(
         trimmedName,
+        isAutoSingleton: true,
       );
       final newMember = Member(id: const Uuid().v4(), displayName: trimmedName);
       final updatedFamily = await widget.attendanceRepository.addMember(

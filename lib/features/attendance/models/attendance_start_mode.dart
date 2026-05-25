@@ -18,7 +18,7 @@ extension AttendanceStartModeLabel on AttendanceStartMode {
       case AttendanceStartMode.allPresent:
         return 'Start with all present';
       case AttendanceStartMode.perMemberDefault:
-        return 'Use per-member defaults';
+        return 'Smart defaults (from past 8 sessions)';
     }
   }
 
@@ -29,7 +29,7 @@ extension AttendanceStartModeLabel on AttendanceStartMode {
       case AttendanceStartMode.allPresent:
         return 'All present';
       case AttendanceStartMode.perMemberDefault:
-        return 'Per-member';
+        return 'Smart';
     }
   }
 
@@ -40,7 +40,7 @@ extension AttendanceStartModeLabel on AttendanceStartMode {
       case AttendanceStartMode.allPresent:
         return 'Good when nearly everyone came — only mark the few absentees.';
       case AttendanceStartMode.perMemberDefault:
-        return 'Use each member\'s saved default attendance status.';
+        return 'Pre-marks members who are consistently present or absent (≥80% over the last 8 sessions). Mixed patterns are left for you to confirm.';
     }
   }
 }

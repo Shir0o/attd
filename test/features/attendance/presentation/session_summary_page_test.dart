@@ -91,7 +91,7 @@ class MockSessionRepository implements SessionRepository {
   }
 }
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   List<Family> _families = [];
   final _controller = StreamController<List<Family>>.broadcast();
 
@@ -121,7 +121,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     final family = Family(id: 'f1', displayName: displayName, members: []);
     _families.add(family);
     _controller.add(_families);
@@ -1412,6 +1412,72 @@ void main() {
 
     expect(find.text('Bob'), findsOneWidget);
   });
+
+  testWidgets(
+    'SessionSummaryPage mark-all overrides records and shows undo snackbar',
+    (tester) async {
+      final mockRepo = MockSessionRepository();
+      final mockAttendanceRepo = MockAttendanceRepository();
+      final alice = Member(id: '1', displayName: 'Alice');
+      final bob = Member(id: '2', displayName: 'Bob');
+      mockAttendanceRepo.setFamilies([
+        Family(id: 'f1', displayName: 'Smith', members: [alice, bob]),
+      ]);
+      final now = DateTime(2026, 5, 24);
+      final session = Session(
+        id: 's1',
+        title: 'Test',
+        sessionDate: now,
+        records: [
+          SessionRecord(
+            memberId: '1',
+            attendee: 'Alice',
+            status: AttendanceStatus.absent,
+            recordedAt: now,
+            recordedBy: 'User',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'User',
+      );
+      mockRepo.addSession(session);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionSummaryPage(
+            session: session,
+            members: [alice, bob],
+            sessionRepository: mockRepo,
+            attendanceRepository: mockAttendanceRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('rosterMarkAllConfirm')));
+      await tester.pumpAndSettle();
+
+      final saved = await mockRepo.findSessionById('s1');
+      expect(saved!.records.every((r) => r.status == AttendanceStatus.present),
+          isTrue);
+      expect(saved.records.first.recordedBy, 'User (Bulk)');
+
+      // Snackbar with Undo is visible.
+      expect(find.text('Undo'), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      final restored = await mockRepo.findSessionById('s1');
+      expect(restored!.records.single.memberId, '1');
+      expect(restored.records.single.status, AttendanceStatus.absent);
+    },
+  );
 }
 
 class _ThrowingSessionRepository implements SessionRepository {

@@ -1,3 +1,5 @@
+import 'package:attendance_tracker/data/session.dart';
+import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
@@ -57,5 +59,69 @@ void main() {
     expect(records.single.recordedAt, recordedAt);
     expect(records.single.attendee, 'Alice');
     expect(records.single.memberId, 'a');
+  });
+
+  group('perMemberDefault with past-pattern history', () {
+    Session sess(String id, Map<String, AttendanceStatus> records) {
+      final t = DateTime(2026, 1, 1);
+      return Session(
+        id: id,
+        title: 't',
+        sessionDate: t,
+        createdAt: t,
+        updatedAt: t,
+        createdBy: 'test',
+        records: [
+          for (final e in records.entries)
+            SessionRecord(
+              memberId: e.key,
+              attendee: e.key,
+              status: e.value,
+              recordedAt: t,
+              recordedBy: 'User',
+            ),
+        ],
+      );
+    }
+
+    test('preseeds consistent members and skips mixed-pattern ones', () {
+      final history = <Session>[
+        for (var i = 0; i < 5; i++)
+          sess('s$i', {
+            'a': AttendanceStatus.present,
+            'b': AttendanceStatus.absent,
+            'c': i.isEven
+                ? AttendanceStatus.present
+                : AttendanceStatus.absent,
+          }),
+      ];
+      final m = [
+        Member(id: 'a', displayName: 'A'),
+        Member(id: 'b', displayName: 'B'),
+        Member(id: 'c', displayName: 'C'),
+      ];
+      final records = buildPreseededRecords(
+        members: m,
+        mode: AttendanceStartMode.perMemberDefault,
+        recordedAt: recordedAt,
+        recentSessions: history,
+      );
+      final byId = {for (final r in records) r.memberId: r.status};
+      expect(byId['a'], AttendanceStatus.present);
+      expect(byId['b'], AttendanceStatus.absent);
+      // c is mixed → not preseeded.
+      expect(byId.containsKey('c'), isFalse);
+    });
+
+    test('falls back to static defaultStatus when no history given', () {
+      final records = buildPreseededRecords(
+        members: members,
+        mode: AttendanceStartMode.perMemberDefault,
+        recordedAt: recordedAt,
+      );
+      final byId = {for (final r in records) r.memberId: r.status};
+      expect(byId['a'], AttendanceStatus.absent);
+      expect(byId['b'], AttendanceStatus.present);
+    });
   });
 }

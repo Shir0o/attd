@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   List<Family> _families = [];
   final List<Family> addedFamilies = [];
   final List<Member> addedMembers = [];
@@ -43,7 +43,7 @@ class MockAttendanceRepository implements AttendanceRepository {
     return _families.first;
   }
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     final f = Family(
       id: 'f-${addedFamilies.length}',
       displayName: displayName,

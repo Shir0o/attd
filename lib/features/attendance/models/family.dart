@@ -11,6 +11,12 @@ class Family {
   final DateTime updatedAt;
   final DateTime? deletedAt;
 
+  /// True when this family is just a per-member singleton bucket
+  /// (auto-created when a member is added without an explicit family).
+  /// Such families render as flat member rows in the roster list rather than
+  /// as a group header — see [AttendanceRosterList].
+  final bool isAutoSingleton;
+
   late final String displayNameLowercase = displayName.toLowerCase();
   late final String canonicalNameLowercase = canonicalName.toLowerCase();
 
@@ -23,6 +29,7 @@ class Family {
     LabelAssignments? labels,
     DateTime? updatedAt,
     this.deletedAt,
+    this.isAutoSingleton = false,
   }) : displayName = displayName.trim(),
        canonicalName = (canonicalName ?? displayName).trim(),
        labels = labels ?? const LabelAssignments(),
@@ -38,6 +45,7 @@ class Family {
     DateTime? updatedAt,
     DateTime? deletedAt,
     bool clearDeletedAt = false,
+    bool? isAutoSingleton,
   }) {
     return Family(
       id: id ?? this.id,
@@ -48,19 +56,27 @@ class Family {
       labels: labels ?? this.labels,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
+      isAutoSingleton: isAutoSingleton ?? this.isAutoSingleton,
     );
   }
 
   factory Family.fromJson(Map<String, dynamic> json) {
     final membersJson = json['members'] as List<dynamic>? ?? [];
+    final members = membersJson
+        .map((member) => Member.fromJson(member as Map<String, dynamic>))
+        .toList();
+    final displayName = (json['displayName'] as String).trim();
+    // Migration: pre-existing families lack the flag; infer it as
+    // "singleton whose family name matches the lone member's name".
+    final isAutoSingleton = json['isAutoSingleton'] as bool? ??
+        (members.length == 1 &&
+            members.first.displayName.trim() == displayName);
     return Family(
       id: json['id'] as String,
-      displayName: (json['displayName'] as String).trim(),
+      displayName: displayName,
       canonicalName: (json['canonicalName'] as String?)?.trim(),
       mergedIntoFamilyId: json['mergedIntoFamilyId'] as String?,
-      members: membersJson
-          .map((member) => Member.fromJson(member as Map<String, dynamic>))
-          .toList(),
+      members: members,
       labels: LabelAssignments.fromJson(
         json['labels'] as Map<String, dynamic>?,
       ),
@@ -70,6 +86,7 @@ class Family {
       deletedAt: json['deletedAt'] != null
           ? DateTime.parse(json['deletedAt'] as String)
           : null,
+      isAutoSingleton: isAutoSingleton,
     );
   }
 
@@ -83,6 +100,7 @@ class Family {
       'labels': labels.toJson(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+      'isAutoSingleton': isAutoSingleton,
     };
   }
 }

@@ -20,9 +20,9 @@ import 'package:local_auth/local_auth.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   @override
-  Future<Family> addFamily(String displayName) async =>
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async =>
       throw UnimplementedError();
   @override
   Future<Family> addMember(String familyId, Member member) async =>

@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   @override
   Future<List<Family>> fetchFamilies() async => [];
   @override
@@ -23,7 +23,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   @override
   Future<Family> addMember(String familyId, Member member) async => throw UnimplementedError();
   @override
-  Future<Family> addFamily(String displayName) async => throw UnimplementedError();
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async => throw UnimplementedError();
   @override
   Future<void> refresh() async {}
 

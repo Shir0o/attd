@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../attendance/data/attendance_repository.dart';
@@ -21,37 +22,126 @@ class FamilyDetailsPage extends StatefulWidget {
 
 class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
   late Family _family;
+  List<Family> _allFamilies = const [];
+  StreamSubscription? _familiesSub;
 
   @override
   void initState() {
     super.initState();
     _family = widget.family;
+    _familiesSub = widget.repository.streamFamilies().listen((families) {
+      if (!mounted) return;
+      final updated = families.firstWhere(
+        (f) => f.id == _family.id,
+        orElse: () => _family,
+      );
+      setState(() {
+        _allFamilies = families;
+        _family = updated;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _familiesSub?.cancel();
+    super.dispose();
+  }
+
+  /// Last whitespace-separated token of a name, normalized for comparison.
+  static String _lastToken(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '';
+    final parts = trimmed.split(RegExp(r'\s+'));
+    return parts.last.toLowerCase();
+  }
+
+  List<Member> _suggestedMembers() {
+    final familyToken = _lastToken(_family.displayName);
+    if (familyToken.isEmpty) return const [];
+    final currentMemberIds = _family.members.map((m) => m.id).toSet();
+    final suggestions = <Member>[];
+    for (final f in _allFamilies) {
+      // Suggest only from auto-created singletons — these are members with no
+      // real family yet. Members of other named families are off-limits.
+      if (!f.isAutoSingleton) continue;
+      for (final m in f.members) {
+        if (m.deletedAt != null) continue;
+        if (currentMemberIds.contains(m.id)) continue;
+        if (_lastToken(m.displayName) == familyToken) {
+          suggestions.add(m);
+        }
+      }
+    }
+    suggestions.sort((a, b) => a.displayName.compareTo(b.displayName));
+    return suggestions;
   }
 
   Future<void> _addMember() async {
     final name = await _promptName('Add Member', 'Member Name');
     if (name == null) return;
-
     final member = Member(
       id: 'member-${const Uuid().v4()}',
       displayName: name,
       isVisitor: false,
       defaultStatus: AttendanceStatus.absent,
     );
-
     try {
-      final updatedFamily = await widget.repository.addMember(
-        _family.id,
-        member,
-      );
-      setState(() {
-        _family = updatedFamily;
-      });
+      final updated = await widget.repository.addMember(_family.id, member);
+      if (mounted) setState(() => _family = updated);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error adding member: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding member: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _addSuggestion(Member suggestion) async {
+    try {
+      await widget.repository.moveMemberToFamily(suggestion.id, _family.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Added ${suggestion.displayName} to ${_family.displayName}')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding suggestion: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _detachMember(Member member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Remove ${member.displayName} from ${_family.displayName}?'),
+        content: const Text(
+          'They will become an unaffiliated member. Past attendance history is preserved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await widget.repository.detachMember(member.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error removing member: $e')),
+        );
       }
     }
   }
@@ -92,6 +182,8 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final suggestions = _suggestedMembers();
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -105,24 +197,21 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             padding: const EdgeInsets.all(16.0),
             child: Text(
               'Members',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           if (_family.members.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'No members yet.',
-                style: TextStyle(fontSize: 16),
-              ),
+              child: Text('No members yet.', style: TextStyle(fontSize: 16)),
             ),
           ..._family.members.map((member) {
             return ListTile(
               leading: CircleAvatar(
                 backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                    theme.colorScheme.surfaceContainerHighest,
                 child: Text(member.displayName.characters.first.toUpperCase()),
               ),
               title: Text(
@@ -132,8 +221,51 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
               subtitle: member.isVisitor
                   ? const Text('Visitor', style: TextStyle(fontSize: 14))
                   : null,
+              trailing: IconButton(
+                key: Key('detachMember_${member.id}'),
+                tooltip: 'Remove from family',
+                icon: const Icon(Icons.person_remove_outlined),
+                onPressed: () => _detachMember(member),
+              ),
             );
           }),
+          if (suggestions.isNotEmpty) ...[
+            const Divider(height: 32),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Suggested',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Unaffiliated members whose last name matches "${_family.displayName}".',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            ...suggestions.map((m) {
+              return ListTile(
+                key: Key('suggestion_${m.id}'),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      theme.colorScheme.secondaryContainer,
+                  child: Text(m.displayName.characters.first.toUpperCase()),
+                ),
+                title: Text(m.displayName),
+                trailing: TextButton.icon(
+                  onPressed: () => _addSuggestion(m),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add'),
+                ),
+              );
+            }),
+          ],
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

@@ -180,7 +180,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final repo = widget.attendanceRepository;
     if (repo == null) return null;
     try {
-      final family = await repo.addFamily(name);
+      final family = await repo.addFamily(name, isAutoSingleton: true);
       final member = Member(id: const Uuid().v4(), displayName: name);
       await repo.addMember(family.id, member);
       return member;
@@ -328,6 +328,80 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
       debugPrint('Error updating session records: $e');
+    }
+  }
+
+  Future<void> _markAllAttendance(bool present) async {
+    final previousRecords =
+        List<SessionRecord>.from(_currentSession.records);
+    final now = DateTime.now();
+    final status =
+        present ? AttendanceStatus.present : AttendanceStatus.absent;
+    final allMembers = _displayFamilies.expand((f) => f.members).toList();
+    final updatedRecords = <SessionRecord>[];
+    // Drop everything we're about to overwrite, then re-add.
+    final memberIds = allMembers
+        .where((m) => !m.isVisitor && m.id.trim().isNotEmpty)
+        .map((m) => m.id)
+        .toSet();
+    final memberNames = allMembers.map((m) => m.displayName).toSet();
+    for (final r in previousRecords) {
+      final byId = r.memberId != null && memberIds.contains(r.memberId);
+      final byName = r.memberId == null && memberNames.contains(r.attendee);
+      if (byId || byName) continue;
+      updatedRecords.add(r);
+    }
+    for (final m in allMembers) {
+      final mid =
+          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
+      updatedRecords.add(SessionRecord(
+        memberId: mid,
+        attendee: m.displayName,
+        status: status,
+        recordedAt: now,
+        recordedBy: 'User (Bulk)',
+      ));
+    }
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: now,
+    );
+    setState(() => _currentSession = updatedSession);
+    try {
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      debugPrint('Error bulk-updating session: $e');
+      return;
+    }
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Text(
+          'Marked ${allMembers.length} ${allMembers.length == 1 ? 'member' : 'members'} '
+          '${present ? 'present' : 'absent'}.',
+        ),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => _restoreRecords(previousRecords),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreRecords(List<SessionRecord> previousRecords) async {
+    final restored = _currentSession.copyWith(
+      records: previousRecords,
+      updatedAt: DateTime.now(),
+    );
+    setState(() => _currentSession = restored);
+    try {
+      await widget.sessionRepository.saveSnapshot(restored, actor: 'User');
+    } catch (e) {
+      debugPrint('Error restoring session: $e');
     }
   }
 
@@ -650,6 +724,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                         families: _displayFamilies,
                         onToggle: _toggleAttendance,
                         onFamilyToggle: _toggleFamilyAttendance,
+                        onMarkAll: _markAllAttendance,
                         onEdit: _editMemberName,
                         onRemove: _removeMemberFromSession,
                         initialGrouping: RosterGrouping.byStatus,

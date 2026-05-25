@@ -5,12 +5,12 @@ import 'package:attendance_tracker/features/families/presentation/add_family_pag
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class FakeAttendanceRepository implements AttendanceRepository {
+class FakeAttendanceRepository extends AttendanceRepository {
   String? addedFamilyName;
   Object? addFamilyError;
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     addedFamilyName = displayName;
     final error = addFamilyError;
     if (error != null) throw error;
