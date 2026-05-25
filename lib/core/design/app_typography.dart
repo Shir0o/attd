@@ -1,107 +1,158 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typography scale for "The Fluid Humanist" design system.
+/// Typography for the **Convocation** design system.
 ///
-/// Uses IBM Plex Sans (via google_fonts) with an editorial scale that
-/// balances technical precision with human warmth.
+/// Pairs Fraunces (serif, editorial) for display + headline with Geist
+/// (sans, technical) for body, label, and numeric runs. Mirrors the
+/// `.t-display / .t-headline / .t-eyebrow / .t-body / .t-label / .t-num`
+/// scale defined in `/tmp/design/attd/project/app.css`.
 class AppTypography {
   AppTypography._();
 
+  static TextStyle fraunces({
+    double? fontSize,
+    FontWeight? fontWeight,
+    double? letterSpacing,
+    double? height,
+    Color? color,
+  }) => GoogleFonts.fraunces(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    letterSpacing: letterSpacing,
+    height: height,
+    color: color,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
+  static TextStyle geist({
+    double? fontSize,
+    FontWeight? fontWeight,
+    double? letterSpacing,
+    double? height,
+    Color? color,
+  }) => GoogleFonts.geist(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    letterSpacing: letterSpacing,
+    height: height,
+    color: color,
+  );
+
+  /// Tabular Geist for numeric runs that aren't the editorial display number.
+  static TextStyle geistTabular({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+  }) => GoogleFonts.geist(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+
   static TextTheme textTheme(TextTheme baseTheme) {
-    final base = GoogleFonts.ibmPlexSansTextTheme(baseTheme);
-    return base.copyWith(
-      // ── Display ────────────────────────────────────────────────────
-      // 3.5rem (56px) – high-impact onboarding welcomes
-      displayLarge: base.displayLarge?.copyWith(
+    final body = GoogleFonts.geistTextTheme(baseTheme);
+    return body.copyWith(
+      // ── Display (Fraunces) ────────────────────────────────────────
+      displayLarge: fraunces(
         fontSize: 56,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.12, // −2% of 56
+        fontWeight: FontWeight.w400,
+        letterSpacing: -1.68,
+        height: 1.0,
+      ),
+      displayMedium: fraunces(
+        fontSize: 44,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -1.32,
+        height: 1.05,
+      ),
+      displaySmall: fraunces(
+        fontSize: 36,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -1.08,
         height: 1.1,
       ),
-      // 2.75rem (44px)
-      displayMedium: base.displayMedium?.copyWith(
-        fontSize: 44,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.88, // −2% of 44
+
+      // ── Headline (Fraunces) ───────────────────────────────────────
+      headlineLarge: fraunces(
+        fontSize: 32,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.64,
+        height: 1.1,
+      ),
+      headlineMedium: fraunces(
+        fontSize: 26,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.52,
+        height: 1.12,
+      ),
+      headlineSmall: fraunces(
+        fontSize: 22,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -0.44,
         height: 1.15,
       ),
-      displaySmall: base.displaySmall?.copyWith(
-        fontSize: 36,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.72, // −2% of 36
-        height: 1.2,
-      ),
 
-      // ── Headline ───────────────────────────────────────────────────
-      // 1.75rem (28px) – direct questions
-      headlineMedium: base.headlineMedium?.copyWith(
-        fontSize: 28,
+      // ── Title (Geist) ─────────────────────────────────────────────
+      titleLarge: geist(
+        fontSize: 18,
         fontWeight: FontWeight.w600,
         height: 1.3,
       ),
-      // 1.5rem (24px)
-      headlineSmall: base.headlineSmall?.copyWith(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
-        height: 1.3,
-      ),
-
-      // ── Title ──────────────────────────────────────────────────────
-      titleLarge: base.titleLarge?.copyWith(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-        height: 1.3,
-      ),
-      titleMedium: base.titleMedium?.copyWith(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.15,
+      titleMedium: geist(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.1,
         height: 1.4,
       ),
-      titleSmall: base.titleSmall?.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
+      titleSmall: geist(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
         letterSpacing: 0.1,
         height: 1.4,
       ),
 
-      // ── Body ───────────────────────────────────────────────────────
-      // 1rem (16px) – generous line-height for "Soft Humanist" aesthetic
-      bodyLarge: base.bodyLarge?.copyWith(
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-        height: 1.6,
-      ),
-      // 0.875rem (14px)
-      bodyMedium: base.bodyMedium?.copyWith(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        height: 1.6,
-      ),
-      bodySmall: base.bodySmall?.copyWith(
-        fontSize: 12,
-        fontWeight: FontWeight.w400,
-        height: 1.5,
-      ),
+      // ── Body (Geist) ──────────────────────────────────────────────
+      bodyLarge: geist(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5),
+      bodyMedium: geist(fontSize: 15, fontWeight: FontWeight.w400, height: 1.5),
+      bodySmall: geist(fontSize: 13, fontWeight: FontWeight.w400, height: 1.45),
 
-      // ── Label ──────────────────────────────────────────────────────
-      // 0.75rem (12px) – secondary but legible
-      labelLarge: base.labelLarge?.copyWith(
-        fontSize: 14,
+      // ── Label (Geist) ─────────────────────────────────────────────
+      labelLarge: geist(
+        fontSize: 15,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.1,
       ),
-      labelMedium: base.labelMedium?.copyWith(
-        fontSize: 12,
+      labelMedium: geist(
+        fontSize: 13,
         fontWeight: FontWeight.w500,
-        letterSpacing: 0.5,
+        letterSpacing: 0.2,
       ),
-      labelSmall: base.labelSmall?.copyWith(
+      labelSmall: geist(
         fontSize: 11,
         fontWeight: FontWeight.w500,
-        letterSpacing: 0.5,
+        letterSpacing: 1.54, // 0.14em on 11px
       ),
     );
   }
+
+  // ── Convocation-specific helpers ──────────────────────────────────────
+  /// Editorial display numeral — Fraunces, tabular, tight tracking.
+  static TextStyle displayNumber({required double fontSize, Color? color}) =>
+      fraunces(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w400,
+        letterSpacing: -fontSize * 0.04,
+        height: 0.95,
+        color: color,
+      );
+
+  /// All-caps eyebrow used pervasively in the design (`.t-eyebrow`).
+  static TextStyle eyebrow({Color? color, double fontSize = 11}) => geist(
+    fontSize: fontSize,
+    fontWeight: FontWeight.w500,
+    letterSpacing: fontSize * 0.14,
+    color: color,
+  );
 }

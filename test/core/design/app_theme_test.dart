@@ -17,8 +17,7 @@ void main() {
     expect(s.thumbColor!.resolve(unselected), isNotNull);
     expect(s.trackColor!.resolve(selected), isNotNull);
     expect(s.trackColor!.resolve(unselected), isNotNull);
-    expect(s.thumbIcon!.resolve(selected), isA<Icon>());
-    expect(s.thumbIcon!.resolve(unselected), isNull);
+    // Convocation toggles intentionally omit a thumb glyph.
   }
 
   testWidgets('lightTheme switch resolves both selected and unselected states',

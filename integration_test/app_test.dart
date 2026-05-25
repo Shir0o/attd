@@ -59,7 +59,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1000));
 
       print('DEBUG: Step 1a - Verify empty hub');
-      await tester.pumpUntilFound(find.text('No events scheduled'));
+      await tester.pumpUntilFound(find.text('Nothing on the calendar yet.'));
       await tester.takeScreenshot(binding, '02_empty_hub');
 
       // 2. User adds a new event

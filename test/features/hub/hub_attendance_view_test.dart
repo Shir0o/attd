@@ -212,7 +212,7 @@ void main() {
     eventRepository.emit([]);
     await tester.pumpAndSettle();
 
-    expect(find.text('No events scheduled'), findsOneWidget);
+    expect(find.text('Nothing on the calendar yet.'), findsOneWidget);
     expect(attendanceRepository.fetchCount, 1);
     expect(sessionRepository.loadCount, greaterThanOrEqualTo(2));
   });
@@ -233,7 +233,7 @@ void main() {
 
     eventRepository.emit([]);
     await tester.pumpAndSettle();
-    expect(find.text('No events scheduled'), findsOneWidget);
+    expect(find.text('Nothing on the calendar yet.'), findsOneWidget);
   });
 
   testWidgets('deleting an event from the action menu calls repository', (
@@ -619,7 +619,7 @@ void main() {
     // Advance past 800ms minimum and let animations settle.
     await tester.pump(const Duration(milliseconds: 801));
     await tester.pumpAndSettle();
-    expect(find.text('No events scheduled'), findsOneWidget);
+    expect(find.text('Nothing on the calendar yet.'), findsOneWidget);
   });
 
   testWidgets('action menu: View History returns and refreshes', (tester) async {

@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_typography.dart';
+import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
+import '../../sessions/presentation/consistent_members_page.dart';
+import '../../sessions/presentation/event_trend_page.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
@@ -668,7 +672,16 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                             presentCount: presentCount,
                             absentCount: absentCount,
                           ),
-                          const SizedBox(height: 8),
+                          if (_currentEvent != null) ...[
+                            const SizedBox(height: 12),
+                            _ConsistentTrendStrip(
+                              event: _currentEvent!,
+                              members: _allMembers,
+                              families: _allFamilies,
+                              sessionRepository: widget.sessionRepository,
+                            ),
+                          ],
+                          const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -784,44 +797,38 @@ class _StatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
+    final total = presentCount + absentCount;
+    final percent = total == 0 ? 0 : ((presentCount / total) * 100).round();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.spaceEvenly,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 16,
-        runSpacing: 16,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StatColumn(
-            label: 'PRESENT',
-            value: presentCount,
-            valueColor: colorScheme.primary,
-            labelColor: colorScheme.onPrimaryContainer,
+          Expanded(
+            child: _SummaryHeroColumn(
+              label: 'Present',
+              value: '$presentCount',
+              sub: total == 0
+                  ? 'No records'
+                  : 'of $total expected · $percent%',
+              color: c.present,
+            ),
           ),
           Container(
             width: 1,
-            height: 30,
-            color: colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
+            height: 64,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            color: c.hair,
           ),
-          _StatColumn(
-            label: 'ABSENT',
-            value: absentCount,
-            valueColor: colorScheme.error,
-            labelColor: colorScheme.onPrimaryContainer,
+          Expanded(
+            child: _SummaryHeroColumn(
+              label: 'Absent',
+              value: '$absentCount',
+              sub: total == 0 ? 'No records' : '$absentCount of $total',
+              color: c.absent,
+            ),
           ),
         ],
       ),
@@ -829,44 +836,149 @@ class _StatsCard extends StatelessWidget {
   }
 }
 
-class _StatColumn extends StatelessWidget {
-  const _StatColumn({
+class _SummaryHeroColumn extends StatelessWidget {
+  const _SummaryHeroColumn({
     required this.label,
     required this.value,
-    required this.valueColor,
-    required this.labelColor,
+    required this.sub,
+    required this.color,
   });
 
   final String label;
-  final int value;
-  final Color valueColor;
-  final Color labelColor;
+  final String value;
+  final String sub;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.conv;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: labelColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 1.0,
-          ),
-          maxLines: 1,
-        ),
+        ConvEyebrow(label, color: color),
         const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            '$value',
-            style: TextStyle(
-              color: valueColor,
-              fontSize: 32,
-              fontWeight: FontWeight.w500,
-              height: 1.0,
+        Text(
+          value,
+          style: AppTypography.displayNumber(fontSize: 56, color: color),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          sub,
+          style: TextStyle(fontSize: 12, color: c.ink3),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+/// "Consistent · 8 wk" + "See trends" pair, replacing the old kebab menu
+/// approach. Reaches the two new sessions screens.
+class _ConsistentTrendStrip extends StatelessWidget {
+  const _ConsistentTrendStrip({
+    required this.event,
+    required this.members,
+    required this.families,
+    required this.sessionRepository,
+  });
+
+  final Event event;
+  final List<Member> members;
+  final List<Family> families;
+  final SessionRepository sessionRepository;
+
+  Future<List<Session>> _loadSessions() => sessionRepository.loadSessions();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Row(
+      children: [
+        Expanded(
+          child: ConvCardSoft(
+            onTap: () async {
+              final sessions = await _loadSessions();
+              if (!context.mounted) return;
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ConsistentMembersPage(
+                    event: event,
+                    sessions: sessions,
+                    members: members,
+                    families: families,
+                  ),
+                ),
+              );
+            },
+            child: Row(
+              children: [
+                Icon(Icons.workspace_premium_outlined,
+                    size: 18, color: c.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConvEyebrow('Regulars · 8 wk'),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Consistent members',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: c.ink3, size: 18),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ConvCardSoft(
+            onTap: () async {
+              final sessions = await _loadSessions();
+              if (!context.mounted) return;
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventTrendPage(
+                    event: event,
+                    sessions: sessions,
+                    members: members,
+                    families: families,
+                  ),
+                ),
+              );
+            },
+            child: Row(
+              children: [
+                Icon(Icons.show_chart, size: 18, color: c.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConvEyebrow('Trends · 12 wk'),
+                      const SizedBox(height: 2),
+                      Text(
+                        'See sparkline',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: c.ink3, size: 18),
+              ],
             ),
           ),
         ),

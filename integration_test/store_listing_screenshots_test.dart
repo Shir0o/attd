@@ -62,7 +62,7 @@ void main() {
       await tester.tap(find.text('Skip'));
       await tester.pump(const Duration(milliseconds: 1000));
 
-      await tester.pumpUntilFound(find.text('No events scheduled'));
+      await tester.pumpUntilFound(find.text('Nothing on the calendar yet.'));
       await capture('03_empty_hub');
 
       await hub.tapFab();

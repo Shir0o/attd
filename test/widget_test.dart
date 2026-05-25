@@ -199,7 +199,7 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
 
     // Verify default view is Attendance Hub
-    expect(find.text('Attendance Hub'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
   });
 
   testWidgets('AttendanceApp renders onboarding when not completed',
@@ -225,7 +225,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     // Onboarding page renders some welcome content; HubPage's "Attendance Hub"
     // header should be absent.
-    expect(find.text('Attendance Hub'), findsNothing);
+    expect(find.text('Today'), findsNothing);
   });
 
   testWidgets('AttendanceApp triggers migration when families have unique names',

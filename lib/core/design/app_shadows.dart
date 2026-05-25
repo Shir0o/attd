@@ -1,44 +1,62 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// Tinted shadow presets for "The Fluid Humanist" design system.
+/// Shadow presets for Convocation.
 ///
-/// We eschew grey shadows in favour of tinted `primaryDim` shadows
-/// that simulate natural light passing through a violet lens.
+/// Most surfaces sit flat (tonal layering). The editorial hub card,
+/// onboarding cards, and the FAB use soft violet-tinted shadows derived
+/// from `--shadow-card` and the FAB glow in app.css.
 class AppShadows {
   AppShadows._();
 
-  /// Ambient shadow for floating action buttons and elevated elements.
-  /// Large blur (32px) at 4% opacity with tinted primaryDim.
-  static List<BoxShadow> get ambient => [
+  /// Soft card shadow used by the "Up next" hub card and onboarding cards.
+  /// Mirrors `--shadow-card` in app.css.
+  static List<BoxShadow> get card => [
     BoxShadow(
-      color: AppColors.primaryDim.withOpacity(0.04),
-      blurRadius: 32,
-      spreadRadius: 0,
-      offset: Offset.zero,
+      color: AppColors.violetDeep.withValues(alpha: 0.04),
+      blurRadius: 2,
+      offset: const Offset(0, 1),
+    ),
+    BoxShadow(
+      color: AppColors.violetDeep.withValues(alpha: 0.12),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+      spreadRadius: -10,
     ),
   ];
 
-  /// Elevated shadow for cards that need subtle lift.
-  static List<BoxShadow> get elevated => [
+  /// Soft elevation for editorial elements (slightly stronger than card).
+  static List<BoxShadow> get soft => [
     BoxShadow(
-      color: AppColors.primaryDim.withOpacity(0.08),
-      blurRadius: 16,
-      spreadRadius: 0,
+      color: AppColors.violetDeep.withValues(alpha: 0.05),
+      blurRadius: 2,
+      offset: const Offset(0, 1),
+    ),
+    BoxShadow(
+      color: AppColors.violetDeep.withValues(alpha: 0.18),
+      blurRadius: 18,
       offset: const Offset(0, 4),
-    ),
-    BoxShadow(
-      color: AppColors.primaryDim.withOpacity(0.04),
-      blurRadius: 6,
-      spreadRadius: 0,
-      offset: const Offset(0, 2),
+      spreadRadius: -8,
     ),
   ];
 
-  /// Ghost border for input field focus states.
-  /// Uses outlineVariant at 20% opacity.
+  /// FAB glow — primary-tinted bottom shadow.
+  static List<BoxShadow> fab(Color primary) => [
+    BoxShadow(
+      color: primary.withValues(alpha: 0.5),
+      blurRadius: 30,
+      offset: const Offset(0, 10),
+      spreadRadius: -8,
+    ),
+  ];
+
+  /// Backwards-compatible aliases (some older screens import these).
+  static List<BoxShadow> get ambient => card;
+  static List<BoxShadow> get elevated => soft;
+
+  /// Faint border kept for input-focus fallbacks.
   static BorderSide get ghostBorder => BorderSide(
-    color: AppColors.outlineVariant.withOpacity(0.2),
+    color: AppColors.outlineVariant.withValues(alpha: 0.2),
     width: 2,
   );
 }

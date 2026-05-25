@@ -33,7 +33,7 @@ void main() {
 
       // 2. Hub Empty State
       print('DEBUG: Verifying Hub empty state');
-      await tester.pumpUntilFound(find.text('No events scheduled'));
+      await tester.pumpUntilFound(find.text('Nothing on the calendar yet.'));
 
       // 3. Members Empty State
       print('DEBUG: Verifying Members empty state');
