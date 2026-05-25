@@ -72,14 +72,14 @@ Future<SharedPreferences> _prefsWithLastRun(DateTime lastRun) async {
   return SharedPreferences.getInstance();
 }
 
-class _MaintenanceAttendanceRepository implements AttendanceRepository {
+class _MaintenanceAttendanceRepository extends AttendanceRepository {
   _MaintenanceAttendanceRepository({this.shouldThrow = false});
 
   final bool shouldThrow;
   int pruneCount = 0;
 
   @override
-  Future<Family> addFamily(String displayName) => throw UnimplementedError();
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) => throw UnimplementedError();
 
   @override
   Future<Family> addMember(String familyId, Member member) =>

@@ -11,6 +11,7 @@ enum RosterGrouping { byFamily, byStatus }
 
 typedef MemberToggle = Future<void> Function(Member member, bool isPresent);
 typedef FamilyBulkToggle = Future<void> Function(Family family, bool isPresent);
+typedef MarkAllToggle = Future<void> Function(bool isPresent);
 
 /// A reusable roster list used both for in-session attendance entry and for
 /// post-session review on the summary page. Supports family grouping with
@@ -22,6 +23,7 @@ class AttendanceRosterList extends StatefulWidget {
     required this.families,
     required this.onToggle,
     this.onFamilyToggle,
+    this.onMarkAll,
     this.onEdit,
     this.onRemove,
     this.initialGrouping = RosterGrouping.byFamily,
@@ -33,6 +35,12 @@ class AttendanceRosterList extends StatefulWidget {
   final List<Family> families;
   final MemberToggle onToggle;
   final FamilyBulkToggle? onFamilyToggle;
+
+  /// Optional callback for the roster-wide bulk "Mark all present/absent"
+  /// action. When non-null, an overflow menu appears next to the grouping
+  /// toggle. The parent is responsible for snapshotting + showing an undo
+  /// snackbar — the widget only renders the UI and the confirmation dialog.
+  final MarkAllToggle? onMarkAll;
   final void Function(Member member)? onEdit;
   final void Function(Member member)? onRemove;
   final RosterGrouping initialGrouping;
@@ -65,6 +73,42 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   bool _matchesQuery(String value) {
     if (_query.isEmpty) return true;
     return value.toLowerCase().contains(_query);
+  }
+
+  Future<void> _confirmMarkAll(
+    BuildContext context,
+    bool present,
+    SessionRoster roster,
+  ) async {
+    final cb = widget.onMarkAll;
+    if (cb == null) return;
+    final total = roster.displayMembersMap.length;
+    final label = present ? 'present' : 'absent';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Mark everyone $label?'),
+        content: Text(
+          'This will set $total ${total == 1 ? 'member' : 'members'} to '
+          '$label and overwrite any current statuses. You can undo from the '
+          'snackbar.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('rosterMarkAllCancel'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const Key('rosterMarkAllConfirm'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Mark $label'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await cb(present);
   }
 
   Future<void> _setFamilyStatus(Family family, bool present) async {
@@ -131,32 +175,61 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                             ),
                     ),
                   ),
-                if (widget.showGroupingToggle) ...[
+                if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
                   const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SegmentedButton<RosterGrouping>(
-                      key: const Key('rosterGroupingToggle'),
-                      style: const ButtonStyle(
-                        side: WidgetStatePropertyAll(BorderSide.none),
-                      ),
-                      segments: const [
-                        ButtonSegment(
-                          value: RosterGrouping.byFamily,
-                          label: Text('By family'),
-                          icon: Icon(Icons.groups_outlined),
+                  Row(
+                    children: [
+                      if (widget.showGroupingToggle)
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: SegmentedButton<RosterGrouping>(
+                              key: const Key('rosterGroupingToggle'),
+                              style: const ButtonStyle(
+                                side: WidgetStatePropertyAll(BorderSide.none),
+                              ),
+                              segments: const [
+                                ButtonSegment(
+                                  value: RosterGrouping.byFamily,
+                                  label: Text('By family'),
+                                  icon: Icon(Icons.groups_outlined),
+                                ),
+                                ButtonSegment(
+                                  value: RosterGrouping.byStatus,
+                                  label: Text('By status'),
+                                  icon: Icon(Icons.checklist),
+                                ),
+                              ],
+                              selected: {_grouping},
+                              onSelectionChanged: (sel) =>
+                                  setState(() => _grouping = sel.first),
+                              showSelectedIcon: false,
+                            ),
+                          ),
+                        )
+                      else
+                        const Spacer(),
+                      if (widget.onMarkAll != null)
+                        PopupMenuButton<bool>(
+                          key: const Key('rosterMarkAllMenu'),
+                          tooltip: 'Mark everyone',
+                          icon: const Icon(Icons.more_vert),
+                          onSelected: (present) =>
+                              _confirmMarkAll(context, present, roster),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              key: Key('rosterMarkAllPresent'),
+                              value: true,
+                              child: Text('Mark everyone present'),
+                            ),
+                            PopupMenuItem(
+                              key: Key('rosterMarkAllAbsent'),
+                              value: false,
+                              child: Text('Mark everyone absent'),
+                            ),
+                          ],
                         ),
-                        ButtonSegment(
-                          value: RosterGrouping.byStatus,
-                          label: Text('By status'),
-                          icon: Icon(Icons.checklist),
-                        ),
-                      ],
-                      selected: {_grouping},
-                      onSelectionChanged: (sel) =>
-                          setState(() => _grouping = sel.first),
-                      showSelectedIcon: false,
-                    ),
+                    ],
                   ),
                 ],
               ],
@@ -178,7 +251,20 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     ThemeData theme,
   ) {
     final children = <Widget>[];
+    final singletonMembers = <Member>[];
     for (final family in widget.families) {
+      // Auto-created singleton families (member added without a real family)
+      // render as flat rows under a single "Members" section — the family
+      // header would otherwise look like a last name.
+      if (family.isAutoSingleton && family.members.length == 1) {
+        final m = family.members.first;
+        final displayed = roster.displayMembersMap[m.id];
+        if (displayed == null) continue;
+        if (_matchesQuery(displayed.displayName)) {
+          singletonMembers.add(displayed);
+        }
+        continue;
+      }
       final familyMatch = _matchesQuery(family.displayName);
       final filteredMembers = <Member>[];
       for (final m in family.members) {
@@ -226,6 +312,25 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
             ),
           );
         }
+      }
+    }
+
+    if (singletonMembers.isNotEmpty) {
+      singletonMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
+      children.add(
+        _SectionHeader(title: 'Members', color: colorScheme.primary),
+      );
+      for (final m in singletonMembers) {
+        children.add(
+          _MemberRow(
+            key: ValueKey('singleton_row_${m.id}'),
+            member: m,
+            isPresent: roster.getStatus(m) == AttendanceStatus.present,
+            onToggle: (val) => widget.onToggle(m, val),
+            onEdit: widget.onEdit,
+            onRemove: widget.onRemove,
+          ),
+        );
       }
     }
 

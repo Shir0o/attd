@@ -207,4 +207,55 @@ void main() {
       expect(restored.deletedAt, isNull);
     });
   });
+
+  group('Family isAutoSingleton', () {
+    test('migration infers true when lone member name matches family name', () {
+      final json = {
+        'id': 'f1',
+        'displayName': 'Alice Smith',
+        'members': [
+          {'id': 'm1', 'displayName': 'Alice Smith'}
+        ],
+      };
+      final family = Family.fromJson(json);
+      expect(family.isAutoSingleton, isTrue);
+    });
+
+    test('migration infers false for multi-member families', () {
+      final json = {
+        'id': 'f1',
+        'displayName': 'Smith',
+        'members': [
+          {'id': 'm1', 'displayName': 'Alice Smith'},
+          {'id': 'm2', 'displayName': 'Bob Smith'},
+        ],
+      };
+      final family = Family.fromJson(json);
+      expect(family.isAutoSingleton, isFalse);
+    });
+
+    test('migration honors explicit flag when present', () {
+      final json = {
+        'id': 'f1',
+        'displayName': 'Alice Smith',
+        'members': [
+          {'id': 'm1', 'displayName': 'Alice Smith'}
+        ],
+        'isAutoSingleton': false,
+      };
+      final family = Family.fromJson(json);
+      expect(family.isAutoSingleton, isFalse);
+    });
+
+    test('toJson round-trips the flag', () {
+      final family = Family(
+        id: 'f1',
+        displayName: 'Solo',
+        members: const [],
+        isAutoSingleton: true,
+      );
+      final round = Family.fromJson(family.toJson());
+      expect(round.isAutoSingleton, isTrue);
+    });
+  });
 }

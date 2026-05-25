@@ -13,7 +13,7 @@ import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'dart:async';
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   List<Family> families = [];
   List<List<Family>> savedFamilies = [];
   List<String> addedFamilyNames = [];
@@ -45,7 +45,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     if (addFamilyError != null) throw addFamilyError!;
     addedFamilyNames.add(displayName);
     final family = Family(

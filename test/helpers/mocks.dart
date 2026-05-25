@@ -13,7 +13,7 @@ import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   List<Family> _families = [];
   final _controller = StreamController<List<Family>>.broadcast();
 
@@ -37,7 +37,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     throw UnimplementedError();
   }
 

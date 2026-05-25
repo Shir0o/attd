@@ -12,7 +12,7 @@ import 'package:attendance_tracker/features/settings/presentation/manage_backup_
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _AttendanceRepository implements AttendanceRepository {
+class _AttendanceRepository extends AttendanceRepository {
   List<Family> families;
   int saveCount = 0;
   Object? fetchError;
@@ -21,7 +21,7 @@ class _AttendanceRepository implements AttendanceRepository {
   _AttendanceRepository(this.families);
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     throw UnimplementedError();
   }
 

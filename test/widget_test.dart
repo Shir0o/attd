@@ -55,7 +55,7 @@ class MockEventRepository implements EventRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class MockAttendanceRepository implements AttendanceRepository {
+class MockAttendanceRepository extends AttendanceRepository {
   @override
   Future<List<Family>> fetchFamilies() async => [];
 
@@ -68,7 +68,7 @@ class MockAttendanceRepository implements AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     throw UnimplementedError();
   }
 
@@ -345,7 +345,7 @@ void main() {
   });
 }
 
-class _RecordingAttendanceRepository implements AttendanceRepository {
+class _RecordingAttendanceRepository extends AttendanceRepository {
   _RecordingAttendanceRepository({required this.families});
   final List<Family> families;
 
@@ -357,7 +357,7 @@ class _RecordingAttendanceRepository implements AttendanceRepository {
   Future<Family> addMember(String familyId, Member member) async =>
       throw UnimplementedError();
   @override
-  Future<Family> addFamily(String displayName) async =>
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async =>
       throw UnimplementedError();
   @override
   Stream<List<Family>> streamFamilies() => Stream.value(families);

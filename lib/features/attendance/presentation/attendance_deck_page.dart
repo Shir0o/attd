@@ -9,6 +9,7 @@ import '../../../../data/session_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../utils/bulk_attendance.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
@@ -186,7 +187,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   Future<Member?> _createGlobalMember(String name) async {
     try {
-      final family = await widget.attendanceRepository.addFamily(name);
+      final family = await widget.attendanceRepository.addFamily(
+        name,
+        isAutoSingleton: true,
+      );
       final member = Member(id: const Uuid().v4(), displayName: name);
       await widget.attendanceRepository.addMember(family.id, member);
       return member;
@@ -528,8 +532,73 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       families: _sessionFamilies,
       onToggle: _toggleMemberFromList,
       onFamilyToggle: _toggleFamilyFromList,
+      onMarkAll: _markAllAttendance,
       initialGrouping: RosterGrouping.byFamily,
     );
+  }
+
+  Future<void> _markAllAttendance(bool present) async {
+    final previousRecords =
+        List<SessionRecord>.from(_currentSession.records);
+    final now = DateTime.now();
+    final allMembers =
+        _sessionFamilies.expand((f) => f.members).toList(growable: false);
+    final updatedRecords = applyBulkRecords(
+      previousRecords: previousRecords,
+      members: allMembers,
+      present: present,
+      recordedAt: now,
+    );
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: now,
+    );
+    if (mounted) setState(() => _currentSession = updatedSession);
+    try {
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save records: $e')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Text(
+          'Marked ${allMembers.length} ${allMembers.length == 1 ? 'member' : 'members'} '
+          '${present ? 'present' : 'absent'}.',
+        ),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => _restoreSessionRecords(previousRecords),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreSessionRecords(
+      List<SessionRecord> previousRecords) async {
+    final restored = _currentSession.copyWith(
+      records: previousRecords,
+      updatedAt: DateTime.now(),
+    );
+    if (mounted) setState(() => _currentSession = restored);
+    try {
+      await widget.sessionRepository.saveSnapshot(restored, actor: 'User');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to undo: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildDeckBody(ThemeData theme, ColorScheme colorScheme) {

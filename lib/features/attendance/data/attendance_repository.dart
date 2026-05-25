@@ -18,7 +18,19 @@ abstract class AttendanceRepository {
 
   Future<Family> addMember(String familyId, Member member);
 
-  Future<Family> addFamily(String displayName);
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false});
+
+  /// Moves [memberId] out of its current family and into [targetFamilyId].
+  /// If the source family becomes empty as a result, it is left in place
+  /// (soft-deleted families are pruned separately). The target family is
+  /// returned with the member appended; its [Family.isAutoSingleton] is
+  /// flipped to false once it holds more than one member.
+  Future<Family> moveMemberToFamily(String memberId, String targetFamilyId) =>
+      throw UnimplementedError();
+
+  /// Removes [memberId] from its current family and places it in a fresh
+  /// singleton family named after the member. Returns the new singleton.
+  Future<Family> detachMember(String memberId) => throw UnimplementedError();
 
   Stream<List<Family>> streamFamilies();
 
@@ -156,13 +168,17 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final memberWithTimestamp = member.copyWith(updatedAt: now);
     final updated = families.map((family) {
       if (family.id != familyId) return family;
+      final newMembers = [...family.members, memberWithTimestamp];
+      final liveCount = newMembers.where((m) => m.deletedAt == null).length;
       return family.copyWith(
-        members: [...family.members, memberWithTimestamp],
+        members: newMembers,
         updatedAt: now,
+        // Adding a second live member promotes the family out of singleton.
+        isAutoSingleton: family.isAutoSingleton && liveCount <= 1,
       );
     }).toList();
     await saveFamilies(updated);
-    
+
     // We need to return the family as visible to the UI (without deleted members)
     final savedFamily = updated.firstWhere((family) => family.id == familyId);
     return savedFamily.copyWith(
@@ -171,17 +187,95 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
   }
 
   @override
-  Future<Family> addFamily(String displayName) async {
+  Future<Family> addFamily(
+    String displayName, {
+    bool isAutoSingleton = false,
+  }) async {
     final now = DateTime.now();
     final family = Family(
       id: const Uuid().v4(),
       displayName: displayName,
       members: const [],
       updatedAt: now,
+      isAutoSingleton: isAutoSingleton,
     );
     final families = await _loadRawFamilies();
     await saveFamilies([...families, family]);
     return family;
+  }
+
+  @override
+  Future<Family> moveMemberToFamily(
+    String memberId,
+    String targetFamilyId,
+  ) async {
+    final families = await _loadRawFamilies();
+    final now = DateTime.now();
+    Member? moving;
+    final stripped = families.map((family) {
+      if (!family.members.any((m) => m.id == memberId)) return family;
+      final remaining = <Member>[];
+      for (final m in family.members) {
+        if (m.id == memberId) {
+          moving = m;
+        } else {
+          remaining.add(m);
+        }
+      }
+      return family.copyWith(members: remaining, updatedAt: now);
+    }).toList();
+    if (moving == null) {
+      throw StateError('Member $memberId not found in any family');
+    }
+    final updated = stripped.map((family) {
+      if (family.id != targetFamilyId) return family;
+      final newMembers = [...family.members, moving!.copyWith(updatedAt: now)];
+      final liveCount = newMembers.where((m) => m.deletedAt == null).length;
+      return family.copyWith(
+        members: newMembers,
+        updatedAt: now,
+        isAutoSingleton: family.isAutoSingleton && liveCount <= 1,
+      );
+    }).toList();
+    if (!updated.any((f) => f.id == targetFamilyId)) {
+      throw StateError('Target family $targetFamilyId not found');
+    }
+    await saveFamilies(updated);
+    final saved = updated.firstWhere((f) => f.id == targetFamilyId);
+    return saved.copyWith(
+      members: saved.members.where((m) => m.deletedAt == null).toList(),
+    );
+  }
+
+  @override
+  Future<Family> detachMember(String memberId) async {
+    final families = await _loadRawFamilies();
+    final now = DateTime.now();
+    Member? moving;
+    final stripped = families.map((family) {
+      if (!family.members.any((m) => m.id == memberId)) return family;
+      final remaining = <Member>[];
+      for (final m in family.members) {
+        if (m.id == memberId) {
+          moving = m;
+        } else {
+          remaining.add(m);
+        }
+      }
+      return family.copyWith(members: remaining, updatedAt: now);
+    }).toList();
+    if (moving == null) {
+      throw StateError('Member $memberId not found in any family');
+    }
+    final singleton = Family(
+      id: const Uuid().v4(),
+      displayName: moving!.displayName,
+      members: [moving!.copyWith(updatedAt: now)],
+      updatedAt: now,
+      isAutoSingleton: true,
+    );
+    await saveFamilies([...stripped, singleton]);
+    return singleton;
   }
 
   @override

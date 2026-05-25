@@ -9,6 +9,7 @@ import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
+import '../../attendance/models/attendance_start_mode.dart';
 import '../../attendance/presentation/start_mode_picker.dart';
 import '../../attendance/utils/session_preseed.dart';
 import '../../settings/application/app_lock_controller.dart';
@@ -537,10 +538,24 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   if (!context.mounted) return;
                 }
 
+                List<Session> recentSessions = const [];
+                if (pickedMode == AttendanceStartMode.perMemberDefault) {
+                  try {
+                    final all = await widget.sessionRepository.loadSessions();
+                    all.sort((a, b) =>
+                        b.sessionDate.compareTo(a.sessionDate));
+                    recentSessions = all;
+                  } catch (e) {
+                    debugPrint('Error loading session history: $e');
+                  }
+                  if (!context.mounted) return;
+                }
+
                 final preseed = buildPreseededRecords(
                   members: sessionMembers,
                   mode: pickedMode,
                   recordedAt: DateTime.now(),
+                  recentSessions: recentSessions,
                 );
 
                 final session = await widget.sessionRepository.createSession(
