@@ -250,6 +250,34 @@ void main() {
       expect(source.members, isEmpty);
     });
 
+    test('moveMemberToFamily throws when member is not found', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final fam = await repo.addFamily('Smith');
+      expect(
+        () => repo.moveMemberToFamily('nope', fam.id),
+        throwsStateError,
+      );
+    });
+
+    test('moveMemberToFamily throws when target family is not found',
+        () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final src = await repo.addFamily('Alice', isAutoSingleton: true);
+      await repo.addMember(
+        src.id,
+        Member(id: 'm1', displayName: 'Alice'),
+      );
+      expect(
+        () => repo.moveMemberToFamily('m1', 'missing'),
+        throwsStateError,
+      );
+    });
+
+    test('detachMember throws when member is not found', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      expect(() => repo.detachMember('nope'), throwsStateError);
+    });
+
     test('detachMember creates a singleton family for the member', () async {
       final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
       final fam = await repo.addFamily('Smith');

@@ -531,4 +531,76 @@ void main() {
     // Since we advanced past all members, we land on the summary page.
     expect(find.text('Test'), findsOneWidget);
   });
+
+  testWidgets(
+      'AttendanceDeckPage list-mode mark-all writes bulk records and Undo restores',
+      (WidgetTester tester) async {
+    final fakeRepo = MockSessionRepository();
+    final alice = Member(id: 'a', displayName: 'Alice');
+    final bob = Member(id: 'b', displayName: 'Bob');
+    final family = Family(
+      id: 'fam',
+      displayName: 'Smiths',
+      members: [alice, bob],
+    );
+    final now = DateTime(2026, 5, 24);
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: now,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'User',
+      records: [
+        SessionRecord(
+          memberId: 'a',
+          attendee: 'Alice',
+          status: AttendanceStatus.absent,
+          recordedAt: now,
+          recordedBy: 'User',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [alice, bob],
+          families: [family],
+          sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('List'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rosterMarkAllConfirm')));
+    await tester.pumpAndSettle();
+
+    final saved = fakeRepo.savedSessions.last;
+    expect(saved.records.length, 2);
+    expect(
+      saved.records.every((r) => r.status == AttendanceStatus.present),
+      isTrue,
+    );
+    expect(saved.records.first.recordedBy, 'User (Bulk)');
+
+    expect(find.text('Undo'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    final restored = fakeRepo.savedSessions.last;
+    expect(restored.records.length, 1);
+    expect(restored.records.single.memberId, 'a');
+    expect(restored.records.single.status, AttendanceStatus.absent);
+  });
 }

@@ -1414,6 +1414,57 @@ void main() {
   });
 
   testWidgets(
+    'SessionSummaryPage family toggle marks the whole family at once',
+    (tester) async {
+      final mockRepo = MockSessionRepository();
+      final mockAttendanceRepo = MockAttendanceRepository();
+      final alice = Member(id: '1', displayName: 'Alice');
+      final bob = Member(id: '2', displayName: 'Bob');
+      mockAttendanceRepo.setFamilies([
+        Family(id: 'f1', displayName: 'Smith', members: [alice, bob]),
+      ]);
+      final now = DateTime(2026, 5, 24);
+      final session = Session(
+        id: 's1',
+        title: 'Test',
+        sessionDate: now,
+        records: const [],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'User',
+      );
+      mockRepo.addSession(session);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionSummaryPage(
+            session: session,
+            members: [alice, bob],
+            sessionRepository: mockRepo,
+            attendanceRepository: mockAttendanceRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Default grouping is byStatus; switch to byFamily to access the header.
+      await tester.tap(find.text('By family'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('familyAllPresent_f1')));
+      await tester.pumpAndSettle();
+
+      final saved = await mockRepo.findSessionById('s1');
+      expect(saved!.records.length, 2);
+      expect(
+        saved.records.every((r) => r.status == AttendanceStatus.present),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
     'SessionSummaryPage mark-all overrides records and shows undo snackbar',
     (tester) async {
       final mockRepo = MockSessionRepository();

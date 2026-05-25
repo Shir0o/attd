@@ -12,6 +12,8 @@ class FakeAttendanceRepository extends AttendanceRepository {
   Family family;
   List<Family> others;
   Object? addMemberError;
+  Object? moveError;
+  Object? detachError;
   Member? addedMember;
   String? addedFamilyId;
   String? movedMemberId;
@@ -38,6 +40,8 @@ class FakeAttendanceRepository extends AttendanceRepository {
     String memberId,
     String targetFamilyId,
   ) async {
+    final err = moveError;
+    if (err != null) throw err;
     movedMemberId = memberId;
     movedToFamilyId = targetFamilyId;
     Member? moved;
@@ -61,6 +65,8 @@ class FakeAttendanceRepository extends AttendanceRepository {
 
   @override
   Future<Family> detachMember(String memberId) async {
+    final err = detachError;
+    if (err != null) throw err;
     detachedMemberId = memberId;
     family = family.copyWith(
       members: family.members.where((m) => m.id != memberId).toList(),
@@ -239,6 +245,78 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.movedMemberId, 'm-alice');
     expect(repo.movedToFamilyId, 'family-smith');
+  });
+
+  testWidgets('suggestion tap shows an error snackbar when the move fails',
+      (tester) async {
+    final family = Family(
+      id: 'family-smith',
+      displayName: 'Smith',
+      members: [Member(id: 'm-bob', displayName: 'Bob Smith')],
+    );
+    final aliceSingleton = Family(
+      id: 'singleton-alice',
+      displayName: 'Alice Smith',
+      members: [Member(id: 'm-alice', displayName: 'Alice Smith')],
+      isAutoSingleton: true,
+    );
+    final repo = FakeAttendanceRepository(family, others: [aliceSingleton])
+      ..moveError = Exception('move boom');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FamilyDetailsPage(family: family, repository: repo),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('suggestion_m-alice')),
+        matching: find.text('Add'),
+      ),
+    );
+    await tester.pump();
+    expect(find.textContaining('Error adding suggestion'), findsOneWidget);
+  });
+
+  testWidgets('detach cancel does not call repository', (tester) async {
+    final family = Family(
+      id: 'family-smith',
+      displayName: 'Smith',
+      members: [Member(id: 'm-alice', displayName: 'Alice Smith')],
+    );
+    final repo = FakeAttendanceRepository(family);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FamilyDetailsPage(family: family, repository: repo),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('detachMember_m-alice')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(repo.detachedMemberId, isNull);
+  });
+
+  testWidgets('detach error path shows a snackbar', (tester) async {
+    final family = Family(
+      id: 'family-smith',
+      displayName: 'Smith',
+      members: [Member(id: 'm-alice', displayName: 'Alice Smith')],
+    );
+    final repo = FakeAttendanceRepository(family)
+      ..detachError = Exception('detach boom');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FamilyDetailsPage(family: family, repository: repo),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('detachMember_m-alice')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.pump();
+    expect(find.textContaining('Error removing member'), findsOneWidget);
   });
 
   testWidgets('detach removes a member after confirmation', (tester) async {
