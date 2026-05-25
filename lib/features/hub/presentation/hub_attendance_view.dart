@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session.dart';
 import '../../../data/session_repository.dart';
@@ -366,11 +367,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   children: [
                     Text(
                       '0',
-                      style: TextStyle(
-                        fontFamily: 'serif',
+                      style: AppTypography.displayNumber(
                         fontSize: 180,
                         color: c.primary.withValues(alpha: 0.1),
-                        height: 1,
                       ),
                     ),
                     ConvEyebrow('Events', color: c.ink3),

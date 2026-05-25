@@ -213,30 +213,28 @@ class ConvDayChip extends StatelessWidget {
     final c = context.conv;
     final bg = active ? c.primary : c.cardSoft;
     final fg = active ? c.onPrimary : c.ink3;
-    final pill = Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-      child: Text(
-        day,
-        style: TextStyle(
-          fontSize: size * 0.4,
-          fontWeight: FontWeight.w600,
-          color: fg,
+    return Material(
+      color: bg,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: Text(
+              day,
+              style: TextStyle(
+                fontSize: size * 0.4,
+                fontWeight: FontWeight.w600,
+                color: fg,
+              ),
+            ),
+          ),
         ),
       ),
     );
-    return onTap == null
-        ? pill
-        : Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(size / 2),
-              onTap: onTap,
-              child: pill,
-            ),
-          );
   }
 }
 
@@ -269,7 +267,7 @@ class ConvToggle extends StatelessWidget {
           children: [
             AnimatedAlign(
               duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
+              curve: const Cubic(0.2, 0.7, 0.3, 1.0),
               alignment: value
                   ? Alignment.centerRight
                   : Alignment.centerLeft,
@@ -388,25 +386,33 @@ class ConvCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(22),
     this.margin,
     this.elevated = true,
+    this.onTap,
   });
 
   final Widget child;
   final EdgeInsets padding;
   final EdgeInsets? margin;
   final bool elevated;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
     return Container(
       margin: margin,
-      padding: padding,
       decoration: BoxDecoration(
-        color: c.card,
         borderRadius: AppRadii.cardR,
         boxShadow: elevated ? AppShadows.card : null,
       ),
-      child: child,
+      child: Material(
+        color: c.card,
+        borderRadius: AppRadii.cardR,
+        clipBehavior: onTap != null ? Clip.antiAlias : Clip.none,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(padding: padding, child: child),
+        ),
+      ),
     );
   }
 }
@@ -417,23 +423,28 @@ class ConvCardSoft extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(14),
     this.margin,
+    this.onTap,
   });
 
   final Widget child;
   final EdgeInsets padding;
   final EdgeInsets? margin;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
     return Container(
       margin: margin,
-      padding: padding,
-      decoration: BoxDecoration(
+      child: Material(
         color: c.cardSoft,
         borderRadius: AppRadii.softR,
+        clipBehavior: onTap != null ? Clip.antiAlias : Clip.none,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(padding: padding, child: child),
+        ),
       ),
-      child: child,
     );
   }
 }

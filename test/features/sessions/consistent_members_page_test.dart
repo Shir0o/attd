@@ -63,9 +63,11 @@ void main() {
             event: event,
             sessions: sessions,
             members: members,
+            disableAnimations: true,
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('No regulars yet'), findsOneWidget);
     });
@@ -101,9 +103,11 @@ void main() {
                 updatedAt: DateTime(2026),
               ),
             ],
+            disableAnimations: true,
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.text('Alice Smith'), findsOneWidget);
       // Bob has 6/8 — below the >=7 threshold — should be excluded.

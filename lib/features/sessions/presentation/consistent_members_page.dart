@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/design/app_colors.dart';
 import '../../../core/design/app_radii.dart';
+import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
@@ -14,7 +15,7 @@ import '../../hub/domain/event.dart';
 ///
 /// Mirrors `RegularsPreview` in
 /// `/tmp/design/attd/project/marketing.jsx` (lines 205–267).
-class ConsistentMembersPage extends StatelessWidget {
+class ConsistentMembersPage extends StatefulWidget {
   const ConsistentMembersPage({
     super.key,
     required this.event,
@@ -23,6 +24,7 @@ class ConsistentMembersPage extends StatelessWidget {
     this.families = const [],
     this.windowSize = 8,
     this.thresholdHits = 7,
+    this.disableAnimations = false,
   });
 
   final Event event;
@@ -31,22 +33,54 @@ class ConsistentMembersPage extends StatelessWidget {
   final List<Family> families;
   final int windowSize;
   final int thresholdHits;
+  final bool disableAnimations;
+
+  @override
+  State<ConsistentMembersPage> createState() => _ConsistentMembersPageState();
+}
+
+class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
+  bool _loading = true;
+  List<_MemberStreak> _streaks = const [];
+  int _relevantSessionCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAsync();
+  }
+
+  Future<void> _loadAsync() async {
+    final streaks = _computeStreaks();
+    final count = widget.sessions
+        .where((s) => s.eventId == widget.event.id && s.deletedAt == null)
+        .length;
+    if (!widget.disableAnimations) {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+    }
+    if (!mounted) return;
+    setState(() {
+      _streaks = streaks;
+      _relevantSessionCount = count;
+      _loading = false;
+    });
+  }
 
   List<_MemberStreak> _computeStreaks() {
-    final relevant = sessions
-        .where((s) => s.eventId == event.id && s.deletedAt == null)
+    final relevant = widget.sessions
+        .where((s) => s.eventId == widget.event.id && s.deletedAt == null)
         .toList()
       ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-    final window = relevant.take(windowSize).toList();
+    final window = relevant.take(widget.windowSize).toList();
     final familyByMember = <String, String>{};
-    for (final f in families) {
+    for (final f in widget.families) {
       for (final m in f.members) {
         familyByMember[m.id] = f.displayName;
       }
     }
 
     final streaks = <_MemberStreak>[];
-    for (final m in members) {
+    for (final m in widget.members) {
       if (m.deletedAt != null) continue;
       final hits = <bool>[];
       for (final s in window) {
@@ -57,7 +91,7 @@ class ConsistentMembersPage extends StatelessWidget {
         hits.add(present);
       }
       final hitCount = hits.where((h) => h).length;
-      if (hitCount >= thresholdHits) {
+      if (hitCount >= widget.thresholdHits) {
         streaks.add(
           _MemberStreak(
             member: m,
@@ -75,10 +109,11 @@ class ConsistentMembersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final streaks = _computeStreaks();
-    final relevantSessionCount = sessions
-        .where((s) => s.eventId == event.id && s.deletedAt == null)
-        .length;
+    final event = widget.event;
+    final streaks = _streaks;
+    final relevantSessionCount = _relevantSessionCount;
+    final windowSize = widget.windowSize;
+    final thresholdHits = widget.thresholdHits;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -91,52 +126,101 @@ class ConsistentMembersPage extends StatelessWidget {
       ),
       body: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 4),
-              ConvEyebrow('Regulars', color: c.primary),
-              const SizedBox(height: 6),
-              Text(
-                'The reliable few',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  color: c.ink,
+        child: _loading
+            ? _Skeleton(disableAnimations: widget.disableAnimations)
+            : Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    ConvEyebrow('Regulars', color: c.primary),
+                    const SizedBox(height: 6),
+                    Text(
+                      'The reliable few',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        color: c.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      relevantSessionCount < windowSize
+                          ? 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $relevantSessionCount session${relevantSessionCount == 1 ? '' : 's'}'
+                          : 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $windowSize sessions',
+                      style: TextStyle(fontSize: 12, color: c.ink3),
+                    ),
+                    const SizedBox(height: 18),
+                    if (streaks.isEmpty)
+                      Expanded(child: _Empty(c: c))
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          itemCount: streaks.length,
+                          itemBuilder: (context, i) => i == 0
+                              ? Padding(
+                                  padding: const EdgeInsets.only(bottom: 14),
+                                  child: _HeroCard(streak: streaks[0]),
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: _RankedRow(
+                                    rank: i + 1,
+                                    streak: streaks[i],
+                                  ),
+                                ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                relevantSessionCount < windowSize
-                    ? 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $relevantSessionCount session${relevantSessionCount == 1 ? '' : 's'}'
-                    : 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $windowSize sessions',
-                style: TextStyle(fontSize: 12, color: c.ink3),
-              ),
-              const SizedBox(height: 18),
-              if (streaks.isEmpty)
-                Expanded(child: _Empty(c: c))
-              else
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    itemCount: streaks.length,
-                    itemBuilder: (context, i) => i == 0
-                        ? Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _HeroCard(streak: streaks[0]),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: _RankedRow(
-                              rank: i + 1,
-                              streak: streaks[i],
-                            ),
-                          ),
-                  ),
-                ),
-            ],
+      ),
+    );
+  }
+}
+
+class _Skeleton extends StatelessWidget {
+  const _Skeleton({required this.disableAnimations});
+  final bool disableAnimations;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppShimmer(
+            width: 120,
+            height: 12,
+            borderRadius: BorderRadius.circular(4),
+            disableAnimations: disableAnimations,
           ),
-        ),
+          const SizedBox(height: 10),
+          AppShimmer(
+            width: 240,
+            height: 28,
+            borderRadius: BorderRadius.circular(6),
+            disableAnimations: disableAnimations,
+          ),
+          const SizedBox(height: 24),
+          AppShimmer(
+            width: double.infinity,
+            height: 120,
+            borderRadius: AppRadii.tileR,
+            disableAnimations: disableAnimations,
+          ),
+          const SizedBox(height: 14),
+          for (var i = 0; i < 3; i++) ...[
+            AppShimmer(
+              width: double.infinity,
+              height: 48,
+              borderRadius: AppRadii.softR,
+              disableAnimations: disableAnimations,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
       ),
     );
   }

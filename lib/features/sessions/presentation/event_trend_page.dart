@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/design/app_colors.dart';
 import '../../../core/design/app_radii.dart';
+import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
@@ -16,7 +17,7 @@ import 'consistent_members_page.dart';
 ///
 /// Mirrors `SummaryPreview` in
 /// `/tmp/design/attd/project/marketing.jsx` (lines 289–331).
-class EventTrendPage extends StatelessWidget {
+class EventTrendPage extends StatefulWidget {
   const EventTrendPage({
     super.key,
     required this.event,
@@ -24,6 +25,7 @@ class EventTrendPage extends StatelessWidget {
     required this.members,
     this.families = const [],
     this.windowSize = 12,
+    this.disableAnimations = false,
   });
 
   final Event event;
@@ -31,15 +33,45 @@ class EventTrendPage extends StatelessWidget {
   final List<Member> members;
   final List<Family> families;
   final int windowSize;
+  final bool disableAnimations;
+
+  @override
+  State<EventTrendPage> createState() => _EventTrendPageState();
+}
+
+class _EventTrendPageState extends State<EventTrendPage> {
+  bool _loading = true;
+  List<_PointStat> _cachedPoints = const [];
+  String _cachedRegulars = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAsync();
+  }
+
+  Future<void> _loadAsync() async {
+    final points = _points();
+    final regulars = _regularsHeadline();
+    if (!widget.disableAnimations) {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+    }
+    if (!mounted) return;
+    setState(() {
+      _cachedPoints = points;
+      _cachedRegulars = regulars;
+      _loading = false;
+    });
+  }
 
   List<_PointStat> _points() {
-    final relevant = sessions
-        .where((s) => s.eventId == event.id && s.deletedAt == null)
+    final relevant = widget.sessions
+        .where((s) => s.eventId == widget.event.id && s.deletedAt == null)
         .toList()
       ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
-    final tail = relevant.length <= windowSize
+    final tail = relevant.length <= widget.windowSize
         ? relevant
-        : relevant.sublist(relevant.length - windowSize);
+        : relevant.sublist(relevant.length - widget.windowSize);
     return tail.map((s) {
       final present = s.records
           .where((r) => r.status == AttendanceStatus.present)
@@ -56,7 +88,9 @@ class EventTrendPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final points = _points();
+    final event = widget.event;
+    final windowSize = widget.windowSize;
+    final points = _cachedPoints;
     final latest = points.isNotEmpty ? points.last : null;
     final maxValue = points.fold<double>(0, (m, p) => p.rate > m ? p.rate : m);
     final priorAvg = points.length > 1
@@ -68,6 +102,20 @@ class EventTrendPage extends StatelessWidget {
         : 0;
     final trendingDown = latest != null && latest.rate < priorAvg;
     final df = DateFormat('MMM d');
+
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: c.bg,
+        appBar: AppBar(
+          backgroundColor: c.bg,
+          leading: const BackButton(),
+          title: ConvEyebrow(event.title),
+          centerTitle: true,
+          elevation: 0,
+        ),
+        body: _TrendSkeleton(disableAnimations: widget.disableAnimations),
+      );
+    }
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -127,43 +175,41 @@ class EventTrendPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 22),
-              InkWell(
-                borderRadius: AppRadii.compactR,
+              ConvCardSoft(
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ConsistentMembersPage(
-                      event: event,
-                      sessions: sessions,
-                      members: members,
-                      families: families,
+                      event: widget.event,
+                      sessions: widget.sessions,
+                      members: widget.members,
+                      families: widget.families,
+                      disableAnimations: widget.disableAnimations,
                     ),
                   ),
                 ),
-                child: ConvCardSoft(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ConvEyebrow('Regulars · 80% in last 8'),
-                            const SizedBox(height: 4),
-                            Text(
-                              _regularsHeadline(),
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: c.ink,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ConvEyebrow('Regulars · 80% in last 8'),
+                          const SizedBox(height: 4),
+                          Text(
+                            _cachedRegulars,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: c.ink,
                             ),
-                          ],
-                        ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Icon(Icons.chevron_right, color: c.ink3),
-                    ],
-                  ),
+                    ),
+                    Icon(Icons.chevron_right, color: c.ink3),
+                  ],
                 ),
               ),
               const SizedBox(height: 18),
@@ -204,18 +250,18 @@ class EventTrendPage extends StatelessWidget {
 
   String _regularsHeadline() {
     final familyByMember = <String, String>{};
-    for (final f in families) {
+    for (final f in widget.families) {
       for (final m in f.members) {
         familyByMember[m.id] = f.displayName;
       }
     }
-    final relevant = sessions
-        .where((s) => s.eventId == event.id && s.deletedAt == null)
+    final relevant = widget.sessions
+        .where((s) => s.eventId == widget.event.id && s.deletedAt == null)
         .toList()
       ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
     final window = relevant.take(8).toList();
     final scores = <Member, int>{};
-    for (final m in members) {
+    for (final m in widget.members) {
       if (m.deletedAt != null) continue;
       var hits = 0;
       for (final s in window) {
@@ -348,6 +394,57 @@ class _SessionLine extends StatelessWidget {
           Text(
             '${point.absent}',
             style: AppTypography.displayNumber(fontSize: 20, color: c.absent),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendSkeleton extends StatelessWidget {
+  const _TrendSkeleton({required this.disableAnimations});
+  final bool disableAnimations;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppShimmer(
+            width: 80,
+            height: 12,
+            borderRadius: BorderRadius.circular(4),
+            disableAnimations: disableAnimations,
+          ),
+          const SizedBox(height: 10),
+          AppShimmer(
+            width: 220,
+            height: 36,
+            borderRadius: BorderRadius.circular(6),
+            disableAnimations: disableAnimations,
+          ),
+          const SizedBox(height: 22),
+          AppShimmer(
+            width: double.infinity,
+            height: 100,
+            borderRadius: AppRadii.compactR,
+            disableAnimations: disableAnimations,
+          ),
+          const SizedBox(height: 16),
+          AppShimmer(
+            width: double.infinity,
+            height: 64,
+            borderRadius: AppRadii.softR,
+            disableAnimations: disableAnimations,
+          ),
+          const SizedBox(height: 18),
+          AppShimmer(
+            width: double.infinity,
+            height: 90,
+            borderRadius: BorderRadius.circular(8),
+            disableAnimations: disableAnimations,
           ),
         ],
       ),

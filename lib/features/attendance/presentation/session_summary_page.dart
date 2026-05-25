@@ -897,8 +897,7 @@ class _ConsistentTrendStrip extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
+          child: ConvCardSoft(
             onTap: () async {
               final sessions = await _loadSessions();
               if (!context.mounted) return;
@@ -913,39 +912,36 @@ class _ConsistentTrendStrip extends StatelessWidget {
                 ),
               );
             },
-            child: ConvCardSoft(
-              child: Row(
-                children: [
-                  Icon(Icons.workspace_premium_outlined,
-                      size: 18, color: c.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ConvEyebrow('Regulars · 8 wk'),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Consistent members',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: c.ink,
-                          ),
+            child: Row(
+              children: [
+                Icon(Icons.workspace_premium_outlined,
+                    size: 18, color: c.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConvEyebrow('Regulars · 8 wk'),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Consistent members',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Icon(Icons.chevron_right, color: c.ink3, size: 18),
-                ],
-              ),
+                ),
+                Icon(Icons.chevron_right, color: c.ink3, size: 18),
+              ],
             ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
+          child: ConvCardSoft(
             onTap: () async {
               final sessions = await _loadSessions();
               if (!context.mounted) return;
@@ -960,31 +956,29 @@ class _ConsistentTrendStrip extends StatelessWidget {
                 ),
               );
             },
-            child: ConvCardSoft(
-              child: Row(
-                children: [
-                  Icon(Icons.show_chart, size: 18, color: c.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ConvEyebrow('Trends · 12 wk'),
-                        const SizedBox(height: 2),
-                        Text(
-                          'See sparkline',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: c.ink,
-                          ),
+            child: Row(
+              children: [
+                Icon(Icons.show_chart, size: 18, color: c.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConvEyebrow('Trends · 12 wk'),
+                      const SizedBox(height: 2),
+                      Text(
+                        'See sparkline',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Icon(Icons.chevron_right, color: c.ink3, size: 18),
-                ],
-              ),
+                ),
+                Icon(Icons.chevron_right, color: c.ink3, size: 18),
+              ],
             ),
           ),
         ),
