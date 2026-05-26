@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/design/app_colors.dart';
 import '../../../core/design/app_shimmer.dart';
-import '../../../core/design/app_theme.dart';
+import '../../../core/design/app_typography.dart';
+import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
@@ -34,7 +36,7 @@ class _MembersPageState extends State<MembersPage> {
   List<Family>? _families;
   bool _isLoading = true;
   Object? _error;
-  Event? _currentEvent; // To track local changes to the event
+  Event? _currentEvent;
   bool _isAdding = false;
   final Map<String, List<({String title, DateTime date})>> _memberUsageMap = {};
 
@@ -125,9 +127,8 @@ class _MembersPageState extends State<MembersPage> {
     if (trimmedName.isEmpty || _isAdding) return;
 
     setState(() => _isAdding = true);
-    
+
     try {
-      // Check for duplicates
       final allMembers = _getAllMembers(_families ?? []);
       final isDuplicate = allMembers.any(
         (m) => m.displayNameLowercase == trimmedName.toLowerCase(),
@@ -174,14 +175,12 @@ class _MembersPageState extends State<MembersPage> {
           _families = [...(_families ?? []), updatedFamily];
         });
 
-        // If in event mode, automatically add to event
         if (_currentEvent != null && widget.eventRepository != null) {
           await _toggleEventMember(newMember, true);
         }
       }
 
       _inputController.clear();
-      // Keep keyboard open and focus the input
       _inputFocusNode.requestFocus();
 
       if (!mounted) return;
@@ -465,11 +464,6 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Future<void> _deleteMember(Member member) async {
-    // In event mode, "Delete" might mean removing from event only,
-    // or deleting the member entirely. The prompt says "Hide or disable 'Delete Member' when in Event context".
-    // Let's hide the delete button in event mode, relying on checkboxes for "remove from event".
-    // So this function is only for global delete.
-
     if (_families == null) return;
 
     final linkedSessions = _memberUsageMap[member.id] ?? [];
@@ -619,7 +613,6 @@ class _MembersPageState extends State<MembersPage> {
               deletedAt: now,
               updatedAt: now,
             );
-            // Filter out soft-deleted members for display
             final visibleMembers = updatedMembers
                 .where((m) => m.deletedAt == null)
                 .toList();
@@ -631,7 +624,6 @@ class _MembersPageState extends State<MembersPage> {
           .where((f) => f.members.isNotEmpty || f.deletedAt != null)
           .toList();
 
-      // Save the full list including soft-deleted for sync
       final familiesForPersistence = _families!
           .map((f) {
             final index = f.members.indexWhere((m) => m.id == member.id);
@@ -682,11 +674,6 @@ class _MembersPageState extends State<MembersPage> {
       updatedMemberIds.remove(member.id);
     }
 
-    // We can't use copyWith on Event because I didn't add it in the first step (oops, maybe I should check).
-    // Let's construct a new Event manually.
-    // Ah, wait, I can assume Event is immutable and I should probably have added copyWith.
-    // But since I didn't, let's just create a new instance.
-
     final updatedEvent = Event(
       id: _currentEvent!.id,
       title: _currentEvent!.title,
@@ -696,7 +683,6 @@ class _MembersPageState extends State<MembersPage> {
       repeatingDays: _currentEvent!.repeatingDays,
       memberIds: updatedMemberIds,
       createdAt: _currentEvent!.createdAt,
-      // updatedAt will be set by repository or constructor logic
     );
 
     setState(() {
@@ -716,19 +702,24 @@ class _MembersPageState extends State<MembersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
     final isEventMode = _currentEvent != null;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: c.bg,
       appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: colorScheme.surface,
+        backgroundColor: c.bg,
+        elevation: 0,
+        surfaceTintColor: c.bg,
         title: Text(
           isEventMode ? 'Manage Event Members' : 'Manage Members',
-          style: TextStyle(color: colorScheme.onSurface),
+          style: AppTypography.fraunces(
+            fontSize: 22,
+            fontWeight: FontWeight.w400,
+            color: c.ink,
+          ),
         ),
+        iconTheme: IconThemeData(color: c.ink2),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
@@ -736,90 +727,27 @@ class _MembersPageState extends State<MembersPage> {
             tooltip: 'About historical records',
           ),
         ],
-        iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: colorScheme.surfaceContainerHigh, height: 1),
-        ),
       ),
       body: Column(
         children: [
-          // Combined Search & Add Section
-          Container(
-            color: colorScheme.surface,
-            padding: const EdgeInsets.all(16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        child: TextField(
-                          key: const ValueKey('member_search_field'),
-                          controller: _inputController,
-                          focusNode: _inputFocusNode,
-                          textCapitalization: TextCapitalization.words,
-                          onChanged: (val) {
-                            setState(() {});
-                          },
-                          onSubmitted: (val) => _addMember(val),
-                          decoration: InputDecoration(
-                            hintText: isEventMode
-                                ? 'Find or add to event'
-                                : 'Find or add member',
-                            hintStyle: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    FloatingActionButton(
-                      key: const ValueKey('member_add_fab'),
-                      heroTag: 'fab',
-                      mini: false,
-                      elevation: 1,
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      onPressed: _isAdding ? null : () => _addMember(_inputController.text),
-                      child: _isAdding 
-                        ? SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: colorScheme.onPrimary,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.add),
-                    ),
-                  ],
-                ),
+                _buildHeader(c, isEventMode),
+                const SizedBox(height: 18),
+                _buildSearchRow(c, isEventMode),
               ],
             ),
           ),
-
+          const SizedBox(height: 6),
           Expanded(
             child: RepaintBoundary(
               child: AnimatedSwitcher(
                 duration: widget.disableAnimations
                     ? Duration.zero
-                    : const Duration(milliseconds: 600),
+                    : const Duration(milliseconds: 300),
                 child: _buildBodyContent(context),
               ),
             ),
@@ -829,41 +757,113 @@ class _MembersPageState extends State<MembersPage> {
     );
   }
 
+  Widget _buildHeader(ConvocationColors c, bool isEventMode) {
+    final families = _families ?? [];
+    final realFamilies = families.where((f) => !f.isAutoSingleton).toList();
+    final memberCount = _getAllMembers(families).length;
+
+    if (isEventMode) {
+      final selected = _currentEvent?.memberIds.length ?? 0;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$selected / $memberCount',
+            style: AppTypography.displayNumber(fontSize: 32, color: c.ink),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'assigned',
+            style: AppTypography.displayNumber(fontSize: 22, color: c.ink3),
+          ),
+        ],
+      );
+    }
+    final familyLabel =
+        '${realFamilies.length} ${realFamilies.length == 1 ? "family" : "families"}';
+    final peopleLabel = memberCount == 1 ? '1 person' : '$memberCount people';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          peopleLabel,
+          style: AppTypography.displayNumber(fontSize: 32, color: c.ink),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          familyLabel,
+          style: AppTypography.displayNumber(fontSize: 22, color: c.ink3),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchRow(ConvocationColors c, bool isEventMode) {
+    return Container(
+      decoration: BoxDecoration(
+        color: c.cardSoft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
+      child: Row(
+        children: [
+          Icon(Icons.search, color: c.ink3, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              key: const ValueKey('member_search_field'),
+              controller: _inputController,
+              focusNode: _inputFocusNode,
+              textCapitalization: TextCapitalization.words,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: _addMember,
+              style: AppTypography.geist(fontSize: 14, color: c.ink),
+              decoration: InputDecoration(
+                hintText:
+                    isEventMode ? 'Find or add to event' : 'Find or add member',
+                hintStyle: AppTypography.geist(fontSize: 14, color: c.ink3),
+                border: InputBorder.none,
+                isCollapsed: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Material(
+            color: c.primary,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              key: const ValueKey('member_add_fab'),
+              borderRadius: BorderRadius.circular(12),
+              onTap: _isAdding
+                  ? null
+                  : () => _addMember(_inputController.text),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: _isAdding
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: c.onPrimary,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(Icons.add, color: c.onPrimary, size: 18),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBodyContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isEventMode = _currentEvent != null;
+    final c = context.conv;
 
     if (_isLoading && _families == null) {
-      return ListView.separated(
-        key: const ValueKey('loading'),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: 10,
-        separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: AppShimmer(
-              width: 40,
-              height: 40,
-              borderRadius: BorderRadius.circular(20),
-              disableAnimations: widget.disableAnimations,
-            ),
-            title: AppShimmer(
-              width: 150,
-              height: 16,
-              borderRadius: BorderRadius.circular(24),
-              disableAnimations: widget.disableAnimations,
-            ),
-            subtitle: AppShimmer(
-              width: 80,
-              height: 12,
-              borderRadius: BorderRadius.circular(24),
-              disableAnimations: widget.disableAnimations,
-            ),
-          );
-        },
-      );
+      return _buildSkeleton(c);
     }
 
     if (_error != null && _families == null) {
@@ -874,256 +874,256 @@ class _MembersPageState extends State<MembersPage> {
     }
 
     final families = _families ?? [];
-    final allMembers = _getAllMembers(families);
+    final isEventMode = _currentEvent != null;
     final searchTerm = _inputController.text.toLowerCase();
+    final selectedIds =
+        isEventMode ? _currentEvent!.memberIds.toSet() : <String>{};
 
-    // Filter by search
-    var filteredMembers = allMembers.where((m) {
-      return m.displayNameLowercase.contains(searchTerm);
-    }).toList();
+    List<Member> filter(List<Member> ms) => ms
+        .where((m) => m.displayNameLowercase.contains(searchTerm))
+        .toList();
 
-    // In Event Mode, maybe we want to sort selected members to the top?
-    final selectedIds = isEventMode ? _currentEvent!.memberIds.toSet() : <String>{};
+    final children = <Widget>[];
+
     if (isEventMode) {
-      filteredMembers.sort((a, b) {
-        final aSelected = selectedIds.contains(a.id);
-        final bSelected = selectedIds.contains(b.id);
-        if (aSelected && !bSelected) return -1;
-        if (!aSelected && bSelected) return 1;
+      final all = filter(_getAllMembers(families));
+      all.sort((a, b) {
+        final aSel = selectedIds.contains(a.id);
+        final bSel = selectedIds.contains(b.id);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
         return a.displayName.compareTo(b.displayName);
       });
+      if (all.isNotEmpty) {
+        children.add(ConvSectionLabel(label: 'Roster · ${all.length}'));
+      }
+      for (final m in all) {
+        children.add(_MemberRow(
+          member: m,
+          isEventMode: true,
+          isSelected: selectedIds.contains(m.id),
+          onToggle: (v) => _toggleEventMember(m, v),
+          onEdit: () => _editMember(m),
+          onDelete: () => _deleteMember(m),
+        ));
+      }
     } else {
-      filteredMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
+      final realFamilies = families.where((f) => !f.isAutoSingleton).toList()
+        ..sort((a, b) => a.displayName.compareTo(b.displayName));
+      for (final f in realFamilies) {
+        final filtered = filter(f.members)
+          ..sort((a, b) => a.displayName.compareTo(b.displayName));
+        if (filtered.isEmpty) continue;
+        children.add(
+          ConvSectionLabel(label: '${f.displayName} · ${filtered.length}'),
+        );
+        for (final m in filtered) {
+          children.add(_MemberRow(
+            member: m,
+            isEventMode: false,
+            isSelected: false,
+            onToggle: (_) {},
+            onEdit: () => _editMember(m),
+            onDelete: () => _deleteMember(m),
+          ));
+        }
+      }
+      final loners = <Member>[
+        for (final f in families)
+          if (f.isAutoSingleton) ...f.members,
+      ];
+      final filteredLoners = filter(loners)
+        ..sort((a, b) => a.displayName.compareTo(b.displayName));
+      if (filteredLoners.isNotEmpty) {
+        children.add(
+          ConvSectionLabel(label: 'Loners · ${filteredLoners.length}'),
+        );
+        for (final m in filteredLoners) {
+          children.add(_MemberRow(
+            member: m,
+            isEventMode: false,
+            isSelected: false,
+            onToggle: (_) {},
+            onEdit: () => _editMember(m),
+            onDelete: () => _deleteMember(m),
+          ));
+        }
+      }
     }
 
-    return Column(
+    return ListView(
       key: const ValueKey('data'),
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 80),
+      children: children,
+    );
+  }
+
+  Widget _buildSkeleton(ConvocationColors c) {
+    return ListView(
+      key: const ValueKey('loading'),
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 80),
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        AppShimmer(
+          width: 100,
+          height: 12,
+          borderRadius: BorderRadius.circular(6),
+          disableAnimations: widget.disableAnimations,
+        ),
+        const SizedBox(height: 18),
+        for (var i = 0; i < 8; i++) ...[
+          Row(
             children: [
-              Text(
-                isEventMode ? 'Assigned Members' : 'Regular Members',
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
+              AppShimmer(
+                width: 40,
+                height: 40,
+                borderRadius: BorderRadius.circular(20),
+                disableAnimations: widget.disableAnimations,
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Text(
-                  isEventMode
-                      ? '${selectedIds.length} / ${filteredMembers.length}'
-                      : '${filteredMembers.length}',
-                  style: TextStyle(
-                    color: colorScheme.onPrimaryContainer,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppShimmer(
+                      width: 140,
+                      height: 14,
+                      borderRadius: BorderRadius.circular(7),
+                      disableAnimations: widget.disableAnimations,
+                    ),
+                    const SizedBox(height: 6),
+                    AppShimmer(
+                      width: 80,
+                      height: 10,
+                      borderRadius: BorderRadius.circular(5),
+                      disableAnimations: widget.disableAnimations,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: filteredMembers.length,
-            separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final member = filteredMembers[index];
-              final isSelected = isEventMode
-                  ? selectedIds.contains(member.id)
-                  : false;
-
-              return _MemberListItem(
-                member: member,
-                isSelected: isSelected,
-                isEventMode: isEventMode,
-                onToggle: (val) => _toggleEventMember(member, val),
-                onEdit: () => _editMember(member),
-                onDelete: () => _deleteMember(member),
-              );
-            },
-          ),
-        ),
+          const SizedBox(height: 16),
+        ],
       ],
     );
   }
 }
 
-class _MemberListItem extends StatelessWidget {
-  final Member member;
-  final bool isSelected;
-  final bool isEventMode;
-  final ValueChanged<bool> onToggle;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const _MemberListItem({
+class _MemberRow extends StatelessWidget {
+  const _MemberRow({
     required this.member,
-    required this.isSelected,
     required this.isEventMode,
+    required this.isSelected,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
   });
 
+  final Member member;
+  final bool isEventMode;
+  final bool isSelected;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
+    final letter = member.displayName.isEmpty
+        ? '?'
+        : member.displayName.characters.first.toUpperCase();
 
     return Dismissible(
       key: ValueKey('dismiss_${member.id}_$isEventMode'),
-      direction: DismissDirection.horizontal,
-      background: _buildSwipeBackground(
-        context,
-        'Rename',
-        colorScheme.secondary,
-        Icons.edit_outlined,
-        true,
-      ),
-      secondaryBackground: _buildSwipeBackground(
-        context,
-        'Delete Member',
-        colorScheme.error,
-        Icons.delete_outline,
-        false,
-      ),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          onEdit();
-        } else {
-          onDelete();
-        }
-        return false; // Handle state externally
-      },
-      child: InkWell(
-        onLongPress: onEdit,
-        onTap: isEventMode ? () => onToggle(!isSelected) : onEdit,
-        child: Container(
-          height: 72,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: isSelected && isEventMode
-                ? colorScheme.surfaceContainerHigh
-                : colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          ),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                backgroundColor: isSelected && isEventMode
-                    ? colorScheme.primary
-                    : colorScheme.surfaceContainerHighest,
-                child: Text(
-                  member.displayName.isNotEmpty
-                      ? member.displayName[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    color: isSelected && isEventMode
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+      direction: DismissDirection.endToStart,
+      background: const SizedBox.shrink(),
+      secondaryBackground: Container(
+        decoration: BoxDecoration(
+          color: c.absent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isEventMode ? 'Remove from event' : 'Delete Member',
+              style: AppTypography.geist(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      member.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: colorScheme.onSurface,
-                        fontWeight: isSelected && isEventMode
-                            ? FontWeight.w500
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    if (isEventMode && isSelected)
-                      Text(
-                        'Assigned to Event',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.primary,
-                        ),
-                      )
-                    else
-                      Text(
-                        'Regular Member',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (isEventMode)
-                Switch(
-                  value: isSelected,
-                  onChanged: onToggle,
-                ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.delete_outline, color: Colors.white),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSwipeBackground(
-    BuildContext context,
-    String label,
-    Color color,
-    IconData icon,
-    bool isStart,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: isStart
-            ? [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+      confirmDismiss: (_) async {
+        onDelete();
+        return false;
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: isEventMode ? () => onToggle(!isSelected) : onEdit,
+          onLongPress: onEdit,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Row(
+              children: [
+                ConvAvatar(
+                  letter: letter,
+                  size: 40,
+                  tone: isEventMode && isSelected
+                      ? ConvTone.present
+                      : ConvTone.neutral,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        member.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.geist(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isEventMode
+                            ? (isSelected ? 'Assigned' : 'Not assigned')
+                            : 'Member',
+                        style: AppTypography.geist(
+                          fontSize: 12,
+                          color: c.ink3,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ]
-            : [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                if (isEventMode)
+                  ConvToggle(value: isSelected, onChanged: onToggle)
+                else
+                  ConvIconButton(
+                    icon: Icons.edit_outlined,
+                    size: 32,
+                    iconSize: 18,
+                    color: c.ink3,
+                    onPressed: onEdit,
                   ),
-                ),
-                const SizedBox(width: 16),
-                Icon(icon, color: Colors.white),
               ],
+            ),
+          ),
+        ),
       ),
     );
   }
