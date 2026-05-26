@@ -880,6 +880,21 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('Manage Families tile navigates', (tester) async {
+    await tester.pumpWidget(_settingsPage(themeController: themeController));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Manage Families'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Manage Families'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Copy Apps Script Boilerplate triggers snackbar', (tester) async {
     await tester.pumpWidget(_settingsPage(themeController: themeController));
     await tester.pumpAndSettle();

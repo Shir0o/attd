@@ -10,6 +10,7 @@ import '../data/google_sheets_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../families/presentation/family_list_page.dart';
 import '../../hub/presentation/members_page.dart';
 import '../../hub/data/event_repository.dart';
 import '../../../data/session_repository.dart';
@@ -633,6 +634,23 @@ class _SettingsPageState extends State<SettingsPage> {
                                     attendanceRepository:
                                         widget.attendanceRepository,
                                     sessionRepository: widget.sessionRepository,
+                                  ),
+                                ),
+                              );
+                              _markDataModified();
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          _SettingsTile(
+                            key: const ValueKey('manage_families_tile'),
+                            icon: Icons.groups_outlined,
+                            title: 'Manage Families',
+                            subtitle: 'Group members into families',
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => FamilyListPage(
+                                    repository: widget.attendanceRepository,
                                   ),
                                 ),
                               );
