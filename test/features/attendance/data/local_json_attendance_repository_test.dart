@@ -229,7 +229,7 @@ void main() {
       expect(families.single.isAutoSingleton, isFalse);
     });
 
-    test('moveMemberToFamily moves and unflags target', () async {
+    test('moveMemberToFamily moves and prunes source auto-singleton family', () async {
       final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
       final singleton =
           await repo.addFamily('Alice Smith', isAutoSingleton: true);
@@ -246,8 +246,41 @@ void main() {
       expect(updatedTarget.members.map((m) => m.id), containsAll(['m1', 'm2']));
       expect(updatedTarget.isAutoSingleton, isFalse);
       final all = await repo.fetchFamilies();
-      final source = all.firstWhere((f) => f.id == singleton.id);
+      expect(all.any((f) => f.id == singleton.id), isFalse);
+    });
+
+    test('moveMemberToFamily does not prune manually created family when it becomes empty', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final manualFam =
+          await repo.addFamily('Manual Smith', isAutoSingleton: false);
+      await repo.addMember(
+        manualFam.id,
+        Member(id: 'm1', displayName: 'Alice Smith'),
+      );
+      final target = await repo.addFamily('Smith');
+      await repo.addMember(
+        target.id,
+        Member(id: 'm2', displayName: 'Bob Smith'),
+      );
+      await repo.moveMemberToFamily('m1', target.id);
+      final all = await repo.fetchFamilies();
+      final source = all.firstWhere((f) => f.id == manualFam.id);
       expect(source.members, isEmpty);
+    });
+
+    test('moveMemberToFamily does not prune target auto-singleton family when member is moved to the family they are already in', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final singleton =
+          await repo.addFamily('Alice Smith', isAutoSingleton: true);
+      await repo.addMember(
+        singleton.id,
+        Member(id: 'm1', displayName: 'Alice Smith'),
+      );
+      final updated = await repo.moveMemberToFamily('m1', singleton.id);
+      expect(updated.members.single.id, 'm1');
+      expect(updated.isAutoSingleton, isTrue);
+      final all = await repo.fetchFamilies();
+      expect(all.any((f) => f.id == singleton.id), isTrue);
     });
 
     test('moveMemberToFamily throws when member is not found', () async {
