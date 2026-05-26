@@ -342,7 +342,7 @@ void main() {
     await tester.tap(find.text('Edit Event'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Edit Event'), findsOneWidget); // app bar title
+    expect(find.text('EDIT EVENT'), findsOneWidget); // app bar title
   });
 
   testWidgets('action menu: cancelling delete keeps the event',
@@ -465,7 +465,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // AddEventPage app bar title in create mode.
-    expect(find.text('New Event'), findsOneWidget);
+    expect(find.text('NEW EVENT'), findsOneWidget);
   });
 
   testWidgets('one-time event scheduled for today shows the Start pill', (tester) async {

@@ -165,7 +165,7 @@ void main() {
     await tester.tap(find.text('One-time').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Date'), findsOneWidget);
+    expect(find.byKey(const ValueKey('date_field')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('save_event_button')));
     await tester.pumpAndSettle();
@@ -291,7 +291,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Edit Event'), findsOneWidget);
+    expect(find.text('EDIT EVENT'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.delete_outline));
     await tester.pumpAndSettle();
@@ -333,7 +333,7 @@ void main() {
 
     expect(repository.deleteCount, 0);
     expect(repository.events.single.id, 'event-1');
-    expect(find.text('Edit Event'), findsOneWidget);
+    expect(find.text('EDIT EVENT'), findsOneWidget);
   });
 
   testWidgets('tapping the event time field opens a time picker',
@@ -375,9 +375,7 @@ void main() {
     await tester.tap(find.text('One-time').last);
     await tester.pumpAndSettle();
 
-    // The InputDecorator wrapping the Date field is the third one in the form.
-    final decorators = find.byType(InputDecorator);
-    await tester.tap(decorators.last);
+    await tester.tap(find.byKey(const ValueKey('date_field')));
     await tester.pumpAndSettle();
 
     expect(find.text('OK'), findsOneWidget);

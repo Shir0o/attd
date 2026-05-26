@@ -30,7 +30,7 @@ class HubRobot {
     await tester.pump(const Duration(milliseconds: 500));
 
     // Verify we have navigated to AddEventPage
-    await tester.pumpUntilFound(find.text('New Event'));
+    await tester.pumpUntilFound(find.text('NEW EVENT'));
     print('DEBUG: Successfully navigated to AddEventPage');
   }
 

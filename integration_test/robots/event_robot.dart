@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../utils/test_utils.dart';
@@ -9,6 +10,7 @@ class EventRobot {
 
   Future<void> enterName(String name) async {
     print('DEBUG: Entering text "$name"');
+    // TextFormField wraps a TextField internally; either works.
     final finder = find.byType(TextField).first;
     await tester.pumpUntilFound(finder);
     await tester.enterText(finder, name);
@@ -17,11 +19,19 @@ class EventRobot {
 
   Future<void> selectFrequency(String frequency) async {
     print('DEBUG: selectFrequency($frequency)');
-    final dropdownFinder = find.byType(DropdownButton<String>);
-    await tester.pumpUntilFound(dropdownFinder);
-    await tester.tap(dropdownFinder);
+    // The frequency picker is now a tappable ConvCardSoft tile that opens
+    // a bottom sheet listing the four options.
+    final frequencies = ['One-time', 'Weekly', 'Bi-weekly', 'Monthly'];
+    final currentLabel = frequencies.firstWhere(
+      (f) => find.text(f).evaluate().isNotEmpty,
+      orElse: () => 'Weekly',
+    );
+    final tileFinder = find.text(currentLabel).last;
+    await tester.pumpUntilFound(tileFinder);
+    await tester.tap(tileFinder);
     await tester.pumpAndSettle();
 
+    // Pick the requested option from the sheet.
     final itemFinder = find.text(frequency).last;
     await tester.tap(itemFinder);
     await tester.pumpAndSettle();
@@ -32,19 +42,16 @@ class EventRobot {
     final label = day.substring(0, 1).toUpperCase();
     final textFinder = find.text(label).first;
     await tester.pumpUntilFound(textFinder);
-    
-    final containerFinder = find.ancestor(of: textFinder, matching: find.byType(Container)).first;
-    final container = tester.widget<Container>(containerFinder);
-    final decoration = container.decoration as BoxDecoration;
-    
-    // Check if it's already selected by color (primary vs surfaceContainerLow)
-    final colorScheme = Theme.of(tester.element(containerFinder)).colorScheme;
-    final isSelected = decoration.color == colorScheme.primary;
-    
-    if (!isSelected) {
+
+    // Find the enclosing ConvDayChip; its `active` flag tells us whether
+    // the day is already selected.
+    final chipFinder =
+        find.ancestor(of: textFinder, matching: find.byType(ConvDayChip)).first;
+    final chip = tester.widget<ConvDayChip>(chipFinder);
+
+    if (!chip.active) {
       print('DEBUG: Day $day not selected, tapping');
-      final gestureFinder = find.ancestor(of: textFinder, matching: find.byType(GestureDetector)).first;
-      await tester.tap(gestureFinder);
+      await tester.tap(chipFinder);
       await tester.pumpAndSettle();
     } else {
       print('DEBUG: Day $day already selected, skipping tap');
@@ -55,7 +62,8 @@ class EventRobot {
     print('DEBUG: selectTime($hour:$minute)');
     final timeFinder = find.byIcon(Icons.schedule);
     await tester.pumpUntilFound(timeFinder);
-    await tester.tap(find.ancestor(of: timeFinder, matching: find.byType(InputDecorator)));
+    // The time tile is now a ConvCardSoft wrapping the schedule icon.
+    await tester.tap(timeFinder);
     await tester.pumpAndSettle();
 
     // Try to find the hour text.

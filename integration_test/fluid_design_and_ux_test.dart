@@ -155,7 +155,7 @@ void main() {
         await tester.takeScreenshot(binding, 'fluid_08_large_text_add_event');
 
         // Verify "New Event" title is still visible and not overflowed
-        expect(find.text('New Event'), findsOneWidget);
+        expect(find.text('NEW EVENT'), findsOneWidget);
         
         // Cleanup
         if (await tempDir.exists()) {
