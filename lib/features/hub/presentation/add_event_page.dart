@@ -128,6 +128,7 @@ class _AddEventPageState extends State<AddEventPage> {
       context: context,
       initialTime: _selectedTime,
     );
+    if (!mounted) return;
     if (picked != null && picked != _selectedTime) {
       setState(() => _selectedTime = picked);
     }
@@ -140,6 +141,7 @@ class _AddEventPageState extends State<AddEventPage> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
+    if (!mounted) return;
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
     }
@@ -198,6 +200,7 @@ class _AddEventPageState extends State<AddEventPage> {
         );
       },
     );
+    if (!mounted) return;
     if (picked != null && picked != _frequency) {
       setState(() => _frequency = picked);
     }
