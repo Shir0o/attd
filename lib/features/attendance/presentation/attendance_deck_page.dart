@@ -918,7 +918,7 @@ class _DeckSkeleton extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               disableAnimations: disableAnimations,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             AppShimmer(
               width: 110,
               height: 12,
