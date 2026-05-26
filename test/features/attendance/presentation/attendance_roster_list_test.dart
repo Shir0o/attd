@@ -52,6 +52,7 @@ Future<void> pumpRoster(
             session: session,
             families: families,
             initialGrouping: grouping,
+            disableAnimations: true,
             onToggle: (m, p) async {
               toggleLog.add((id: m.id, present: p));
             },
@@ -255,7 +256,7 @@ void main() {
   );
 
   testWidgets(
-    'mark-all menu shows a confirmation dialog before calling onMarkAll',
+    'mark-all sheet "All present" tile invokes onMarkAll with true',
     (tester) async {
       final session = sessionWith(members: [alice, bob, carol]);
       final log = <ToggleCall>[];
@@ -268,6 +269,7 @@ void main() {
               child: AttendanceRosterList(
                 session: session,
                 families: [smiths, jones],
+                disableAnimations: true,
                 onToggle: (m, p) async {
                   log.add((id: m.id, present: p));
                 },
@@ -280,17 +282,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
-      await tester.pumpAndSettle();
-      // Dialog up — confirm.
-      expect(find.text('Mark everyone present?'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('rosterMarkAllConfirm')));
+      // Sheet is up.
+      expect(find.text('Bulk attendance'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('markEveryonePresent')));
       await tester.pumpAndSettle();
       expect(markedAll, [true]);
     },
   );
 
-  testWidgets('mark-all cancel does not invoke the callback', (tester) async {
+  testWidgets('mark-all sheet cancel does not invoke the callback',
+      (tester) async {
     final session = sessionWith(members: [alice, bob, carol]);
     final log = <ToggleCall>[];
     final markedAll = <bool>[];
@@ -302,6 +303,7 @@ void main() {
             child: AttendanceRosterList(
               session: session,
               families: [smiths, jones],
+              disableAnimations: true,
               onToggle: (m, p) async {
                 log.add((id: m.id, present: p));
               },
@@ -314,9 +316,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('rosterMarkAllAbsent')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('rosterMarkAllCancel')));
+    await tester.tap(find.byKey(const Key('markEveryoneCancel')));
     await tester.pumpAndSettle();
     expect(markedAll, isEmpty);
   });

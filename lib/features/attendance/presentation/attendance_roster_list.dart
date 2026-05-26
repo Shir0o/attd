@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/design/app_theme.dart';
-import '../../../data/session.dart';
+import '../../../core/design/app_colors.dart';
+import '../../../core/design/app_radii.dart';
+import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_typography.dart';
+import '../../../core/design/widgets/conv_widgets.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
+import '../../../data/session.dart';
+import 'mark_everyone_sheet.dart';
 
 enum RosterGrouping { byFamily, byStatus }
 
@@ -29,6 +34,8 @@ class AttendanceRosterList extends StatefulWidget {
     this.initialGrouping = RosterGrouping.byFamily,
     this.showGroupingToggle = true,
     this.showSearch = true,
+    this.showStats = true,
+    this.disableAnimations = false,
   });
 
   final Session session;
@@ -37,15 +44,25 @@ class AttendanceRosterList extends StatefulWidget {
   final FamilyBulkToggle? onFamilyToggle;
 
   /// Optional callback for the roster-wide bulk "Mark all present/absent"
-  /// action. When non-null, an overflow menu appears next to the grouping
+  /// action. When non-null, an "All" pill appears next to the grouping
   /// toggle. The parent is responsible for snapshotting + showing an undo
-  /// snackbar — the widget only renders the UI and the confirmation dialog.
+  /// snackbar — the widget only renders the UI and the modal sheet.
   final MarkAllToggle? onMarkAll;
   final void Function(Member member)? onEdit;
   final void Function(Member member)? onRemove;
   final RosterGrouping initialGrouping;
   final bool showGroupingToggle;
   final bool showSearch;
+
+  /// Show the Present/Absent/Total stat strip above the search input. Callers
+  /// that already render their own summary stats (e.g. session summary page)
+  /// pass `false` to avoid duplication.
+  final bool showStats;
+
+  /// When true, skips the 800ms skeleton frame and disables shimmer animation.
+  /// Set by widget tests to keep `pumpAndSettle` from hanging on the
+  /// indefinitely-repeating shimmer controller.
+  final bool disableAnimations;
 
   @override
   State<AttendanceRosterList> createState() => _AttendanceRosterListState();
@@ -56,6 +73,19 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   final Set<String> _collapsedFamilyIds = {};
   String _query = '';
   final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.disableAnimations) {
+      _isLoading = false;
+    } else {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) setState(() => _isLoading = false);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -75,40 +105,18 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     return value.toLowerCase().contains(_query);
   }
 
-  Future<void> _confirmMarkAll(
+  Future<void> _openMarkEveryone(
     BuildContext context,
-    bool present,
     SessionRoster roster,
   ) async {
     final cb = widget.onMarkAll;
     if (cb == null) return;
-    final total = roster.displayMembersMap.length;
-    final label = present ? 'present' : 'absent';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Mark everyone $label?'),
-        content: Text(
-          'This will set $total ${total == 1 ? 'member' : 'members'} to '
-          '$label and overwrite any current statuses. You can undo from the '
-          'snackbar.',
-        ),
-        actions: [
-          TextButton(
-            key: const Key('rosterMarkAllCancel'),
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            key: const Key('rosterMarkAllConfirm'),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Mark $label'),
-          ),
-        ],
-      ),
+    final result = await MarkEveryoneSheet.show(
+      context,
+      memberCount: roster.displayMembersMap.length,
     );
-    if (confirmed != true) return;
-    await cb(present);
+    if (result == null) return;
+    await cb(result);
   }
 
   Future<void> _setFamilyStatus(Family family, bool present) async {
@@ -124,8 +132,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
     final roster = _buildRoster();
 
     final familyMemberIds = widget.families
@@ -139,116 +146,184 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     }
     visitors.sort((a, b) => a.displayName.compareTo(b.displayName));
 
+    if (_isLoading) {
+      return _buildSkeleton(c);
+    }
+
+    // Stat counts: every displayed person (family members + visitors).
+    final displayedMembers = roster.displayMembersMap.values.toList();
+    var presentCount = 0;
+    var absentCount = 0;
+    for (final m in displayedMembers) {
+      final s = roster.getStatus(m);
+      if (s == AttendanceStatus.present) presentCount++;
+      if (s == AttendanceStatus.absent) absentCount++;
+    }
+    final totalCount = displayedMembers.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.showSearch || widget.showGroupingToggle)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (widget.showSearch)
-                  TextField(
-                    key: const Key('rosterSearchField'),
-                    controller: _searchController,
-                    onChanged: (v) =>
-                        setState(() => _query = v.trim().toLowerCase()),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: 'Search by name or family',
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerLow,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        borderSide: BorderSide.none,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.showStats)
+                Row(
+                  children: [
+                    Expanded(
+                      child: ConvStatChip(
+                        label: 'Present',
+                        value: '$presentCount',
+                        tone: ConvTone.present,
                       ),
-                      suffixIcon: _query.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _query = '');
-                              },
-                            ),
                     ),
-                  ),
-                if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      if (widget.showGroupingToggle)
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: SegmentedButton<RosterGrouping>(
-                              key: const Key('rosterGroupingToggle'),
-                              style: const ButtonStyle(
-                                side: WidgetStatePropertyAll(BorderSide.none),
-                              ),
-                              segments: const [
-                                ButtonSegment(
-                                  value: RosterGrouping.byFamily,
-                                  label: Text('By family'),
-                                  icon: Icon(Icons.groups_outlined),
-                                ),
-                                ButtonSegment(
-                                  value: RosterGrouping.byStatus,
-                                  label: Text('By status'),
-                                  icon: Icon(Icons.checklist),
-                                ),
-                              ],
-                              selected: {_grouping},
-                              onSelectionChanged: (sel) =>
-                                  setState(() => _grouping = sel.first),
-                              showSelectedIcon: false,
-                            ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ConvStatChip(
+                        label: 'Absent',
+                        value: '$absentCount',
+                        tone: ConvTone.absent,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ConvStatChip(
+                        label: 'Total',
+                        value: '$totalCount',
+                        tone: ConvTone.neutral,
+                      ),
+                    ),
+                  ],
+                ),
+              if (widget.showSearch) ...[
+                if (widget.showStats) const SizedBox(height: 12),
+                _SearchField(
+                  controller: _searchController,
+                  query: _query,
+                  onChanged: (v) =>
+                      setState(() => _query = v.trim().toLowerCase()),
+                  onClear: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
+              ],
+              if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (widget.showGroupingToggle)
+                      ConvSegmented(
+                        key: const Key('rosterGroupingToggle'),
+                        options: const [
+                          ConvSegmentOption(
+                            label: 'By family',
+                            icon: Icons.groups_outlined,
                           ),
-                        )
-                      else
-                        const Spacer(),
-                      if (widget.onMarkAll != null)
-                        PopupMenuButton<bool>(
-                          key: const Key('rosterMarkAllMenu'),
-                          tooltip: 'Mark everyone',
-                          icon: const Icon(Icons.more_vert),
-                          onSelected: (present) =>
-                              _confirmMarkAll(context, present, roster),
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              key: Key('rosterMarkAllPresent'),
-                              value: true,
-                              child: Text('Mark everyone present'),
-                            ),
-                            PopupMenuItem(
-                              key: Key('rosterMarkAllAbsent'),
-                              value: false,
-                              child: Text('Mark everyone absent'),
-                            ),
-                          ],
-                        ),
-                    ],
+                          ConvSegmentOption(
+                            label: 'By status',
+                            icon: Icons.checklist,
+                          ),
+                        ],
+                        selectedIndex: _grouping == RosterGrouping.byFamily
+                            ? 0
+                            : 1,
+                        onChanged: (i) => setState(() {
+                          _grouping = i == 0
+                              ? RosterGrouping.byFamily
+                              : RosterGrouping.byStatus;
+                        }),
+                      ),
+                    const Spacer(),
+                    if (widget.onMarkAll != null)
+                      ConvPill(
+                        key: const Key('rosterMarkAllMenu'),
+                        label: 'All',
+                        leading: const Icon(Icons.check_rounded),
+                        onTap: () => _openMarkEveryone(context, roster),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        Expanded(
+          child: _grouping == RosterGrouping.byFamily
+              ? _buildFamilyList(roster, visitors, c)
+              : _buildStatusList(roster, visitors, c),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeleton(ConvocationColors c) {
+    final disable = widget.disableAnimations;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.showStats) ...[
+            Row(
+              children: [
+                for (var i = 0; i < 3; i++) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(
+                    child: AppShimmer(
+                      width: double.infinity,
+                      height: 64,
+                      borderRadius: AppRadii.compactR,
+                      disableAnimations: disable,
+                    ),
                   ),
                 ],
               ],
             ),
+            const SizedBox(height: 12),
+          ],
+          if (widget.showSearch) ...[
+            AppShimmer(
+              width: double.infinity,
+              height: 48,
+              borderRadius: AppRadii.compactR,
+              disableAnimations: disable,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (widget.showGroupingToggle) ...[
+            AppShimmer(
+              width: double.infinity,
+              height: 40,
+              borderRadius: BorderRadius.circular(999),
+              disableAnimations: disable,
+            ),
+            const SizedBox(height: 16),
+          ],
+          Expanded(
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              itemCount: 6,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, __) => AppShimmer(
+                width: double.infinity,
+                height: 56,
+                borderRadius: AppRadii.compactR,
+                disableAnimations: disable,
+              ),
+            ),
           ),
-        Expanded(
-          child: _grouping == RosterGrouping.byFamily
-              ? _buildFamilyList(roster, visitors, colorScheme, theme)
-              : _buildStatusList(roster, visitors, colorScheme, theme),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildFamilyList(
     SessionRoster roster,
     List<Member> visitors,
-    ColorScheme colorScheme,
-    ThemeData theme,
+    ConvocationColors c,
   ) {
     final children = <Widget>[];
     final singletonMembers = <Member>[];
@@ -318,7 +393,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     if (singletonMembers.isNotEmpty) {
       singletonMembers.sort((a, b) => a.displayName.compareTo(b.displayName));
       children.add(
-        _SectionHeader(title: 'Members', color: colorScheme.primary),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: ConvSectionLabel(label: 'Members'),
+        ),
       );
       for (final m in singletonMembers) {
         children.add(
@@ -339,9 +417,12 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         .toList();
     if (visitorMatches.isNotEmpty) {
       children.add(
-        _SectionHeader(
-          title: 'Visitors / Others',
-          color: colorScheme.tertiary,
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: ConvSectionLabel(
+            label: 'Visitors / Others',
+            tone: ConvTone.absent,
+          ),
         ),
       );
       for (final m in visitorMatches) {
@@ -359,7 +440,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     }
 
     if (children.isEmpty) {
-      return _emptyState(theme, colorScheme);
+      return _emptyState(c);
     }
 
     return ListView.builder(
@@ -373,8 +454,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   Widget _buildStatusList(
     SessionRoster roster,
     List<Member> visitors,
-    ColorScheme colorScheme,
-    ThemeData theme,
+    ConvocationColors c,
   ) {
     final allDisplayed = <Member>[];
     for (final family in widget.families) {
@@ -398,7 +478,13 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
 
     final children = <Widget>[];
     children.add(
-      _SectionHeader(title: 'Marked Present', color: colorScheme.primary),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+        child: ConvSectionLabel(
+          label: 'Marked Present',
+          tone: ConvTone.present,
+        ),
+      ),
     );
     for (final m in present) {
       children.add(
@@ -413,7 +499,13 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       );
     }
     children.add(
-      _SectionHeader(title: 'Marked Absent', color: colorScheme.error),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+        child: ConvSectionLabel(
+          label: 'Marked Absent',
+          tone: ConvTone.absent,
+        ),
+      ),
     );
     for (final m in absent) {
       children.add(
@@ -429,7 +521,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     }
 
     if (present.isEmpty && absent.isEmpty) {
-      return _emptyState(theme, colorScheme);
+      return _emptyState(c);
     }
 
     return ListView.builder(
@@ -440,7 +532,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     );
   }
 
-  Widget _emptyState(ThemeData theme, ColorScheme colorScheme) {
+  Widget _emptyState(ConvocationColors c) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -448,9 +540,55 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           _query.isEmpty
               ? 'No members to show.'
               : 'No matches for "$_query".',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: AppTypography.geist(fontSize: 14, color: c.ink2),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.query,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final String query;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.cardSoft,
+        borderRadius: AppRadii.compactR,
+      ),
+      child: TextField(
+        key: const Key('rosterSearchField'),
+        controller: controller,
+        onChanged: onChanged,
+        style: AppTypography.geist(fontSize: 14, color: c.ink),
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          prefixIcon: Icon(Icons.search_rounded, color: c.ink3, size: 20),
+          hintText: 'Search by name or family',
+          hintStyle: AppTypography.geist(fontSize: 14, color: c.ink3),
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          suffixIcon: query.isEmpty
+              ? null
+              : IconButton(
+                  icon: Icon(Icons.clear_rounded, color: c.ink3, size: 18),
+                  onPressed: onClear,
+                ),
         ),
       ),
     );
@@ -479,16 +617,14 @@ class _FamilyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+    final c = context.conv;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          color: c.cardSoft,
+          borderRadius: AppRadii.compactR,
         ),
         child: Row(
           children: [
@@ -499,7 +635,7 @@ class _FamilyHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 child: Icon(
                   collapsed ? Icons.chevron_right : Icons.expand_more,
-                  color: colorScheme.onSurfaceVariant,
+                  color: c.ink2,
                 ),
               ),
             ),
@@ -513,76 +649,40 @@ class _FamilyHeader extends StatelessWidget {
                   children: [
                     Text(
                       family.displayName,
-                      style: theme.textTheme.titleSmall?.copyWith(
+                      style: AppTypography.geist(
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
+                        color: c.ink,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       '$presentCount of $totalCount present',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                      style: AppTypography.geist(
+                        fontSize: 12,
+                        color: c.ink2,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            IconButton(
+            ConvIconButton(
               key: ValueKey('familyAllPresent_${family.id}'),
-              tooltip: 'Mark all present',
-              icon: Icon(Icons.done_all, color: colorScheme.primary),
+              icon: Icons.done_all_rounded,
+              color: c.present,
               onPressed: onAllPresent,
             ),
-            IconButton(
+            ConvIconButton(
               key: ValueKey('familyAllAbsent_${family.id}'),
-              tooltip: 'Mark all absent',
-              icon: Icon(Icons.remove_done, color: colorScheme.error),
+              icon: Icons.remove_done_rounded,
+              color: c.absent,
               onPressed: onAllAbsent,
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.color});
-
-  final String title;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 14,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title.toUpperCase(),
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -606,55 +706,67 @@ class _MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
+    final tone = isPresent ? ConvTone.present : ConvTone.absent;
+    final bg = isPresent
+        ? Color.alphaBlend(c.present.withValues(alpha: 0.06), c.card)
+        : c.card;
 
     final tile = Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        color: bg,
+        borderRadius: AppRadii.compactR,
       ),
-      child: ListTile(
-        visualDensity: VisualDensity.compact,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: CircleAvatar(
-          backgroundColor: isPresent
-              ? colorScheme.primary.withValues(alpha: 0.1)
-              : colorScheme.error.withValues(alpha: 0.1),
-          child: Text(
-            member.displayName.isNotEmpty
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          ConvAvatar(
+            letter: member.displayName.isNotEmpty
                 ? member.displayName[0].toUpperCase()
                 : '?',
-            style: TextStyle(
-              color: isPresent ? colorScheme.primary : colorScheme.error,
-              fontWeight: FontWeight.bold,
+            tone: tone,
+            size: 36,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  member.displayName,
+                  style: AppTypography.geist(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: c.ink,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  member.isVisitor
+                      ? 'Visitor'
+                      : (isPresent ? 'Marked present' : 'Marked absent'),
+                  style: AppTypography.geist(
+                    fontSize: 12,
+                    color: isPresent
+                        ? c.present
+                        : (member.isVisitor ? c.ink3 : c.absent),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-        ),
-        title: Text(
-          member.displayName,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: member.isVisitor
-            ? Text(
-                'Visitor',
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              )
-            : null,
-        trailing: Transform.scale(
-          scale: 0.8,
-          child: Switch(
+          const SizedBox(width: 8),
+          ConvToggle(
             key: ValueKey('memberToggle_${member.id}_${member.displayName}'),
             value: isPresent,
             onChanged: onToggle,
-            activeColor: colorScheme.primary,
           ),
-        ),
+        ],
       ),
     );
 
@@ -678,7 +790,7 @@ class _MemberRow extends StatelessWidget {
             ? _swipeBackground(
                 context,
                 'Edit Name',
-                colorScheme.secondary,
+                c.clayDeep,
                 Icons.edit_outlined,
                 true,
               )
@@ -687,7 +799,7 @@ class _MemberRow extends StatelessWidget {
             ? _swipeBackground(
                 context,
                 'Remove',
-                colorScheme.error,
+                c.absent,
                 Icons.remove_circle_outline,
                 false,
               )
@@ -716,7 +828,7 @@ class _MemberRow extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderRadius: AppRadii.compactR,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24),
       alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,

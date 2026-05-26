@@ -534,6 +534,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       onFamilyToggle: _toggleFamilyFromList,
       onMarkAll: _markAllAttendance,
       initialGrouping: RosterGrouping.byFamily,
+      disableAnimations: widget.disableAnimations,
     );
   }
 
