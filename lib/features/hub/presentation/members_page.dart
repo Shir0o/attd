@@ -904,7 +904,7 @@ class _MembersPageState extends State<MembersPage> {
           isSelected: selectedIds.contains(m.id),
           onToggle: (v) => _toggleEventMember(m, v),
           onEdit: () => _editMember(m),
-          onDelete: () => _deleteMember(m),
+          onDelete: () => _toggleEventMember(m, false),
         ));
       }
     } else {
