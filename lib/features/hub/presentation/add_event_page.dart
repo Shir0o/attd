@@ -405,12 +405,16 @@ class _AddEventPageState extends State<AddEventPage> {
                       children: [
                         Icon(Icons.schedule, size: 18, color: c.ink2),
                         const SizedBox(width: 10),
-                        Text(
-                          _selectedTime.format(context),
-                          style: AppTypography.geistTabular(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            color: c.ink,
+                        Expanded(
+                          child: Text(
+                            _selectedTime.format(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.geistTabular(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              color: c.ink,
+                            ),
                           ),
                         ),
                       ],
