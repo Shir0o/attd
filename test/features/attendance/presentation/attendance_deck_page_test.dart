@@ -581,9 +581,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('rosterMarkAllConfirm')));
+    await tester.tap(find.byKey(const Key('markEveryonePresent')));
     await tester.pumpAndSettle();
 
     final saved = fakeRepo.savedSessions.last;

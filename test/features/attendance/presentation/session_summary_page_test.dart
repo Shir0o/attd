@@ -8,6 +8,7 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
@@ -266,7 +267,7 @@ void main() {
     expect(find.text('1'), findsAtLeastNWidgets(2)); 
     
     // Check that we have switches in the list
-    expect(find.byType(Switch), findsNWidgets(2));
+    expect(find.byType(ConvToggle), findsNWidgets(2));
   });
 
   testWidgets('SessionSummaryPage preserves historical names (Authoritative History)', (
@@ -365,8 +366,8 @@ void main() {
     // Initially Absent
     expect(find.text('Alice'), findsOneWidget);
     
-    final switchFinder = find.byType(Switch);
-    expect(tester.widget<Switch>(switchFinder).value, isFalse);
+    final switchFinder = find.byType(ConvToggle);
+    expect(tester.widget<ConvToggle>(switchFinder).value, isFalse);
 
     // Toggle via Switch to Mark Present
     await tester.tap(switchFinder);
@@ -1238,7 +1239,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(Switch));
+      await tester.tap(find.byType(ConvToggle));
       await tester.pumpAndSettle();
       // No crash; switch flipped (member moved to Present list).
       expect(find.text('Alice'), findsOneWidget);
@@ -1509,9 +1510,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('rosterMarkAllConfirm')));
+      await tester.tap(find.byKey(const Key('markEveryonePresent')));
       await tester.pumpAndSettle();
 
       final saved = await mockRepo.findSessionById('s1');

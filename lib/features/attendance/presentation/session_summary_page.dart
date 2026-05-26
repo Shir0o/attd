@@ -722,6 +722,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                         onEdit: _editMemberName,
                         onRemove: _removeMemberFromSession,
                         initialGrouping: RosterGrouping.byStatus,
+                        showStats: false,
+                        disableAnimations: widget.disableAnimations,
                       ),
                     ),
                   ],
