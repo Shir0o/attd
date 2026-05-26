@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/features/hub/presentation/members_page.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
@@ -112,7 +113,7 @@ void main() {
     mockEventRepo = MockEventRepository();
   });
 
-  testWidgets('MembersPage renders Switch instead of Checkbox in event mode', (
+  testWidgets('MembersPage renders ConvToggle in event mode', (
     WidgetTester tester,
   ) async {
     final member = Member(id: '1', displayName: 'Alice');
@@ -149,16 +150,16 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify Switch is present
-    expect(find.byType(Switch), findsOneWidget);
+    // Verify ConvToggle is present and selected
+    expect(find.byType(ConvToggle), findsOneWidget);
+    expect(find.byType(Switch), findsNothing);
     expect(find.byType(Checkbox), findsNothing);
 
-    // Verify Alice is selected
-    final switchWidget = tester.widget<Switch>(find.byType(Switch));
-    expect(switchWidget.value, isTrue);
+    final toggle = tester.widget<ConvToggle>(find.byType(ConvToggle));
+    expect(toggle.value, isTrue);
   });
 
-  testWidgets('MembersPage handles swipe right to edit', (
+  testWidgets('MembersPage opens edit dialog from the row edit icon', (
     WidgetTester tester,
   ) async {
     final member = Member(id: '1', displayName: 'Alice');
@@ -182,11 +183,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Swipe Right to Edit
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
 
-    // Verify Edit dialog
     expect(find.text('Edit Member'), findsOneWidget);
   });
 
@@ -357,7 +356,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(ConvToggle));
     await tester.pumpAndSettle();
 
     expect(mockEventRepo.updatedEvents, hasLength(1));
@@ -403,7 +402,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(ConvToggle));
     await tester.pumpAndSettle();
 
     expect(

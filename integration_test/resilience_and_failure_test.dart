@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter/material.dart';
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 
 import 'utils/test_utils.dart';
 import 'robots/hub_robot.dart';
@@ -39,17 +40,15 @@ void main() {
       print('DEBUG: Verifying Members empty state');
       await hub.tapSettings();
       await settings.tapManageMembers();
-      // Verifying by looking for the "Regular Members" header
-      await tester.pumpUntilFound(find.text('Regular Members'));
-      // The count badge should show '0'
-      final zeroFinder = find.descendant(of: find.byType(Container), matching: find.text('0'));
-      expect(zeroFinder, findsWidgets);
-      
+      // Verify the new Convocation header reports an empty roster.
+      await tester.pumpUntilFound(find.text('0 people'));
+      expect(find.text('0 families'), findsOneWidget);
+
       // 4. Search Empty State
       print('DEBUG: Verifying Search empty state');
       await members.search('NonExistentPerson');
-      // On MembersPage, if search yields nothing, count badge should show 0
-      expect(find.text('0'), findsWidgets);
+      // With no matches, no member rows (and therefore no avatars) render.
+      expect(find.byType(ConvAvatar), findsNothing);
       await members.clearSearch();
 
       // 5. Manage Backup Data Empty State

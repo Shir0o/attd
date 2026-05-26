@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/features/hub/presentation/members_page.dart';
 
 import '../utils/test_utils.dart';
@@ -63,10 +64,10 @@ class MembersRobot {
     await tester.pumpUntilFound(memberFinder);
 
     final rowFinder = find.ancestor(of: memberFinder, matching: find.byType(Row)).first;
-    final switchFinder = find.descendant(of: rowFinder, matching: find.byType(Switch));
-    
-    final switchWidget = tester.widget<Switch>(switchFinder);
-    expect(switchWidget.value, isSelected);
+    final toggleFinder = find.descendant(of: rowFinder, matching: find.byType(ConvToggle));
+
+    final toggle = tester.widget<ConvToggle>(toggleFinder);
+    expect(toggle.value, isSelected);
   }
 
   Future<void> verifyMember(String memberName) async {
