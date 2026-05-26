@@ -761,12 +761,10 @@ class _MemberRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // Keep prior Switch key to preserve test selectors.
-          KeyedSubtree(
-            key: ValueKey(
-              'memberToggle_${member.id}_${member.displayName}',
-            ),
-            child: ConvToggle(value: isPresent, onChanged: onToggle),
+          ConvToggle(
+            key: ValueKey('memberToggle_${member.id}_${member.displayName}'),
+            value: isPresent,
+            onChanged: onToggle,
           ),
         ],
       ),

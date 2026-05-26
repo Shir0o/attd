@@ -21,23 +21,19 @@ class MarkEveryoneSheet {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (ctx) => const _Sheet(),
-      routeSettings: RouteSettings(
-        arguments: {'memberCount': memberCount},
-      ),
+      builder: (ctx) => _Sheet(memberCount: memberCount),
     );
   }
 }
 
 class _Sheet extends StatelessWidget {
-  const _Sheet();
+  const _Sheet({required this.memberCount});
+
+  final int memberCount;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final args =
-        (ModalRoute.of(context)?.settings.arguments as Map?) ?? const {};
-    final memberCount = (args['memberCount'] as int?) ?? 0;
     final noun = memberCount == 1 ? 'member' : 'members';
 
     return Container(
