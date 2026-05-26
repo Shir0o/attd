@@ -141,6 +141,8 @@ void main() {
 
     await tester.tap(find.text('Add Member'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Create New Member'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '  Alice Smith  ');
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await tester.pumpAndSettle();
@@ -170,6 +172,8 @@ void main() {
 
     await tester.tap(find.text('Add Member'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Create New Member'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
@@ -193,6 +197,8 @@ void main() {
     );
 
     await tester.tap(find.text('Add Member'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create New Member'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Alice Smith');
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));

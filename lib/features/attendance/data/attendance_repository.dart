@@ -38,6 +38,9 @@ abstract class AttendanceRepository {
 
   /// Permanently removes items that were marked as deleted before [threshold].
   Future<void> pruneSoftDeleted(DateTime threshold);
+
+  /// Soft-deletes a family and unassociates all its members into auto-singletons.
+  Future<void> deleteFamily(String familyId) => throw UnimplementedError();
 }
 
 class LocalJsonAttendanceRepository extends AttendanceRepository {
@@ -276,6 +279,36 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     );
     await saveFamilies([...stripped, singleton]);
     return singleton;
+  }
+
+  @override
+  Future<void> deleteFamily(String familyId) async {
+    final families = await _loadRawFamilies();
+    final now = DateTime.now();
+    final updated = <Family>[];
+    final detachedSingletons = <Family>[];
+
+    for (final family in families) {
+      if (family.id == familyId) {
+        updated.add(family.copyWith(
+          deletedAt: now,
+          updatedAt: now,
+        ));
+        for (final member in family.members) {
+          if (member.deletedAt != null) continue;
+          detachedSingletons.add(Family(
+            id: const Uuid().v4(),
+            displayName: member.displayName,
+            members: [member.copyWith(updatedAt: now)],
+            updatedAt: now,
+            isAutoSingleton: true,
+          ));
+        }
+      } else {
+        updated.add(family);
+      }
+    }
+    await saveFamilies([...updated, ...detachedSingletons]);
   }
 
   @override

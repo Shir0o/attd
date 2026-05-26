@@ -118,10 +118,6 @@ class _FamilyListPageState extends State<FamilyListPage> {
 
           final families = snapshot.data ?? [];
 
-          if (families.isEmpty) {
-            return const Center(child: Text('No families found. Add one!'));
-          }
-
           final ungroupedMembers = _collectUngrouped(families);
           final realFamilies =
               families.where((f) => !f.isAutoSingleton).toList();
@@ -130,9 +126,23 @@ class _FamilyListPageState extends State<FamilyListPage> {
             (sum, f) => sum + f.members.length,
           );
 
+          final memberToFamilies = <String, List<String>>{};
+          for (final f in realFamilies) {
+            for (final m in f.members) {
+              memberToFamilies.putIfAbsent(m.displayName, () => []).add(f.displayName);
+            }
+          }
+          final duplicateMembers = Map.fromEntries(
+            memberToFamilies.entries.where((e) => e.value.length > 1),
+          );
+
           return ListView(
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 90),
             children: [
+              if (duplicateMembers.isNotEmpty) ...[
+                _DuplicateMembersBanner(duplicateMembers: duplicateMembers),
+                const SizedBox(height: 12),
+              ],
               if (ungroupedMembers.isNotEmpty) ...[
                 _SuggestionBanner(
                   count: _estimateClusters(ungroupedMembers),
@@ -140,6 +150,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
                   totalMembers: memberCount,
                   onReview: () => _openSuggestions(ungroupedMembers),
                 ),
+                const SizedBox(height: 12),
+                _SoloMembersBanner(soloMembers: ungroupedMembers),
                 const SizedBox(height: 12),
               ],
               Row(
@@ -170,13 +182,24 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 ],
               ),
               const SizedBox(height: 14),
-              for (final family in families) ...[
-                _FamilyCard(
-                  family: family,
-                  onTap: () => _openFamily(family),
-                ),
-                const SizedBox(height: 14),
-              ],
+              if (realFamilies.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text(
+                      'No families found. Add one!',
+                      style: TextStyle(color: c.ink3, fontSize: 16),
+                    ),
+                  ),
+                )
+              else
+                for (final family in realFamilies) ...[
+                  _FamilyCard(
+                    family: family,
+                    onTap: () => _openFamily(family),
+                  ),
+                  const SizedBox(height: 14),
+                ],
             ],
           );
         },
@@ -437,3 +460,147 @@ class _MemberChip extends StatelessWidget {
     );
   }
 }
+
+class _SoloMembersBanner extends StatelessWidget {
+  const _SoloMembersBanner({
+    required this.soloMembers,
+  });
+
+  final List<Member> soloMembers;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(c.primary.withValues(alpha: 0.05), c.bg),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.ink.withValues(alpha: 0.08), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_outline, color: c.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Solo Members (${soloMembers.length})',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: c.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final m in soloMembers)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: c.cardSoft,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    m.displayName,
+                    style: TextStyle(fontSize: 12, color: c.ink2),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DuplicateMembersBanner extends StatelessWidget {
+  const _DuplicateMembersBanner({
+    required this.duplicateMembers,
+  });
+
+  final Map<String, List<String>> duplicateMembers;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(c.absent.withValues(alpha: 0.10), c.bg),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: c.absent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Duplicate Members Detected',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: c.absent,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Some members are assigned to multiple families:',
+                      style: TextStyle(fontSize: 12, color: c.ink2),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (final entry in duplicateMembers.entries) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 48, bottom: 4),
+              child: RichText(
+                text: TextSpan(
+                  style: TextStyle(fontSize: 13, color: c.ink),
+                  children: [
+                    TextSpan(
+                      text: entry.key,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(
+                      text: ' is in: ',
+                      style: TextStyle(color: c.ink2),
+                    ),
+                    TextSpan(
+                      text: entry.value.join(' and '),
+                      style: TextStyle(color: c.primary, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+

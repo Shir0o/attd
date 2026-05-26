@@ -79,24 +79,127 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
     return suggestions;
   }
 
-  Future<void> _addMember() async {
-    final name = await _promptName('Add Member', 'Member Name');
-    if (name == null) return;
-    final member = Member(
-      id: 'member-${const Uuid().v4()}',
-      displayName: name,
-      isVisitor: false,
-      defaultStatus: AttendanceStatus.absent,
+  List<Member> _getUnaffiliatedMembers() {
+    return [
+      for (final f in _allFamilies)
+        if (f.isAutoSingleton) ...f.members,
+    ];
+  }
+
+  Future<void> _addExistingMember() async {
+    final solo = _getUnaffiliatedMembers();
+    if (solo.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No solo members'),
+          content: const Text('There are no unaffiliated solo members in the system.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final selected = await showDialog<Member>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Select Member'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: solo.length,
+              itemBuilder: (context, idx) {
+                final m = solo[idx];
+                return ListTile(
+                  leading: CircleAvatar(
+                    child: Text(m.displayName.characters.first.toUpperCase()),
+                  ),
+                  title: Text(m.displayName),
+                  onTap: () => Navigator.of(ctx).pop(m),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (selected == null) return;
     try {
-      final updated = await widget.repository.addMember(_family.id, member);
-      if (mounted) setState(() => _family = updated);
+      await widget.repository.moveMemberToFamily(selected.id, _family.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Added ${selected.displayName} to ${_family.displayName}')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error adding member: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _addMember() async {
+    final option = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        final c = context.conv;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.person_add_alt_1_outlined, color: c.primary),
+                title: const Text('Create New Member'),
+                onTap: () => Navigator.of(ctx).pop('new'),
+              ),
+              ListTile(
+                leading: Icon(Icons.people_outline, color: c.primary),
+                title: const Text('Add Existing Member'),
+                onTap: () => Navigator.of(ctx).pop('existing'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (option == 'new') {
+      final name = await _promptName('Add Member', 'Member Name');
+      if (name == null) return;
+      final member = Member(
+        id: 'member-${const Uuid().v4()}',
+        displayName: name,
+        isVisitor: false,
+        defaultStatus: AttendanceStatus.absent,
+      );
+      try {
+        final updated = await widget.repository.addMember(_family.id, member);
+        if (mounted) setState(() => _family = updated);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error adding member: $e')),
+          );
+        }
+      }
+    } else if (option == 'existing') {
+      await _addExistingMember();
     }
   }
 
@@ -182,6 +285,45 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
     ).then((result) => (result == null || result.isEmpty) ? null : result);
   }
 
+  Future<void> _deleteFamily() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Family?'),
+        content: Text(
+          'This will delete the family "${_family.displayName}" and unassociate all its members. The members will NOT be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await widget.repository.deleteFamily(_family.id);
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting family: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final suggestions = _suggestedMembers();
@@ -194,6 +336,13 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
         elevation: 0,
         title: Text('Edit family', style: AppTypography.eyebrow(color: c.ink3)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: c.absent),
+            tooltip: 'Delete Family',
+            onPressed: _deleteFamily,
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(22, 10, 22, 100),
