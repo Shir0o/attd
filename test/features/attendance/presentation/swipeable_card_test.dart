@@ -75,6 +75,43 @@ void main() {
     expect(swipedRight, isFalse);
   });
 
+  testWidgets('SwipeableCard.childBuilder receives drag progress', (
+    WidgetTester tester,
+  ) async {
+    SwipeProgress? lastProgress;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SwipeableCard(
+            childBuilder: (ctx, p) {
+              lastProgress = p;
+              return Container(
+                width: 300,
+                height: 400,
+                color: Colors.blue,
+                key: const Key('card'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('card'))),
+    );
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+
+    expect(lastProgress, isNotNull);
+    expect(lastProgress!.rightProgress, closeTo(0.5, 0.01));
+    expect(lastProgress!.leftProgress, 0.0);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('SwipeableCard snaps back when drag is insufficient', (
     WidgetTester tester,
   ) async {

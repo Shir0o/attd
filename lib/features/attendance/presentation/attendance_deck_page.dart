@@ -2,7 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/design/app_radii.dart';
+import '../../../../core/design/app_shadows.dart';
 import '../../../../core/design/app_shimmer.dart';
+import '../../../../core/design/app_typography.dart';
+import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
@@ -420,7 +424,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             Expanded(
               child: _isListMode
                   ? _buildListBody()
-                  : _buildDeckBody(theme, colorScheme),
+                  : _buildDeckBody(colorScheme),
             ),
             if (!_isListMode) _buildDeckFooter(colorScheme),
           ],
@@ -602,7 +606,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
-  Widget _buildDeckBody(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildDeckBody(ColorScheme colorScheme) {
     if (_currentIndex >= widget.members.length) {
       return Center(
         child: Column(
@@ -623,6 +627,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final family = _familyForMember(currentMember);
     final showFamilyContext =
         family != null && family.id != '_synthetic_all';
+    final familyCaption = showFamilyContext ? family.displayName : 'Loner';
+    final c = context.conv;
 
     return Center(
       child: ConstrainedBox(
@@ -645,17 +651,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         scale: 0.9,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainer.withValues(
-                              alpha: 0.4,
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 3,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
+                            color: c.cardSoft.withValues(alpha: 0.55),
+                            borderRadius: AppRadii.cardR,
                           ),
                         ),
                       ),
@@ -668,17 +665,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         scale: 0.95,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainer.withValues(
-                              alpha: 0.7,
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 3,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
+                            color: c.cardSoft,
+                            borderRadius: AppRadii.cardR,
                           ),
                         ),
                       ),
@@ -691,128 +679,24 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             ? Duration.zero
                             : const Duration(milliseconds: 600),
                         child: _isLoading
-                            ? Container(
+                            ? _DeckSkeleton(
                                 key: const ValueKey('skeleton'),
-                                width: double.infinity,
-                                height: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surfaceContainer.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                child: Center(
-                                  child: AppShimmer(
-                                    width: 96,
-                                    height: 96,
-                                    borderRadius: BorderRadius.circular(48),
-                                    disableAnimations: widget.disableAnimations,
-                                  ),
-                                ),
+                                disableAnimations: widget.disableAnimations,
                               )
                             : SwipeableCard(
                                 key: ValueKey(currentMember.id),
-                                rightSwipeColor: colorScheme.primary,
-                                leftSwipeColor: colorScheme.error,
+                                rightSwipeColor: c.present,
+                                leftSwipeColor: c.absent,
                                 onSwipeLeft: () => _processAttendance(
                                   AttendanceStatus.absent,
                                 ),
                                 onSwipeRight: () => _processAttendance(
                                   AttendanceStatus.present,
                                 ),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 3,
-                                        offset: Offset(0, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Flexible(
-                                            child: Container(
-                                              width: 96,
-                                              height: 96,
-                                              constraints: const BoxConstraints(
-                                                minWidth: 48,
-                                                minHeight: 48,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: colorScheme
-                                                    .surfaceContainerHigh,
-                                                shape: BoxShape.circle,
-                                                boxShadow: const [
-                                                  BoxShadow(
-                                                    color: Colors.black12,
-                                                    blurRadius: 2,
-                                                    offset: Offset(0, 1),
-                                                  ),
-                                                ],
-                                              ),
-                                              clipBehavior: Clip.antiAlias,
-                                              child: Center(
-                                                child: Text(
-                                                  currentMember
-                                                          .displayName
-                                                          .isNotEmpty
-                                                      ? currentMember
-                                                            .displayName[0]
-                                                            .toUpperCase()
-                                                      : '?',
-                                                  style: TextStyle(
-                                                    fontSize: 32,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: colorScheme.primary,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 24),
-                                          Text(
-                                            currentMember.displayName,
-                                            style: theme
-                                                .textTheme
-                                                .displaySmall
-                                                ?.copyWith(
-                                                  color: colorScheme.onSurface,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (showFamilyContext) ...[
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              family.displayName,
-                                              style: theme.textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                    color: colorScheme
-                                                        .onSurfaceVariant,
-                                                  ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                                childBuilder: (ctx, p) => _DeckCard(
+                                  member: currentMember,
+                                  familyCaption: familyCaption,
+                                  progress: p,
                                 ),
                               ),
                       ),
@@ -898,6 +782,151 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DeckCard extends StatelessWidget {
+  const _DeckCard({
+    required this.member,
+    required this.familyCaption,
+    required this.progress,
+  });
+
+  final Member member;
+  final String familyCaption;
+  final SwipeProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final tone = progress.rightProgress >= 0.5
+        ? ConvTone.present
+        : progress.leftProgress >= 0.5
+            ? ConvTone.absent
+            : ConvTone.neutral;
+    final initial = member.displayName.isNotEmpty
+        ? member.displayName[0].toUpperCase()
+        : '?';
+
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: AppRadii.cardR,
+        boxShadow: AppShadows.card,
+      ),
+      child: Stack(
+        children: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ConvAvatar(letter: initial, size: 88, tone: tone),
+                    const SizedBox(height: 20),
+                    Text(
+                      member.displayName,
+                      style: AppTypography.fraunces(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w500,
+                        color: c.ink,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      familyCaption.toUpperCase(),
+                      style: AppTypography.eyebrow(color: c.ink3),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 28,
+            right: 28,
+            child: Opacity(
+              opacity: progress.rightProgress,
+              child: const ConvStamp(
+                label: 'Present',
+                tone: ConvTone.present,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 28,
+            left: 28,
+            child: Opacity(
+              opacity: progress.leftProgress,
+              child: const ConvStamp(
+                label: 'Absent',
+                tone: ConvTone.absent,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeckSkeleton extends StatelessWidget {
+  const _DeckSkeleton({super.key, required this.disableAnimations});
+
+  final bool disableAnimations;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: AppRadii.cardR,
+        boxShadow: AppShadows.card,
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppShimmer(
+              width: 88,
+              height: 88,
+              borderRadius: BorderRadius.circular(44),
+              disableAnimations: disableAnimations,
+            ),
+            const SizedBox(height: 20),
+            AppShimmer(
+              width: 180,
+              height: 28,
+              borderRadius: BorderRadius.circular(6),
+              disableAnimations: disableAnimations,
+            ),
+            const SizedBox(height: 8),
+            AppShimmer(
+              width: 110,
+              height: 12,
+              borderRadius: BorderRadius.circular(4),
+              disableAnimations: disableAnimations,
+            ),
+          ],
+        ),
       ),
     );
   }
