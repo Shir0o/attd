@@ -223,7 +223,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
         }
       }
       return family.copyWith(members: remaining, updatedAt: now);
-    }).where((f) => !f.isAutoSingleton || f.members.isNotEmpty).toList();
+    }).where((f) => f.id == targetFamilyId || !f.isAutoSingleton || f.members.isNotEmpty).toList();
     if (moving == null) {
       throw StateError('Member $memberId not found in any family');
     }

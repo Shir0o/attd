@@ -268,6 +268,21 @@ void main() {
       expect(source.members, isEmpty);
     });
 
+    test('moveMemberToFamily does not prune target auto-singleton family when member is moved to the family they are already in', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final singleton =
+          await repo.addFamily('Alice Smith', isAutoSingleton: true);
+      await repo.addMember(
+        singleton.id,
+        Member(id: 'm1', displayName: 'Alice Smith'),
+      );
+      final updated = await repo.moveMemberToFamily('m1', singleton.id);
+      expect(updated.members.single.id, 'm1');
+      expect(updated.isAutoSingleton, isTrue);
+      final all = await repo.fetchFamilies();
+      expect(all.any((f) => f.id == singleton.id), isTrue);
+    });
+
     test('moveMemberToFamily throws when member is not found', () async {
       final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
       final fam = await repo.addFamily('Smith');
