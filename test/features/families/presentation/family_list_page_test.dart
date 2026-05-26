@@ -308,4 +308,37 @@ void main() {
     expect(mockRepo.fetchCount, greaterThanOrEqualTo(2));
     expect(mockRepo.addedFamilyName, 'Smith');
   });
+
+  testWidgets(
+    'FamilyListPage surfaces suggestion banner for single-member families where isAutoSingleton is false',
+    (tester) async {
+      final mockRepo = MockAttendanceRepository();
+      mockRepo.setFamilies([
+        Family(
+          id: 'manual-1',
+          displayName: 'Alice Smith',
+          isAutoSingleton: false,
+          members: [Member(id: 'm1', displayName: 'Alice Smith')],
+        ),
+        Family(
+          id: 'manual-2',
+          displayName: 'Bob Smith',
+          isAutoSingleton: false,
+          members: [Member(id: 'm2', displayName: 'Bob Smith')],
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FamilyListPage(
+            repository: mockRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('possible families spotted'), findsOneWidget);
+    },
+  );
 }

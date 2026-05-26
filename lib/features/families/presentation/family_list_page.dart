@@ -191,7 +191,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
   List<Member> _collectUngrouped(List<Family> families) {
     return [
       for (final f in families)
-        if (f.isAutoSingleton) ...f.members,
+        if (f.isAutoSingleton || f.members.length <= 1) ...f.members,
     ];
   }
 

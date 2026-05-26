@@ -64,9 +64,9 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
     final currentMemberIds = _family.members.map((m) => m.id).toSet();
     final suggestions = <Member>[];
     for (final f in _allFamilies) {
-      // Suggest only from auto-created singletons — these are members with no
-      // real family yet. Members of other named families are off-limits.
-      if (!f.isAutoSingleton) continue;
+      // Suggest from auto-created singletons or any family with 1 or fewer members —
+      // these are members with no real family group yet.
+      if (!f.isAutoSingleton && f.members.length > 1) continue;
       for (final m in f.members) {
         if (m.deletedAt != null) continue;
         if (currentMemberIds.contains(m.id)) continue;
