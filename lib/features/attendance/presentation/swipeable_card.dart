@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+class SwipeProgress {
+  const SwipeProgress({
+    required this.dx,
+    required this.rightProgress,
+    required this.leftProgress,
+  });
+
+  final double dx;
+  final double rightProgress;
+  final double leftProgress;
+}
+
 class SwipeableCard extends StatefulWidget {
-  final Widget child;
+  final Widget? child;
+  final Widget Function(BuildContext, SwipeProgress)? childBuilder;
   final VoidCallback? onSwipeLeft;
   final VoidCallback? onSwipeRight;
   final double threshold;
@@ -11,13 +24,15 @@ class SwipeableCard extends StatefulWidget {
 
   const SwipeableCard({
     super.key,
-    required this.child,
+    this.child,
+    this.childBuilder,
     this.onSwipeLeft,
     this.onSwipeRight,
     this.threshold = 100.0,
     this.rightSwipeColor,
     this.leftSwipeColor,
-  });
+  }) : assert(child != null || childBuilder != null,
+            'Provide either child or childBuilder');
 
   @override
   State<SwipeableCard> createState() => _SwipeableCardState();
@@ -31,12 +46,10 @@ class _SwipeableCardState extends State<SwipeableCard>
   bool _isDragging = false;
   Size _screenSize = Size.zero;
 
-  // Animation values driven by default controller or transient tweens
   Animation<Offset>? _slideAnimation;
   Animation<double>? _rotateAnimation;
 
-  // Visual feedback settings
-  static const double _rotationFactor = 0.05; // Degrees per pixel of drag
+  static const double _rotationFactor = 0.05;
   static const Duration _snapDuration = Duration(milliseconds: 300);
 
   @override
@@ -44,17 +57,13 @@ class _SwipeableCardState extends State<SwipeableCard>
     super.initState();
     _controller = AnimationController(vsync: this, duration: _snapDuration)
       ..addListener(() {
-        setState(() {
-          // This triggers rebuild to show animation values
-        });
+        setState(() {});
       });
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        // Sync state when animation finishes
         if (_slideAnimation != null) _dragOffset = _slideAnimation!.value;
         if (_rotateAnimation != null) _rotation = _rotateAnimation!.value;
-        // Reset animations so we go back to manual drag mode (though offset might be non-zero if dismissed)
         _slideAnimation = null;
         _rotateAnimation = null;
         _controller.reset();
@@ -77,8 +86,6 @@ class _SwipeableCardState extends State<SwipeableCard>
   void _onPanStart(DragStartDetails details) {
     if (_controller.isAnimating) {
       _controller.stop();
-      // Sync state/capture current value
-      // Note: _slideAnimation might be null if we stopped before it started? Unlikely if isAnimating.
       if (_slideAnimation != null) _dragOffset = _slideAnimation!.value;
       if (_rotateAnimation != null) _rotation = _rotateAnimation!.value;
     }
@@ -90,7 +97,6 @@ class _SwipeableCardState extends State<SwipeableCard>
   void _onPanUpdate(DragUpdateDetails details) {
     setState(() {
       _dragOffset += details.delta;
-      // Rotate based on x movement, slightly modulated by y
       _rotation = _dragOffset.dx * _rotationFactor * (pi / 180);
     });
   }
@@ -103,8 +109,6 @@ class _SwipeableCardState extends State<SwipeableCard>
     final velocity = details.velocity.pixelsPerSecond.dx;
     final x = _dragOffset.dx;
 
-    // Check if we should dismiss or snap back
-    // Dismiss if dragged past threshold OR flung fast enough
     if (x > widget.threshold || (x > 0 && velocity > 1000)) {
       _animateToDismiss(direction: 1);
     } else if (x < -widget.threshold || (x < 0 && velocity < -1000)) {
@@ -129,13 +133,10 @@ class _SwipeableCardState extends State<SwipeableCard>
   }
 
   void _animateToDismiss({required int direction}) {
-    // direction: 1 for right, -1 for left
     final endX = direction * _screenSize.width * 1.5;
-    final endY =
-        _dragOffset.dy + (_dragOffset.dy * 0.5); // Continue 'drift' in y
+    final endY = _dragOffset.dy + (_dragOffset.dy * 0.5);
     final endOffset = Offset(endX, endY);
 
-    // Continue rotating slightly
     final endRotation = _rotation + (direction * 20 * (pi / 180));
 
     _slideAnimation = Tween<Offset>(
@@ -148,9 +149,6 @@ class _SwipeableCardState extends State<SwipeableCard>
       end: endRotation,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    // We can use a clean listener for the callback to avoid complex state
-    // But since we are using the main controller, we need to be careful.
-    // Let's use `whenComplete` on the forward future.
     _controller.forward(from: 0.0).then((_) {
       if (direction == 1) {
         widget.onSwipeRight?.call();
@@ -170,6 +168,19 @@ class _SwipeableCardState extends State<SwipeableCard>
         ? _rotateAnimation!.value
         : _rotation;
 
+    final dx = offset.dx;
+    final rightProgress = (dx / 80).clamp(0.0, 1.0);
+    final leftProgress = (-dx / 80).clamp(0.0, 1.0);
+    final progress = SwipeProgress(
+      dx: dx,
+      rightProgress: rightProgress,
+      leftProgress: leftProgress,
+    );
+
+    final body = widget.childBuilder != null
+        ? widget.childBuilder!(context, progress)
+        : widget.child!;
+
     return GestureDetector(
       onPanStart: _onPanStart,
       onPanUpdate: _onPanUpdate,
@@ -181,22 +192,21 @@ class _SwipeableCardState extends State<SwipeableCard>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              widget.child,
-              // Visual Overlay for swipe direction
-              if ((_isDragging || _controller.isAnimating) && offset.dx != 0)
+              body,
+              if ((_isDragging || _controller.isAnimating) && dx != 0)
                 Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        16,
-                      ), // Match card radius
-                      color: offset.dx > 0
-                          ? (widget.rightSwipeColor ?? Colors.green).withValues(
-                              alpha: min(0.3, offset.dx.abs() / 400),
-                            )
-                          : (widget.leftSwipeColor ?? Colors.red).withValues(
-                              alpha: min(0.3, offset.dx.abs() / 400),
-                            ),
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: dx > 0
+                            ? (widget.rightSwipeColor ?? Colors.green)
+                                .withValues(
+                                    alpha: min(0.18, dx.abs() / 500))
+                            : (widget.leftSwipeColor ?? Colors.red)
+                                .withValues(
+                                    alpha: min(0.18, dx.abs() / 500)),
+                      ),
                     ),
                   ),
                 ),

@@ -511,8 +511,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Family name visible on the card.
-    expect(find.text('The Family'), findsOneWidget);
+    // Family name visible on the card (rendered as uppercase eyebrow).
+    expect(find.text('THE FAMILY'), findsOneWidget);
 
     // The "mark family present" button is shown for multi-member families.
     expect(find.byKey(const Key('markFamilyPresentButton')), findsOneWidget);
