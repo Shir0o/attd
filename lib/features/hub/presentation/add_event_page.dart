@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_typography.dart';
+import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session_repository.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -34,14 +36,14 @@ class _AddEventPageState extends State<AddEventPage> {
   bool _isLoading = true;
   final List<String> _linkedSessions = [];
 
-  final List<String> _frequencies = [
+  static const List<String> _frequencies = [
     'One-time',
     'Weekly',
     'Bi-weekly',
     'Monthly',
   ];
 
-  final List<String> _daysOfWeek = [
+  static const List<String> _daysOfWeek = [
     'Sunday',
     'Monday',
     'Tuesday',
@@ -51,20 +53,21 @@ class _AddEventPageState extends State<AddEventPage> {
     'Saturday',
   ];
 
+  // S M T W T F S — matches JSX ordering of _daysOfWeek above.
+  static const List<String> _dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
   @override
   void initState() {
     super.initState();
     final event = widget.eventToEdit;
 
     if (event != null) {
-      // Editing existing event
       _nameController = TextEditingController(text: event.title);
       _selectedTime = event.time;
       _frequency = event.frequency;
       _selectedDate = event.oneTimeDate ?? DateTime.now();
       _selectedDays = event.repeatingDays.toSet();
     } else {
-      // Creating new event
       _nameController = TextEditingController();
       _selectedTime = const TimeOfDay(hour: 10, minute: 0);
       _frequency = 'Weekly';
@@ -72,7 +75,6 @@ class _AddEventPageState extends State<AddEventPage> {
       _selectedDate = DateTime(now.year, now.month, now.day);
       _selectedDays = {};
 
-      // Set default day(s) to current day
       int index = now.weekday == 7 ? 0 : now.weekday;
       if (index >= 0 && index < _daysOfWeek.length) {
         _selectedDays.add(_daysOfWeek[index]);
@@ -104,7 +106,6 @@ class _AddEventPageState extends State<AddEventPage> {
       }
     }
 
-    // Ensure minimum loading duration for visual consistency
     final elapsed = DateTime.now().difference(startTime);
     final remaining = const Duration(milliseconds: 800) - elapsed;
     if (remaining > Duration.zero && !widget.disableAnimations) {
@@ -128,9 +129,7 @@ class _AddEventPageState extends State<AddEventPage> {
       initialTime: _selectedTime,
     );
     if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
+      setState(() => _selectedTime = picked);
     }
   }
 
@@ -142,9 +141,65 @@ class _AddEventPageState extends State<AddEventPage> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  Future<void> _selectFrequency(BuildContext context) async {
+    final c = context.conv;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: c.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: c.ink4,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConvEyebrow('Frequency'),
+                ),
+              ),
+              for (final option in _frequencies)
+                ListTile(
+                  title: Text(
+                    option,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: option == _frequency
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: option == _frequency ? c.primary : c.ink,
+                    ),
+                  ),
+                  trailing: option == _frequency
+                      ? Icon(Icons.check, color: c.primary)
+                      : null,
+                  onTap: () => Navigator.of(ctx).pop(option),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked != null && picked != _frequency) {
+      setState(() => _frequency = picked);
     }
   }
 
@@ -177,9 +232,9 @@ class _AddEventPageState extends State<AddEventPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error saving event: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error saving event: $e')),
+          );
         }
       }
     }
@@ -191,16 +246,21 @@ class _AddEventPageState extends State<AddEventPage> {
 
     String warningText = '';
     if (_linkedSessions.isNotEmpty) {
-      final sessionListText = _linkedSessions.take(5).join(', ') + 
-          (_linkedSessions.length > 5 ? ' and ${_linkedSessions.length - 5} more' : '');
-      warningText = '\n\nWARNING: This event is linked to ${_linkedSessions.length} past session reports: $sessionListText.\n\nDeleting this event will NOT delete the past reports, but they will no longer be grouped under this event history.';
+      final sessionListText = _linkedSessions.take(5).join(', ') +
+          (_linkedSessions.length > 5
+              ? ' and ${_linkedSessions.length - 5} more'
+              : '');
+      warningText =
+          '\n\nWARNING: This event is linked to ${_linkedSessions.length} past session reports: $sessionListText.\n\nDeleting this event will NOT delete the past reports, but they will no longer be grouped under this event history.';
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Event'),
-        content: Text('Are you sure you want to delete "${event.title}"?$warningText'),
+        content: Text(
+          'Are you sure you want to delete "${event.title}"?$warningText',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -226,9 +286,9 @@ class _AddEventPageState extends State<AddEventPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error deleting event: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting event: $e')),
+          );
         }
       }
     }
@@ -236,367 +296,397 @@ class _AddEventPageState extends State<AddEventPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
+    final c = context.conv;
     final isEditing = widget.eventToEdit != null;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.close, color: colorScheme.onSurface),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          isEditing ? 'Edit Event' : 'New Event',
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontSize: 24,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        actions: [
-          if (isEditing)
-            IconButton(
-              icon: Icon(Icons.delete_outline, color: colorScheme.error),
-              onPressed: _deleteEvent,
-              tooltip: 'Delete Event',
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: RepaintBoundary(
-            child: AnimatedSwitcher(
-              duration: widget.disableAnimations
-                  ? Duration.zero
-                  : const Duration(milliseconds: 600),
-              child: Column(
-                key: ValueKey(_isLoading),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Event Name
-                  _isLoading
-                      ? _buildSkeletonInput()
-                      : TextFormField(
-                          controller: _nameController,
-                          textCapitalization: TextCapitalization.sentences,
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: colorScheme.onSurface,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Event Name',
-                            labelStyle: TextStyle(
-                              color: colorScheme.onSurface.withAlpha(179),
-                              fontWeight: FontWeight.w500,
-                            ),
-                            filled: true,
-                            fillColor: colorScheme.surfaceContainerLow,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding:
-                                const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter an event name';
-                            }
-                            return null;
-                          },
-                        ),
-                  const SizedBox(height: 20),
-
-                  // Event Time
-                  _isLoading
-                      ? _buildSkeletonInput()
-                      : GestureDetector(
-                          onTap: () => _selectTime(context),
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Event Time',
-                              labelStyle: TextStyle(
-                                color: colorScheme.onSurface.withAlpha(179),
-                                fontWeight: FontWeight.w500,
-                              ),
-                              filled: true,
-                              fillColor: colorScheme.surfaceContainerLow,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding:
-                                  const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _selectedTime.format(context),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.schedule,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                  const SizedBox(height: 20),
-
-                  // Frequency
-                  _isLoading
-                      ? _buildSkeletonInput()
-                      : InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Frequency',
-                            labelStyle: TextStyle(
-                              color: colorScheme.onSurface.withAlpha(179),
-                              fontWeight: FontWeight.w500,
-                            ),
-                            filled: true,
-                            fillColor: colorScheme.surfaceContainerLow,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding:
-                                const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _frequency,
-                              isExpanded: true,
-                              icon: Icon(
-                                Icons.arrow_drop_down,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: colorScheme.onSurface,
-                              ),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _frequency = newValue;
-                                  });
-                                }
-                              },
-                              items: _frequencies.map<DropdownMenuItem<String>>(
-                                (String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                },
-                              ).toList(),
-                            ),
-                          ),
-                        ),
-
-                  const SizedBox(height: 20),
-
-                  // Day / Date
-                  if (_isLoading)
-                    _buildSkeletonInput()
-                  else if (_frequency == 'One-time')
-                    GestureDetector(
-                      onTap: () => _selectDate(context),
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: 'Date',
-                          labelStyle: TextStyle(
-                            color: colorScheme.onSurface.withAlpha(179),
-                            fontWeight: FontWeight.w500,
-                          ),
-                          filled: true,
-                          fillColor: colorScheme.surfaceContainerLow,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                              const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                DateFormat('yyyy-MM-dd').format(_selectedDate),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.calendar_today,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16, bottom: 12),
-                          child: Text(
-                            'Repeats on',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        Wrap(
-                          alignment: WrapAlignment.spaceEvenly,
-                          spacing: 8.0,
-                          runSpacing: 12.0,
-                          children: List.generate(_daysOfWeek.length, (index) {
-                            final dayName = _daysOfWeek[index];
-                            final isSelected = _selectedDays.contains(dayName);
-                            final label = dayName.substring(0, 1);
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    _selectedDays.remove(dayName);
-                                  } else {
-                                    _selectedDays.add(dayName);
-                                  }
-                                });
-                              },
-                              child: Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isSelected
-                                      ? colorScheme.primary
-                                      : colorScheme.surfaceContainerLow,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    label,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? colorScheme.onPrimary
-                                          : colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: widget.disableAnimations 
-                ? ElevatedButton(
-                    key: const ValueKey('save_event_button'),
-                    onPressed: _saveEvent,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      elevation: 1,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    child: Text(
-                      isEditing ? 'Save Changes' : 'Create Event',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.1,
-                      ),
-                    ),
-                  )
-                : Hero(
-                    tag: 'fab',
-                    child: ElevatedButton(
-                      key: const ValueKey('save_event_button'),
-                      onPressed: _saveEvent,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                      ),
-                      child: Text(
-                        isEditing ? 'Save Changes' : 'Create Event',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                    ),
+      backgroundColor: c.bg,
+      body: SafeArea(
+        bottom: false,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(context, isEditing: isEditing),
+              Expanded(
+                child: RepaintBoundary(
+                  child: AnimatedSwitcher(
+                    duration: widget.disableAnimations
+                        ? Duration.zero
+                        : const Duration(milliseconds: 600),
+                    child: _isLoading
+                        ? _buildSkeleton()
+                        : _buildContent(context, isEditing: isEditing),
                   ),
+                ),
+              ),
+              _buildBottomButton(context, isEditing: isEditing),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSkeletonInput() {
-    return AppShimmer(
+  Widget _buildHeader(BuildContext context, {required bool isEditing}) {
+    final c = context.conv;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+      child: Row(
+        children: [
+          ConvIconButton(
+            icon: Icons.close,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          Expanded(
+            child: Center(
+              child: ConvEyebrow(isEditing ? 'Edit event' : 'New event'),
+            ),
+          ),
+          if (isEditing)
+            ConvIconButton(
+              icon: Icons.delete_outline,
+              color: c.absent,
+              onPressed: _deleteEvent,
+            )
+          else
+            const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, {required bool isEditing}) {
+    final c = context.conv;
+    return ListView(
+      key: const ValueKey('content'),
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
+      children: [
+        Text(
+          'What are we\ntracking?',
+          style: AppTypography.fraunces(
+            fontSize: 36,
+            fontWeight: FontWeight.w400,
+            letterSpacing: -1.08,
+            height: 1.1,
+            color: c.ink,
+          ),
+        ),
+        const SizedBox(height: 26),
+
+        // Name
+        ConvEyebrow('Name'),
+        const SizedBox(height: 8),
+        _NameField(controller: _nameController),
+
+        const SizedBox(height: 18),
+
+        // Time + Frequency row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConvEyebrow('Time'),
+                  const SizedBox(height: 8),
+                  ConvCardSoft(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    onTap: () => _selectTime(context),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 18, color: c.ink2),
+                        const SizedBox(width: 10),
+                        Text(
+                          _selectedTime.format(context),
+                          style: AppTypography.geistTabular(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: c.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConvEyebrow('Frequency'),
+                  const SizedBox(height: 8),
+                  ConvCardSoft(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    onTap: () => _selectFrequency(context),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _frequency,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: c.ink,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: c.ink3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 22),
+
+        // Day / Date
+        if (_frequency == 'One-time') ...[
+          ConvEyebrow('Date'),
+          const SizedBox(height: 8),
+          ConvCardSoft(
+            key: const ValueKey('date_field'),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            onTap: () => _selectDate(context),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today, size: 18, color: c.ink2),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    DateFormat('EEE, MMM d, yyyy').format(_selectedDate),
+                    style: AppTypography.geistTabular(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: c.ink,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: c.ink3),
+              ],
+            ),
+          ),
+        ] else ...[
+          ConvEyebrow('Repeats on'),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_daysOfWeek.length, (i) {
+              final dayName = _daysOfWeek[i];
+              final letter = _dayLetters[i];
+              final selected = _selectedDays.contains(dayName);
+              return ConvDayChip(
+                day: letter,
+                active: selected,
+                size: 40,
+                onTap: () {
+                  setState(() {
+                    if (selected) {
+                      _selectedDays.remove(dayName);
+                    } else {
+                      _selectedDays.add(dayName);
+                    }
+                  });
+                },
+              );
+            }),
+          ),
+        ],
+
+        const SizedBox(height: 22),
+
+        // Roster
+        ConvEyebrow('Roster'),
+        const SizedBox(height: 8),
+        ConvCardSoft(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.people_outline, size: 20, color: c.ink2),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _rosterTitle(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: c.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isEditing
+                          ? 'change later'
+                          : 'change after creating',
+                      style: TextStyle(fontSize: 12, color: c.ink3),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 20, color: c.ink3),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _rosterTitle() {
+    final ids = widget.eventToEdit?.memberIds ?? const [];
+    if (ids.isEmpty) return 'All members';
+    return ids.length == 1 ? '1 person' : '${ids.length} people';
+  }
+
+  Widget _buildBottomButton(BuildContext context, {required bool isEditing}) {
+    final c = context.conv;
+    final label = isEditing ? 'Save changes' : 'Create event';
+    final btn = SizedBox(
       width: double.infinity,
-      height: 64,
-      borderRadius: BorderRadius.circular(24),
-      disableAnimations: widget.disableAnimations,
+      child: Material(
+        color: c.primary,
+        borderRadius: BorderRadius.circular(999),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: const ValueKey('save_event_button'),
+          onTap: _saveEvent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                  color: c.onPrimary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
+        child: widget.disableAnimations
+            ? btn
+            : Hero(tag: 'fab', child: Material(color: Colors.transparent, child: btn)),
+      ),
+    );
+  }
+
+  Widget _buildSkeleton() {
+    return ListView(
+      key: const ValueKey('skeleton'),
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 24),
+      children: [
+        AppShimmer(
+          width: 220,
+          height: 40,
+          borderRadius: BorderRadius.circular(8),
+          disableAnimations: widget.disableAnimations,
+        ),
+        const SizedBox(height: 6),
+        AppShimmer(
+          width: 180,
+          height: 40,
+          borderRadius: BorderRadius.circular(8),
+          disableAnimations: widget.disableAnimations,
+        ),
+        const SizedBox(height: 28),
+        _skelField(56),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(child: _skelField(56)),
+            const SizedBox(width: 10),
+            Expanded(child: _skelField(56)),
+          ],
+        ),
+        const SizedBox(height: 22),
+        _skelField(48),
+        const SizedBox(height: 22),
+        _skelField(56),
+      ],
+    );
+  }
+
+  Widget _skelField(double height) => AppShimmer(
+        width: double.infinity,
+        height: height,
+        borderRadius: BorderRadius.circular(14),
+        disableAnimations: widget.disableAnimations,
+      );
+}
+
+class _NameField extends StatelessWidget {
+  const _NameField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return TextFormField(
+      controller: controller,
+      textCapitalization: TextCapitalization.sentences,
+      style: AppTypography.fraunces(
+        fontSize: 18,
+        fontWeight: FontWeight.w400,
+        color: c.ink,
+      ),
+      decoration: InputDecoration(
+        hintText: "Lord's Table",
+        hintStyle: AppTypography.fraunces(
+          fontSize: 18,
+          fontWeight: FontWeight.w400,
+          color: c.ink3,
+        ),
+        filled: true,
+        fillColor: c.cardSoft,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Please enter an event name';
+        }
+        return null;
+      },
     );
   }
 }
