@@ -651,10 +651,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                 MaterialPageRoute(
                                   builder: (_) => FamilyListPage(
                                     repository: widget.attendanceRepository,
+                                    disableAnimations:
+                                        widget.disableAnimations,
                                   ),
                                 ),
                               );
-                              _markDataModified();
+                              if (mounted) {
+                                _markDataModified();
+                              }
                             },
                           ),
                           const SizedBox(height: 4),
