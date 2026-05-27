@@ -258,9 +258,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('possible families spotted'), findsOneWidget);
-      expect(find.text('Review'), findsOneWidget);
+      expect(find.byKey(const Key('review_suggestions_btn')), findsOneWidget);
 
-      await tester.tap(find.text('Review'));
+      await tester.tap(find.byKey(const Key('review_suggestions_btn')));
       await tester.pumpAndSettle();
       // 800ms delay inside suggest page bypassed via disableAnimations on
       // the suggest page too, but FamilyListPage doesn't forward the flag.
@@ -298,7 +298,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Review'));
+    await tester.tap(find.byKey(const Key('review_suggestions_btn')));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 850));
     await tester.pumpAndSettle();
@@ -343,7 +343,7 @@ void main() {
   );
 
   testWidgets(
-    'FamilyListPage filters out auto-singleton families but displays Solo Members banner',
+    'FamilyListPage filters out auto-singleton families but displays Solo Members banner and navigates to AssignSoloMembersPage',
     (tester) async {
       final mockRepo = MockAttendanceRepository();
       mockRepo.setFamilies([
@@ -377,14 +377,25 @@ void main() {
       // Smith Family should be shown
       expect(find.text('Smith Family'), findsOneWidget);
 
-      // Solo Members banner should be shown with Bob Jones listed
-      expect(find.textContaining('Solo Members (1)'), findsOneWidget);
-      expect(find.text('Bob Jones'), findsOneWidget);
+      // Solo Members banner should be shown
+      expect(find.text('Assign solo members'), findsOneWidget);
+      expect(find.text('1 members are not assigned to a family'), findsOneWidget);
+
+      // Tap Review button for solo members
+      expect(find.byKey(const Key('review_solo_members_btn')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('review_solo_members_btn')));
+      await tester.pumpAndSettle();
+
+      // 800ms delayed timer on AssignSoloMembersPage
+      await tester.pump(const Duration(milliseconds: 850));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assign Solo Members'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'FamilyListPage displays Duplicate Members banner when a member is in multiple real families',
+    'FamilyListPage displays Duplicate Members banner and navigates to ResolveDuplicatesPage',
     (tester) async {
       final mockRepo = MockAttendanceRepository();
       mockRepo.setFamilies([
@@ -410,9 +421,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Duplicate Members Detected banner should be shown
-      expect(find.text('Duplicate Members Detected'), findsOneWidget);
-      expect(find.textContaining('Alice Smith is in: Smith Family and Doe Family'), findsOneWidget);
+      // Duplicate Members banner should be shown
+      expect(find.text('Duplicate members detected'), findsOneWidget);
+      expect(find.text('1 member is assigned to multiple families'), findsOneWidget);
+
+      // Tap Review on Duplicate members banner
+      await tester.tap(find.byKey(const Key('review_duplicate_members_btn')));
+      await tester.pumpAndSettle();
+
+      // Settle delayed skeleton loader
+      await tester.pump(const Duration(milliseconds: 850));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Resolve Duplicate Members'), findsOneWidget);
     },
   );
 }

@@ -62,7 +62,7 @@ List<int> _zipOfMany(Map<String, String> entries) {
   entries.forEach((name, content) {
     archive.addFile(ArchiveFile(name, content.length, utf8.encode(content)));
   });
-  return ZipEncoder().encode(archive)!;
+  return ZipEncoder().encode(archive);
 }
 
 void main() {
