@@ -18,6 +18,7 @@ class FakeAttendanceRepository extends AttendanceRepository {
   String? addedFamilyId;
   String? movedMemberId;
   String? movedToFamilyId;
+  String? deletedFamilyId;
   String? detachedMemberId;
 
   @override
@@ -72,6 +73,11 @@ class FakeAttendanceRepository extends AttendanceRepository {
       members: family.members.where((m) => m.id != memberId).toList(),
     );
     return family;
+  }
+
+  @override
+  Future<void> deleteFamily(String familyId) async {
+    deletedFamilyId = familyId;
   }
 
   @override
@@ -348,5 +354,66 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pumpAndSettle();
     expect(repo.detachedMemberId, 'm-alice');
+  });
+
+  testWidgets('delete family shows confirmation and calls repository', (tester) async {
+    final family = Family(
+      id: 'family-delete-1',
+      displayName: 'Delete Me Family',
+      members: const [],
+    );
+    final repo = FakeAttendanceRepository(family);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FamilyDetailsPage(family: family, repository: repo),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Delete Family'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete Family?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(repo.deletedFamilyId, 'family-delete-1');
+  });
+
+  testWidgets('adds existing solo member from bottom sheet', (tester) async {
+    final family = Family(
+      id: 'family-1',
+      displayName: 'Smith Family',
+      members: const [],
+    );
+    final soloFamily = Family(
+      id: 'singleton-bob',
+      displayName: 'Bob Jones',
+      isAutoSingleton: true,
+      members: [Member(id: 'member-bob', displayName: 'Bob Jones')],
+    );
+    final repo = FakeAttendanceRepository(family, others: [soloFamily]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FamilyDetailsPage(family: family, repository: repo),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add Member'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add Existing Member'));
+    await tester.pumpAndSettle();
+
+    // Dialog showing solo members should be present
+    expect(find.text('Select Member'), findsOneWidget);
+    expect(find.text('Bob Jones'), findsOneWidget);
+
+    await tester.tap(find.text('Bob Jones'));
+    await tester.pumpAndSettle();
+
+    expect(repo.movedMemberId, 'member-bob');
+    expect(repo.movedToFamilyId, 'family-1');
   });
 }
