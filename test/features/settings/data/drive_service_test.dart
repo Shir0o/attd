@@ -403,7 +403,7 @@ void main() {
       when(() => mockGoogleSignIn.authenticationEvents)
           .thenAnswer((_) => authController.stream);
       when(() => mockGoogleSignIn.signOut())
-          .thenAnswer((_) async => null);
+          .thenAnswer((_) async {});
       when(() => mockGoogleSignIn.attemptLightweightAuthentication())
           .thenReturn(null);
     });

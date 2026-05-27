@@ -69,11 +69,11 @@ class MockSessionRepository implements SessionRepository {
 
 class FakeReportExportService extends ReportExportService {
   FakeReportExportService({
-    required SessionRepository sessionRepository,
+    required super.sessionRepository,
     required this.result,
     this.error,
     this.supportsSheets = true,
-  }) : super(sessionRepository: sessionRepository);
+  });
 
   final ReportExportResult result;
   final Object? error;

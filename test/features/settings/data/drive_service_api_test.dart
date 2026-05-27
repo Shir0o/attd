@@ -53,7 +53,7 @@ drive.Media _media(String content) {
 List<int> _zipOf(String filename, String content) {
   final archive = Archive()
     ..addFile(ArchiveFile(filename, content.length, utf8.encode(content)));
-  return ZipEncoder().encode(archive)!;
+  return ZipEncoder().encode(archive);
 }
 
 void main() {
