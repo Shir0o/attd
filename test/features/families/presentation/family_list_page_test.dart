@@ -341,4 +341,78 @@ void main() {
       expect(find.textContaining('possible families spotted'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'FamilyListPage filters out auto-singleton families but displays Solo Members banner',
+    (tester) async {
+      final mockRepo = MockAttendanceRepository();
+      mockRepo.setFamilies([
+        Family(
+          id: 'manual-1',
+          displayName: 'Smith Family',
+          isAutoSingleton: false,
+          members: [
+            Member(id: 'm1', displayName: 'Alice Smith'),
+            Member(id: 'm3', displayName: 'Charlie Smith'),
+          ],
+        ),
+        Family(
+          id: 'auto-1',
+          displayName: 'Bob Jones',
+          isAutoSingleton: true,
+          members: [Member(id: 'm2', displayName: 'Bob Jones')],
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FamilyListPage(
+            repository: mockRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Smith Family should be shown
+      expect(find.text('Smith Family'), findsOneWidget);
+
+      // Solo Members banner should be shown with Bob Jones listed
+      expect(find.textContaining('Solo Members (1)'), findsOneWidget);
+      expect(find.text('Bob Jones'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'FamilyListPage displays Duplicate Members banner when a member is in multiple real families',
+    (tester) async {
+      final mockRepo = MockAttendanceRepository();
+      mockRepo.setFamilies([
+        Family(
+          id: '1',
+          displayName: 'Smith Family',
+          members: [Member(id: 'm1', displayName: 'Alice Smith')],
+        ),
+        Family(
+          id: '2',
+          displayName: 'Doe Family',
+          members: [Member(id: 'm1', displayName: 'Alice Smith')],
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FamilyListPage(
+            repository: mockRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Duplicate Members Detected banner should be shown
+      expect(find.text('Duplicate Members Detected'), findsOneWidget);
+      expect(find.textContaining('Alice Smith is in: Smith Family and Doe Family'), findsOneWidget);
+    },
+  );
 }
