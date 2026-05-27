@@ -12,6 +12,7 @@ class _FakeRepository extends AttendanceRepository {
   final List<String> addedFamilyNames = [];
   final List<(String memberId, String familyId)> moved = [];
   int nextId = 0;
+  bool throwOnMove = false;
 
   @override
   Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
@@ -29,6 +30,9 @@ class _FakeRepository extends AttendanceRepository {
 
   @override
   Future<Family> moveMemberToFamily(String memberId, String targetFamilyId) async {
+    if (throwOnMove) {
+      throw Exception('Database move failed');
+    }
     moved.add((memberId, targetFamilyId));
     return Family(
       id: targetFamilyId,
@@ -195,4 +199,141 @@ void main() {
     expect(repo.moved.length, 1);
     expect(popResult, true);
   });
+
+  testWidgets('AssignSoloMembersPage handles cancelling create new family dialog', (tester) async {
+    final repo = _FakeRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssignSoloMembersPage(
+          repository: repo,
+          soloMembers: [
+            _m('1', 'Alice Parker'),
+          ],
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Stay Solo dropdown
+    await tester.tap(find.text('Stay Solo'));
+    await tester.pumpAndSettle();
+
+    // Select Create new family...
+    await tester.tap(find.text('Create new family...'));
+    await tester.pumpAndSettle();
+
+    // The prompt shows up. Let's tap 'Cancel'.
+    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Cancel')));
+    await tester.pumpAndSettle();
+
+    // It should revert or stay as 'Stay Solo'
+    expect(find.text('Stay Solo'), findsOneWidget);
+  });
+
+  testWidgets('AssignSoloMembersPage Keep Solo option sets stay solo', (tester) async {
+    final repo = _FakeRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssignSoloMembersPage(
+          repository: repo,
+          soloMembers: [
+            _m('1', 'Alice Parker'),
+          ],
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Stay Solo dropdown
+    await tester.tap(find.text('Stay Solo'));
+    await tester.pumpAndSettle();
+
+    // Select Keep Solo
+    await tester.tap(find.text('Keep Solo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Stay Solo'), findsOneWidget);
+  });
+
+  testWidgets('AssignSoloMembersPage shows SnackBar when move fails', (tester) async {
+    final repo = _FakeRepository();
+    repo.families = [
+      Family(id: 'f1', displayName: 'Smith Family', members: [_m('9', 'Bob Smith')])
+    ];
+    repo.throwOnMove = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssignSoloMembersPage(
+          repository: repo,
+          soloMembers: [
+            _m('1', 'Alice Smith'),
+          ],
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Stay Solo dropdown
+    await tester.tap(find.text('Stay Solo'));
+    await tester.pumpAndSettle();
+
+    // Select Smith Family
+    await tester.tap(find.text('Smith Family'));
+    await tester.pumpAndSettle();
+
+    // Confirm
+    await tester.tap(find.text('Confirm Assignments'));
+    await tester.pump(); // start confirm
+
+    // Let snackbar show up
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Error assigning members: Exception: Database move failed'), findsOneWidget);
+  });
+
+  testWidgets('AssignSoloMembersPage reuses newly created family name from cache', (tester) async {
+    final repo = _FakeRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssignSoloMembersPage(
+          repository: repo,
+          soloMembers: [
+            _m('1', 'Alice Parker'),
+            _m('2', 'Bob Parker'),
+          ],
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Assign Alice to new family "Parker"
+    await tester.tap(find.text('Stay Solo').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create new family...'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+
+    // Assign Bob to new family "Parker" too
+    await tester.tap(find.text('Stay Solo').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create new family...'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+
+    // Confirm
+    await tester.tap(find.text('Confirm Assignments'));
+    await tester.pumpAndSettle();
+
+    // Should only have created 1 family since it's cached/reused
+    expect(repo.addedFamilyNames, ['Parker']);
+    expect(repo.moved.length, 2);
+  });
 }
+
