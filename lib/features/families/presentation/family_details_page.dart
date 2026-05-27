@@ -112,6 +112,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
           title: const Text('Select Member'),
           content: SizedBox(
             width: double.maxFinite,
+            height: 300,
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: solo.length,
@@ -178,6 +179,8 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
         );
       },
     );
+
+    if (!mounted) return;
 
     if (option == 'new') {
       final name = await _promptName('Add Member', 'Member Name');

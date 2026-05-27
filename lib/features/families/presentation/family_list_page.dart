@@ -476,7 +476,6 @@ class _SoloMembersBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: Color.alphaBlend(c.primary.withValues(alpha: 0.05), c.bg),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.ink.withValues(alpha: 0.08), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -577,8 +576,8 @@ class _DuplicateMembersBanner extends StatelessWidget {
           for (final entry in duplicateMembers.entries) ...[
             Padding(
               padding: const EdgeInsets.only(left: 48, bottom: 4),
-              child: RichText(
-                text: TextSpan(
+              child: Text.rich(
+                TextSpan(
                   style: TextStyle(fontSize: 13, color: c.ink),
                   children: [
                     TextSpan(

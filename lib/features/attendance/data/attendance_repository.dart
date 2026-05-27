@@ -290,6 +290,10 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
     for (final family in families) {
       if (family.id == familyId) {
+        if (family.deletedAt != null) {
+          updated.add(family);
+          continue;
+        }
         updated.add(family.copyWith(
           deletedAt: now,
           updatedAt: now,
