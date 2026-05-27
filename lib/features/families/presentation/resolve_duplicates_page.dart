@@ -118,36 +118,11 @@ class _ResolveDuplicatesPageState extends State<ResolveDuplicatesPage> {
     DuplicateResolution res,
     DuplicateOccurrence occ,
   ) async {
-    final controller = TextEditingController(
-      text: res.renameValue ?? occ.member.displayName,
-    );
     final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Rename Member'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Distinguishing Name',
-              hintText: 'e.g. John Doe Jr.',
-            ),
-            textCapitalization: TextCapitalization.words,
-            onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
+      builder: (ctx) => _RenameMemberDialog(
+        initialName: res.renameValue ?? occ.member.displayName,
+      ),
     );
 
     if (newName != null && newName.isNotEmpty && newName != occ.member.displayName) {
@@ -182,21 +157,22 @@ class _ResolveDuplicatesPageState extends State<ResolveDuplicatesPage> {
         switch (res.type) {
           case ResolutionType.keepOne:
             final keepOcc = res.targetOccurrence!;
-            final name = res.group.displayName;
+            final occurrencesToRemove = res.group.occurrences
+                .where((occ) => occ != keepOcc)
+                .toList();
 
             updatedFamilies = updatedFamilies.map((family) {
-              // If it is the family we want to keep it in, do nothing
-              if (family.id == keepOcc.family.id) return family;
+              final toRemoveFromThisFamily = occurrencesToRemove
+                  .where((occ) => occ.family.id == family.id)
+                  .map((occ) => occ.member.id)
+                  .toSet();
 
-              // Otherwise, remove the duplicate member with the same display name
+              if (toRemoveFromThisFamily.isEmpty) return family;
+
               final filtered = family.members
-                  .where((m) => m.displayName != name)
+                  .where((m) => !toRemoveFromThisFamily.contains(m.id))
                   .toList();
-              
-              if (filtered.length != family.members.length) {
-                return family.copyWith(members: filtered, updatedAt: now);
-              }
-              return family;
+              return family.copyWith(members: filtered, updatedAt: now);
             }).toList();
             break;
 
@@ -469,7 +445,7 @@ class _ResolveDuplicatesPageState extends State<ResolveDuplicatesPage> {
             _buildOccurrenceRow(res, occ),
             const SizedBox(height: 8),
           ],
-          const Divider(height: 24),
+          const SizedBox(height: 16),
           Row(
             children: [
               Icon(Icons.info_outline, size: 14, color: actionColor),
@@ -605,6 +581,57 @@ class _ResolveDuplicatesPageState extends State<ResolveDuplicatesPage> {
           ),
           const SizedBox(height: 14),
         ],
+      ],
+    );
+  }
+}
+
+class _RenameMemberDialog extends StatefulWidget {
+  const _RenameMemberDialog({required this.initialName});
+  final String initialName;
+
+  @override
+  State<_RenameMemberDialog> createState() => _RenameMemberDialogState();
+}
+
+class _RenameMemberDialogState extends State<_RenameMemberDialog> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Rename Member'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Distinguishing Name',
+          hintText: 'e.g. John Doe Jr.',
+        ),
+        textCapitalization: TextCapitalization.words,
+        onSubmitted: (val) => Navigator.of(context).pop(val.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Save'),
+        ),
       ],
     );
   }

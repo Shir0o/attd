@@ -81,7 +81,7 @@ class _AssignSoloMembersPageState extends State<AssignSoloMembersPage> {
                   ),
                 ),
               ),
-              const Divider(height: 1),
+              const SizedBox(height: 8),
               ListTile(
                 leading: Icon(Icons.person_outline, color: c.ink3),
                 title: Text('Keep Solo', style: TextStyle(color: c.ink)),
@@ -99,7 +99,7 @@ class _AssignSoloMembersPageState extends State<AssignSoloMembersPage> {
                 onTap: () => Navigator.of(ctx).pop('prompt_new'),
               ),
               if (realFamilies.isNotEmpty) ...[
-                const Divider(height: 1),
+                const SizedBox(height: 8),
                 Expanded(
                   child: ListView.builder(
                     itemCount: realFamilies.length,
@@ -150,34 +150,9 @@ class _AssignSoloMembersPageState extends State<AssignSoloMembersPage> {
   }
 
   Future<String?> _promptNewFamilyName(String defaultName) async {
-    final controller = TextEditingController(text: defaultName);
     return showDialog<String>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Create New Family'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Family Name',
-              hintText: 'Enter name',
-            ),
-            textCapitalization: TextCapitalization.words,
-            onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
+      builder: (ctx) => _NewFamilyNameDialog(defaultName: defaultName),
     );
   }
 
@@ -471,6 +446,57 @@ class _AssignSoloMembersPageState extends State<AssignSoloMembersPage> {
           ),
           const SizedBox(height: 12),
         ],
+      ],
+    );
+  }
+}
+
+class _NewFamilyNameDialog extends StatefulWidget {
+  const _NewFamilyNameDialog({required this.defaultName});
+  final String defaultName;
+
+  @override
+  State<_NewFamilyNameDialog> createState() => _NewFamilyNameDialogState();
+}
+
+class _NewFamilyNameDialogState extends State<_NewFamilyNameDialog> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.defaultName);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create New Family'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Family Name',
+          hintText: 'Enter name',
+        ),
+        textCapitalization: TextCapitalization.words,
+        onSubmitted: (val) => Navigator.of(context).pop(val.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Create'),
+        ),
       ],
     );
   }
