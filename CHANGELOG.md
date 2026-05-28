@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. This change
 
 - **Smart Preseeds Skipping & Deck Undo Stack**: Modified the Attendance Deck page to respect and skip members pre-marked by "Smart defaults (from past 8 sessions)" (recorded under a distinct `System (Preseed - Smart)` actor name). Implemented an O(1) set-based caching mechanism to eliminate UI-thread lookups overhead, and introduced a list-based `_history` index stack to replace standard index-decrementing, ensuring robust and correct Undo navigation. Added comprehensive widget testing.
 - **Changelog & Agent Workflows**: Established the `CHANGELOG.md` to track git merges/commits, updated instruction systems (`CLAUDE.md`, `GEMINI.md`) to require pre-change context checking and post-change updates, and cleaned up redundant instruction files (`AGENTS.md`).
+- **Local-Only Agent Files**: Ignored `CLAUDE.md` and `GEMINI.md` in `.gitignore` and untracked them from git repository to ensure agent instruction files remain local-only.
 
 ## Recent Changes
 

@@ -88,3 +88,7 @@ firestore.indexes.json
 # committed. Re-fetch PNGs from the handoff URL if needed.
 docs/design-handoff/project/uploads/
 docs/design-handoff/project/screenshots/
+
+# Agent Configuration (Local Only)
+CLAUDE.md
+GEMINI.md
