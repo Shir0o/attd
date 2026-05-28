@@ -63,20 +63,32 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   bool _isLoading = true;
   bool _isListMode = false;
   final List<int> _history = [];
+  final Set<String> _touchedMemberIds = {};
+  final Set<String> _touchedMemberNames = {};
+
+  void _updateSession(Session session) {
+    _currentSession = session;
+    _touchedMemberIds.clear();
+    _touchedMemberNames.clear();
+    for (final r in _currentSession.records) {
+      if (r.recordedBy != 'System (Preseed)') {
+        if (r.memberId != null) {
+          _touchedMemberIds.add(r.memberId!);
+        }
+        _touchedMemberNames.add(r.attendee);
+      }
+    }
+  }
 
   bool _isMemberTouched(Member member) {
-    return _currentSession.records.any((r) {
-      final isMatching = (r.memberId != null && r.memberId == member.id) ||
-          (r.attendee == member.displayName);
-      if (!isMatching) return false;
-      return r.recordedBy != 'System (Preseed)';
-    });
+    return _touchedMemberIds.contains(member.id) ||
+        _touchedMemberNames.contains(member.displayName);
   }
 
   @override
   void initState() {
     super.initState();
-    _currentSession = widget.session;
+    _updateSession(widget.session);
     _currentEvent = widget.event;
     debugPrint('DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
     debugPrint('DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
@@ -261,7 +273,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     if (mounted) {
       setState(() {
-        _currentSession = updatedSession;
+        _updateSession(updatedSession);
       });
     }
 
@@ -324,7 +336,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       updatedAt: now,
     );
     if (mounted) {
-      setState(() => _currentSession = updatedSession);
+      setState(() => _updateSession(updatedSession));
     }
     try {
       await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
@@ -561,7 +573,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       records: updatedRecords,
       updatedAt: now,
     );
-    if (mounted) setState(() => _currentSession = updatedSession);
+    if (mounted) setState(() => _updateSession(updatedSession));
     try {
       await widget.sessionRepository
           .saveSnapshot(updatedSession, actor: 'User');
@@ -597,7 +609,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       records: previousRecords,
       updatedAt: DateTime.now(),
     );
-    if (mounted) setState(() => _currentSession = restored);
+    if (mounted) setState(() => _updateSession(restored));
     try {
       await widget.sessionRepository.saveSnapshot(restored, actor: 'User');
     } catch (e) {
