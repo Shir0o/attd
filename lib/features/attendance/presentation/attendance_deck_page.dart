@@ -62,6 +62,16 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   StreamSubscription? _eventsSubscription;
   bool _isLoading = true;
   bool _isListMode = false;
+  final List<int> _history = [];
+
+  bool _isMemberTouched(Member member) {
+    return _currentSession.records.any((r) {
+      final isMatching = (r.memberId != null && r.memberId == member.id) ||
+          (r.attendee == member.displayName);
+      if (!isMatching) return false;
+      return r.recordedBy != 'System (Preseed)';
+    });
+  }
 
   @override
   void initState() {
@@ -72,25 +82,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     debugPrint('DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
     _remainingMembers.addAll(widget.members);
-    _currentIndex = 0;
     _subscribeToMembers();
     _subscribeToEvents();
 
-    // Treat preseed records as not-yet-user-touched so we land on the first
-    // member rather than skipping the whole roster.
-    final touchedIds = <String>{};
-    final touchedNames = <String>{};
-    for (final r in _currentSession.records) {
-      if (r.recordedBy == 'System (Preseed)') continue;
-      if (r.memberId != null) touchedIds.add(r.memberId!);
-      touchedNames.add(r.attendee);
-    }
-
     int firstUnrecorded = 0;
     for (int i = 0; i < widget.members.length; i++) {
-      final member = widget.members[i];
-      if (!touchedIds.contains(member.id) &&
-          !touchedNames.contains(member.displayName)) {
+      if (!_isMemberTouched(widget.members[i])) {
         firstUnrecorded = i;
         break;
       }
@@ -284,9 +281,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     await _recordAttendance(member.id, member.displayName, status);
 
     if (mounted) {
-      if (_currentIndex < widget.members.length - 1) {
+      int next = _currentIndex + 1;
+      while (next < widget.members.length && _isMemberTouched(widget.members[next])) {
+        next++;
+      }
+      _history.add(_currentIndex);
+      if (next < widget.members.length) {
         setState(() {
-          _currentIndex++;
+          _currentIndex = next;
         });
       } else {
         // Finished all members
@@ -346,9 +348,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // Advance past the entire family in the deck.
     int next = _currentIndex;
     while (next < widget.members.length &&
-        memberIdSet.contains(widget.members[next].id)) {
+        (memberIdSet.contains(widget.members[next].id) || _isMemberTouched(widget.members[next]))) {
       next++;
     }
+    _history.add(_currentIndex);
     if (next >= widget.members.length) {
       _finishAndNavigate();
     } else {
@@ -371,9 +374,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   void _undo() {
-    if (_currentIndex > 0) {
+    if (_history.isNotEmpty) {
       setState(() {
-        _currentIndex--;
+        _currentIndex = _history.removeLast();
       });
     }
   }
@@ -737,10 +740,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 key: const Key('undoButton'),
-                onTap: _currentIndex > 0 ? _undo : null,
+                onTap: _history.isNotEmpty ? _undo : null,
                 child: Icon(
                   Icons.undo,
-                  color: _currentIndex > 0
+                  color: _history.isNotEmpty
                       ? colorScheme.onSurface
                       : colorScheme.onSurface.withValues(alpha: 0.3),
                 ),

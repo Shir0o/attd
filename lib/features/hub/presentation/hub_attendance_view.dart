@@ -617,6 +617,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   mode: pickedMode,
                   recordedAt: DateTime.now(),
                   recentSessions: recentSessions,
+                  recordedBy: pickedMode == AttendanceStartMode.perMemberDefault
+                      ? 'System (Preseed - Smart)'
+                      : 'System (Preseed)',
                 );
 
                 final session = await widget.sessionRepository.createSession(
