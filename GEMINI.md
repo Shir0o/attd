@@ -40,6 +40,6 @@
 ## Changelog Context & Tracking
 
 - **Always prevent regression by checking the changelog before making changes, and always update the changelog after.**
-- **Before starting any feature or bug fix**: Check [CHANGELOG.md](file:///Users/twang/.gemini/antigravity/worktrees/attd/implement-automated-changelog-tracking/CHANGELOG.md) to understand the recent context, PR merges, and changes. This helps prevent regression.
+- **Before starting any feature or bug fix**: Check [CHANGELOG.md](CHANGELOG.md) to understand the recent context, PR merges, and changes. This helps prevent regression.
 - **After completing a feature or bug fix**: Update the `[Unreleased]` section of `CHANGELOG.md` with a concise bullet point describing the change. Focus on the core functionality added, modified, or fixed. Keep descriptions brief and distinct from full release notes.
 
