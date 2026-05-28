@@ -922,21 +922,7 @@ class _ConsistentTrendStrip extends StatelessWidget {
                       size: 18, color: c.primary),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ConvEyebrow('Regulars · 8 wk'),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Consistent members',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: c.ink,
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: ConvEyebrow('Regulars · 8 wk'),
                   ),
                   Icon(Icons.chevron_right, color: c.ink3, size: 18),
                 ],
@@ -965,21 +951,7 @@ class _ConsistentTrendStrip extends StatelessWidget {
                   Icon(Icons.show_chart, size: 18, color: c.primary),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ConvEyebrow('Trends · 12 wk'),
-                        const SizedBox(height: 2),
-                        Text(
-                          'See sparkline',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: c.ink,
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: ConvEyebrow('Trends · 12 wk'),
                   ),
                   Icon(Icons.chevron_right, color: c.ink3, size: 18),
                 ],
