@@ -601,4 +601,74 @@ void main() {
     expect(restored.records.single.memberId, 'a');
     expect(restored.records.single.status, AttendanceStatus.absent);
   });
+
+  testWidgets(
+      'AttendanceDeckPage with System (Preseed - Smart) records skips them in navigation',
+      (WidgetTester tester) async {
+    final fakeRepo = MockSessionRepository();
+    final alice = Member(id: 'a', displayName: 'Alice');
+    final bob = Member(id: 'b', displayName: 'Bob');
+    final charlie = Member(id: 'c', displayName: 'Charlie');
+    
+    final now = DateTime(2026, 5, 24);
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: now,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'User',
+      records: [
+        SessionRecord(
+          memberId: 'a',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: now,
+          recordedBy: 'System (Preseed - Smart)',
+        ),
+        // Bob is left blank (no record)
+        SessionRecord(
+          memberId: 'c',
+          attendee: 'Charlie',
+          status: AttendanceStatus.absent,
+          recordedAt: now,
+          recordedBy: 'System (Preseed - Smart)',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [alice, bob, charlie],
+          sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Since Alice is preseeded with smart defaults, deck should start at Bob
+    expect(find.text('Bob'), findsOneWidget);
+    expect(find.text('Alice'), findsNothing);
+
+    // Tap Present on Bob
+    await tester.tap(find.byKey(const Key('presentButton')));
+    await tester.pumpAndSettle();
+
+    // Since Charlie is also preseeded, marking Bob should finish the session and navigate to Summary
+    // (Session title 'Test' is visible on Summary page)
+    expect(find.text('Test'), findsOneWidget);
+    expect(find.text('PRESENT'), findsOneWidget);
+    
+    // Verify Bob is marked present, and Alice and Charlie retain their preseeded status
+    final saved = fakeRepo.savedSessions.last;
+    expect(saved.records.length, 3);
+    expect(saved.records.firstWhere((r) => r.memberId == 'a').status, AttendanceStatus.present);
+    expect(saved.records.firstWhere((r) => r.memberId == 'b').status, AttendanceStatus.present);
+    expect(saved.records.firstWhere((r) => r.memberId == 'c').status, AttendanceStatus.absent);
+  });
 }
