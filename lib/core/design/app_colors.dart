@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// Color tokens for the **Convocation** design system.
 ///
-/// Values are sRGB approximations of the OKLCH tokens defined in
-/// `docs/design-handoff/project/app.css`. Surface and ink tones come from
+/// Values are sRGB approximations of the OKLCH tokens documented in
+/// `DESIGN_SPEC.md`. Surface and ink tones come from
 /// the violet-tinted neutral ramp; "present" is the violet primary and
 /// "absent" is a warm coral, matching the editorial swipe direction.
 class AppColors {

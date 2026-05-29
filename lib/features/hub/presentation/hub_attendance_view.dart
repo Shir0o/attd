@@ -131,6 +131,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     return result;
   }
 
+  int get _todayEventCount => _events.where(_isEventToday).length;
+
   bool _isEventToday(Event event) {
     final now = DateTime.now();
     final dayName = DateFormat('EEEE').format(now);
@@ -394,12 +396,30 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     DateFormat('EEEE · MMM d').format(DateTime.now()),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Today',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: context.conv.ink,
-                      fontSize: 30,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        'Today',
+                        style: Theme.of(context).textTheme.displaySmall
+                            ?.copyWith(color: context.conv.ink, fontSize: 30),
+                      ),
+                      if (_todayEventCount > 1) ...[
+                        const SizedBox(width: 10),
+                        ConvPill(
+                          label: '$_todayEventCount EVENTS',
+                          isOn: true,
+                          fontSize: 10,
+                          letterSpacing: 1.0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 3,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -496,33 +516,83 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       );
     }
 
-    final sortedEvents = List<Event>.from(_events)..sort((a, b) {
-      final aToday = _isEventToday(a);
-      final bToday = _isEventToday(b);
-      if (aToday != bToday) return aToday ? -1 : 1;
+    int byTime(Event a, Event b) {
       final aMinutes = a.time.hour * 60 + a.time.minute;
       final bMinutes = b.time.hour * 60 + b.time.minute;
       return aMinutes.compareTo(bMinutes);
-    });
+    }
 
-    final hero = sortedEvents.first;
-    final rest = sortedEvents.skip(1).toList();
+    final todayEvents = _events.where(_isEventToday).toList()..sort(byTime);
+    final otherEvents = _events.where((e) => !_isEventToday(e)).toList()
+      ..sort(byTime);
 
-    final children = <Widget>[
-      _HeroEventCard(
-        event: hero,
-        isToday: _isEventToday(hero),
-        status: _statusFor(hero),
-        expected: hero.memberIds.length,
-        lastStat: _lastSessionStat(hero),
-        onTap: () => _handleEventTap(hero),
-        onMenuTap: () => _showEventMenu(context, hero),
-        disableAnimations: widget.disableAnimations,
-      ),
-    ];
+    final c = context.conv;
+    final children = <Widget>[];
 
-    if (rest.isNotEmpty) {
-      final c = context.conv;
+    // The highlight card is reserved for a single today event — the soonest
+    // one still needing attendance (or the soonest, if all are taken).
+    Event? hero;
+    if (todayEvents.isNotEmpty) {
+      hero = todayEvents.firstWhere(
+        (e) => !_statusFor(e).taken,
+        orElse: () => todayEvents.first,
+      );
+
+      children.add(
+        _HeroEventCard(
+          event: hero,
+          isToday: true,
+          status: _statusFor(hero),
+          expected: hero.memberIds.length,
+          lastStat: _lastSessionStat(hero),
+          onTap: () => _handleEventTap(hero!),
+          onMenuTap: () => _showEventMenu(context, hero!),
+          disableAnimations: widget.disableAnimations,
+        ),
+      );
+
+      // "Also today" — the remaining same-day events, so they don't get
+      // buried in the weekly list.
+      final alsoToday = todayEvents.where((e) => e != hero).toList();
+      if (alsoToday.isNotEmpty) {
+        final doneCount =
+            alsoToday.where((e) => _statusFor(e).taken).length;
+        final laterCount = alsoToday.length - doneCount;
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 28, bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const ConvEyebrow('Also today'),
+                ConvEyebrow(
+                  '$laterCount later${doneCount > 0 ? ' · $doneCount done' : ''}',
+                  color: c.ink4,
+                ),
+              ],
+            ),
+          ),
+        );
+        for (final event in alsoToday) {
+          children.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TodayRow(
+                event: event,
+                status: _statusFor(event),
+                expected: event.memberIds.length,
+                onTap: () => _handleEventTap(event),
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    // Non-today events. Labelled "This week" when a hero is present, else the
+    // standalone "Upcoming" section.
+    if (otherEvents.isNotEmpty) {
       children.add(
         Padding(
           padding: const EdgeInsets.only(top: 28, bottom: 10),
@@ -530,19 +600,24 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const ConvEyebrow('Upcoming'),
-              ConvEyebrow('${rest.length} · this week', color: c.ink4),
+              ConvEyebrow(hero != null ? 'This week' : 'Upcoming'),
+              ConvEyebrow(
+                hero != null
+                    ? '${otherEvents.length} · upcoming'
+                    : '${otherEvents.length} · this week',
+                color: c.ink4,
+              ),
             ],
           ),
         ),
       );
-      for (final event in rest) {
+      for (final event in otherEvents) {
         children.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: _EventRow(
               event: event,
-              isToday: _isEventToday(event),
+              isToday: false,
               status: _statusFor(event),
               onTap: () => _handleEventTap(event),
             ),
@@ -1219,6 +1294,111 @@ class _EventRow extends StatelessWidget {
               color: c.ink3,
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Row for a same-day event in the "Also today" group — time-forward left
+/// rail with an inline Start / Taken affordance, dimmed once taken.
+class _TodayRow extends StatelessWidget {
+  const _TodayRow({
+    required this.event,
+    required this.status,
+    required this.expected,
+    required this.onTap,
+  });
+
+  final Event event;
+  final _EventStatus status;
+  final int expected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final time = event.time.format(context);
+    final parts = time.split(' ');
+    final hh = parts.first;
+    final ampm = parts.length > 1 ? parts[1] : '';
+
+    return Opacity(
+      opacity: status.taken ? 0.66 : 1,
+      child: ConvCardSoft(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              child: Column(
+                children: [
+                  Text(
+                    hh,
+                    style: AppTypography.displayNumber(
+                      fontSize: 19,
+                      color: c.ink,
+                    ),
+                  ),
+                  if (ampm.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    ConvEyebrow(ampm),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Container(width: 1, height: 30, color: c.hair),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.geist(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: c.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.people_outline, size: 13, color: c.ink3),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$expected expected',
+                        style: AppTypography.geist(fontSize: 12, color: c.ink3),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (status.taken)
+              ConvPill(
+                label: 'Taken',
+                leading: const Icon(Icons.check),
+                fontSize: 11,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              )
+            else
+              ConvPill(
+                label: 'Start',
+                leading: const Icon(Icons.play_arrow),
+                isOn: true,
+                fontSize: 11,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                onTap: onTap,
+              ),
+          ],
+        ),
       ),
     );
   }
