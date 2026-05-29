@@ -111,7 +111,10 @@ class _SwipeableCardState extends State<SwipeableCard>
   }
 
   void _programmaticDismiss(int direction) {
-    if (_controller.isAnimating || _isDragging) return;
+    // _dragOffset.dx != 0 guards against re-dismissing a card that has already
+    // flown off-screen but whose index advance (async I/O in _processAttendance)
+    // hasn't completed yet — otherwise a second tap would double-record.
+    if (_controller.isAnimating || _isDragging || _dragOffset.dx != 0) return;
     _animateToDismiss(direction: direction);
   }
 
