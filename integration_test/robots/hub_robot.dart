@@ -56,20 +56,20 @@ class HubRobot {
 
     final cardFinder = find.ancestor(
       of: textFinder,
-      matching: find.byType(Card),
+      matching: find.byType(InkWell),
     ).last;
 
-    // Check if there is a 'START' button
+    // Check if there is a 'Start' button
     final startButtonFinder = find.descendant(
       of: cardFinder,
-      matching: find.text('START'),
+      matching: find.text('Start'),
     );
 
     if (startButtonFinder.evaluate().isNotEmpty) {
-      print('DEBUG: Found START button, tapping it');
+      print('DEBUG: Found Start button, tapping it');
       await tester.tap(startButtonFinder.last);
     } else {
-      print('DEBUG: No START button, performing tap on card');
+      print('DEBUG: No Start button, performing tap on card');
       await tester.tap(cardFinder);
     }
     
@@ -100,11 +100,11 @@ class HubRobot {
 
     final cardFinder = find.ancestor(
       of: textFinder,
-      matching: find.byType(Card),
+      matching: find.byType(InkWell),
     );
 
     await tester.pumpUntilFound(cardFinder);
-    
+
     final menuFinder = find.descendant(
       of: cardFinder.last,
       matching: find.byIcon(Icons.more_vert),
@@ -132,9 +132,9 @@ class HubRobot {
 
     final cardFinder = find.ancestor(
       of: textFinder,
-      matching: find.byType(Card),
+      matching: find.byType(InkWell),
     ).last;
-    
+
     // Case-insensitive matching to handle both 'Start' and 'START'
     final statusFinder = find.descendant(
       of: cardFinder,
