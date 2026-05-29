@@ -25,8 +25,8 @@ void main() {
     testWidgets('renders first slide initially', (tester) async {
       await tester.pumpWidget(buildOnboardingPage());
 
-      expect(find.text('Quick Marking'), findsOneWidget);
-      expect(find.byType(MockAttendanceSwipe), findsOneWidget);
+      expect(find.text('Swipe with one thumb.'), findsOneWidget);
+      expect(find.byType(OnboardingDeckArt), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Next'), findsNothing);
     });
@@ -37,26 +37,20 @@ void main() {
       // Slide 1 -> Slide 2
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Session History'), findsOneWidget);
-      expect(find.byType(MockSessionHistory), findsOneWidget);
+      expect(find.text('Every Sunday, remembered.'), findsOneWidget);
+      expect(find.byType(OnboardingHistoryArt), findsOneWidget);
 
       // Slide 2 -> Slide 3
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Manage Members'), findsOneWidget);
-      expect(find.byType(MockManageMembers), findsOneWidget);
+      expect(find.text('Roll up by family.'), findsOneWidget);
+      expect(find.byType(OnboardingFamilyArt), findsOneWidget);
 
-      // Slide 3 -> Slide 4
+      // Slide 3 -> Slide 4 (final)
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Cloud Backup'), findsOneWidget);
-      expect(find.byType(MockCloudBackup), findsOneWidget);
-
-      // Slide 4 -> Slide 5
-      await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
-      await tester.pumpAndSettle();
-      expect(find.text('Data & Export'), findsOneWidget);
-      expect(find.byType(MockManageBackup), findsOneWidget);
+      expect(find.text('Local-first. Encrypted backup.'), findsOneWidget);
+      expect(find.byType(OnboardingCloudArt), findsOneWidget);
       expect(find.text('Get Started'), findsOneWidget);
       expect(find.text('Skip'), findsNothing);
     });
@@ -73,8 +67,8 @@ void main() {
     testWidgets('Get Started button on final slide completes onboarding', (tester) async {
       await tester.pumpWidget(buildOnboardingPage());
 
-      // Navigate to final slide (5 slides total)
-      for (int i = 0; i < 4; i++) {
+      // Navigate to final slide (4 slides total)
+      for (int i = 0; i < 3; i++) {
         await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
         await tester.pumpAndSettle();
       }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/design/app_typography.dart';
+import '../../../core/design/widgets/conv_theme.dart';
 import '../application/onboarding_controller.dart';
 import 'mock_components.dart';
 
@@ -18,31 +21,31 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<_OnboardingSlide> _slides = [
-    const _OnboardingSlide(
-      title: 'Quick Marking',
-      description: 'Swipe left to mark as absent, right to mark as present. It\'s that easy!',
-      mockUI: MockAttendanceSwipe(),
+  final List<_OnboardingSlide> _slides = const [
+    _OnboardingSlide(
+      eyebrow: '01 · Quick marking',
+      title: 'Swipe with one thumb.',
+      description: 'Right for present, left for absent. The deck handles the rest.',
+      art: OnboardingDeckArt(),
     ),
-    const _OnboardingSlide(
-      title: 'Session History',
-      description: 'Review past attendance sessions and track trends over time.',
-      mockUI: MockSessionHistory(),
+    _OnboardingSlide(
+      eyebrow: '02 · Session history',
+      title: 'Every Sunday, remembered.',
+      description: 'Review past sessions and watch trends settle in.',
+      art: OnboardingHistoryArt(),
     ),
-    const _OnboardingSlide(
-      title: 'Manage Members',
-      description: 'Organize your group into families and manage individual members.',
-      mockUI: MockManageMembers(),
+    _OnboardingSlide(
+      eyebrow: '03 · Members & families',
+      title: 'Roll up by family.',
+      description: 'Group members into families. Smart defaults speed up the rest.',
+      art: OnboardingFamilyArt(),
     ),
-    const _OnboardingSlide(
-      title: 'Cloud Backup',
-      description: 'Automatically sync your data to Google Drive for safe keeping.',
-      mockUI: MockCloudBackup(),
-    ),
-    const _OnboardingSlide(
-      title: 'Data & Export',
-      description: 'Full control over your data with local backups and CSV exports.',
-      mockUI: MockManageBackup(),
+    _OnboardingSlide(
+      eyebrow: '04 · Yours, fully.',
+      title: 'Local-first. Encrypted backup.',
+      description:
+          'Your data stays on your device. Sync to your own Google Drive — never ours.',
+      art: OnboardingCloudArt(),
     ),
   ];
 
@@ -58,16 +61,16 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isLast = _currentPage == _slides.length - 1;
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            // Top Navigation & Progress
+            // Top: progress pips + Skip / Get Started
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 8, 8),
+              padding: const EdgeInsets.fromLTRB(22, 14, 12, 0),
               child: Row(
                 children: [
-                  // Progress Indicators
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: List.generate(
@@ -76,21 +79,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     ),
                   ),
                   const Spacer(),
-                  // Skip / Get Started Button
-                  if (_currentPage < _slides.length - 1)
-                    TextButton(
-                      onPressed: _complete,
-                      child: const Text('Skip'),
-                    )
-                  else
-                    TextButton(
-                      onPressed: _complete,
-                      child: const Text('Get Started'),
-                    ),
+                  TextButton(
+                    onPressed: _complete,
+                    child: Text(isLast ? 'Get Started' : 'Skip'),
+                  ),
                 ],
               ),
             ),
-            
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -100,9 +95,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     _currentPage = page;
                   });
                 },
-                itemBuilder: (context, index) {
-                  return _slides[index];
-                },
+                itemBuilder: (context, index) => _slides[index],
               ),
             ),
           ],
@@ -112,17 +105,16 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Widget _buildPageIndicator(int index) {
+    final c = context.conv;
     final isActive = _currentPage == index;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      height: 6.0,
-      width: isActive ? 20.0 : 6.0,
+      duration: const Duration(milliseconds: 250),
+      margin: const EdgeInsets.only(right: 8),
+      height: 4.0,
+      width: isActive ? 28.0 : 14.0,
       decoration: BoxDecoration(
-        color: isActive
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(24),
+        color: isActive ? c.primary : c.bg3,
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
@@ -130,53 +122,72 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
 class _OnboardingSlide extends StatelessWidget {
   const _OnboardingSlide({
+    required this.eyebrow,
     required this.title,
     required this.description,
-    required this.mockUI,
+    required this.art,
   });
 
+  final String eyebrow;
   final String title;
   final String description;
-  final Widget mockUI;
+  final Widget art;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  mockUI,
-                  const SizedBox(height: 40),
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    description,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          height: 1.5,
-                        ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+    final c = context.conv;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 280),
+                  child: Center(child: art),
+                ),
               ),
             ),
           ),
-        );
-      }
+          Padding(
+            padding: const EdgeInsets.only(bottom: 32, top: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  style: AppTypography.eyebrow(color: c.primary),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  style: AppTypography.fraunces(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -1.08,
+                    height: 1.1,
+                    color: c.ink,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Text(
+                    description,
+                    style: AppTypography.geist(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: c.ink2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
