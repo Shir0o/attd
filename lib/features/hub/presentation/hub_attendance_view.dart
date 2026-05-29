@@ -793,9 +793,11 @@ class _HeroEventCardState extends State<_HeroEventCard>
   @override
   void didUpdateWidget(covariant _HeroEventCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isToday && !oldWidget.isToday && !widget.disableAnimations) {
+    final shouldAnimate = widget.isToday && !widget.disableAnimations;
+    final wasAnimating = oldWidget.isToday && !oldWidget.disableAnimations;
+    if (shouldAnimate && !wasAnimating) {
       _pulseController.repeat();
-    } else if (!widget.isToday && oldWidget.isToday) {
+    } else if (!shouldAnimate && wasAnimating) {
       _pulseController
         ..stop()
         ..reset();
@@ -990,7 +992,9 @@ class _PulsePill extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        final opacity = 1.0 - (controller.value / 0.7).clamp(0.0, 1.0);
+        final t = (controller.value / 0.7).clamp(0.0, 1.0);
+        final curveValue = Curves.easeOut.transform(t);
+        final opacity = 1.0 - t;
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
@@ -998,7 +1002,7 @@ class _PulsePill extends StatelessWidget {
               BoxShadow(
                 color: c.primary.withValues(alpha: opacity * 0.4),
                 blurRadius: 0,
-                spreadRadius: (controller.value / 0.7).clamp(0.0, 1.0) * 6,
+                spreadRadius: curveValue * 6,
               ),
             ],
           ),
