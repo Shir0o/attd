@@ -215,24 +215,15 @@ void main() {
     expect(find.text('Today Event'), findsOneWidget);
     expect(find.text('Future Event'), findsOneWidget);
 
-    // Verify "TODAY" tag on today's event (only one on the card)
-    expect(find.text('TODAY'), findsOneWidget);
+    // Verify "TODAY" tag on today's event (the hero "TODAY · time" pill).
+    expect(find.textContaining('TODAY'), findsOneWidget);
 
     // Verify Order: Today Event should be first in the list
     final todayTextFinder = find.text('Today Event');
     final futureTextFinder = find.text('Future Event');
 
-    final todayCardFinder = find.ancestor(
-      of: todayTextFinder,
-      matching: find.byType(Card),
-    );
-    final futureCardFinder = find.ancestor(
-      of: futureTextFinder,
-      matching: find.byType(Card),
-    );
-
-    final todayPosition = tester.getTopLeft(todayCardFinder.last).dy;
-    final futurePosition = tester.getTopLeft(futureCardFinder.last).dy;
+    final todayPosition = tester.getTopLeft(todayTextFinder).dy;
+    final futurePosition = tester.getTopLeft(futureTextFinder).dy;
 
     expect(
       todayPosition,

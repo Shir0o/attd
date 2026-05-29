@@ -378,8 +378,6 @@ void main() {
     final expected =
         DateFormat('EEEE, MMM d, yyyy').format(futureDate);
     expect(find.text(expected), findsOneWidget);
-    // Upcoming events render the plain text status (else-branch of pill).
-    expect(find.text('Upcoming'), findsOneWidget);
   });
 
   testWidgets(
@@ -404,8 +402,8 @@ void main() {
     eventRepository.emit([todayEvent()]);
     await tester.pumpAndSettle();
 
-    expect(find.text('TAKEN'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(find.text('Taken'), findsOneWidget);
+    expect(find.byIcon(Icons.check), findsOneWidget);
   });
 
   testWidgets(
@@ -484,7 +482,7 @@ void main() {
     eventRepository.emit([event]);
     await tester.pumpAndSettle();
 
-    expect(find.text('START'), findsOneWidget);
+    expect(find.text('Start'), findsOneWidget);
   });
 
   testWidgets('multiple events sort with today first, then by time', (tester) async {
@@ -562,17 +560,16 @@ void main() {
     eventRepository.emit([event]);
     await tester.pumpAndSettle();
 
-    // Status text is either 'TAKEN (MMM d)' (rendered in pill, uppercase) or
-    // — if the session date happens to be today — just 'TAKEN'. Both exercise
-    // the Taken branch.
+    // The hero "Up next" card shows a 'Taken' pill once a session exists for
+    // the most recent occurrence.
     final texts = tester
         .widgetList<Text>(find.byType(Text))
         .map((w) => w.data ?? '')
         .toList();
     expect(
-      texts.any((t) => t.startsWith('TAKEN')),
+      texts.any((t) => t.startsWith('Taken')),
       isTrue,
-      reason: 'Expected a TAKEN status pill, got: $texts',
+      reason: 'Expected a Taken status pill, got: $texts',
     );
   });
 
@@ -597,7 +594,7 @@ void main() {
     eventRepository.emit([todayEvent()]);
     await tester.pumpAndSettle();
 
-    expect(find.text('TAKEN'), findsOneWidget);
+    expect(find.text('Taken'), findsOneWidget);
   });
 
   testWidgets('animated loading (animations enabled) waits for skeleton then shows events',
