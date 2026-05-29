@@ -214,8 +214,6 @@ void main() {
     expect(savedRecords.first.status, AttendanceStatus.present);
 
     // Verify we are at the summary page (it shows the session title)
-    // Summary page has an 800ms skeleton
-    await tester.pump(const Duration(milliseconds: 1000));
     await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
     expect(find.text('PRESENT'), findsOneWidget);

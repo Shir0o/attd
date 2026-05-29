@@ -1247,7 +1247,7 @@ void main() {
   );
 
   testWidgets(
-    'SessionSummaryPage delayed loading (animations enabled) shows skeleton then content',
+    'SessionSummaryPage renders content immediately (no skeleton)',
     (WidgetTester tester) async {
       final mockRepo = MockSessionRepository();
       final session = Session(
@@ -1267,16 +1267,16 @@ void main() {
             session: session,
             members: const [],
             sessionRepository: mockRepo,
-            // disableAnimations defaults to false -> delayed loading path
+            // disableAnimations defaults to false
           ),
         ),
       );
-      // Initial frame: skeleton (no title yet)
+      // Content is rendered immediately from the passed-in session — no
+      // skeleton, no artificial delay. The background freshness check
+      // (findSessionById) resolves silently.
       await tester.pump();
-      // Advance past the 800ms delay and let animations settle.
-      await tester.pump(const Duration(milliseconds: 801));
+      expect(find.text('Delayed'), findsOneWidget);
       await tester.pumpAndSettle();
-      // Eventually content shows
       expect(find.text('Delayed'), findsOneWidget);
     },
   );

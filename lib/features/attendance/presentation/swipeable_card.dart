@@ -61,7 +61,7 @@ class _SwipeableCardState extends State<SwipeableCard>
   Animation<double>? _rotateAnimation;
 
   static const double _rotationFactor = 0.05;
-  static const Duration _snapDuration = Duration(milliseconds: 300);
+  static const Duration _snapDuration = Duration(milliseconds: 700);
 
   @override
   void initState() {
@@ -174,12 +174,14 @@ class _SwipeableCardState extends State<SwipeableCard>
     _slideAnimation = Tween<Offset>(
       begin: _dragOffset,
       end: endOffset,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _rotateAnimation = Tween<double>(
       begin: _rotation,
       end: endRotation,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _controller.forward(from: 0.0).then((_) {
       if (direction == 1) {
