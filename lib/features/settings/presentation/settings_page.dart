@@ -18,7 +18,10 @@ import '../../../data/session_repository.dart';
 import 'cloud_backup_page.dart';
 import 'manage_backup_data_page.dart';
 import '../../../core/design/app_shimmer.dart';
+import '../../../core/design/app_typography.dart';
 import '../../../core/design/fluid_loading_border.dart';
+import '../../../core/design/widgets/conv_primitives.dart';
+import '../../../core/design/widgets/conv_theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -106,8 +109,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return PopScope(
       canPop: true,
@@ -118,22 +121,16 @@ class _SettingsPageState extends State<SettingsPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: c.bg,
         appBar: AppBar(
-          backgroundColor: colorScheme.surface,
+          backgroundColor: c.bg,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+            icon: Icon(Icons.arrow_back, color: c.ink),
             onPressed: () => Navigator.of(context).pop(_dataModified),
           ),
-          title: Text(
-            'Settings',
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontSize: 24,
-              fontWeight: FontWeight.normal,
-            ),
-          ),
+          title: const ConvEyebrow('Settings'),
+          centerTitle: true,
         ),
         body: FluidLoadingBorder(
           isLoading: _isOperating,
@@ -147,612 +144,574 @@ class _SettingsPageState extends State<SettingsPage> {
 
                     return ListView(
                       key: const ValueKey('content'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(22, 4, 22, 32),
                       children: [
+                        Text(
+                          'Settings',
+                          style: AppTypography.fraunces(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: -0.96,
+                            color: c.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
 
                     // ── Appearance ───────────────────────────────────────────
-                    _SectionHeader(title: 'Appearance'),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          ListenableBuilder(
-                            listenable: widget.themeController,
-                            builder: (context, _) {
-                              return Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: colorScheme.primaryContainer,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.palette,
-                                        color: colorScheme.onPrimaryContainer,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: const Text(
-                                        'Theme Mode',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownButtonHideUnderline(
-                                      child: DropdownButton<ThemeMode>(
-                                        value: widget.themeController.themeMode,
+                    _SettingSection(
+                      title: 'Appearance',
+                      children: [
+                        ListenableBuilder(
+                          listenable: widget.themeController,
+                          builder: (context, _) {
+                            return _SettingRow(
+                              icon: Icons.palette,
+                              title: 'Theme Mode',
+                              showChevron: false,
+                              trailing: DropdownButtonHideUnderline(
+                                child: DropdownButton<ThemeMode>(
+                                  value: widget.themeController.themeMode,
+                                  alignment: Alignment.centerRight,
+                                  icon: Icon(
+                                    Icons.arrow_drop_down,
+                                    color: c.ink3,
+                                  ),
+                                  style: AppTypography.geist(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: c.ink2,
+                                  ),
+                                  selectedItemBuilder: (BuildContext context) {
+                                    return ThemeMode.values.map((ThemeMode mode) {
+                                      return Container(
                                         alignment: Alignment.centerRight,
-                                        icon: Icon(
-                                          Icons.arrow_drop_down,
-                                          color: colorScheme.onSurfaceVariant,
+                                        child: Text(
+                                          _getThemeLabel(mode),
+                                          textAlign: TextAlign.right,
                                         ),
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: colorScheme.onSurfaceVariant,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        selectedItemBuilder: (BuildContext context) {
-                                          return ThemeMode.values.map((ThemeMode mode) {
-                                            return Container(
-                                              alignment: Alignment.centerRight,
-                                              child: Text(
-                                                _getThemeLabel(mode),
-                                                textAlign: TextAlign.right,
-                                              ),
-                                            );
-                                          }).toList();
-                                        },
-                                        items: ThemeMode.values.map((mode) {
-                                          return DropdownMenuItem(
-                                            value: mode,
-                                            alignment: Alignment.centerRight,
-                                            child: Text(_getThemeLabel(mode)),
-                                          );
-                                        }).toList(),
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            widget.themeController.updateThemeMode(
-                                              value,
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
+                                      );
+                                    }).toList();
+                                  },
+                                  items: ThemeMode.values.map((mode) {
+                                    return DropdownMenuItem(
+                                      value: mode,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(_getThemeLabel(mode)),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      widget.themeController.updateThemeMode(
+                                        value,
+                                      );
+                                    }
+                                  },
                                 ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
 
                     // ── Privacy ───────────────────────────────────────────────
                     if (widget.appLockController != null) ...[
-                      _SectionHeader(title: 'Privacy'),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: _AppLockTile(
-                          controller: widget.appLockController!,
-                        ),
+                      _SettingSection(
+                        title: 'Privacy',
+                        children: [
+                          _AppLockTile(controller: widget.appLockController!),
+                        ],
                       ),
                       const SizedBox(height: 24),
                     ],
 
                     // ── Cloud Sync (Google Drive) ─────────────────────────────
-                    _SectionHeader(title: 'Cloud Sync (Google Drive)'),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          // Google Drive Sync row
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primaryContainer,
-                                    shape: BoxShape.circle,
+                    _SettingSection(
+                      title: 'Cloud Sync (Google Drive)',
+                      children: [
+                        // Google Drive hero card
+                        ConvCard(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: c.primary.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Icon(
+                                      Icons.cloud_sync,
+                                      color: c.primary,
+                                      size: 22,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.cloud_sync,
-                                    color: colorScheme.onPrimaryContainer,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Google Drive Sync',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Google Drive',
+                                          style: AppTypography.geist(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: c.ink,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        isSignedIn
-                                            ? (widget.driveService.currentUser?.email ?? 'Signed in')
-                                            : 'Not signed in',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: colorScheme.onSurfaceVariant,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          isSignedIn
+                                              ? (widget.driveService.currentUser
+                                                      ?.email ??
+                                                  'Signed in')
+                                              : 'Not signed in',
+                                          style: AppTypography.geist(
+                                            fontSize: 13,
+                                            color: c.ink3,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                if (!isSignedIn)
-                                  FilledButton.icon(
-                                    onPressed: _isOperating
-                                        ? null
-                                        : () async {
-                                            final scaffoldMessenger =
-                                                ScaffoldMessenger.of(context);
-                                            await _performOperation(() async {
-                                              try {
+                                  if (isSignedIn) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: c.present,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (!isSignedIn)
+                                FilledButton.icon(
+                                  onPressed: _isOperating
+                                      ? null
+                                      : () async {
+                                          final scaffoldMessenger =
+                                              ScaffoldMessenger.of(context);
+                                          await _performOperation(() async {
+                                            try {
+                                              await widget.driveService
+                                                  .signIn();
+                                              if (widget.driveService
+                                                      .currentUser !=
+                                                  null) {
                                                 await widget.driveService
-                                                    .signIn();
-                                                if (widget.driveService
-                                                        .currentUser !=
-                                                    null) {
-                                                  await widget.driveService
-                                                      .setDriveSyncEnabled(
-                                                    true,
+                                                    .setDriveSyncEnabled(true);
+                                              }
+                                            } catch (e) {
+                                              scaffoldMessenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Sign in failed: $e',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          });
+                                        },
+                                  icon: const Icon(Icons.login, size: 18),
+                                  label: const Text('Sign In'),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: c.primary,
+                                    foregroundColor: c.onPrimary,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: _isOperating
+                                            ? null
+                                            : () async {
+                                                final confirmed =
+                                                    await _showConfirmDialog(
+                                                  context,
+                                                  title: 'Sign Out?',
+                                                  message:
+                                                      'You will no longer be able to sync with Google Drive until you sign in again.',
+                                                  confirmLabel: 'Sign Out',
+                                                );
+                                                if (confirmed == true) {
+                                                  await _performOperation(
+                                                    () async {
+                                                      await widget.driveService
+                                                          .signOut();
+                                                    },
                                                   );
                                                 }
-                                              } catch (e) {
-                                                scaffoldMessenger.showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Sign in failed: $e',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            });
-                                          },
-                                    icon: const Icon(Icons.login, size: 18),
-                                    label: const Text('Sign In'),
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (isSignedIn) ...[
-                            // Action buttons row (Sign Out + Sync Now)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: _isOperating
-                                          ? null
-                                          : () async {
-                                              final confirmed =
-                                                  await _showConfirmDialog(
-                                                context,
-                                                title: 'Sign Out?',
-                                                message:
-                                                    'You will no longer be able to sync with Google Drive until you sign in again.',
-                                                confirmLabel: 'Sign Out',
-                                              );
-                                              if (confirmed == true) {
-                                                await _performOperation(
-                                                  () async {
-                                                    await widget.driveService
-                                                        .signOut();
-                                                  },
-                                                );
-                                              }
-                                            },
-                                      icon: const Icon(Icons.logout, size: 18),
-                                      label: const Text('Sign Out'),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                        side: const BorderSide(color: Colors.red),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
+                                              },
+                                        icon: const Icon(Icons.logout, size: 18),
+                                        label: const Text('Sign Out'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: c.absent,
+                                          side: BorderSide(color: c.absent),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: FilledButton.icon(
-                                      onPressed: isSyncing || _isOperating
-                                          ? null
-                                          : () async {
-                                              final scaffoldMessenger =
-                                                  ScaffoldMessenger.of(context);
-                                              final url = _sheetsUrlController
-                                                  .text
-                                                  .trim();
-                                              await _performOperation(() async {
-                                                try {
-                                                  if (url.isNotEmpty) {
-                                                    await Future.wait([
-                                                      widget.driveService
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: FilledButton.icon(
+                                        onPressed: isSyncing || _isOperating
+                                            ? null
+                                            : () async {
+                                                final scaffoldMessenger =
+                                                    ScaffoldMessenger.of(
+                                                        context);
+                                                final url = _sheetsUrlController
+                                                    .text
+                                                    .trim();
+                                                await _performOperation(
+                                                    () async {
+                                                  try {
+                                                    if (url.isNotEmpty) {
+                                                      await Future.wait([
+                                                        widget.driveService
+                                                            .syncFiles(
+                                                          actionTitle:
+                                                              'Sheets & Drive Sync',
+                                                          tags: [
+                                                            'Manual',
+                                                            'Sheets',
+                                                          ],
+                                                        ),
+                                                        _googleSheetsService
+                                                            .syncAttendance(url),
+                                                      ]);
+                                                      _markDataModified();
+                                                      scaffoldMessenger
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Backed up to Drive and Synced to Sheets.',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    } else {
+                                                      await widget.driveService
                                                           .syncFiles(
                                                         actionTitle:
-                                                            'Sheets & Drive Sync',
-                                                        tags: [
-                                                          'Manual',
-                                                          'Sheets',
-                                                        ],
-                                                      ),
-                                                      _googleSheetsService
-                                                          .syncAttendance(url),
-                                                    ]);
-                                                    _markDataModified();
+                                                            'Manual Drive Sync',
+                                                        tags: ['Manual'],
+                                                      );
+                                                      _markDataModified();
+                                                      scaffoldMessenger
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Sync completed successfully',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  } catch (e) {
                                                     scaffoldMessenger
                                                         .showSnackBar(
-                                                      const SnackBar(
+                                                      SnackBar(
                                                         content: Text(
-                                                          'Backed up to Drive and Synced to Sheets.',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  } else {
-                                                    await widget.driveService
-                                                        .syncFiles(
-                                                      actionTitle:
-                                                          'Manual Drive Sync',
-                                                      tags: ['Manual'],
-                                                    );
-                                                    _markDataModified();
-
-                                                    scaffoldMessenger
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          'Sync completed successfully',
-                                                        ),
+                                                            'Sync failed: $e'),
                                                       ),
                                                     );
                                                   }
-                                                } catch (e) {
-                                                  scaffoldMessenger
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content:
-                                                          Text('Sync failed: $e'),
-                                                    ),
-                                                  );
-                                                }
-                                              });
-                                            },
-                                      icon: isSyncing
-                                          ? const SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : const Icon(Icons.sync, size: 18),
-                                      label: Text(
-                                        isSyncing
-                                            ? 'Syncing…'
-                                            : 'Sync Now',
-                                      ),
-                                      style: FilledButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
+                                                });
+                                              },
+                                        icon: isSyncing
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Icon(Icons.sync, size: 18),
+                                        label: Text(
+                                          isSyncing ? 'Syncing…' : 'Sync Now',
+                                        ),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: c.primary,
+                                          foregroundColor: c.onPrimary,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
                                         ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (isSignedIn) ...[
+                          _SettingRow(
+                            icon: Icons.history,
+                            title: 'Cloud Version History',
+                            subtitle:
+                                'View and restore previous cloud snapshots',
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CloudBackupPage(
+                                    driveService: widget.driveService,
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            _SettingsTile(
-                              icon: Icons.history,
-                              title: 'Cloud Version History',
-                              subtitle:
-                                  'View and restore previous cloud snapshots',
-                              onTap: () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => CloudBackupPage(
-                                      driveService: widget.driveService,
-                                    ),
-                                  ),
-                                );
-                                _markDataModified();
-                              },
-                            ),
-                            const SizedBox(height: 4),
-                            _SettingsTile(
-                              icon: Icons.upload_file,
-                              title: 'Overwrite Cloud',
-                              subtitle:
-                                  'Upload local data to Google Drive',
-                              onTap: isSyncing || _isOperating
-                                  ? null
-                                  : () async {
-                                      final confirmed =
-                                          await _showConfirmDialog(
-                                        context,
-                                        title: 'Overwrite Cloud Data?',
-                                        message:
-                                            'This will replace all data on your Google Drive with the data currently on this device.',
-                                        confirmLabel: 'Overwrite',
-                                      );
-                                      if (confirmed == true) {
-                                        final messenger =
-                                            ScaffoldMessenger.of(context);
-                                        await _performOperation(() async {
-                                          try {
-                                            await widget.driveService
-                                                .overwriteCloudWithLocal();
-                                            _markDataModified();
-                                            messenger.showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Cloud data overwritten',
-                                                ),
+                                ),
+                              );
+                              _markDataModified();
+                            },
+                          ),
+                          _SettingRow(
+                            icon: Icons.upload_file,
+                            title: 'Overwrite Cloud',
+                            subtitle: 'Upload local data to Google Drive',
+                            onTap: isSyncing || _isOperating
+                                ? null
+                                : () async {
+                                    final confirmed = await _showConfirmDialog(
+                                      context,
+                                      title: 'Overwrite Cloud Data?',
+                                      message:
+                                          'This will replace all data on your Google Drive with the data currently on this device.',
+                                      confirmLabel: 'Overwrite',
+                                    );
+                                    if (confirmed == true) {
+                                      final messenger =
+                                          ScaffoldMessenger.of(context);
+                                      await _performOperation(() async {
+                                        try {
+                                          await widget.driveService
+                                              .overwriteCloudWithLocal();
+                                          _markDataModified();
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Cloud data overwritten',
                                               ),
-                                            );
-                                          } catch (e) {
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text('Error: $e'),
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text('Error: $e'),
+                                            ),
+                                          );
+                                        }
+                                      });
+                                    }
+                                  },
+                          ),
+                          _SettingRow(
+                            icon: Icons.download_for_offline,
+                            title: 'Overwrite Local',
+                            subtitle: 'Replace local data with cloud backup',
+                            onTap: isSyncing || _isOperating
+                                ? null
+                                : () async {
+                                    final confirmed = await _showConfirmDialog(
+                                      context,
+                                      title: 'Overwrite Local Data?',
+                                      message:
+                                          'This will replace all data on this device with the data from your Google Drive.',
+                                      confirmLabel: 'Overwrite',
+                                    );
+                                    if (confirmed == true) {
+                                      final messenger =
+                                          ScaffoldMessenger.of(context);
+                                      await _performOperation(() async {
+                                        try {
+                                          await widget.driveService
+                                              .overwriteLocalWithCloud();
+                                          _markDataModified();
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Local data overwritten',
                                               ),
-                                            );
-                                          }
-                                        });
-                                      }
-                                    },
-                            ),
-                            const SizedBox(height: 4),
-                            _SettingsTile(
-                              icon: Icons.download_for_offline,
-                              title: 'Overwrite Local',
-                              subtitle:
-                                  'Replace local data with cloud backup',
-                              onTap: isSyncing || _isOperating
-                                  ? null
-                                  : () async {
-                                      final confirmed =
-                                          await _showConfirmDialog(
-                                        context,
-                                        title: 'Overwrite Local Data?',
-                                        message:
-                                            'This will replace all data on this device with the data from your Google Drive.',
-                                        confirmLabel: 'Overwrite',
-                                      );
-                                      if (confirmed == true) {
-                                        final messenger =
-                                            ScaffoldMessenger.of(context);
-                                        await _performOperation(() async {
-                                          try {
-                                            await widget.driveService
-                                                .overwriteLocalWithCloud();
-                                            _markDataModified();
-                                            messenger.showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Local data overwritten',
-                                                ),
-                                              ),
-                                            );
-                                          } catch (e) {
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text('Error: $e'),
-                                              ),
-                                            );
-                                          }
-                                        });
-                                      }
-                                    },
-                            ),
-                          ],
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text('Error: $e'),
+                                            ),
+                                          );
+                                        }
+                                      });
+                                    }
+                                  },
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                     const SizedBox(height: 24),
 
                     // ── Google Sheets ───────────────────────────────────────────
-                    _SectionHeader(title: 'Google Sheets Integration'),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          _GoogleSheetsSection(
-                            isSavingUrl: _isSavingUrl,
-                            sheetsUrlController: _sheetsUrlController,
-                            onSave: _saveGoogleSheetsUrl,
-                          ),
-                        ],
-                      ),
+                    _SettingSection(
+                      title: 'Google Sheets Integration',
+                      children: [
+                        _GoogleSheetsSection(
+                          isSavingUrl: _isSavingUrl,
+                          sheetsUrlController: _sheetsUrlController,
+                          onSave: _saveGoogleSheetsUrl,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
 
                     // ── Data Management ───────────────────────────────────────
-                    _SectionHeader(title: 'Data Management'),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          _SettingsTile(
-                            key: const ValueKey('manage_members_tile'),
-                            icon: Icons.people_outline,
-                            title: 'Manage Members',
-                            subtitle: 'Add, edit, or remove members',
-                            onTap: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => MembersPage(
-                                    attendanceRepository:
-                                        widget.attendanceRepository,
-                                    sessionRepository: widget.sessionRepository,
-                                  ),
+                    _SettingSection(
+                      title: 'Data Management',
+                      children: [
+                        _SettingRow(
+                          key: const ValueKey('manage_members_tile'),
+                          icon: Icons.people_outline,
+                          title: 'Manage Members',
+                          subtitle: 'Add, edit, or remove members',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => MembersPage(
+                                  attendanceRepository:
+                                      widget.attendanceRepository,
+                                  sessionRepository: widget.sessionRepository,
                                 ),
-                              );
+                              ),
+                            );
+                            _markDataModified();
+                          },
+                        ),
+                        _SettingRow(
+                          key: const ValueKey('manage_families_tile'),
+                          icon: Icons.groups_outlined,
+                          title: 'Manage Families',
+                          subtitle: 'Group members into families',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => FamilyListPage(
+                                  repository: widget.attendanceRepository,
+                                  disableAnimations: widget.disableAnimations,
+                                ),
+                              ),
+                            );
+                            if (mounted) {
                               _markDataModified();
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
-                            key: const ValueKey('manage_families_tile'),
-                            icon: Icons.groups_outlined,
-                            title: 'Manage Families',
-                            subtitle: 'Group members into families',
-                            onTap: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => FamilyListPage(
-                                    repository: widget.attendanceRepository,
-                                    disableAnimations:
-                                        widget.disableAnimations,
-                                  ),
+                            }
+                          },
+                        ),
+                        _SettingRow(
+                          key: const ValueKey('manage_backup_data_tile'),
+                          icon: Icons.cleaning_services,
+                          title: 'Manage Backup Data',
+                          subtitle: 'Clean up hidden or orphaned records',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ManageBackupDataPage(
+                                  attendanceRepository:
+                                      widget.attendanceRepository,
+                                  eventRepository: widget.eventRepository,
+                                  sessionRepository: widget.sessionRepository,
+                                ),
+                              ),
+                            );
+                            _markDataModified();
+                          },
+                        ),
+                        _SettingRow(
+                          icon: Icons.save,
+                          title: 'Backup to Local Storage',
+                          subtitle: 'Create a full backup on this device',
+                          onTap: () async {
+                            final scaffoldMessenger =
+                                ScaffoldMessenger.of(context);
+                            try {
+                              await widget.localBackupService.createBackup();
+                            } catch (e) {
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Backup failed: $e'),
                                 ),
                               );
-                              if (mounted) {
-                                _markDataModified();
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
-                            key: const ValueKey('manage_backup_data_tile'),
-                            icon: Icons.cleaning_services,
-                            title: 'Manage Backup Data',
-                            subtitle: 'Clean up hidden or orphaned records',
-                            onTap: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ManageBackupDataPage(
-                                    attendanceRepository:
-                                        widget.attendanceRepository,
-                                    eventRepository: widget.eventRepository,
-                                    sessionRepository: widget.sessionRepository,
-                                  ),
+                            }
+                          },
+                        ),
+                        _SettingRow(
+                          icon: Icons.summarize,
+                          title: 'Advanced Reporting',
+                          subtitle: 'Filter and export custom reports',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ReportExportPage(
+                                  sessionRepository: widget.sessionRepository,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        _SettingRow(
+                          icon: Icons.ios_share,
+                          title: 'Export Report',
+                          subtitle: 'Download CSV',
+                          onTap: () async {
+                            final scaffoldMessenger =
+                                ScaffoldMessenger.of(context);
+                            try {
+                              await widget.localBackupService.exportData();
+                            } catch (e) {
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Export failed: $e'),
                                 ),
                               );
-                              _markDataModified();
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
-                            icon: Icons.save,
-                            title: 'Backup to Local Storage',
-                            subtitle: 'Create a full backup on this device',
-                            onTap: () async {
-                              final scaffoldMessenger =
-                                  ScaffoldMessenger.of(context);
-                              try {
-                                await widget.localBackupService.createBackup();
-                              } catch (e) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text('Backup failed: $e'),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
-                            icon: Icons.summarize,
-                            title: 'Advanced Reporting',
-                            subtitle: 'Filter and export custom reports',
-                            onTap: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ReportExportPage(
-                                    sessionRepository: widget.sessionRepository,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
-                            icon: Icons.ios_share,
-                            title: 'Export Report',
-                            subtitle: 'Download CSV',
-                            onTap: () async {
-                              final scaffoldMessenger =
-                                  ScaffoldMessenger.of(context);
-                              try {
-                                await widget.localBackupService.exportData();
-                              } catch (e) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text('Export failed: $e'),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                            }
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
 
                     // ── Information ───────────────────────────────────────────
-                    _SectionHeader(title: 'Information'),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          _SettingsTile(
-                            icon: Icons.feedback_outlined,
-                            title: 'Feedback & Support',
-                            subtitle: 'Report a bug or request a feature',
+                    _SettingSection(
+                      title: 'Information',
+                      children: [
+                        _SettingRow(
+                          icon: Icons.feedback_outlined,
+                          title: 'Feedback & Support',
+                          subtitle: 'Report a bug or request a feature',
                             onTap: () async {
                               String? encodeQueryParameters(Map<String, String> params) {
                                 return params.entries
@@ -785,9 +744,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                   );
                                 }
                               }
-                            },                          ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
+                            },
+                          ),
+                          _SettingRow(
                             icon: Icons.security,
                             title: 'Privacy Policy',
                             subtitle: 'How your data is handled',
@@ -907,8 +866,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               );
                             },
                           ),
-                          const SizedBox(height: 4),
-                          _SettingsTile(
+                          _SettingRow(
                             icon: Icons.info_outline,
                             title: 'About',
                             subtitle: 'Version 1.2.0+13',
@@ -1024,10 +982,13 @@ class _SettingsPageState extends State<SettingsPage> {
                               );
                             },
                           ),
-                        ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 32),
+                    Center(
+                      child: ConvEyebrow('Attendance · Version 1.2.0+13'),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 );
               },
@@ -1051,106 +1012,120 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSkeleton(BuildContext context) {
     return ListView(
       key: const ValueKey('settings_skeleton'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 32),
       children: [
-        _buildSkeletonSection(context, 'Appearance', 1),
+        AppShimmer(
+          width: 160,
+          height: 36,
+          borderRadius: BorderRadius.circular(8),
+          disableAnimations: widget.disableAnimations,
+        ),
+        const SizedBox(height: 20),
+        _buildSkeletonSection(context, 1),
         const SizedBox(height: 24),
-        _buildSkeletonSection(context, 'Cloud Sync (Google Drive)', 1,
-            hasButtons: true),
+        _buildSkeletonSection(context, 1, hasButtons: true),
         const SizedBox(height: 24),
-        _buildSkeletonSection(context, 'Data Management', 4),
+        _buildSkeletonSection(context, 4),
         const SizedBox(height: 24),
-        _buildSkeletonSection(context, 'Information', 3),
+        _buildSkeletonSection(context, 3),
         const SizedBox(height: 48),
       ],
     );
   }
 
-  Widget _buildSkeletonSection(BuildContext context, String title, int tileCount,
+  Widget _buildSkeletonSection(BuildContext context, int tileCount,
       {bool hasButtons = false}) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: title),
-        Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            children: [
-              for (int i = 0; i < tileCount; i++) ...[
-                _buildSkeletonTile(context),
-                if (i < tileCount - 1)
-                  const SizedBox(height: 4),
-              ],
-              if (hasButtons)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: AppShimmer(
-                          height: 44,
-                          width: double.infinity,
-                          borderRadius: BorderRadius.circular(24),
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: AppShimmer(
-                          height: 44,
-                          width: double.infinity,
-                          borderRadius: BorderRadius.circular(24),
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: AppShimmer(
+            width: 90,
+            height: 11,
+            borderRadius: BorderRadius.circular(4),
+            disableAnimations: widget.disableAnimations,
           ),
         ),
+        if (hasButtons) ...[
+          _buildSkeletonCard(context, withDot: true),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: AppShimmer(
+                  height: 44,
+                  width: double.infinity,
+                  borderRadius: BorderRadius.circular(14),
+                  disableAnimations: widget.disableAnimations,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AppShimmer(
+                  height: 44,
+                  width: double.infinity,
+                  borderRadius: BorderRadius.circular(14),
+                  disableAnimations: widget.disableAnimations,
+                ),
+              ),
+            ],
+          ),
+        ] else
+          for (int i = 0; i < tileCount; i++) ...[
+            _buildSkeletonTile(context),
+            if (i < tileCount - 1) const SizedBox(height: 10),
+          ],
       ],
     );
   }
 
+  Widget _buildSkeletonCard(BuildContext context, {bool withDot = false}) {
+    return ConvCard(
+      padding: const EdgeInsets.all(18),
+      child: _skeletonRow(context, dense: false),
+    );
+  }
+
   Widget _buildSkeletonTile(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          AppShimmer(
-            width: 40,
-            height: 40,
-            borderRadius: BorderRadius.circular(20),
-            disableAnimations: widget.disableAnimations,
+    return ConvCardSoft(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: _skeletonRow(context, dense: true),
+    );
+  }
+
+  Widget _skeletonRow(BuildContext context, {required bool dense}) {
+    final size = dense ? 40.0 : 44.0;
+    return Row(
+      children: [
+        AppShimmer(
+          width: size,
+          height: size,
+          borderRadius: BorderRadius.circular(dense ? 12 : 14),
+          disableAnimations: widget.disableAnimations,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppShimmer(
+                width: 140,
+                height: 14,
+                borderRadius: BorderRadius.circular(4),
+                disableAnimations: widget.disableAnimations,
+              ),
+              const SizedBox(height: 8),
+              AppShimmer(
+                width: 200,
+                height: 12,
+                borderRadius: BorderRadius.circular(4),
+                disableAnimations: widget.disableAnimations,
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppShimmer(
-                  width: 140,
-                  height: 16,
-                  borderRadius: BorderRadius.circular(4),
-                  disableAnimations: widget.disableAnimations,
-                ),
-                const SizedBox(height: 8),
-                AppShimmer(
-                  width: 200,
-                  height: 12,
-                  borderRadius: BorderRadius.circular(4),
-                  disableAnimations: widget.disableAnimations,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1245,8 +1220,6 @@ class _GoogleSheetsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     // The Apps Script code to copy
     const script = r'''function doGet(e) {
   return ContentService.createTextOutput("The Attendance API is running successfully.");
@@ -1325,7 +1298,8 @@ function doPost(e) {
   }
 }''';
 
-    return Padding(
+    final c = context.conv;
+    return ConvCardSoft(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1344,8 +1318,8 @@ function doPost(e) {
             icon: const Icon(Icons.copy),
             label: const Text('Copy Apps Script Boilerplate'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
+              backgroundColor: c.primary,
+              foregroundColor: c.onPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -1353,9 +1327,9 @@ function doPost(e) {
             '1. Create a Google Sheet and open Extensions > Apps Script.\n'
             '2. Paste the copied script, Deploy as Web App (Anyone).\n'
             '3. Paste the deployment URL below.',
-            style: TextStyle(
+            style: AppTypography.geist(
               fontSize: 14,
-              color: colorScheme.onSurfaceVariant,
+              color: c.ink3,
               height: 1.5,
             ),
           ),
@@ -1400,93 +1374,107 @@ function doPost(e) {
 
 // ── Shared Widgets ────────────────────────────────────────────────────────────
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+class _SettingSection extends StatelessWidget {
+  const _SettingSection({required this.title, required this.children});
 
   final String title;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 12),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-          color: Theme.of(context).colorScheme.primary,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: ConvEyebrow(title),
         ),
-      ),
+        for (int i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i < children.length - 1) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({
+/// Reusable leading icon — primary-tinted rounded square (JSX SettingRow icon).
+class _SettingLeadingIcon extends StatelessWidget {
+  const _SettingLeadingIcon(this.icon);
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: c.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: c.primary, size: 20),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
     super.key,
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
+    this.trailing,
     this.onTap,
+    this.showChevron = true,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
+  final Widget? trailing;
   final VoidCallback? onTap;
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
+    final c = context.conv;
+    return ConvCardSoft(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: colorScheme.onPrimaryContainer,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: colorScheme.onSurface,
-                    ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          _SettingLeadingIcon(icon),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.geist(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: c.ink,
                   ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
                   Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    subtitle!,
+                    style: AppTypography.geist(fontSize: 12, color: c.ink3),
                   ),
                 ],
-              ),
+              ],
             ),
-            Icon(
-              Icons.chevron_right,
-              color: colorScheme.onSurfaceVariant,
-              size: 24,
-            ),
-          ],
-        ),
+          ),
+          if (trailing != null)
+            trailing!
+          else if (showChevron)
+            Icon(Icons.chevron_right, color: c.ink3, size: 22),
+        ],
       ),
     );
   }
@@ -1551,45 +1539,32 @@ class _AppLockTileState extends State<_AppLockTile> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    final c = context.conv;
+    return ConvCardSoft(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.lock_outline,
-              color: colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width: 16),
+          _SettingLeadingIcon(Icons.lock_outline),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'App Lock',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: AppTypography.geist(
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
+                    color: c.ink,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   _supported
                       ? 'Require biometrics or device passcode to open Attendance'
                       : 'Set up biometrics or a device passcode to use App Lock',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: AppTypography.geist(fontSize: 12, color: c.ink3),
                 ),
               ],
             ),
