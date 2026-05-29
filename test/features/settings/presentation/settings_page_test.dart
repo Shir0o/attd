@@ -518,6 +518,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -400),
     );
+    await tester.ensureVisible(find.text('Backup to Local Storage'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pumpAndSettle();
 
@@ -533,6 +535,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -300),
     );
+    await tester.ensureVisible(find.text('Export Report'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Export Report'));
     await tester.pumpAndSettle();
 
@@ -717,6 +721,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Overwrite Local'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Overwrite Local'));
     await tester.pumpAndSettle();
     expect(find.text('Overwrite Local Data?'), findsOneWidget);
@@ -745,6 +751,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -400),
     );
+    await tester.ensureVisible(find.text('Privacy Policy'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Privacy Policy'));
     await tester.pumpAndSettle();
 
@@ -873,6 +881,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Manage Members'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Manage Members'));
     await tester.pumpAndSettle();
     // Pop back without asserting on specific content; we just want coverage.
@@ -889,6 +899,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Manage Families'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Manage Families'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.arrow_back));
@@ -904,6 +916,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Copy Apps Script Boilerplate'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Copy Apps Script Boilerplate'));
     // Clipboard channel may not be available in widget tests; just verify
     // the button was tappable (no exception).

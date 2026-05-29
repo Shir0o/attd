@@ -32,7 +32,7 @@ void main() {
 
       // 3. Find Sync Toggle or Sign In button
       final signInButton = find.widgetWithText(FilledButton, 'Sign In');
-      final syncTile = find.text('Google Drive Sync');
+      final syncTile = find.text('Google Drive');
       await tester.pumpUntilFound(syncTile);
       
       if (tester.any(signInButton)) {
