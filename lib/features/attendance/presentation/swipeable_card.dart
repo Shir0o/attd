@@ -13,6 +13,15 @@ class SwipeProgress {
   final double leftProgress;
 }
 
+/// Lets a parent programmatically trigger the same fly-off animation as a
+/// manual swipe (e.g. from footer Present/Absent buttons).
+class SwipeableCardController {
+  _SwipeableCardState? _state;
+
+  void swipeRight() => _state?._programmaticDismiss(1);
+  void swipeLeft() => _state?._programmaticDismiss(-1);
+}
+
 class SwipeableCard extends StatefulWidget {
   final Widget? child;
   final Widget Function(BuildContext, SwipeProgress)? childBuilder;
@@ -21,6 +30,7 @@ class SwipeableCard extends StatefulWidget {
   final double threshold;
   final Color? rightSwipeColor;
   final Color? leftSwipeColor;
+  final SwipeableCardController? controller;
 
   const SwipeableCard({
     super.key,
@@ -31,6 +41,7 @@ class SwipeableCard extends StatefulWidget {
     this.threshold = 100.0,
     this.rightSwipeColor,
     this.leftSwipeColor,
+    this.controller,
   }) : assert(child != null || childBuilder != null,
             'Provide either child or childBuilder');
 
@@ -60,6 +71,8 @@ class _SwipeableCardState extends State<SwipeableCard>
         setState(() {});
       });
 
+    widget.controller?._state = this;
+
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         if (_slideAnimation != null) _dragOffset = _slideAnimation!.value;
@@ -78,9 +91,28 @@ class _SwipeableCardState extends State<SwipeableCard>
   }
 
   @override
+  void didUpdateWidget(SwipeableCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      if (oldWidget.controller?._state == this) {
+        oldWidget.controller?._state = null;
+      }
+      widget.controller?._state = this;
+    }
+  }
+
+  @override
   void dispose() {
+    if (widget.controller?._state == this) {
+      widget.controller?._state = null;
+    }
     _controller.dispose();
     super.dispose();
+  }
+
+  void _programmaticDismiss(int direction) {
+    if (_controller.isAnimating || _isDragging) return;
+    _animateToDismiss(direction: direction);
   }
 
   void _onPanStart(DragStartDetails details) {

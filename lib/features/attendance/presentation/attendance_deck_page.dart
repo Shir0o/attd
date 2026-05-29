@@ -63,6 +63,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   bool _isLoading = true;
   bool _isListMode = false;
   final List<int> _history = [];
+  final SwipeableCardController _swipeController = SwipeableCardController();
   final Set<String> _touchedMemberIds = {};
   final Set<String> _touchedMemberNames = {};
 
@@ -700,6 +701,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                               )
                             : SwipeableCard(
                                 key: ValueKey(currentMember.id),
+                                controller: _swipeController,
                                 rightSwipeColor: c.present,
                                 leftSwipeColor: c.absent,
                                 onSwipeLeft: () => _processAttendance(
@@ -773,7 +775,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               child: InkWell(
                 key: const Key('absentButton'),
                 onTap: _currentIndex < widget.members.length
-                    ? () => _processAttendance(AttendanceStatus.absent)
+                    ? () => widget.disableAnimations
+                        ? _processAttendance(AttendanceStatus.absent)
+                        : _swipeController.swipeLeft()
                     : null,
                 child: Icon(Icons.close, color: colorScheme.error),
               ),
@@ -790,7 +794,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               child: InkWell(
                 key: const Key('presentButton'),
                 onTap: _currentIndex < widget.members.length
-                    ? () => _processAttendance(AttendanceStatus.present)
+                    ? () => widget.disableAnimations
+                        ? _processAttendance(AttendanceStatus.present)
+                        : _swipeController.swipeRight()
                     : null,
                 child: Icon(Icons.check, color: colorScheme.onPrimary),
               ),
