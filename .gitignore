@@ -83,11 +83,9 @@ firestore.indexes.json
 .pub/
 /build/
 
-# Design handoff reference PNGs — keep local for browsing, but text JSX/CSS
-# under docs/design-handoff/project/ is the spec source-of-truth and stays
-# committed. Re-fetch PNGs from the handoff URL if needed.
-docs/design-handoff/project/uploads/
-docs/design-handoff/project/screenshots/
+# Design handoff bundle is not vendored — re-fetch it fresh from the handoff
+# URL whenever design changes are needed. DESIGN_SPEC.md is the durable spec.
+docs/design-handoff/
 
 # Agent Configuration (Local Only)
 CLAUDE.md

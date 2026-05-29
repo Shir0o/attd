@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// Pairs Fraunces (serif, editorial) for display + headline with Geist
 /// (sans, technical) for body, label, and numeric runs. Mirrors the
 /// `.t-display / .t-headline / .t-eyebrow / .t-body / .t-label / .t-num`
-/// scale defined in `docs/design-handoff/project/app.css`.
+/// scale documented in `DESIGN_SPEC.md`.
 class AppTypography {
   AppTypography._();
 

@@ -15,8 +15,7 @@ import 'consistent_members_page.dart';
 
 /// 12-week attendance sparkline for a single event.
 ///
-/// Mirrors `SummaryPreview` in
-/// `docs/design-handoff/project/marketing.jsx` (lines 289–331).
+/// Mirrors `SummaryPreview` from the design handoff (see `DESIGN_SPEC.md`).
 class EventTrendPage extends StatefulWidget {
   const EventTrendPage({
     super.key,

@@ -362,21 +362,24 @@ void main() {
   });
 
   testWidgets('renders a one-time event with its formatted date', (tester) async {
-    final futureDate = DateTime.now().add(const Duration(days: 14));
+    // The full formatted date renders on the highlight (hero) card, which is
+    // reserved for today's event — so schedule the one-time event for today.
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
     final event = Event(
       id: 'one',
       title: 'Workshop',
       time: const TimeOfDay(hour: 10, minute: 0),
       frequency: 'One-time',
-      oneTimeDate: futureDate,
-      createdAt: DateTime.now(),
+      oneTimeDate: todayDate,
+      createdAt: now,
     );
     await pumpView(tester);
     eventRepository.emit([event]);
     await tester.pumpAndSettle();
 
     final expected =
-        DateFormat('EEEE, MMM d, yyyy').format(futureDate);
+        DateFormat('EEEE, MMM d, yyyy').format(todayDate);
     expect(find.text(expected), findsOneWidget);
   });
 
@@ -528,6 +531,63 @@ void main() {
     }
     expect(positions['Early Today']! < positions['Late Today']!, isTrue);
     expect(positions['Late Today']! < positions['Other Day']!, isTrue);
+  });
+
+  testWidgets(
+      'multiple today events render one highlight card plus an Also today group',
+      (tester) async {
+    final now = DateTime.now();
+    final dayName = DateFormat('EEEE').format(now);
+    Event todayAt(String id, String title, int hour) => Event(
+          id: id,
+          title: title,
+          time: TimeOfDay(hour: hour, minute: 0),
+          frequency: 'Weekly',
+          repeatingDays: [dayName],
+          createdAt: now,
+        );
+
+    await pumpView(tester);
+    eventRepository.emit([
+      todayAt('a', 'Morning Prayer', 8),
+      todayAt('b', 'Sunday School', 11),
+      todayAt('c', 'Evening Service', 18),
+    ]);
+    await tester.pumpAndSettle();
+
+    // Exactly one highlight (hero) card — its "Expected" eyebrow is unique.
+    expect(find.text('EXPECTED'), findsOneWidget);
+    // Header shows the count pill.
+    expect(find.text('3 EVENTS'), findsOneWidget);
+    // The other two same-day events live under "Also today".
+    expect(find.text('ALSO TODAY'), findsOneWidget);
+    expect(find.text('2 LATER'), findsOneWidget);
+    // Each "Also today" row carries an expected-count subline.
+    expect(find.textContaining('expected'), findsNWidgets(2));
+  });
+
+  testWidgets('no today events: no highlight card, events under Upcoming',
+      (tester) async {
+    final now = DateTime.now();
+    final notTodayDay =
+        DateFormat('EEEE').format(now.add(const Duration(days: 2)));
+    final event = Event(
+      id: 'future',
+      title: 'Mid-week Study',
+      time: const TimeOfDay(hour: 19, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [notTodayDay],
+      createdAt: now,
+    );
+
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    // No highlight card means no "Expected" eyebrow.
+    expect(find.text('EXPECTED'), findsNothing);
+    expect(find.text('UPCOMING'), findsOneWidget);
+    expect(find.text('Mid-week Study'), findsOneWidget);
   });
 
   testWidgets('event with session on past day shows Taken with date suffix', (tester) async {
