@@ -522,9 +522,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       return aMinutes.compareTo(bMinutes);
     }
 
-    final todayEvents = _events.where(_isEventToday).toList()..sort(byTime);
-    final otherEvents = _events.where((e) => !_isEventToday(e)).toList()
-      ..sort(byTime);
+    // Single pass so the (relatively expensive) _isEventToday check runs once
+    // per event rather than twice.
+    final todayEvents = <Event>[];
+    final otherEvents = <Event>[];
+    for (final event in _events) {
+      (_isEventToday(event) ? todayEvents : otherEvents).add(event);
+    }
+    todayEvents.sort(byTime);
+    otherEvents.sort(byTime);
 
     final c = context.conv;
     final children = <Widget>[];
@@ -533,27 +539,28 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     // one still needing attendance (or the soonest, if all are taken).
     Event? hero;
     if (todayEvents.isNotEmpty) {
-      hero = todayEvents.firstWhere(
+      final currentHero = todayEvents.firstWhere(
         (e) => !_statusFor(e).taken,
         orElse: () => todayEvents.first,
       );
+      hero = currentHero;
 
       children.add(
         _HeroEventCard(
-          event: hero,
+          event: currentHero,
           isToday: true,
-          status: _statusFor(hero),
-          expected: hero.memberIds.length,
-          lastStat: _lastSessionStat(hero),
-          onTap: () => _handleEventTap(hero!),
-          onMenuTap: () => _showEventMenu(context, hero!),
+          status: _statusFor(currentHero),
+          expected: currentHero.memberIds.length,
+          lastStat: _lastSessionStat(currentHero),
+          onTap: () => _handleEventTap(currentHero),
+          onMenuTap: () => _showEventMenu(context, currentHero),
           disableAnimations: widget.disableAnimations,
         ),
       );
 
       // "Also today" — the remaining same-day events, so they don't get
       // buried in the weekly list.
-      final alsoToday = todayEvents.where((e) => e != hero).toList();
+      final alsoToday = todayEvents.where((e) => e != currentHero).toList();
       if (alsoToday.isNotEmpty) {
         final doneCount =
             alsoToday.where((e) => _statusFor(e).taken).length;
@@ -1317,10 +1324,14 @@ class _TodayRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final time = event.time.format(context);
-    final parts = time.split(' ');
-    final hh = parts.first;
-    final ampm = parts.length > 1 ? parts[1] : '';
+    // Format the time/marker via DateFormat so the split is locale-safe rather
+    // than relying on a space separator that some locales omit.
+    final use24Hour = MediaQuery.of(context).alwaysUse24HourFormat;
+    final dummyDate = DateTime(2020, 1, 1, event.time.hour, event.time.minute);
+    final hh = use24Hour
+        ? DateFormat('HH:mm').format(dummyDate)
+        : DateFormat('h:mm').format(dummyDate);
+    final ampm = use24Hour ? '' : DateFormat('a').format(dummyDate);
 
     return Opacity(
       opacity: status.taken ? 0.66 : 1,
