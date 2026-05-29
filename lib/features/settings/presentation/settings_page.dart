@@ -1083,7 +1083,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSkeletonCard(BuildContext context, {bool withDot = false}) {
     return ConvCard(
       padding: const EdgeInsets.all(18),
-      child: _skeletonRow(context, dense: false),
+      child: _skeletonRow(context, dense: false, withDot: withDot),
     );
   }
 
@@ -1094,7 +1094,11 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _skeletonRow(BuildContext context, {required bool dense}) {
+  Widget _skeletonRow(
+    BuildContext context, {
+    required bool dense,
+    bool withDot = false,
+  }) {
     final size = dense ? 40.0 : 44.0;
     return Row(
       children: [
@@ -1125,6 +1129,15 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
+        if (withDot) ...[
+          const SizedBox(width: 8),
+          AppShimmer(
+            width: 8,
+            height: 8,
+            borderRadius: BorderRadius.circular(4),
+            disableAnimations: widget.disableAnimations,
+          ),
+        ],
       ],
     );
   }
@@ -1539,41 +1552,15 @@ class _AppLockTileState extends State<_AppLockTile> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.conv;
-    return ConvCardSoft(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          _SettingLeadingIcon(Icons.lock_outline),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'App Lock',
-                  style: AppTypography.geist(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: c.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _supported
-                      ? 'Require biometrics or device passcode to open Attendance'
-                      : 'Set up biometrics or a device passcode to use App Lock',
-                  style: AppTypography.geist(fontSize: 12, color: c.ink3),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: widget.controller.isEnabled,
-            onChanged: (!_supported || _busy) ? null : _toggle,
-          ),
-        ],
+    return _SettingRow(
+      icon: Icons.lock_outline,
+      title: 'App Lock',
+      subtitle: _supported
+          ? 'Require biometrics or device passcode to open Attendance'
+          : 'Set up biometrics or a device passcode to use App Lock',
+      trailing: Switch(
+        value: widget.controller.isEnabled,
+        onChanged: (!_supported || _busy) ? null : _toggle,
       ),
     );
   }
