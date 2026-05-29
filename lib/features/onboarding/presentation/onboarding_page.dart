@@ -144,6 +144,7 @@ class _OnboardingSlide extends StatelessWidget {
           Expanded(
             child: Center(
               child: SingleChildScrollView(
+                clipBehavior: Clip.none,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 280),
                   child: Center(child: art),
