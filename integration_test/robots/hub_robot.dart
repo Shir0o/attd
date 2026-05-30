@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 
 import '../utils/test_utils.dart';
 
@@ -47,7 +48,31 @@ class HubRobot {
     await tester.pumpUntilFound(find.text(title));
   }
 
-  Future<void> tapEventCard(String title) async {
+  /// Taps an event card and selects a specific start mode in the picker.
+  Future<void> tapEventCardWithMode(
+    String title,
+    AttendanceStartMode mode,
+  ) async {
+    print('DEBUG: tapEventCardWithMode($title, ${mode.name})');
+    await tapEventCard(title, autoConfirmStartMode: false);
+
+    final tile = find.byKey(ValueKey('start_mode_${mode.name}'));
+    await tester.pumpUntilFound(tile);
+    await tester.ensureVisible(tile);
+    await tester.tap(tile);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final confirm = find.byKey(const Key('startModeConfirmButton'));
+    await tester.tap(confirm);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapEventCard(
+    String title, {
+    bool autoConfirmStartMode = true,
+  }) async {
     print('DEBUG: tapEventCard($title)');
     final textFinder = find.text(title).last;
     await tester.pumpUntilFound(textFinder);
@@ -80,7 +105,7 @@ class HubRobot {
     // the default so existing scenarios that expected an immediate jump
     // into attendance continue to work.
     final startModeButton = find.byKey(const Key('startModeConfirmButton'));
-    if (startModeButton.evaluate().isNotEmpty) {
+    if (autoConfirmStartMode && startModeButton.evaluate().isNotEmpty) {
       print('DEBUG: start mode picker present, confirming');
       await tester.tap(startModeButton);
       await tester.pump();

@@ -790,6 +790,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             event: event,
             driveService: widget.driveService,
             disableAnimations: widget.disableAnimations,
+            // "All present" and smart defaults open directly in the roster
+            // List view so the user toggles exceptions; "all absent" keeps
+            // the speed-swipe deck.
+            initialListMode: pickedMode != AttendanceStartMode.allAbsent,
           ),
         ),
       );

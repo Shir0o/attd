@@ -34,6 +34,7 @@ class AttendanceDeckPage extends StatefulWidget {
     this.event,
     this.driveService,
     this.disableAnimations = false,
+    this.initialListMode = false,
   });
 
   final Session session;
@@ -45,6 +46,11 @@ class AttendanceDeckPage extends StatefulWidget {
   final Event? event;
   final DriveService? driveService;
   final bool disableAnimations;
+
+  /// When true, the page opens in the roster List view instead of the
+  /// speed-swipe deck. Used for "all present" / smart start modes where the
+  /// user toggles exceptions rather than swiping every member.
+  final bool initialListMode;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -91,6 +97,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   @override
   void initState() {
     super.initState();
+    _isListMode = widget.initialListMode;
     _updateSession(widget.session);
     _currentEvent = widget.event;
     debugPrint(
