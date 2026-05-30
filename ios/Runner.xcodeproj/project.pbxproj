@@ -299,7 +299,8 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(SRCROOT)/$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
+				"$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
+				"$(SRCROOT)/Runner/GoogleService-Info.plist",
 			);
 			name = "[Firebase Crashlytics] Upload Symbols";
 			outputFileListPaths = (
@@ -308,7 +309,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${BUILD_DIR}/../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+			shellScript = "run_script=\"\"\nfor path in \\\n  \"${BUILD_DIR}/../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${TEMP_DIR}/../../../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${TEMP_DIR}/../../../../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${TEMP_DIR}/../../../../../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${PROJECT_DIR}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"; do\n  if [ -f \"$path\" ]; then\n    run_script=\"$path\"\n    break\n  fi\ndone\n\nif [ -n \"$run_script\" ]; then\n  \"$run_script\"\nelse\n  echo \"error: Firebase Crashlytics run script not found.\"\n  exit 1\nfi\n";
 		};
 		162FCA4E9662798D7F2C1125 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
