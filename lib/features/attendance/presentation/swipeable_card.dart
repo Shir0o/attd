@@ -32,6 +32,11 @@ class SwipeableCard extends StatefulWidget {
   final Color? leftSwipeColor;
   final SwipeableCardController? controller;
 
+  /// Fired (after the frame) with the live drag progress, so a parent can drive
+  /// sibling affordances such as the deck's left/right hint zones without
+  /// rebuilding this card.
+  final ValueChanged<SwipeProgress>? onProgress;
+
   const SwipeableCard({
     super.key,
     this.child,
@@ -42,6 +47,7 @@ class SwipeableCard extends StatefulWidget {
     this.rightSwipeColor,
     this.leftSwipeColor,
     this.controller,
+    this.onProgress,
   }) : assert(child != null || childBuilder != null,
             'Provide either child or childBuilder');
 
@@ -213,6 +219,12 @@ class _SwipeableCardState extends State<SwipeableCard>
       rightProgress: rightProgress,
       leftProgress: leftProgress,
     );
+
+    if (widget.onProgress != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onProgress!(progress);
+      });
+    }
 
     final body = widget.childBuilder != null
         ? widget.childBuilder!(context, progress)

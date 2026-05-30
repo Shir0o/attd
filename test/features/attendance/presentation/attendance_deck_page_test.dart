@@ -318,7 +318,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Bob');
@@ -386,7 +386,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Charlie');
@@ -509,8 +509,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Family name visible on the card (rendered as uppercase eyebrow).
-    expect(find.text('THE FAMILY'), findsOneWidget);
+    // Family name visible on the card (rendered as uppercase eyebrow). Both
+    // the active card and the next-card peek render it.
+    expect(find.text('THE FAMILY'), findsWidgets);
 
     // The "mark family present" button is shown for multi-member families.
     expect(find.byKey(const Key('markFamilyPresentButton')), findsOneWidget);

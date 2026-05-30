@@ -794,6 +794,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             // List view so the user toggles exceptions; "all absent" keeps
             // the speed-swipe deck.
             initialListMode: pickedMode != AttendanceStartMode.allAbsent,
+            startMode: pickedMode,
           ),
         ),
       );
