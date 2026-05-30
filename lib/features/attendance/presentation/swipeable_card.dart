@@ -13,6 +13,15 @@ class SwipeProgress {
   final double leftProgress;
 }
 
+/// Lets a parent programmatically trigger the same fly-off animation as a
+/// manual swipe (e.g. from footer Present/Absent buttons).
+class SwipeableCardController {
+  _SwipeableCardState? _state;
+
+  void swipeRight() => _state?._programmaticDismiss(1);
+  void swipeLeft() => _state?._programmaticDismiss(-1);
+}
+
 class SwipeableCard extends StatefulWidget {
   final Widget? child;
   final Widget Function(BuildContext, SwipeProgress)? childBuilder;
@@ -21,6 +30,7 @@ class SwipeableCard extends StatefulWidget {
   final double threshold;
   final Color? rightSwipeColor;
   final Color? leftSwipeColor;
+  final SwipeableCardController? controller;
 
   const SwipeableCard({
     super.key,
@@ -31,6 +41,7 @@ class SwipeableCard extends StatefulWidget {
     this.threshold = 100.0,
     this.rightSwipeColor,
     this.leftSwipeColor,
+    this.controller,
   }) : assert(child != null || childBuilder != null,
             'Provide either child or childBuilder');
 
@@ -50,7 +61,7 @@ class _SwipeableCardState extends State<SwipeableCard>
   Animation<double>? _rotateAnimation;
 
   static const double _rotationFactor = 0.05;
-  static const Duration _snapDuration = Duration(milliseconds: 300);
+  static const Duration _snapDuration = Duration(milliseconds: 700);
 
   @override
   void initState() {
@@ -59,6 +70,8 @@ class _SwipeableCardState extends State<SwipeableCard>
       ..addListener(() {
         setState(() {});
       });
+
+    widget.controller?._state = this;
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -78,9 +91,31 @@ class _SwipeableCardState extends State<SwipeableCard>
   }
 
   @override
+  void didUpdateWidget(SwipeableCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      if (oldWidget.controller?._state == this) {
+        oldWidget.controller?._state = null;
+      }
+      widget.controller?._state = this;
+    }
+  }
+
+  @override
   void dispose() {
+    if (widget.controller?._state == this) {
+      widget.controller?._state = null;
+    }
     _controller.dispose();
     super.dispose();
+  }
+
+  void _programmaticDismiss(int direction) {
+    // _dragOffset.dx != 0 guards against re-dismissing a card that has already
+    // flown off-screen but whose index advance (async I/O in _processAttendance)
+    // hasn't completed yet — otherwise a second tap would double-record.
+    if (_controller.isAnimating || _isDragging || _dragOffset.dx != 0) return;
+    _animateToDismiss(direction: direction);
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -142,12 +177,14 @@ class _SwipeableCardState extends State<SwipeableCard>
     _slideAnimation = Tween<Offset>(
       begin: _dragOffset,
       end: endOffset,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _rotateAnimation = Tween<double>(
       begin: _rotation,
       end: endRotation,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    ).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _controller.forward(from: 0.0).then((_) {
       if (direction == 1) {

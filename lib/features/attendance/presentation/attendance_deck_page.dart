@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/design/app_radii.dart';
 import '../../../../core/design/app_shadows.dart';
-import '../../../../core/design/app_shimmer.dart';
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
@@ -60,9 +59,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
-  bool _isLoading = true;
   bool _isListMode = false;
   final List<int> _history = [];
+  final SwipeableCardController _swipeController = SwipeableCardController();
+  // Bumped on every navigation so each card gets a unique key. Prevents the
+  // AnimatedSwitcher from reusing a dismissed card's off-screen state when
+  // returning to the same member (e.g. via undo).
+  int _navSeq = 0;
   final Set<String> _touchedMemberIds = {};
   final Set<String> _touchedMemberNames = {};
 
@@ -90,8 +93,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     super.initState();
     _updateSession(widget.session);
     _currentEvent = widget.event;
-    debugPrint('DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
-    debugPrint('DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
+    debugPrint(
+        'DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
+    debugPrint(
+        'DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
     _remainingMembers.addAll(widget.members);
     _subscribeToMembers();
@@ -105,17 +110,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       }
     }
     _currentIndex = firstUnrecorded;
-    debugPrint('DEBUG: AttendanceDeckPage.initState: _currentIndex=$_currentIndex');
-
-    if (widget.disableAnimations) {
-      _isLoading = false;
-    } else {
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      });
-    }
+    debugPrint(
+        'DEBUG: AttendanceDeckPage.initState: _currentIndex=$_currentIndex');
   }
 
   @override
@@ -126,7 +122,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   void _subscribeToMembers() {
-    _membersSubscription = widget.attendanceRepository.streamFamilies().listen((families) {
+    _membersSubscription =
+        widget.attendanceRepository.streamFamilies().listen((families) {
       if (!mounted) return;
       setState(() {
         _allFamilies = families;
@@ -138,7 +135,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   void _subscribeToEvents() {
     final eventId = widget.event?.id;
     if (eventId == null) return;
-    _eventsSubscription = widget.eventRepository.streamEvents().listen((events) {
+    _eventsSubscription =
+        widget.eventRepository.streamEvents().listen((events) {
       if (!mounted) return;
       for (final e in events) {
         if (e.id == eventId) {
@@ -159,7 +157,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       final eventIds = widget.members.map((m) => m.id).toSet();
       final result = <Family>[];
       for (final f in _allFamilies) {
-        final filtered = f.members.where((m) => eventIds.contains(m.id)).toList();
+        final filtered =
+            f.members.where((m) => eventIds.contains(m.id)).toList();
         if (filtered.isEmpty) continue;
         result.add(f.copyWith(members: filtered));
       }
@@ -261,9 +260,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     // Remove any existing record for this attendee if exists (overwrite)
     updatedRecords.removeWhere((r) =>
-      (memberId != null && r.memberId == memberId) ||
-      (r.attendee == attendeeName)
-    );
+        (memberId != null && r.memberId == memberId) ||
+        (r.attendee == attendeeName));
     updatedRecords.add(newRecord);
 
     final updatedSession = _currentSession.copyWith(
@@ -278,7 +276,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
 
     try {
-      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -294,13 +293,15 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     if (mounted) {
       int next = _currentIndex + 1;
-      while (next < widget.members.length && _isMemberTouched(widget.members[next])) {
+      while (next < widget.members.length &&
+          _isMemberTouched(widget.members[next])) {
         next++;
       }
       _history.add(_currentIndex);
       if (next < widget.members.length) {
         setState(() {
           _currentIndex = next;
+          _navSeq++;
         });
       } else {
         // Finished all members
@@ -314,11 +315,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Future<void> _bulkRecordFamily(Family family, bool present) async {
     final now = DateTime.now();
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    final status =
-        present ? AttendanceStatus.present : AttendanceStatus.absent;
+    final status = present ? AttendanceStatus.present : AttendanceStatus.absent;
     for (final m in family.members) {
-      final mid =
-          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
+      final mid = (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
       updatedRecords.removeWhere((r) =>
           (mid != null && r.memberId == mid) ||
           (mid == null && r.memberId == null && r.attendee == m.displayName) ||
@@ -339,7 +338,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       setState(() => _updateSession(updatedSession));
     }
     try {
-      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -360,14 +360,18 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // Advance past the entire family in the deck.
     int next = _currentIndex;
     while (next < widget.members.length &&
-        (memberIdSet.contains(widget.members[next].id) || _isMemberTouched(widget.members[next]))) {
+        (memberIdSet.contains(widget.members[next].id) ||
+            _isMemberTouched(widget.members[next]))) {
       next++;
     }
     _history.add(_currentIndex);
     if (next >= widget.members.length) {
       _finishAndNavigate();
     } else {
-      setState(() => _currentIndex = next);
+      setState(() {
+        _currentIndex = next;
+        _navSeq++;
+      });
     }
   }
 
@@ -389,6 +393,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     if (_history.isNotEmpty) {
       setState(() {
         _currentIndex = _history.removeLast();
+        _navSeq++;
       });
     }
   }
@@ -419,8 +424,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         onAdd: (name, isPresent, isGuest, existingMember) {
           _addAttendee(name, isPresent, isGuest, existingMember);
         },
-        availableMembers:
-            _allMembers.isNotEmpty ? _allMembers : widget.members,
+        availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
       ),
     );
   }
@@ -437,9 +441,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           children: [
             _buildHeader(colorScheme),
             Expanded(
-              child: _isListMode
-                  ? _buildListBody()
-                  : _buildDeckBody(colorScheme),
+              child:
+                  _isListMode ? _buildListBody() : _buildDeckBody(colorScheme),
             ),
             if (!_isListMode) _buildDeckFooter(colorScheme),
           ],
@@ -558,8 +561,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Future<void> _markAllAttendance(bool present) async {
-    final previousRecords =
-        List<SessionRecord>.from(_currentSession.records);
+    final previousRecords = List<SessionRecord>.from(_currentSession.records);
     final now = DateTime.now();
     final allMembers =
         _sessionFamilies.expand((f) => f.members).toList(growable: false);
@@ -640,8 +642,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
     final currentMember = widget.members[_currentIndex];
     final family = _familyForMember(currentMember);
-    final showFamilyContext =
-        family != null && family.id != '_synthetic_all';
+    final showFamilyContext = family != null && family.id != '_synthetic_all';
     final familyCaption = showFamilyContext ? family.displayName : 'Loner';
     final c = context.conv;
 
@@ -654,72 +655,67 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           children: [
             Flexible(
               child: AspectRatio(
-              aspectRatio: 3 / 4,
-              child: Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: Transform.translate(
-                      offset: const Offset(0, 32),
-                      child: Transform.scale(
-                        scale: 0.9,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: c.cardSoft.withValues(alpha: 0.55),
-                            borderRadius: AppRadii.cardR,
+                aspectRatio: 3 / 4,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: Transform.translate(
+                        offset: const Offset(0, 32),
+                        child: Transform.scale(
+                          scale: 0.9,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: c.cardSoft.withValues(alpha: 0.55),
+                              borderRadius: AppRadii.cardR,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned.fill(
-                    child: Transform.translate(
-                      offset: const Offset(0, 16),
-                      child: Transform.scale(
-                        scale: 0.95,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: c.cardSoft,
-                            borderRadius: AppRadii.cardR,
+                    Positioned.fill(
+                      child: Transform.translate(
+                        offset: const Offset(0, 16),
+                        child: Transform.scale(
+                          scale: 0.95,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: c.cardSoft,
+                              borderRadius: AppRadii.cardR,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned.fill(
-                    child: RepaintBoundary(
-                      child: AnimatedSwitcher(
-                        duration: widget.disableAnimations
-                            ? Duration.zero
-                            : const Duration(milliseconds: 600),
-                        child: _isLoading
-                            ? _DeckSkeleton(
-                                key: const ValueKey('skeleton'),
-                                disableAnimations: widget.disableAnimations,
-                              )
-                            : SwipeableCard(
-                                key: ValueKey(currentMember.id),
-                                rightSwipeColor: c.present,
-                                leftSwipeColor: c.absent,
-                                onSwipeLeft: () => _processAttendance(
-                                  AttendanceStatus.absent,
-                                ),
-                                onSwipeRight: () => _processAttendance(
-                                  AttendanceStatus.present,
-                                ),
-                                childBuilder: (ctx, p) => _DeckCard(
-                                  member: currentMember,
-                                  familyCaption: familyCaption,
-                                  progress: p,
-                                ),
-                              ),
+                    Positioned.fill(
+                      child: RepaintBoundary(
+                        // No AnimatedSwitcher: the dismissed card flies off via
+                        // its own animation, so the next member should appear
+                        // immediately and centered rather than fading in (which
+                        // left a blank gap while the new card ramped from 0).
+                        child: SwipeableCard(
+                          key: ValueKey('${currentMember.id}#$_navSeq'),
+                          controller: _swipeController,
+                          rightSwipeColor: c.present,
+                          leftSwipeColor: c.absent,
+                          onSwipeLeft: () => _processAttendance(
+                            AttendanceStatus.absent,
+                          ),
+                          onSwipeRight: () => _processAttendance(
+                            AttendanceStatus.present,
+                          ),
+                          childBuilder: (ctx, p) => _DeckCard(
+                            member: currentMember,
+                            familyCaption: familyCaption,
+                            progress: p,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             ),
             if (showFamilyContext && family.members.length > 1)
               Padding(
@@ -773,7 +769,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               child: InkWell(
                 key: const Key('absentButton'),
                 onTap: _currentIndex < widget.members.length
-                    ? () => _processAttendance(AttendanceStatus.absent)
+                    ? () => widget.disableAnimations
+                        ? _processAttendance(AttendanceStatus.absent)
+                        : _swipeController.swipeLeft()
                     : null,
                 child: Icon(Icons.close, color: colorScheme.error),
               ),
@@ -790,7 +788,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               child: InkWell(
                 key: const Key('presentButton'),
                 onTap: _currentIndex < widget.members.length
-                    ? () => _processAttendance(AttendanceStatus.present)
+                    ? () => widget.disableAnimations
+                        ? _processAttendance(AttendanceStatus.present)
+                        : _swipeController.swipeRight()
                     : null,
                 child: Icon(Icons.check, color: colorScheme.onPrimary),
               ),
@@ -894,54 +894,6 @@ class _DeckCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DeckSkeleton extends StatelessWidget {
-  const _DeckSkeleton({super.key, required this.disableAnimations});
-
-  final bool disableAnimations;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: AppRadii.cardR,
-        boxShadow: AppShadows.card,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppShimmer(
-              width: 88,
-              height: 88,
-              borderRadius: BorderRadius.circular(44),
-              disableAnimations: disableAnimations,
-            ),
-            const SizedBox(height: 20),
-            AppShimmer(
-              width: 180,
-              height: 28,
-              borderRadius: BorderRadius.circular(6),
-              disableAnimations: disableAnimations,
-            ),
-            const SizedBox(height: 8),
-            AppShimmer(
-              width: 110,
-              height: 12,
-              borderRadius: BorderRadius.circular(4),
-              disableAnimations: disableAnimations,
-            ),
-          ],
-        ),
       ),
     );
   }

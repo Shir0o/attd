@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
@@ -52,7 +51,6 @@ class SessionSummaryPage extends StatefulWidget {
 
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
-  bool _isLoading = true;
   List<Member> _allMembers = [];
   List<Family> _allFamilies = [];
   Event? _currentEvent;
@@ -64,7 +62,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     super.initState();
     _currentSession = widget.session;
     _currentEvent = widget.event;
-    debugPrint('DEBUG: SessionSummaryPage.initState: session=${_currentSession.id}, title=${_currentSession.title}');
+    debugPrint(
+        'DEBUG: SessionSummaryPage.initState: session=${_currentSession.id}, title=${_currentSession.title}');
     _refreshLatest();
     _subscribeToMembers();
     _subscribeToEvents();
@@ -78,7 +77,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   }
 
   void _subscribeToMembers() {
-    _membersSubscription = widget.attendanceRepository?.streamFamilies().listen((families) {
+    _membersSubscription =
+        widget.attendanceRepository?.streamFamilies().listen((families) {
       if (mounted) {
         setState(() {
           _allFamilies = families;
@@ -118,12 +118,11 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
     final ev = _currentEvent;
     if (_allFamilies.isNotEmpty) {
-      final ids = ev?.memberIds.toSet() ??
-          widget.members.map((m) => m.id).toSet();
+      final ids =
+          ev?.memberIds.toSet() ?? widget.members.map((m) => m.id).toSet();
       final result = <Family>[];
       for (final f in _allFamilies) {
-        final filtered =
-            f.members.where((m) => ids.contains(m.id)).toList();
+        final filtered = f.members.where((m) => ids.contains(m.id)).toList();
         if (filtered.isEmpty) continue;
         result.add(f.copyWith(members: filtered));
       }
@@ -220,50 +219,29 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     await _toggleAttendance(resolved, isPresent);
   }
 
+  // The page renders immediately from the session passed in by the caller.
+  // This silently checks for a newer version (e.g. synced from another device)
+  // and swaps it in if found — no skeleton, no blocking load.
   Future<void> _refreshLatest() async {
-    final startTime = DateTime.now();
-
-    final latestFuture = widget.sessionRepository.findSessionById(
+    final latest = await widget.sessionRepository.findSessionById(
       _currentSession.id,
     );
 
-    final latest = await latestFuture;
+    if (!mounted || latest == null) return;
 
-    if (mounted) {
-      if (latest != null) {
-        final isNewer = latest.currentVersion > _currentSession.currentVersion ||
-            (latest.currentVersion == _currentSession.currentVersion &&
-                latest.updatedAt.isAfter(_currentSession.updatedAt));
-        if (isNewer) {
-          setState(() {
-            _currentSession = latest;
-          });
-        }
-      }
-
-      if (widget.disableAnimations) {
-        setState(() => _isLoading = false);
-        debugPrint('DEBUG: SessionSummaryPage loading finished immediately (sync)');
-      } else {
-        final elapsed = DateTime.now().difference(startTime);
-        const minDuration = Duration(milliseconds: 800);
-        if (elapsed < minDuration) {
-          Future.delayed(minDuration - elapsed, () {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              debugPrint('DEBUG: SessionSummaryPage loading finished after delay');
-            }
-          });
-        } else {
-          setState(() => _isLoading = false);
-          debugPrint('DEBUG: SessionSummaryPage loading finished after long refresh');
-        }
-      }
+    final isNewer = latest.currentVersion > _currentSession.currentVersion ||
+        (latest.currentVersion == _currentSession.currentVersion &&
+            latest.updatedAt.isAfter(_currentSession.updatedAt));
+    if (isNewer) {
+      setState(() {
+        _currentSession = latest;
+      });
     }
   }
 
   Future<void> _toggleAttendance(Member member, bool isPresent) async {
-    final status = isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
+    final status =
+        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
 
     final memberIdForRecord =
         (member.isVisitor || member.id.trim().isEmpty) ? null : member.id;
@@ -278,11 +256,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     updatedRecords.removeWhere((r) =>
-      (memberIdForRecord != null && r.memberId == memberIdForRecord) ||
-      (memberIdForRecord == null &&
-          r.memberId == null &&
-          r.attendee == member.displayName)
-    );
+        (memberIdForRecord != null && r.memberId == memberIdForRecord) ||
+        (memberIdForRecord == null &&
+            r.memberId == null &&
+            r.attendee == member.displayName));
     updatedRecords.add(newRecord);
 
     final updatedSession = _currentSession.copyWith(
@@ -295,7 +272,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     });
 
     try {
-      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
       debugPrint('Error updating session record: $e');
     }
@@ -309,8 +287,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
     for (final m in family.members) {
-      final mid =
-          (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
+      final mid = (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
       updatedRecords.removeWhere((r) =>
           (mid != null && r.memberId == mid) ||
           (mid == null && r.memberId == null && r.attendee == m.displayName));
@@ -330,15 +307,15 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       _currentSession = updatedSession;
     });
     try {
-      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
       debugPrint('Error updating session records: $e');
     }
   }
 
   Future<void> _markAllAttendance(bool present) async {
-    final previousRecords =
-        List<SessionRecord>.from(_currentSession.records);
+    final previousRecords = List<SessionRecord>.from(_currentSession.records);
     final now = DateTime.now();
     final allMembers = _displayFamilies.expand((f) => f.members).toList();
     final updatedRecords = applyBulkRecords(
@@ -416,11 +393,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       ),
     );
 
-    if (newName == null || newName.isEmpty || newName == member.displayName) return;
+    if (newName == null || newName.isEmpty || newName == member.displayName)
+      return;
 
     final updatedRecords = _currentSession.records.map((r) {
       final matchesById = !isVisitor && r.memberId == member.id;
-      final matchesByName = isVisitor && r.attendee == member.displayName && r.memberId == null;
+      final matchesByName =
+          isVisitor && r.attendee == member.displayName && r.memberId == null;
 
       if (matchesById || matchesByName) {
         return r.copyWith(attendee: newName);
@@ -438,7 +417,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     });
 
     try {
-      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
     } catch (e) {
       debugPrint('Error updating session record: $e');
     }
@@ -476,7 +456,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       }
     }).toList();
 
-    List<String> updatedExcluded = List<String>.from(_currentSession.excludedMemberIds);
+    List<String> updatedExcluded =
+        List<String>.from(_currentSession.excludedMemberIds);
     if (!member.isVisitor && !updatedExcluded.contains(member.id)) {
       updatedExcluded.add(member.id);
     }
@@ -492,10 +473,12 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     });
 
     try {
-      await widget.sessionRepository.saveSnapshot(updatedSession, actor: 'User');
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${member.displayName} removed from this report')),
+          SnackBar(
+              content: Text('${member.displayName} removed from this report')),
         );
       }
     } catch (e) {
@@ -647,146 +630,82 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         ],
       ),
       body: RepaintBoundary(
-        child: AnimatedSwitcher(
-          duration: widget.disableAnimations
-              ? Duration.zero
-              : const Duration(milliseconds: 600),
-          child: _isLoading
-              ? _buildSkeleton(context)
-              : Column(
-                  key: const ValueKey('content'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _StatsCard(
-                            presentCount: presentCount,
-                            absentCount: absentCount,
-                          ),
-                          if (_currentEvent != null) ...[
-                            const SizedBox(height: 12),
-                            _ConsistentTrendStrip(
-                              event: _currentEvent!,
-                              members: _allMembers,
-                              families: _allFamilies,
-                              sessionRepository: widget.sessionRepository,
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Attendance Roster',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurface,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${allDisplayMembers.length} Total',
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+        child: Column(
+          key: const ValueKey('content'),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                    Expanded(
-                      child: AttendanceRosterList(
-                        session: _currentSession,
-                        families: _displayFamilies,
-                        onToggle: _toggleAttendance,
-                        onFamilyToggle: _toggleFamilyAttendance,
-                        onMarkAll: _markAllAttendance,
-                        onEdit: _editMemberName,
-                        onRemove: _removeMemberFromSession,
-                        initialGrouping: RosterGrouping.byStatus,
-                        showStats: false,
-                        disableAnimations: widget.disableAnimations,
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  _StatsCard(
+                    presentCount: presentCount,
+                    absentCount: absentCount,
+                  ),
+                  if (_currentEvent != null) ...[
+                    const SizedBox(height: 12),
+                    _ConsistentTrendStrip(
+                      event: _currentEvent!,
+                      members: _allMembers,
+                      families: _allFamilies,
+                      sessionRepository: widget.sessionRepository,
                     ),
                   ],
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSkeleton(BuildContext context) {
-    return ListView(
-      key: const ValueKey('skeleton'),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppShimmer(
-                width: 200,
-                height: 16,
-                borderRadius: BorderRadius.circular(8),
-                disableAnimations: widget.disableAnimations,
-              ),
-              const SizedBox(height: 12),
-              AppShimmer(
-                width: double.infinity,
-                height: 140,
-                borderRadius: BorderRadius.circular(24),
-                disableAnimations: widget.disableAnimations,
-              ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  AppShimmer(
-                    width: 180,
-                    height: 32,
-                    borderRadius: BorderRadius.circular(12),
-                    disableAnimations: widget.disableAnimations,
-                  ),
-                  AppShimmer(
-                    width: 80,
-                    height: 20,
-                    borderRadius: BorderRadius.circular(8),
-                    disableAnimations: widget.disableAnimations,
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Attendance Roster',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${allDisplayMembers.length} Total',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-        for (int i = 0; i < 5; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: AppShimmer(
-              width: double.infinity,
-              height: 72,
-              borderRadius: BorderRadius.circular(16),
-              disableAnimations: widget.disableAnimations,
             ),
-          ),
-      ],
+            Expanded(
+              child: AttendanceRosterList(
+                session: _currentSession,
+                families: _displayFamilies,
+                onToggle: _toggleAttendance,
+                onFamilyToggle: _toggleFamilyAttendance,
+                onMarkAll: _markAllAttendance,
+                onEdit: _editMemberName,
+                onRemove: _removeMemberFromSession,
+                initialGrouping: RosterGrouping.byStatus,
+                showStats: false,
+                disableAnimations: widget.disableAnimations,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -812,9 +731,7 @@ class _StatsCard extends StatelessWidget {
             child: _SummaryHeroColumn(
               label: 'Present',
               value: '$presentCount',
-              sub: total == 0
-                  ? 'No records'
-                  : 'of $total expected · $percent%',
+              sub: total == 0 ? 'No records' : 'of $total expected · $percent%',
               color: c.present,
             ),
           ),
