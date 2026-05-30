@@ -519,7 +519,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           if (isTouched) decidedAbsent++;
         }
       }
-      if (r?.status != _baselineFor(m)) changed++;
+      // Only members with a known preseed baseline can be "changed" — keeps
+      // this in sync with AttendanceRosterList._isChanged (guests with no
+      // baseline must not inflate the count).
+      final baseline = _baselineFor(m);
+      if (baseline != null && r?.status != baseline) changed++;
     }
     return (
       decidedPresent: decidedPresent,

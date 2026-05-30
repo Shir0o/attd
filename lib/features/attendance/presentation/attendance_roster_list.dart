@@ -285,13 +285,17 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
               : _buildStatusList(roster, visitors, c),
         ),
         if (widget.confirmMode && widget.onConfirm != null)
-          _buildConfirmCta(c, presentCount),
+          _buildConfirmCta(c, presentCount, roster),
       ],
     );
   }
 
-  Widget _buildConfirmCta(ConvocationColors c, int presentCount) {
-    final changed = _changedCount();
+  Widget _buildConfirmCta(
+    ConvocationColors c,
+    int presentCount,
+    SessionRoster roster,
+  ) {
+    final changed = _changedCount(roster);
     return Container(
       decoration: BoxDecoration(
         color: c.bg,
@@ -337,10 +341,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     return roster.getStatus(m) != b;
   }
 
-  int _changedCount() {
-    final base = widget.baselineStatus;
-    if (base == null) return 0;
-    final roster = _buildRoster();
+  int _changedCount(SessionRoster roster) {
+    if (widget.baselineStatus == null) return 0;
     var n = 0;
     for (final m in roster.displayMembersMap.values) {
       if (_isChanged(roster, m)) n++;
