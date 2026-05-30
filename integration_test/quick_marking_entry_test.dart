@@ -20,12 +20,15 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Quick marking entry view', () {
-    Future<Directory> bootstrap(
+    Future<void> bootstrap(
       WidgetTester tester,
       String eventName,
       List<String> memberNames,
     ) async {
       final tempDir = await Directory.systemTemp.createTemp('quick_marking_');
+      addTearDown(() async {
+        if (await tempDir.exists()) await tempDir.delete(recursive: true);
+      });
       final app = await createTestApp(tempDir);
       await tester.pumpWidget(app);
       await tester.pump(const Duration(milliseconds: 500));
@@ -56,12 +59,10 @@ void main() {
         await members.addMember(name);
       }
       await hub.goBack();
-
-      return tempDir;
     }
 
     testWidgets('All absent -> speed-swipe deck', (tester) async {
-      final tempDir = await bootstrap(
+      await bootstrap(
         tester,
         'Absent Event',
         ['Alice Absent', 'Bob Absent'],
@@ -78,12 +79,10 @@ void main() {
       await tester.pumpUntilFound(find.byType(SwipeableCard));
       expect(find.byType(SwipeableCard), findsWidgets);
       expect(find.byType(AttendanceRosterList), findsNothing);
-
-      if (await tempDir.exists()) await tempDir.delete(recursive: true);
     });
 
     testWidgets('All present -> roster list, everyone present', (tester) async {
-      final tempDir = await bootstrap(
+      await bootstrap(
         tester,
         'Present Event',
         ['Alice Present', 'Bob Present', 'Carol Present'],
@@ -105,12 +104,10 @@ void main() {
       expect(find.text('Alice Present'), findsOneWidget);
       expect(find.text('Bob Present'), findsOneWidget);
       expect(find.text('Carol Present'), findsOneWidget);
-
-      if (await tempDir.exists()) await tempDir.delete(recursive: true);
     });
 
     testWidgets('Smart defaults -> roster list', (tester) async {
-      final tempDir = await bootstrap(
+      await bootstrap(
         tester,
         'Smart Event',
         ['Alice Smart', 'Bob Smart'],
@@ -127,8 +124,6 @@ void main() {
       await tester.pumpUntilFound(find.byType(AttendanceRosterList));
       expect(find.byType(AttendanceRosterList), findsOneWidget);
       expect(find.byType(SwipeableCard), findsNothing);
-
-      if (await tempDir.exists()) await tempDir.delete(recursive: true);
     });
   });
 }
