@@ -157,9 +157,9 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Verify initial state: Alice is shown
+    // Verify initial state: Alice is the active card; Bob peeks behind it.
     expect(find.text('Alice'), findsOneWidget);
-    expect(find.text('Bob'), findsNothing);
+    expect(find.text('Bob'), findsOneWidget);
 
     // Tap Present for Alice
     await tester.tap(find.byKey(const Key('presentButton')));
@@ -291,8 +291,8 @@ void main() {
     // Verify Alice is shown
     expect(find.text('Alice'), findsOneWidget);
 
-    // Tap Add Person
-    await tester.tap(find.byTooltip('Add Person'));
+    // Tap Add guest (relocated below the deck action row)
+    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
     await tester.pumpAndSettle(); // Wait for bottom sheet
 
     // Verify Sheet is shown

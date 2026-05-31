@@ -8,11 +8,14 @@ import '../../../core/design/widgets/conv_widgets.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../models/roster_grouping.dart';
 import '../utils/session_roster_utils.dart';
 import '../../../data/session.dart';
 import 'mark_everyone_sheet.dart';
 
-enum RosterGrouping { byFamily, byStatus }
+// Re-exported so existing importers (deck page, summary) keep resolving
+// RosterGrouping through this file.
+export '../models/roster_grouping.dart';
 
 typedef MemberToggle = Future<void> Function(Member member, bool isPresent);
 typedef FamilyBulkToggle = Future<void> Function(Family family, bool isPresent);
@@ -33,9 +36,16 @@ class AttendanceRosterList extends StatefulWidget {
     this.onRemove,
     this.initialGrouping = RosterGrouping.byFamily,
     this.showGroupingToggle = true,
+    this.showGroupingPreset = false,
     this.showSearch = true,
     this.showStats = true,
     this.disableAnimations = false,
+    this.confirmMode = false,
+    this.smartStart = false,
+    this.baselineStatus,
+    this.onConfirm,
+    this.onReset,
+    this.onAddGuest,
   });
 
   final Session session;
@@ -52,6 +62,11 @@ class AttendanceRosterList extends StatefulWidget {
   final void Function(Member member)? onRemove;
   final RosterGrouping initialGrouping;
   final bool showGroupingToggle;
+
+  /// When true, the live By-family/By-status toggle is replaced by a read-only
+  /// "Grouped by …" indicator — grouping is fixed to [initialGrouping] (the
+  /// event's preset). Used by the in-session marking list.
+  final bool showGroupingPreset;
   final bool showSearch;
 
   /// Show the Present/Absent/Total stat strip above the search input. Callers
@@ -63,6 +78,31 @@ class AttendanceRosterList extends StatefulWidget {
   /// Set by widget tests to keep `pumpAndSettle` from hanging on the
   /// indefinitely-repeating shimmer controller.
   final bool disableAnimations;
+
+  /// Confirm mode — the list opened from a bulk default (all-present / smart).
+  /// Shows a confirm banner, highlights rows whose status differs from the
+  /// preseed ([baselineStatus]), and pins a sticky "Confirm N present" CTA.
+  final bool confirmMode;
+
+  /// In confirm mode, whether the bulk default was the smart guess (vs. plain
+  /// all-present). Only affects the banner copy.
+  final bool smartStart;
+
+  /// The status each member arrived with (keyed by member id, or display name
+  /// for id-less entries). Drives the confirm-mode "changed" highlight.
+  final Map<String, AttendanceStatus>? baselineStatus;
+
+  /// Tapped by the sticky confirm CTA (confirm mode only).
+  final VoidCallback? onConfirm;
+
+  /// Confirm mode: restores every member to their preseed status. When set, a
+  /// subtle "Reset" action appears (in place of the bulk "All" pill) once the
+  /// user has changed something.
+  final VoidCallback? onReset;
+
+  /// When non-null, a trailing dashed "Add guest" row is appended to the
+  /// roster for adding a walk-in not on the list.
+  final VoidCallback? onAddGuest;
 
   @override
   State<AttendanceRosterList> createState() => _AttendanceRosterListState();
@@ -169,6 +209,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.confirmMode) ...[
+                _ConfirmBanner(smartStart: widget.smartStart),
+                const SizedBox(height: 12),
+              ],
               if (widget.showStats)
                 Row(
                   children: [
@@ -210,7 +254,38 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                   },
                 ),
               ],
-              if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
+              // Read-only grouping indicator (preset) + context bulk action.
+              if (widget.showGroupingPreset) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _GroupingIndicator(grouping: _grouping),
+                    const Spacer(),
+                    if (widget.confirmMode)
+                      if (widget.onReset != null && _changedCount(roster) > 0)
+                        TextButton(
+                          key: const Key('rosterResetButton'),
+                          onPressed: widget.onReset,
+                          style: TextButton.styleFrom(
+                            foregroundColor: c.ink3,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: const Text('Reset'),
+                        )
+                      else
+                        const SizedBox.shrink()
+                    else if (widget.onMarkAll != null)
+                      ConvPill(
+                        key: const Key('rosterMarkAllPresent'),
+                        label: 'All present',
+                        leading: const Icon(Icons.done_all_rounded),
+                        onTap: () => widget.onMarkAll!(true),
+                      ),
+                  ],
+                ),
+              ]
+              // Live grouping toggle + bulk sheet (e.g. session summary).
+              else if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -255,8 +330,70 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
               ? _buildFamilyList(roster, visitors, c)
               : _buildStatusList(roster, visitors, c),
         ),
+        if (widget.confirmMode && widget.onConfirm != null)
+          _buildConfirmCta(c, presentCount, roster),
       ],
     );
+  }
+
+  Widget _buildConfirmCta(
+    ConvocationColors c,
+    int presentCount,
+    SessionRoster roster,
+  ) {
+    final changed = _changedCount(roster);
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bg,
+        border: Border(top: BorderSide(color: c.hair)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            key: const Key('rosterConfirmButton'),
+            onPressed: widget.onConfirm,
+            style: FilledButton.styleFrom(
+              backgroundColor: c.primary,
+              foregroundColor: c.onPrimary,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: AppRadii.compactR),
+            ),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: Text(
+              changed > 0
+                  ? 'Confirm $presentCount present · $changed changed'
+                  : 'Confirm $presentCount present',
+              style: AppTypography.geist(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: c.onPrimary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// True when [m]'s current status differs from the preseed baseline.
+  bool _isChanged(SessionRoster roster, Member m) {
+    final base = widget.baselineStatus;
+    if (base == null) return false;
+    final b = base[m.id] ?? base[m.displayName];
+    if (b == null) return false;
+    return roster.getStatus(m) != b;
+  }
+
+  int _changedCount(SessionRoster roster) {
+    if (widget.baselineStatus == null) return 0;
+    var n = 0;
+    for (final m in roster.displayMembersMap.values) {
+      if (_isChanged(roster, m)) n++;
+    }
+    return n;
   }
 
   Widget _buildSkeleton(ConvocationColors c) {
@@ -380,6 +517,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
             _MemberRow(
               key: ValueKey('member_row_${family.id}_${m.id}'),
               member: m,
+              changed: _isChanged(roster, m),
               isPresent: roster.getStatus(m) == AttendanceStatus.present,
               onToggle: (val) => widget.onToggle(m, val),
               onEdit: widget.onEdit,
@@ -403,6 +541,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           _MemberRow(
             key: ValueKey('singleton_row_${m.id}'),
             member: m,
+            changed: _isChanged(roster, m),
             isPresent: roster.getStatus(m) == AttendanceStatus.present,
             onToggle: (val) => widget.onToggle(m, val),
             onEdit: widget.onEdit,
@@ -430,6 +569,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           _MemberRow(
             key: ValueKey('visitor_row_${m.id}'),
             member: m,
+            changed: _isChanged(roster, m),
             isPresent: roster.getStatus(m) == AttendanceStatus.present,
             onToggle: (val) => widget.onToggle(m, val),
             onEdit: widget.onEdit,
@@ -441,6 +581,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
 
     if (children.isEmpty) {
       return _emptyState(c);
+    }
+
+    if (widget.onAddGuest != null) {
+      children.add(_AddGuestRow(onTap: widget.onAddGuest!));
     }
 
     return ListView.builder(
@@ -491,6 +635,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         _MemberRow(
           key: ValueKey('present_row_${m.id}'),
           member: m,
+          changed: _isChanged(roster, m),
           isPresent: true,
           onToggle: (val) => widget.onToggle(m, val),
           onEdit: widget.onEdit,
@@ -512,6 +657,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         _MemberRow(
           key: ValueKey('absent_row_${m.id}'),
           member: m,
+          changed: _isChanged(roster, m),
           isPresent: false,
           onToggle: (val) => widget.onToggle(m, val),
           onEdit: widget.onEdit,
@@ -522,6 +668,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
 
     if (present.isEmpty && absent.isEmpty) {
       return _emptyState(c);
+    }
+
+    if (widget.onAddGuest != null) {
+      children.add(_AddGuestRow(onTap: widget.onAddGuest!));
     }
 
     return ListView.builder(
@@ -696,6 +846,7 @@ class _MemberRow extends StatelessWidget {
     required this.onToggle,
     this.onEdit,
     this.onRemove,
+    this.changed = false,
   });
 
   final Member member;
@@ -704,13 +855,19 @@ class _MemberRow extends StatelessWidget {
   final void Function(Member)? onEdit;
   final void Function(Member)? onRemove;
 
+  /// Confirm mode: this member's status differs from the preseed — the row gets
+  /// a primary-tinted background and a "Changed" subtitle.
+  final bool changed;
+
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
     final tone = isPresent ? ConvTone.present : ConvTone.absent;
-    final bg = isPresent
-        ? Color.alphaBlend(c.present.withValues(alpha: 0.06), c.card)
-        : c.card;
+    final bg = changed
+        ? Color.alphaBlend(c.primary.withValues(alpha: 0.09), c.card)
+        : isPresent
+            ? Color.alphaBlend(c.present.withValues(alpha: 0.06), c.card)
+            : c.card;
 
     final tile = Container(
       decoration: BoxDecoration(
@@ -745,14 +902,19 @@ class _MemberRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  member.isVisitor
-                      ? 'Visitor'
-                      : (isPresent ? 'Marked present' : 'Marked absent'),
+                  changed
+                      ? 'Changed'
+                      : member.isVisitor
+                          ? 'Visitor'
+                          : (isPresent ? 'Marked present' : 'Marked absent'),
                   style: AppTypography.geist(
                     fontSize: 12,
-                    color: isPresent
-                        ? c.present
-                        : (member.isVisitor ? c.ink3 : c.absent),
+                    fontWeight: changed ? FontWeight.w500 : FontWeight.w400,
+                    color: changed
+                        ? c.primary
+                        : isPresent
+                            ? c.present
+                            : (member.isVisitor ? c.ink3 : c.absent),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -860,4 +1022,192 @@ class _MemberRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Confirm-mode banner shown when the list opened from a bulk default — it
+/// explains what was pre-filled and what the user needs to do.
+class _ConfirmBanner extends StatelessWidget {
+  const _ConfirmBanner({required this.smartStart});
+
+  final bool smartStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final lead = smartStart ? 'Pre-filled' : 'All present';
+    final rest = smartStart
+        ? '· here ≥80% of last 8 — fix exceptions'
+        : '· switch off anyone missing';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(c.primary.withValues(alpha: 0.07), c.cardSoft),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            smartStart ? Icons.auto_awesome : Icons.check_rounded,
+            size: 14,
+            color: c.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            lead,
+            style: AppTypography.geist(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: c.ink,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              rest,
+              style: AppTypography.geist(fontSize: 12, color: c.ink3),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Read-only "Grouped by status/family" indicator shown on the marking list,
+/// where grouping is a per-event preset rather than a live toggle.
+class _GroupingIndicator extends StatelessWidget {
+  const _GroupingIndicator({required this.grouping});
+
+  final RosterGrouping grouping;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final byFamily = grouping == RosterGrouping.byFamily;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          byFamily ? Icons.groups_outlined : Icons.checklist_rounded,
+          size: 16,
+          color: c.ink3,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          byFamily ? 'Grouped by family' : 'Grouped by status',
+          style: AppTypography.geist(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: c.ink3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Trailing dashed roster row for adding a walk-in not on the list.
+class _AddGuestRow extends StatelessWidget {
+  const _AddGuestRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: InkWell(
+        key: const Key('rosterAddGuestRow'),
+        onTap: onTap,
+        borderRadius: AppRadii.compactR,
+        child: _DashedBorderBox(
+          color: c.hair,
+          radius: AppRadii.compactR,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: c.cardSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.person_add_alt, size: 20, color: c.ink3),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Add guest',
+                  style: AppTypography.geist(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: c.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded box with a dashed outline — used as the affordance frame for the
+/// trailing "Add guest" roster row.
+class _DashedBorderBox extends StatelessWidget {
+  const _DashedBorderBox({
+    required this.child,
+    required this.color,
+    required this.radius,
+  });
+
+  final Widget child;
+  final Color color;
+  final BorderRadius radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _DashedBorderPainter(color: color, radius: radius),
+      child: child,
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  _DashedBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final BorderRadius radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final rrect = radius.toRRect(Offset.zero & size);
+    final path = Path()..addRRect(rrect);
+    const dash = 5.0;
+    const gap = 4.0;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(
+          metric.extractPath(distance, distance + dash),
+          paint,
+        );
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
 }

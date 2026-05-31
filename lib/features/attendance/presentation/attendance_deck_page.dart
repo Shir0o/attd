@@ -9,6 +9,7 @@ import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
+import '../models/attendance_start_mode.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
@@ -35,6 +36,8 @@ class AttendanceDeckPage extends StatefulWidget {
     this.driveService,
     this.disableAnimations = false,
     this.initialListMode = false,
+    this.startMode,
+    this.rosterGrouping,
   });
 
   final Session session;
@@ -51,6 +54,17 @@ class AttendanceDeckPage extends StatefulWidget {
   /// speed-swipe deck. Used for "all present" / smart start modes where the
   /// user toggles exceptions rather than swiping every member.
   final bool initialListMode;
+
+  /// How the session was started. When the user picked a bulk default
+  /// (all-present / smart) the List opens in *confirm mode* — everyone arrives
+  /// pre-marked, the user fixes exceptions and taps a sticky Confirm button.
+  /// `null` or [AttendanceStartMode.allAbsent] is the plain mark-from-scratch
+  /// flow (deck + tap-to-mark list).
+  final AttendanceStartMode? startMode;
+
+  /// The event's roster-grouping preset (status vs family). Drives how the
+  /// in-session List groups people. Defaults to by-status when unset.
+  final RosterGrouping? rosterGrouping;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -74,6 +88,24 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   int _navSeq = 0;
   final Set<String> _touchedMemberIds = {};
   final Set<String> _touchedMemberNames = {};
+
+  /// Live drag progress of the top card, used to fade the deck's left/right
+  /// hint zones in and out without rebuilding the card itself.
+  final ValueNotifier<SwipeProgress> _dragProgress = ValueNotifier(
+    const SwipeProgress(dx: 0, rightProgress: 0, leftProgress: 0),
+  );
+
+  /// Status each member arrived with (the preseed). Drives the confirm-mode
+  /// "changed" tally and per-row highlight — a member is "changed" when their
+  /// current status differs from this baseline.
+  final Map<String, AttendanceStatus> _baselineStatus = {};
+
+  /// True when the List opened from a bulk default (all-present / smart): the
+  /// user confirms exceptions rather than marking from scratch.
+  bool get _confirmMode =>
+      widget.initialListMode &&
+      (widget.startMode == AttendanceStartMode.allPresent ||
+          widget.startMode == AttendanceStartMode.perMemberDefault);
 
   void _updateSession(Session session) {
     _currentSession = session;
@@ -99,6 +131,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     super.initState();
     _isListMode = widget.initialListMode;
     _updateSession(widget.session);
+    _snapshotBaseline(widget.session);
     _currentEvent = widget.event;
     debugPrint(
         'DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
@@ -125,8 +158,24 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   void dispose() {
     _membersSubscription?.cancel();
     _eventsSubscription?.cancel();
+    _dragProgress.dispose();
     super.dispose();
   }
+
+  /// Records the status each member started with (their preseed), keyed by id
+  /// (or display name for id-less entries), for confirm-mode change tracking.
+  void _snapshotBaseline(Session session) {
+    _baselineStatus.clear();
+    for (final r in session.records) {
+      final key = (r.memberId != null && r.memberId!.trim().isNotEmpty)
+          ? r.memberId!
+          : r.attendee;
+      _baselineStatus[key] = r.status;
+    }
+  }
+
+  AttendanceStatus? _baselineFor(Member m) =>
+      _baselineStatus[m.id] ?? _baselineStatus[m.displayName];
 
   void _subscribeToMembers() {
     _membersSubscription =
@@ -436,6 +485,61 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
   }
 
+  /// Roll-up of the current marking state used by the header tally and the
+  /// progress bar. `decided*` count only members the user has actually touched
+  /// (deck semantics: 0·0·N at the start). `status*` count every current
+  /// record incl. the preseed (confirm-mode semantics: everyone pre-marked).
+  ({
+    int decidedPresent,
+    int decidedAbsent,
+    int statusPresent,
+    int statusAbsent,
+    int remaining,
+    int changed,
+  }) _tally() {
+    final byId = <String, SessionRecord>{};
+    final byName = <String, SessionRecord>{};
+    for (final r in _currentSession.records) {
+      if (r.memberId != null && r.memberId!.trim().isNotEmpty) {
+        byId[r.memberId!] = r;
+      }
+      byName[r.attendee] = r;
+    }
+    var decidedPresent = 0,
+        decidedAbsent = 0,
+        statusPresent = 0,
+        statusAbsent = 0,
+        touched = 0,
+        changed = 0;
+    for (final m in widget.members) {
+      final r = byId[m.id] ?? byName[m.displayName];
+      final isTouched = _isMemberTouched(m);
+      if (isTouched) touched++;
+      if (r != null) {
+        if (r.status == AttendanceStatus.present) {
+          statusPresent++;
+          if (isTouched) decidedPresent++;
+        } else {
+          statusAbsent++;
+          if (isTouched) decidedAbsent++;
+        }
+      }
+      // Only members with a known preseed baseline can be "changed" — keeps
+      // this in sync with AttendanceRosterList._isChanged (guests with no
+      // baseline must not inflate the count).
+      final baseline = _baselineFor(m);
+      if (baseline != null && r?.status != baseline) changed++;
+    }
+    return (
+      decidedPresent: decidedPresent,
+      decidedAbsent: decidedAbsent,
+      statusPresent: statusPresent,
+      statusAbsent: statusAbsent,
+      remaining: widget.members.length - touched,
+      changed: changed,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -459,74 +563,93 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Widget _buildHeader(ColorScheme colorScheme) {
-    final progress = widget.members.isEmpty
-        ? 0.0
-        : (_currentIndex.clamp(0, widget.members.length)) /
-            widget.members.length;
+    final c = context.conv;
+    final t = _tally();
+    final total = widget.members.length;
+
+    // Tally numbers + tail differ by surface. Confirm mode (bulk default) shows
+    // the live present/absent split and a "N changed" tail; deck/manual shows
+    // only decisions made so far and "N left".
+    final present = _confirmMode ? t.statusPresent : t.decidedPresent;
+    final absent = _confirmMode ? t.statusAbsent : t.decidedAbsent;
+    final tail = _confirmMode ? '${t.changed} changed' : '${t.remaining} left';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Stack(
-          children: [
-            Container(
-              height: 4,
-              width: double.infinity,
-              color: colorScheme.surfaceContainerHigh,
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: _isListMode ? 0.0 : progress,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(999),
-                      bottomRight: Radius.circular(999),
-                    ),
-                  ),
-                ),
+        // Balanced 3-column bar so the centered title stays dead-center
+        // regardless of the side controls.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(_currentSession),
+                icon: const Icon(Icons.close),
+                color: c.ink2,
+                tooltip: 'Cancel',
               ),
-            ),
-            Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, left: 16),
-                child: IconButton(
-                  onPressed: () => Navigator.of(context).pop(_currentSession),
-                  icon: const Icon(Icons.close),
-                  color: colorScheme.onSurfaceVariant,
-                  tooltip: 'Cancel',
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8, right: 8),
-                child: Row(
+              Expanded(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextButton(
-                      key: const Key('finishSessionButton'),
-                      onPressed: () => _finishAndNavigate(),
-                      child: const Text('Done'),
+                    Text(
+                      _currentSession.title,
+                      style: AppTypography.eyebrow(color: c.ink3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
-                    IconButton(
-                      onPressed: _showAddMemberSheet,
-                      icon: const Icon(Icons.person_add),
-                      color: colorScheme.onSurfaceVariant,
-                      tooltip: 'Add Person',
+                    const SizedBox(height: 3),
+                    DefaultTextStyle(
+                      style: AppTypography.geist(fontSize: 12, color: c.ink3),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$present',
+                            style: AppTypography.geist(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: c.present,
+                            ),
+                          ),
+                          const Text(' · '),
+                          Text(
+                            '$absent',
+                            style: AppTypography.geist(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: c.absent,
+                            ),
+                          ),
+                          const Text(' · '),
+                          Text(
+                            tail,
+                            style: AppTypography.geist(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: c.ink3,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              TextButton(
+                key: const Key('finishSessionButton'),
+                onPressed: () => _finishAndNavigate(),
+                child: const Text('Done'),
+              ),
+            ],
+          ),
         ),
+        // Centered Deck/List segmented control.
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 56, 16, 4),
-          child: Align(
-            alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Center(
             child: SegmentedButton<bool>(
               key: const Key('deckListModeToggle'),
               style: const ButtonStyle(
@@ -551,20 +674,83 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             ),
           ),
         ),
+        // Contained progress bar: single present fill on the deck, two-tone
+        // present/absent split in list mode.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: SizedBox(
+              height: 4,
+              child: total == 0
+                  ? ColoredBox(color: c.cardSoft)
+                  : _isListMode
+                      ? LayoutBuilder(
+                          builder: (context, constraints) {
+                            final w = constraints.maxWidth;
+                            return Row(
+                              children: [
+                                SizedBox(
+                                  width: w * present / total,
+                                  child: ColoredBox(color: c.present),
+                                ),
+                                SizedBox(
+                                  width: w * absent / total,
+                                  child: ColoredBox(color: c.absent),
+                                ),
+                                Expanded(child: ColoredBox(color: c.cardSoft)),
+                              ],
+                            );
+                          },
+                        )
+                      : Stack(
+                          children: [
+                            Positioned.fill(child: ColoredBox(color: c.cardSoft)),
+                            FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor:
+                                  ((total - t.remaining) / total).clamp(0.0, 1.0),
+                              child: ColoredBox(color: c.present),
+                            ),
+                          ],
+                        ),
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildListBody() {
+    final grouping = widget.rosterGrouping ?? RosterGrouping.byStatus;
     return AttendanceRosterList(
       session: _currentSession,
       families: _sessionFamilies,
       onToggle: _toggleMemberFromList,
       onFamilyToggle: _toggleFamilyFromList,
       onMarkAll: _markAllAttendance,
-      initialGrouping: RosterGrouping.byFamily,
+      // Grouping is a per-event preset now (set in the editor / asked once),
+      // not a live in-session toggle — show a read-only indicator instead.
+      initialGrouping: grouping,
+      showGroupingToggle: false,
+      showGroupingPreset: true,
       disableAnimations: widget.disableAnimations,
+      // The session tally now lives in the deck-style header above, so the
+      // roster needn't repeat the Present/Absent/Total stat chips.
+      showStats: false,
+      confirmMode: _confirmMode,
+      smartStart: widget.startMode == AttendanceStartMode.perMemberDefault,
+      baselineStatus: _confirmMode ? _baselineStatus : null,
+      onConfirm: _confirmMode ? _finishAndNavigate : null,
+      onReset: _confirmMode ? _resetToPreseed : null,
+      onAddGuest: _showAddMemberSheet,
     );
+  }
+
+  /// Confirm-mode "Reset" — restore every member to the status they arrived
+  /// with (the preseed captured at entry).
+  Future<void> _resetToPreseed() async {
+    await _restoreSessionRecords(widget.session.records);
   }
 
   Future<void> _markAllAttendance(bool present) async {
@@ -630,19 +816,72 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
+  /// Eyebrow caption under the name on a deck card: "Loner" for a singleton /
+  /// synthetic bucket, otherwise the family name suffixed with " family" (but
+  /// not doubled when the name already reads like "… Family").
+  String _captionFor(Family? family) {
+    final isRealFamily = family != null &&
+        family.id != '_synthetic_all' &&
+        !(family.isAutoSingleton && family.members.length <= 1);
+    if (!isRealFamily) return 'Loner';
+    final name = family.displayName;
+    return name.toLowerCase().contains('family') ? name : '$name family';
+  }
+
+  Widget _hintZone({required bool present}) {
+    final c = context.conv;
+    final color = present ? c.present : c.absent;
+    return ValueListenableBuilder<SwipeProgress>(
+      valueListenable: _dragProgress,
+      builder: (context, p, _) {
+        final amt = present ? p.rightProgress : p.leftProgress;
+        return Opacity(
+          opacity: (amt * 0.4 + 0.05).clamp(0.0, 1.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(present ? Icons.check : Icons.close, color: color, size: 22),
+              const SizedBox(height: 2),
+              Text(
+                present ? 'Present' : 'Absent',
+                style: AppTypography.eyebrow(color: color, fontSize: 9),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildDeckBody(ColorScheme colorScheme) {
+    final c = context.conv;
+
     if (_currentIndex >= widget.members.length) {
+      final t = _tally();
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Session Complete'),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _finishAndNavigate,
-              child: const Text('Finalize Report'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'All marked.',
+                style: AppTypography.fraunces(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w500,
+                  color: c.ink,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${t.statusPresent} present, ${t.statusAbsent} absent. '
+                'Tap Done to save.',
+                style: AppTypography.geist(fontSize: 15, color: c.ink2, height: 1.5),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -650,8 +889,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final currentMember = widget.members[_currentIndex];
     final family = _familyForMember(currentMember);
     final showFamilyContext = family != null && family.id != '_synthetic_all';
-    final familyCaption = showFamilyContext ? family.displayName : 'Loner';
-    final c = context.conv;
+    final familyCaption = _captionFor(family);
+    final next = _currentIndex + 1 < widget.members.length
+        ? widget.members[_currentIndex + 1]
+        : null;
 
     return Center(
       child: ConstrainedBox(
@@ -667,35 +908,49 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    Positioned.fill(
-                      child: Transform.translate(
-                        offset: const Offset(0, 32),
-                        child: Transform.scale(
-                          scale: 0.9,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: c.cardSoft.withValues(alpha: 0.55),
-                              borderRadius: AppRadii.cardR,
+                    // Hint zones flanking the deck — fade in as the card drags.
+                    Positioned(
+                      left: 0,
+                      top: 44,
+                      child: _hintZone(present: false),
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 44,
+                      child: _hintZone(present: true),
+                    ),
+                    // Next member peeking behind the current card.
+                    if (next != null)
+                      Positioned(
+                        left: 28,
+                        right: 28,
+                        top: 24,
+                        bottom: 12,
+                        child: IgnorePointer(
+                          child: Opacity(
+                            opacity: 0.55,
+                            child: Transform.scale(
+                              scale: 0.96,
+                              child: _DeckCard(
+                                member: next,
+                                familyCaption:
+                                    _captionFor(_familyForMember(next)),
+                                progress: const SwipeProgress(
+                                  dx: 0,
+                                  rightProgress: 0,
+                                  leftProgress: 0,
+                                ),
+                                small: true,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    Positioned.fill(
-                      child: Transform.translate(
-                        offset: const Offset(0, 16),
-                        child: Transform.scale(
-                          scale: 0.95,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: c.cardSoft,
-                              borderRadius: AppRadii.cardR,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned.fill(
+                    Positioned(
+                      left: 18,
+                      right: 18,
+                      top: 6,
+                      bottom: 6,
                       child: RepaintBoundary(
                         // No AnimatedSwitcher: the dismissed card flies off via
                         // its own animation, so the next member should appear
@@ -706,6 +961,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                           controller: _swipeController,
                           rightSwipeColor: c.present,
                           leftSwipeColor: c.absent,
+                          onProgress: (p) => _dragProgress.value = p,
                           onSwipeLeft: () => _processAttendance(
                             AttendanceStatus.absent,
                           ),
@@ -741,67 +997,97 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Widget _buildDeckFooter(ColorScheme colorScheme) {
+    final c = context.conv;
+    final canMark = _currentIndex < widget.members.length;
+    final canUndo = _history.isNotEmpty;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Material(
-              color: colorScheme.surfaceContainerHigh,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: const Key('undoButton'),
-                onTap: _history.isNotEmpty ? _undo : null,
-                child: Icon(
-                  Icons.undo,
-                  color: _history.isNotEmpty
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurface.withValues(alpha: 0.3),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Undo — soft 52px circle.
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: Material(
+                  color: c.cardSoft,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('undoButton'),
+                    onTap: canUndo ? _undo : null,
+                    child: Icon(
+                      Icons.undo,
+                      size: 22,
+                      color: canUndo ? c.ink2 : c.ink2.withValues(alpha: 0.3),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 24),
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Material(
-              color: colorScheme.surfaceContainerHigh,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: const Key('absentButton'),
-                onTap: _currentIndex < widget.members.length
-                    ? () => widget.disableAnimations
-                        ? _processAttendance(AttendanceStatus.absent)
-                        : _swipeController.swipeLeft()
-                    : null,
-                child: Icon(Icons.close, color: colorScheme.error),
+              const SizedBox(width: 28),
+              // Absent — 60px outlined circle.
+              SizedBox(
+                width: 60,
+                height: 60,
+                child: Material(
+                  color: Colors.transparent,
+                  shape: CircleBorder(side: BorderSide(color: c.absent, width: 2)),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('absentButton'),
+                    onTap: canMark
+                        ? () => widget.disableAnimations
+                            ? _processAttendance(AttendanceStatus.absent)
+                            : _swipeController.swipeLeft()
+                        : null,
+                    child: Icon(Icons.close, size: 26, color: c.absent),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 24),
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Material(
-              color: colorScheme.primary,
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                key: const Key('presentButton'),
-                onTap: _currentIndex < widget.members.length
-                    ? () => widget.disableAnimations
-                        ? _processAttendance(AttendanceStatus.present)
-                        : _swipeController.swipeRight()
-                    : null,
-                child: Icon(Icons.check, color: colorScheme.onPrimary),
+              const SizedBox(width: 28),
+              // Present — 72px filled circle with a soft glow.
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: c.present.withValues(alpha: 0.45),
+                      blurRadius: 30,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: c.present,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('presentButton'),
+                    onTap: canMark
+                        ? () => widget.disableAnimations
+                            ? _processAttendance(AttendanceStatus.present)
+                            : _swipeController.swipeRight()
+                        : null,
+                    child: Icon(Icons.check, size: 30, color: c.onPrimary),
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Add guest — quiet, low-frequency walk-in action below the actions.
+          TextButton.icon(
+            key: const Key('deckAddGuestButton'),
+            onPressed: _showAddMemberSheet,
+            style: TextButton.styleFrom(foregroundColor: c.ink3),
+            icon: const Icon(Icons.person_add_alt, size: 18),
+            label: const Text('Add guest'),
           ),
         ],
       ),
@@ -814,11 +1100,15 @@ class _DeckCard extends StatelessWidget {
     required this.member,
     required this.familyCaption,
     required this.progress,
+    this.small = false,
   });
 
   final Member member;
   final String familyCaption;
   final SwipeProgress progress;
+
+  /// Compact variant used for the next-card peek behind the active card.
+  final bool small;
 
   @override
   Widget build(BuildContext context) {
@@ -852,12 +1142,12 @@ class _DeckCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    ConvAvatar(letter: initial, size: 88, tone: tone),
-                    const SizedBox(height: 20),
+                    ConvAvatar(letter: initial, size: small ? 70 : 88, tone: tone),
+                    SizedBox(height: small ? 16 : 20),
                     Text(
                       member.displayName,
                       style: AppTypography.fraunces(
-                        fontSize: 32,
+                        fontSize: small ? 26 : 32,
                         fontWeight: FontWeight.w500,
                         color: c.ink,
                       ),

@@ -1,5 +1,6 @@
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -318,7 +319,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Bob');
@@ -386,7 +387,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Charlie');
@@ -437,6 +438,9 @@ void main() {
           attendanceRepository: MockAttendanceRepository(),
           eventRepository: MockEventRepository(),
           disableAnimations: true,
+          // Family preset so the list groups by family (the grouping toggle is
+          // gone — grouping is now a per-event preset).
+          rosterGrouping: RosterGrouping.byFamily,
         ),
       ),
     );
@@ -509,8 +513,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Family name visible on the card (rendered as uppercase eyebrow).
-    expect(find.text('THE FAMILY'), findsOneWidget);
+    // Family name visible on the card (rendered as uppercase eyebrow). Both
+    // the active card and the next-card peek render it.
+    expect(find.text('THE FAMILY'), findsWidgets);
 
     // The "mark family present" button is shown for multi-member families.
     expect(find.byKey(const Key('markFamilyPresentButton')), findsOneWidget);
@@ -577,9 +582,9 @@ void main() {
     await tester.tap(find.text('List'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('markEveryonePresent')));
+    // In the marking list the bulk action is a direct "All present" button
+    // (the grouping toggle / mark-everyone sheet moved out of this surface).
+    await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
     await tester.pumpAndSettle();
 
     final saved = fakeRepo.savedSessions.last;

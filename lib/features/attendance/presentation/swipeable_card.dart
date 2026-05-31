@@ -32,6 +32,11 @@ class SwipeableCard extends StatefulWidget {
   final Color? leftSwipeColor;
   final SwipeableCardController? controller;
 
+  /// Fired (after the frame) with the live drag progress, so a parent can drive
+  /// sibling affordances such as the deck's left/right hint zones without
+  /// rebuilding this card.
+  final ValueChanged<SwipeProgress>? onProgress;
+
   const SwipeableCard({
     super.key,
     this.child,
@@ -42,6 +47,7 @@ class SwipeableCard extends StatefulWidget {
     this.rightSwipeColor,
     this.leftSwipeColor,
     this.controller,
+    this.onProgress,
   }) : assert(child != null || childBuilder != null,
             'Provide either child or childBuilder');
 
@@ -63,15 +69,40 @@ class _SwipeableCardState extends State<SwipeableCard>
   static const double _rotationFactor = 0.05;
   static const Duration _snapDuration = Duration(milliseconds: 700);
 
+  /// Current visible offset, whether under a finger or mid-animation.
+  Offset get _currentOffset =>
+      (_controller.isAnimating && _slideAnimation != null)
+          ? _slideAnimation!.value
+          : _dragOffset;
+
+  /// Notify the parent of the live drag progress. Called from the gesture and
+  /// animation handlers (not from build) so the hint zones update in the same
+  /// frame as the card rather than one frame behind.
+  void _notifyProgress(double dx) {
+    widget.onProgress?.call(
+      SwipeProgress(
+        dx: dx,
+        rightProgress: (dx / 80).clamp(0.0, 1.0),
+        leftProgress: (-dx / 80).clamp(0.0, 1.0),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: _snapDuration)
       ..addListener(() {
         setState(() {});
+        _notifyProgress(_currentOffset.dx);
       });
 
     widget.controller?._state = this;
+
+    // Reset the parent's hint zones for this (freshly mounted, centered) card.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _notifyProgress(_dragOffset.dx);
+    });
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -134,6 +165,7 @@ class _SwipeableCardState extends State<SwipeableCard>
       _dragOffset += details.delta;
       _rotation = _dragOffset.dx * _rotationFactor * (pi / 180);
     });
+    _notifyProgress(_dragOffset.dx);
   }
 
   void _onPanEnd(DragEndDetails details) {
