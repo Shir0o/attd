@@ -256,6 +256,54 @@ void main() {
   );
 
   testWidgets(
+    'member in two families renders once in family view',
+    (tester) async {
+      // Alice belongs to both her real family and an auto-singleton — a known
+      // data hazard. She must render only once (under the first family).
+      final aliceSolo = Family(
+        id: 'alice-solo',
+        displayName: 'Alice',
+        members: [alice],
+        isAutoSingleton: true,
+      );
+      final session = sessionWith(members: [alice, bob]);
+      final log = <ToggleCall>[];
+      await pumpRoster(
+        tester,
+        session: session,
+        families: [smiths, aliceSolo],
+        toggleLog: log,
+        grouping: RosterGrouping.byFamily,
+      );
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.byKey(const ValueKey('member_row_smith_a')), findsOneWidget);
+      expect(find.byKey(const ValueKey('singleton_row_a')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'member in two families renders once in status view',
+    (tester) async {
+      final aliceSolo = Family(
+        id: 'alice-solo',
+        displayName: 'Alice',
+        members: [alice],
+        isAutoSingleton: true,
+      );
+      final session = sessionWith(members: [alice, bob]);
+      final log = <ToggleCall>[];
+      await pumpRoster(
+        tester,
+        session: session,
+        families: [smiths, aliceSolo],
+        toggleLog: log,
+        grouping: RosterGrouping.byStatus,
+      );
+      expect(find.text('Alice'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'mark-all sheet "All present" tile invokes onMarkAll with true',
     (tester) async {
       final session = sessionWith(members: [alice, bob, carol]);

@@ -674,4 +674,68 @@ void main() {
     expect(saved.records.firstWhere((r) => r.memberId == 'b').status, AttendanceStatus.present);
     expect(saved.records.firstWhere((r) => r.memberId == 'c').status, AttendanceStatus.absent);
   });
+
+  testWidgets(
+      'toggling one member does not affect another member sharing the same name',
+      (WidgetTester tester) async {
+    final fakeRepo = MockSessionRepository();
+    // Two distinct members that happen to share a display name.
+    final aliceOne = Member(id: 'a', displayName: 'Alice');
+    final aliceTwo = Member(id: 'b', displayName: 'Alice');
+    final family = Family(
+      id: 'fam',
+      displayName: 'Smiths',
+      members: [aliceOne, aliceTwo],
+    );
+    final now = DateTime(2026, 5, 24);
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: now,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'User',
+      records: [
+        for (final m in [aliceOne, aliceTwo])
+          SessionRecord(
+            memberId: m.id,
+            attendee: m.displayName,
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'User',
+          ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [aliceOne, aliceTwo],
+          families: [family],
+          sessionRepository: fakeRepo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('List'));
+    await tester.pumpAndSettle();
+
+    // Toggle only the first Alice (id 'a') off.
+    await tester.tap(find.byKey(const ValueKey('memberToggle_a_Alice')));
+    await tester.pumpAndSettle();
+
+    final saved = fakeRepo.savedSessions.last;
+    // Both members still have exactly one record each — the second Alice's
+    // record must not be wiped by the name collision.
+    expect(saved.records.where((r) => r.memberId == 'a'), hasLength(1));
+    expect(saved.records.where((r) => r.memberId == 'b'), hasLength(1));
+    expect(saved.records.firstWhere((r) => r.memberId == 'a').status,
+        AttendanceStatus.absent);
+    expect(saved.records.firstWhere((r) => r.memberId == 'b').status,
+        AttendanceStatus.present);
+  });
 }
