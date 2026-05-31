@@ -52,9 +52,21 @@ class AttendanceRobot {
 
   Future<void> addGuest(String name, {bool isPresent = true}) async {
     print('DEBUG: addGuest($name)');
-    final addIcon = find.byTooltip('Add Person');
-    await tester.pumpUntilFound(addIcon);
-    await tester.tap(addIcon);
+    // "Add guest" was relocated out of the header: a ghost button below the
+    // deck actions, and a dashed row at the end of the roster list. Use
+    // whichever surface is currently showing.
+    final deckButton = find.byKey(const Key('deckAddGuestButton'));
+    final listRow = find.byKey(const Key('rosterAddGuestRow'));
+    await tester.pumpUntilFound(
+      find.byWidgetPredicate(
+        (w) => w.key == const Key('deckAddGuestButton') ||
+            w.key == const Key('rosterAddGuestRow'),
+      ),
+    );
+    final addTarget =
+        deckButton.evaluate().isNotEmpty ? deckButton : listRow;
+    await tester.ensureVisible(addTarget);
+    await tester.tap(addTarget);
     await tester.pumpAndSettle();
 
     final nameField = find.byType(TextField);
