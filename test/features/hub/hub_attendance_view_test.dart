@@ -9,6 +9,7 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
@@ -55,6 +56,7 @@ class FakeAttendanceRepository extends AttendanceRepository {
 class FakeEventRepository implements EventRepository {
   final controller = StreamController<List<Event>>.broadcast();
   final deletedEventIds = <String>[];
+  final updatedEvents = <Event>[];
 
   void emit(List<Event> events) => controller.add(events);
 
@@ -62,7 +64,9 @@ class FakeEventRepository implements EventRepository {
   Future<void> createEvent(Event event) async {}
 
   @override
-  Future<void> updateEvent(Event event) async {}
+  Future<void> updateEvent(Event event) async {
+    updatedEvents.add(event);
+  }
 
   @override
   Future<void> deleteEvent(String eventId) async {
@@ -193,7 +197,10 @@ void main() {
     );
   }
 
-  Event todayEvent({List<String> memberIds = const []}) {
+  Event todayEvent({
+    List<String> memberIds = const [],
+    RosterGrouping? rosterGrouping = RosterGrouping.byStatus,
+  }) {
     final now = DateTime.now();
     return Event(
       id: 'event-1',
@@ -202,6 +209,9 @@ void main() {
       frequency: 'Weekly',
       repeatingDays: [DateFormat('EEEE').format(now)],
       memberIds: memberIds,
+      // Default to a chosen preset so existing tests skip the first-time
+      // grouping prompt; pass `null` to exercise that prompt explicitly.
+      rosterGrouping: rosterGrouping,
       createdAt: now,
     );
   }
@@ -301,6 +311,49 @@ void main() {
     expect(sessionRepository.createdSessions, hasLength(1));
     expect(sessionRepository.createdSessions.single.title, 'Sunday Service');
     expect(sessionRepository.createdSessions.single.eventId, 'event-1');
+  });
+
+  testWidgets(
+      'first attendance asks for a grouping preset and saves it to the event',
+      (tester) async {
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: [Member(id: 'member-1', displayName: 'Alice')],
+        updatedAt: DateTime.now(),
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([
+      // No grouping chosen yet → the one-time prompt should appear.
+      todayEvent(memberIds: ['member-1'], rosterGrouping: null)
+    ]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sunday Service'));
+    await tester.pumpAndSettle();
+
+    // Grouping prompt appears first (before the start-mode picker).
+    expect(find.byKey(const Key('groupingConfirmButton')), findsOneWidget);
+    expect(find.byKey(const Key('startModeConfirmButton')), findsNothing);
+
+    // Pick Family, then continue.
+    await tester.tap(find.byKey(const Key('grouping_byFamily')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('groupingConfirmButton')));
+    await tester.pumpAndSettle();
+
+    // The choice is persisted on the event.
+    expect(eventRepository.updatedEvents, isNotEmpty);
+    expect(
+      eventRepository.updatedEvents.last.rosterGrouping,
+      RosterGrouping.byFamily,
+    );
+
+    // Then the normal start-mode picker follows.
+    expect(find.byKey(const Key('startModeConfirmButton')), findsOneWidget);
   });
 
   testWidgets('action menu: Manage Members navigates to members page',

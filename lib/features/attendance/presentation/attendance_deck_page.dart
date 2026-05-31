@@ -37,6 +37,7 @@ class AttendanceDeckPage extends StatefulWidget {
     this.disableAnimations = false,
     this.initialListMode = false,
     this.startMode,
+    this.rosterGrouping,
   });
 
   final Session session;
@@ -60,6 +61,10 @@ class AttendanceDeckPage extends StatefulWidget {
   /// `null` or [AttendanceStartMode.allAbsent] is the plain mark-from-scratch
   /// flow (deck + tap-to-mark list).
   final AttendanceStartMode? startMode;
+
+  /// The event's roster-grouping preset (status vs family). Drives how the
+  /// in-session List groups people. Defaults to by-status when unset.
+  final RosterGrouping? rosterGrouping;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -717,13 +722,18 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Widget _buildListBody() {
+    final grouping = widget.rosterGrouping ?? RosterGrouping.byStatus;
     return AttendanceRosterList(
       session: _currentSession,
       families: _sessionFamilies,
       onToggle: _toggleMemberFromList,
       onFamilyToggle: _toggleFamilyFromList,
       onMarkAll: _markAllAttendance,
-      initialGrouping: RosterGrouping.byFamily,
+      // Grouping is a per-event preset now (set in the editor / asked once),
+      // not a live in-session toggle — show a read-only indicator instead.
+      initialGrouping: grouping,
+      showGroupingToggle: false,
+      showGroupingPreset: true,
       disableAnimations: widget.disableAnimations,
       // The session tally now lives in the deck-style header above, so the
       // roster needn't repeat the Present/Absent/Total stat chips.
@@ -732,8 +742,15 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       smartStart: widget.startMode == AttendanceStartMode.perMemberDefault,
       baselineStatus: _confirmMode ? _baselineStatus : null,
       onConfirm: _confirmMode ? _finishAndNavigate : null,
+      onReset: _confirmMode ? _resetToPreseed : null,
       onAddGuest: _showAddMemberSheet,
     );
+  }
+
+  /// Confirm-mode "Reset" — restore every member to the status they arrived
+  /// with (the preseed captured at entry).
+  Future<void> _resetToPreseed() async {
+    await _restoreSessionRecords(widget.session.records);
   }
 
   Future<void> _markAllAttendance(bool present) async {

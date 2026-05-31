@@ -8,11 +8,14 @@ import '../../../core/design/widgets/conv_widgets.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../models/roster_grouping.dart';
 import '../utils/session_roster_utils.dart';
 import '../../../data/session.dart';
 import 'mark_everyone_sheet.dart';
 
-enum RosterGrouping { byFamily, byStatus }
+// Re-exported so existing importers (deck page, summary) keep resolving
+// RosterGrouping through this file.
+export '../models/roster_grouping.dart';
 
 typedef MemberToggle = Future<void> Function(Member member, bool isPresent);
 typedef FamilyBulkToggle = Future<void> Function(Family family, bool isPresent);
@@ -33,6 +36,7 @@ class AttendanceRosterList extends StatefulWidget {
     this.onRemove,
     this.initialGrouping = RosterGrouping.byFamily,
     this.showGroupingToggle = true,
+    this.showGroupingPreset = false,
     this.showSearch = true,
     this.showStats = true,
     this.disableAnimations = false,
@@ -40,6 +44,7 @@ class AttendanceRosterList extends StatefulWidget {
     this.smartStart = false,
     this.baselineStatus,
     this.onConfirm,
+    this.onReset,
     this.onAddGuest,
   });
 
@@ -57,6 +62,11 @@ class AttendanceRosterList extends StatefulWidget {
   final void Function(Member member)? onRemove;
   final RosterGrouping initialGrouping;
   final bool showGroupingToggle;
+
+  /// When true, the live By-family/By-status toggle is replaced by a read-only
+  /// "Grouped by …" indicator — grouping is fixed to [initialGrouping] (the
+  /// event's preset). Used by the in-session marking list.
+  final bool showGroupingPreset;
   final bool showSearch;
 
   /// Show the Present/Absent/Total stat strip above the search input. Callers
@@ -84,6 +94,11 @@ class AttendanceRosterList extends StatefulWidget {
 
   /// Tapped by the sticky confirm CTA (confirm mode only).
   final VoidCallback? onConfirm;
+
+  /// Confirm mode: restores every member to their preseed status. When set, a
+  /// subtle "Reset" action appears (in place of the bulk "All" pill) once the
+  /// user has changed something.
+  final VoidCallback? onReset;
 
   /// When non-null, a trailing dashed "Add guest" row is appended to the
   /// roster for adding a walk-in not on the list.
@@ -239,7 +254,38 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                   },
                 ),
               ],
-              if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
+              // Read-only grouping indicator (preset) + context bulk action.
+              if (widget.showGroupingPreset) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _GroupingIndicator(grouping: _grouping),
+                    const Spacer(),
+                    if (widget.confirmMode)
+                      if (widget.onReset != null && _changedCount(roster) > 0)
+                        TextButton(
+                          key: const Key('rosterResetButton'),
+                          onPressed: widget.onReset,
+                          style: TextButton.styleFrom(
+                            foregroundColor: c.ink3,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: const Text('Reset'),
+                        )
+                      else
+                        const SizedBox.shrink()
+                    else if (widget.onMarkAll != null)
+                      ConvPill(
+                        key: const Key('rosterMarkAllPresent'),
+                        label: 'All present',
+                        leading: const Icon(Icons.done_all_rounded),
+                        onTap: () => widget.onMarkAll!(true),
+                      ),
+                  ],
+                ),
+              ]
+              // Live grouping toggle + bulk sheet (e.g. session summary).
+              else if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -988,62 +1034,76 @@ class _ConfirmBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final title = smartStart
-        ? 'Pre-filled from attendance'
-        : 'Everyone marked present';
-    final subtitle = smartStart
-        ? 'Present if here ≥80% of the last 8 · fix the exceptions'
-        : 'Switch off anyone missing, then confirm';
+    final lead = smartStart ? 'Pre-filled' : 'All present';
+    final rest = smartStart
+        ? '· here ≥80% of last 8 — fix exceptions'
+        : '· switch off anyone missing';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(c.primary.withValues(alpha: 0.08), c.cardSoft),
-        borderRadius: AppRadii.compactR,
-        border: Border.all(color: c.primary.withValues(alpha: 0.20)),
+        color: Color.alphaBlend(c.primary.withValues(alpha: 0.07), c.cardSoft),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: c.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              smartStart ? Icons.auto_awesome : Icons.check_rounded,
-              size: 18,
-              color: c.onPrimary,
+          Icon(
+            smartStart ? Icons.auto_awesome : Icons.check_rounded,
+            size: 14,
+            color: c.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            lead,
+            style: AppTypography.geist(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: c.ink,
             ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 4),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: AppTypography.geist(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: c.ink,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  subtitle,
-                  style: AppTypography.geist(fontSize: 11, color: c.ink3),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            child: Text(
+              rest,
+              style: AppTypography.geist(fontSize: 12, color: c.ink3),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Read-only "Grouped by status/family" indicator shown on the marking list,
+/// where grouping is a per-event preset rather than a live toggle.
+class _GroupingIndicator extends StatelessWidget {
+  const _GroupingIndicator({required this.grouping});
+
+  final RosterGrouping grouping;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final byFamily = grouping == RosterGrouping.byFamily;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          byFamily ? Icons.groups_outlined : Icons.checklist_rounded,
+          size: 16,
+          color: c.ink3,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          byFamily ? 'Grouped by family' : 'Grouped by status',
+          style: AppTypography.geist(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: c.ink3,
+          ),
+        ),
+      ],
     );
   }
 }

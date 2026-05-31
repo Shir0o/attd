@@ -5,6 +5,7 @@ import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session_repository.dart';
+import '../../attendance/models/roster_grouping.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 
@@ -33,6 +34,7 @@ class _AddEventPageState extends State<AddEventPage> {
   late String _frequency;
   late DateTime _selectedDate;
   late Set<String> _selectedDays;
+  late RosterGrouping _grouping;
   bool _isLoading = true;
   final List<String> _linkedSessions = [];
 
@@ -67,10 +69,12 @@ class _AddEventPageState extends State<AddEventPage> {
       _frequency = event.frequency;
       _selectedDate = event.oneTimeDate ?? DateTime.now();
       _selectedDays = event.repeatingDays.toSet();
+      _grouping = event.rosterGrouping ?? RosterGrouping.byStatus;
     } else {
       _nameController = TextEditingController();
       _selectedTime = const TimeOfDay(hour: 10, minute: 0);
       _frequency = 'Weekly';
+      _grouping = RosterGrouping.byStatus;
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day);
       _selectedDays = {};
@@ -221,6 +225,9 @@ class _AddEventPageState extends State<AddEventPage> {
         oneTimeDate: _frequency == 'One-time' ? _selectedDate : null,
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
         memberIds: widget.eventToEdit?.memberIds ?? [],
+        defaultAttendanceStartMode:
+            widget.eventToEdit?.defaultAttendanceStartMode,
+        rosterGrouping: _grouping,
         createdAt: createdAt,
       );
 
@@ -554,6 +561,44 @@ class _AddEventPageState extends State<AddEventPage> {
             ],
           ),
         ),
+
+        const SizedBox(height: 22),
+
+        // Grouping preset — how the marking roster sorts during a session.
+        // A per-event default (also asked once on first attendance), not a
+        // live in-session toggle.
+        const ConvEyebrow('Group roster by'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _GroupingCard(
+                icon: Icons.checklist_rounded,
+                label: 'Status',
+                hint: 'Present · Absent',
+                active: _grouping == RosterGrouping.byStatus,
+                onTap: () =>
+                    setState(() => _grouping = RosterGrouping.byStatus),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GroupingCard(
+                icon: Icons.groups_outlined,
+                label: 'Family',
+                hint: 'Households together',
+                active: _grouping == RosterGrouping.byFamily,
+                onTap: () =>
+                    setState(() => _grouping = RosterGrouping.byFamily),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 9),
+        Text(
+          'Sets how people are grouped while you take attendance.',
+          style: AppTypography.geist(fontSize: 12, color: c.ink3),
+        ),
       ],
     );
   }
@@ -694,6 +739,73 @@ class _NameField extends StatelessWidget {
         }
         return null;
       },
+    );
+  }
+}
+
+/// One of the two "Group roster by" preset option cards in the event editor.
+class _GroupingCard extends StatelessWidget {
+  const _GroupingCard({
+    required this.icon,
+    required this.label,
+    required this.hint,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String hint;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Material(
+      color: active
+          ? Color.alphaBlend(c.primary.withValues(alpha: 0.08), c.cardSoft)
+          : c.cardSoft,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: active ? c.primary : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: active ? c.primary : c.ink3),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: AppTypography.geist(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: c.ink,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                hint,
+                style: AppTypography.geist(fontSize: 11.5, color: c.ink3),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

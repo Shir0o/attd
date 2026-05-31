@@ -15,6 +15,7 @@ import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/models/attendance_start_mode.dart';
+import '../../attendance/presentation/grouping_preset_picker.dart';
 import '../../attendance/presentation/start_mode_picker.dart';
 import '../../attendance/utils/session_preseed.dart';
 import '../../settings/application/app_lock_controller.dart';
@@ -688,6 +689,25 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       return;
     }
 
+    // First time taking attendance for this event: ask how to group the
+    // roster. The choice is saved on the event and inherited next time; it can
+    // be changed later in the event editor ("Group roster by").
+    if (event.rosterGrouping == null) {
+      final picked = await showGroupingPresetPicker(context);
+      if (picked == null) return;
+      if (!context.mounted) return;
+      event = event.copyWith(
+        rosterGrouping: picked,
+        updatedAt: DateTime.now(),
+      );
+      try {
+        await widget.eventRepository.updateEvent(event);
+      } catch (e) {
+        debugPrint('Error saving grouping preset: $e');
+      }
+      if (!context.mounted) return;
+    }
+
     final sessionFamilies = _familiesForEvent(event);
 
     if (foundSession != null) {
@@ -706,6 +726,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               event: event,
               driveService: widget.driveService,
               disableAnimations: widget.disableAnimations,
+              rosterGrouping: event.rosterGrouping,
             ),
           ),
         );
@@ -795,6 +816,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             // the speed-swipe deck.
             initialListMode: pickedMode != AttendanceStartMode.allAbsent,
             startMode: pickedMode,
+            rosterGrouping: event.rosterGrouping,
           ),
         ),
       );

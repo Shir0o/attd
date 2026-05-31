@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../attendance/models/attendance_start_mode.dart';
+import '../../attendance/models/roster_grouping.dart';
 
 class Event {
   final String id;
@@ -12,6 +13,11 @@ class Event {
   repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final List<String> memberIds; // Members associated with this event
   final AttendanceStartMode? defaultAttendanceStartMode;
+
+  /// Per-event preset for how the marking roster groups (status vs family).
+  /// `null` means the user has not chosen yet — the first time attendance is
+  /// taken they are asked (defaulting to status), and the choice is saved here.
+  final RosterGrouping? rosterGrouping;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -25,6 +31,7 @@ class Event {
     this.repeatingDays = const [],
     this.memberIds = const [],
     this.defaultAttendanceStartMode,
+    this.rosterGrouping,
     required this.createdAt,
     DateTime? updatedAt,
     this.deletedAt,
@@ -42,6 +49,7 @@ class Event {
       'memberIds': memberIds,
       if (defaultAttendanceStartMode != null)
         'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
+      if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -57,6 +65,7 @@ class Event {
     List<String>? repeatingDays,
     List<String>? memberIds,
     AttendanceStartMode? defaultAttendanceStartMode,
+    RosterGrouping? rosterGrouping,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -72,6 +81,7 @@ class Event {
       memberIds: memberIds ?? this.memberIds,
       defaultAttendanceStartMode:
           defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
+      rosterGrouping: rosterGrouping ?? this.rosterGrouping,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
@@ -86,6 +96,16 @@ class Event {
       for (final m in AttendanceStartMode.values) {
         if (m.name == modeName) {
           startMode = m;
+          break;
+        }
+      }
+    }
+    RosterGrouping? grouping;
+    final groupingName = json['rosterGrouping'] as String?;
+    if (groupingName != null) {
+      for (final g in RosterGrouping.values) {
+        if (g.name == groupingName) {
+          grouping = g;
           break;
         }
       }
@@ -112,6 +132,7 @@ class Event {
               .toList() ??
           [],
       defaultAttendanceStartMode: startMode,
+      rosterGrouping: grouping,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
