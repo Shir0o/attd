@@ -26,6 +26,12 @@ class SessionRoster {
       final record =
           recordByMemberId[m.id] ?? recordByVisitorName[m.displayName];
       if (record != null) {
+        // Snapshot invariant: a recorded session displays the name captured on
+        // `record.attendee` at record time, NOT the member's current name.
+        // Renaming a member in the member list therefore never rewrites past
+        // sessions; corrections to a historical session are made per-session
+        // (see SessionSummaryPage._editMemberName). Keep this read sourced from
+        // the record, not from `m.displayName`.
         displayMembersMap[m.id] = Member(
           id: m.id,
           displayName: record.attendee,

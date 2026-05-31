@@ -314,10 +314,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
 
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    // Remove any existing record for this attendee if exists (overwrite)
-    updatedRecords.removeWhere((r) =>
-        (memberId != null && r.memberId == memberId) ||
-        (r.attendee == attendeeName));
+    // Overwrite the existing record for this identity only. Match real members
+    // by id (never by name — two different members can share a display name);
+    // match visitors by name among the id-less records.
+    updatedRecords.removeWhere((r) => memberId != null
+        ? r.memberId == memberId
+        : (r.memberId == null && r.attendee == attendeeName));
     updatedRecords.add(newRecord);
 
     final updatedSession = _currentSession.copyWith(
@@ -376,8 +378,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       final mid = (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
       updatedRecords.removeWhere((r) =>
           (mid != null && r.memberId == mid) ||
-          (mid == null && r.memberId == null && r.attendee == m.displayName) ||
-          (r.attendee == m.displayName));
+          (mid == null && r.memberId == null && r.attendee == m.displayName));
       updatedRecords.add(SessionRecord(
         memberId: mid,
         attendee: m.displayName,

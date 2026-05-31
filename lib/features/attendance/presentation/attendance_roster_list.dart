@@ -464,6 +464,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   ) {
     final children = <Widget>[];
     final singletonMembers = <Member>[];
+    // A member can belong to more than one family (e.g. a real family and an
+    // auto-singleton); render each member only once, under the first family.
+    final seen = <String>{};
     for (final family in widget.families) {
       // Auto-created singleton families (member added without a real family)
       // render as flat rows under a single "Members" section — the family
@@ -472,6 +475,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         final m = family.members.first;
         final displayed = roster.displayMembersMap[m.id];
         if (displayed == null) continue;
+        if (!seen.add(displayed.id)) continue;
         if (_matchesQuery(displayed.displayName)) {
           singletonMembers.add(displayed);
         }
@@ -482,6 +486,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       for (final m in family.members) {
         final displayed = roster.displayMembersMap[m.id];
         if (displayed == null) continue; // excluded
+        if (!seen.add(displayed.id)) continue; // already shown under another family
         if (familyMatch || _matchesQuery(displayed.displayName)) {
           filteredMembers.add(displayed);
         }
@@ -601,10 +606,15 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     ConvocationColors c,
   ) {
     final allDisplayed = <Member>[];
+    final seen = <String>{};
     for (final family in widget.families) {
       for (final m in family.members) {
         final displayed = roster.displayMembersMap[m.id];
-        if (displayed != null) allDisplayed.add(displayed);
+        if (displayed == null) continue;
+        // A member can belong to more than one family (e.g. a real family and
+        // an auto-singleton); render each member only once.
+        if (!seen.add(displayed.id)) continue;
+        allDisplayed.add(displayed);
       }
     }
     allDisplayed.addAll(visitors);
