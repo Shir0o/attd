@@ -375,10 +375,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Member'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Name'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This corrects the name in this report only. It will not change '
+              'your global roster or other sessions.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
         actions: [
           TextButton(

@@ -314,10 +314,20 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
 
     final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    // Remove any existing record for this attendee if exists (overwrite)
-    updatedRecords.removeWhere((r) =>
-        (memberId != null && r.memberId == memberId) ||
-        (r.attendee == attendeeName));
+    // Overwrite the existing record for this identity only. Match real members
+    // by id (never by name — two different members can share a display name);
+    // match visitors by name among the id-less records. Normalize blank ids to
+    // null so records stored with an empty memberId match like visitors, as
+    // SessionRoster treats them.
+    final cleanMemberId =
+        (memberId == null || memberId.trim().isEmpty) ? null : memberId;
+    updatedRecords.removeWhere((r) {
+      final rCleanId =
+          (r.memberId == null || r.memberId!.trim().isEmpty) ? null : r.memberId;
+      return cleanMemberId != null
+          ? rCleanId == cleanMemberId
+          : (rCleanId == null && r.attendee == attendeeName);
+    });
     updatedRecords.add(newRecord);
 
     final updatedSession = _currentSession.copyWith(
@@ -374,10 +384,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final status = present ? AttendanceStatus.present : AttendanceStatus.absent;
     for (final m in family.members) {
       final mid = (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
-      updatedRecords.removeWhere((r) =>
-          (mid != null && r.memberId == mid) ||
-          (mid == null && r.memberId == null && r.attendee == m.displayName) ||
-          (r.attendee == m.displayName));
+      updatedRecords.removeWhere((r) {
+        final rCleanId = (r.memberId == null || r.memberId!.trim().isEmpty)
+            ? null
+            : r.memberId;
+        return mid != null
+            ? rCleanId == mid
+            : (rCleanId == null && r.attendee == m.displayName);
+      });
       updatedRecords.add(SessionRecord(
         memberId: mid,
         attendee: m.displayName,
