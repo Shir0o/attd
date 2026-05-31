@@ -101,6 +101,18 @@ class HubRobot {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1500));
 
+    // The first time attendance is taken for an event, a one-time "Group
+    // roster by" prompt appears before the start-mode picker. Confirm its
+    // default so the flow proceeds.
+    final groupingButton = find.byKey(const Key('groupingConfirmButton'));
+    if (groupingButton.evaluate().isNotEmpty) {
+      print('DEBUG: grouping preset prompt present, confirming');
+      await tester.tap(groupingButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+    }
+
     // Starting a new session opens the "Start mode" picker. Auto-confirm
     // the default so existing scenarios that expected an immediate jump
     // into attendance continue to work.
