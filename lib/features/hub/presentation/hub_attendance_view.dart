@@ -213,6 +213,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       actionable: actionable,
       taken: hasSession,
       displayDate: displayDate,
+      presentCount: targetSession?.records
+          .where((r) => r.status == AttendanceStatus.present)
+          .length,
     );
   }
 
@@ -851,12 +854,16 @@ class _EventStatus {
     required this.actionable,
     required this.taken,
     required this.displayDate,
+    this.presentCount,
   });
 
   final String label;
   final bool actionable;
   final bool taken;
   final DateTime displayDate;
+
+  /// Number of present attendees in the marked session, when [taken] is true.
+  final int? presentCount;
 }
 
 /// The large editorial "Up next" card — the first/soonest event on the hub.
@@ -1412,7 +1419,7 @@ class _TodayRow extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         status.taken
-                            ? 'Marked · $expected present'
+                            ? 'Marked · ${status.presentCount ?? 0} present'
                             : '$expected expected',
                         style: AppTypography.geist(
                           fontSize: 12,
