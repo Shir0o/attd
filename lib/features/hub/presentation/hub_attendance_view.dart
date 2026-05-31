@@ -591,6 +591,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 status: _statusFor(event),
                 expected: event.memberIds.length,
                 onTap: () => _handleEventTap(event),
+                onMenuTap: () => _showEventMenu(context, event),
               ),
             ),
           );
@@ -628,6 +629,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               isToday: false,
               status: _statusFor(event),
               onTap: () => _handleEventTap(event),
+              onMenuTap: () => _showEventMenu(context, event),
             ),
           ),
         );
@@ -1244,12 +1246,14 @@ class _EventRow extends StatelessWidget {
     required this.isToday,
     required this.status,
     required this.onTap,
+    required this.onMenuTap,
   });
 
   final Event event;
   final bool isToday;
   final _EventStatus status;
   final VoidCallback onTap;
+  final VoidCallback onMenuTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1294,11 +1298,18 @@ class _EventRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Icon(Icons.schedule, size: 13, color: c.ink3),
+                    Icon(
+                      status.taken ? Icons.check : Icons.schedule,
+                      size: 13,
+                      color: status.taken ? c.present : c.ink3,
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      event.time.format(context),
-                      style: AppTypography.geist(fontSize: 12, color: c.ink3),
+                      status.taken ? 'Marked' : event.time.format(context),
+                      style: AppTypography.geist(
+                        fontSize: 12,
+                        color: status.taken ? c.present : c.ink3,
+                      ),
                     ),
                   ],
                 ),
@@ -1306,27 +1317,13 @@ class _EventRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          if (status.taken)
-            ConvPill(
-              label: 'Taken',
-              leading: const Icon(Icons.check),
-              fontSize: 11,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            )
-          else if (status.actionable)
-            ConvPill(
-              label: 'Start',
-              leading: const Icon(Icons.play_arrow),
-              isOn: true,
-              fontSize: 11,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              onTap: onTap,
-            )
-          else
-            ConvEyebrow(
-              DateFormat('EEE').format(date),
-              color: c.ink3,
-            ),
+          ConvIconButton(
+            icon: Icons.more_vert,
+            size: 32,
+            iconSize: 20,
+            color: c.ink4,
+            onPressed: onMenuTap,
+          ),
         ],
       ),
     );
@@ -1341,12 +1338,14 @@ class _TodayRow extends StatelessWidget {
     required this.status,
     required this.expected,
     required this.onTap,
+    required this.onMenuTap,
   });
 
   final Event event;
   final _EventStatus status;
   final int expected;
   final VoidCallback onTap;
+  final VoidCallback onMenuTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1405,11 +1404,20 @@ class _TodayRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Icon(Icons.people_outline, size: 13, color: c.ink3),
+                      Icon(
+                        status.taken ? Icons.check : Icons.people_outline,
+                        size: 13,
+                        color: status.taken ? c.present : c.ink3,
+                      ),
                       const SizedBox(width: 6),
                       Text(
-                        '$expected expected',
-                        style: AppTypography.geist(fontSize: 12, color: c.ink3),
+                        status.taken
+                            ? 'Marked · $expected present'
+                            : '$expected expected',
+                        style: AppTypography.geist(
+                          fontSize: 12,
+                          color: status.taken ? c.present : c.ink3,
+                        ),
                       ),
                     ],
                   ),
@@ -1417,24 +1425,13 @@ class _TodayRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            if (status.taken)
-              ConvPill(
-                label: 'Taken',
-                leading: const Icon(Icons.check),
-                fontSize: 11,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              )
-            else
-              ConvPill(
-                label: 'Start',
-                leading: const Icon(Icons.play_arrow),
-                isOn: true,
-                fontSize: 11,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                onTap: onTap,
-              ),
+            ConvIconButton(
+              icon: Icons.more_vert,
+              size: 32,
+              iconSize: 20,
+              color: c.ink4,
+              onPressed: onMenuTap,
+            ),
           ],
         ),
       ),
