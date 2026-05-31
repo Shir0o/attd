@@ -643,7 +643,7 @@ void main() {
     expect(find.text('Mid-week Study'), findsOneWidget);
   });
 
-  testWidgets('event with session on past day shows Taken with date suffix', (tester) async {
+  testWidgets('event with session on past day shows Marked status inline', (tester) async {
     final now = DateTime.now();
     // Pick a repeating day that isn't today so lastSupposed is in the past.
     final notTodayDay =
@@ -673,16 +673,16 @@ void main() {
     eventRepository.emit([event]);
     await tester.pumpAndSettle();
 
-    // The hero "Up next" card shows a 'Taken' pill once a session exists for
-    // the most recent occurrence.
+    // The upcoming row shows an inline 'Marked' status once a session exists
+    // for the most recent occurrence.
     final texts = tester
         .widgetList<Text>(find.byType(Text))
         .map((w) => w.data ?? '')
         .toList();
     expect(
-      texts.any((t) => t.startsWith('Taken')),
+      texts.any((t) => t == 'Marked'),
       isTrue,
-      reason: 'Expected a Taken status pill, got: $texts',
+      reason: 'Expected an inline Marked status, got: $texts',
     );
   });
 
