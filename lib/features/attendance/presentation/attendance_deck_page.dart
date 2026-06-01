@@ -322,8 +322,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final cleanMemberId =
         (memberId == null || memberId.trim().isEmpty) ? null : memberId;
     updatedRecords.removeWhere((r) {
-      final rCleanId =
-          (r.memberId == null || r.memberId!.trim().isEmpty) ? null : r.memberId;
+      final rCleanId = (r.memberId == null || r.memberId!.trim().isEmpty)
+          ? null
+          : r.memberId;
       return cleanMemberId != null
           ? rCleanId == cleanMemberId
           : (rCleanId == null && r.attendee == attendeeName);
@@ -559,18 +560,33 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(colorScheme),
-            Expanded(
-              child:
-                  _isListMode ? _buildListBody() : _buildDeckBody(colorScheme),
-            ),
-            if (!_isListMode) _buildDeckFooter(colorScheme),
-          ],
+    return PopScope(
+      // Confirming the session uses pushReplacement (deck → summary), so the
+      // deck route is only ever *popped* when the user cancels — via the X
+      // button or system back. Any pop here therefore means the session was
+      // abandoned, so discard the preseeded session rather than leaving it as a
+      // phantom "taken" state on the hub.
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          widget.sessionRepository.deleteSession(
+            _currentSession.id,
+            actor: 'System (Cleanup)',
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(colorScheme),
+              Expanded(
+                child:
+                    _isListMode ? _buildListBody() : _buildDeckBody(colorScheme),
+              ),
+              if (!_isListMode) _buildDeckFooter(colorScheme),
+            ],
+          ),
         ),
       ),
     );
@@ -598,7 +614,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.of(context).pop(_currentSession),
+                onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.close),
                 color: c.ink2,
                 tooltip: 'Cancel',
@@ -719,11 +735,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         )
                       : Stack(
                           children: [
-                            Positioned.fill(child: ColoredBox(color: c.cardSoft)),
+                            Positioned.fill(
+                                child: ColoredBox(color: c.cardSoft)),
                             FractionallySizedBox(
                               alignment: Alignment.centerLeft,
-                              widthFactor:
-                                  ((total - t.remaining) / total).clamp(0.0, 1.0),
+                              widthFactor: ((total - t.remaining) / total)
+                                  .clamp(0.0, 1.0),
                               child: ColoredBox(color: c.present),
                             ),
                           ],
@@ -891,7 +908,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               Text(
                 '${t.statusPresent} present, ${t.statusAbsent} absent. '
                 'Tap Done to save.',
-                style: AppTypography.geist(fontSize: 15, color: c.ink2, height: 1.5),
+                style: AppTypography.geist(
+                    fontSize: 15, color: c.ink2, height: 1.5),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1049,7 +1067,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                 height: 60,
                 child: Material(
                   color: Colors.transparent,
-                  shape: CircleBorder(side: BorderSide(color: c.absent, width: 2)),
+                  shape:
+                      CircleBorder(side: BorderSide(color: c.absent, width: 2)),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     key: const Key('absentButton'),
@@ -1156,7 +1175,8 @@ class _DeckCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    ConvAvatar(letter: initial, size: small ? 70 : 88, tone: tone),
+                    ConvAvatar(
+                        letter: initial, size: small ? 70 : 88, tone: tone),
                     SizedBox(height: small ? 16 : 20),
                     Text(
                       member.displayName,
