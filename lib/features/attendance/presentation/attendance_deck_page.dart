@@ -914,8 +914,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Future<List<Session>> _loadRecentSessions() async {
     try {
       final all = await widget.sessionRepository.loadSessions();
-      all.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-      return all.where((s) => s.id != _currentSession.id).toList();
+      final sorted = all.toList()
+        ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+      return sorted.where((s) => s.id != _currentSession.id).toList();
     } catch (e) {
       debugPrint('Error loading session history for smart defaults: $e');
       return const [];

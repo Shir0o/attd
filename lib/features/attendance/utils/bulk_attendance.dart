@@ -61,14 +61,16 @@ List<SessionRecord> applyBulkRecords({
   required DateTime recordedAt,
   String recordedBy = 'User (Bulk - Smart)',
 }) {
-  final resolved = <String, AttendanceStatus>{};
+  final resolved = <String, ({String displayName, AttendanceStatus status})>{};
   for (final m in members) {
     if (m.isVisitor || m.id.trim().isEmpty) continue;
     switch (resolveDefault(m.id, recentSessions)) {
       case ResolvedDefault.present:
-        resolved[m.id] = AttendanceStatus.present;
+        resolved[m.id] =
+            (displayName: m.displayName, status: AttendanceStatus.present);
       case ResolvedDefault.absent:
-        resolved[m.id] = AttendanceStatus.absent;
+        resolved[m.id] =
+            (displayName: m.displayName, status: AttendanceStatus.absent);
       case ResolvedDefault.ask:
         break; // leave the member's existing status untouched
     }
@@ -79,12 +81,11 @@ List<SessionRecord> applyBulkRecords({
     if (r.memberId != null && resolved.containsKey(r.memberId)) continue;
     updated.add(r);
   }
-  resolved.forEach((memberId, status) {
-    final m = members.firstWhere((m) => m.id == memberId);
+  resolved.forEach((memberId, info) {
     updated.add(SessionRecord(
       memberId: memberId,
-      attendee: m.displayName,
-      status: status,
+      attendee: info.displayName,
+      status: info.status,
       recordedAt: recordedAt,
       recordedBy: recordedBy,
     ));
