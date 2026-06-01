@@ -553,15 +553,17 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     // calm orientation card pointing at the next event instead of a Start hero.
     final restState = todayEvents.isEmpty && otherEvents.isNotEmpty;
     if (restState) {
-      final next = otherEvents.reduce(
-        (a, b) =>
-            _statusFor(a).displayDate.isBefore(_statusFor(b).displayDate) ? a : b,
-      );
+      final now = DateTime.now();
+      // Pick the soonest *upcoming* occurrence (getLastSupposedOccurrence, which
+      // backs _statusFor.displayDate, points at the previous occurrence).
+      final next = otherEvents
+          .map((e) => (event: e, date: getNextOccurrence(e, now)))
+          .reduce((a, b) => a.date.isBefore(b.date) ? a : b);
       children.add(
         _RestStateCard(
-          event: next,
-          status: _statusFor(next),
-          onTap: () => _handleEventTap(next),
+          event: next.event,
+          nextDate: next.date,
+          onTap: () => _handleEventTap(next.event),
         ),
       );
     }
@@ -869,12 +871,12 @@ class _EventStatus {
 class _RestStateCard extends StatelessWidget {
   const _RestStateCard({
     required this.event,
-    required this.status,
+    required this.nextDate,
     required this.onTap,
   });
 
   final Event event;
-  final _EventStatus status;
+  final DateTime nextDate;
   final VoidCallback onTap;
 
   String _inDays(DateTime next) {
@@ -882,14 +884,15 @@ class _RestStateCard extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final target = DateTime(next.year, next.month, next.day);
     final days = target.difference(today).inDays;
-    if (days <= 1) return 'tomorrow';
+    if (days <= 0) return 'today';
+    if (days == 1) return 'tomorrow';
     return 'in $days days';
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final next = status.displayDate;
+    final next = nextDate;
     final dayLabel = DateFormat('EEE').format(next).toUpperCase();
     final dateNum = DateFormat('d').format(next);
     final todayLabel = DateFormat('MMM d').format(DateTime.now()).toUpperCase();

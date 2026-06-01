@@ -146,4 +146,62 @@ void main() {
       expect(result, DateTime(2023, 10, 25));
     });
   });
+
+  group('getNextOccurrence', () {
+    test('returns the one-time date for a One-time event', () {
+      final now = DateTime(2023, 10, 25, 10, 0); // Wednesday
+      final event = Event(
+        id: '1',
+        title: 'One Time',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'One-time',
+        oneTimeDate: DateTime(2023, 11, 1),
+        createdAt: now,
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2023, 11, 1));
+    });
+
+    test('returns today when the scheduled time is still ahead', () {
+      final now = DateTime(2023, 10, 25, 10, 0); // Wednesday, 10 AM
+      final event = Event(
+        id: '1',
+        title: 'Weekly',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Wednesday'],
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2023, 10, 25));
+    });
+
+    test('rolls forward to next week when today\'s time has passed', () {
+      final now = DateTime(2023, 10, 25, 13, 0); // Wednesday, 1 PM
+      final event = Event(
+        id: '1',
+        title: 'Weekly',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Wednesday'],
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2023, 11, 1));
+    });
+
+    test('returns the soonest upcoming weekday', () {
+      final now = DateTime(2023, 10, 25, 10, 0); // Wednesday
+      final event = Event(
+        id: '1',
+        title: 'Weekly',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Friday'],
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2023, 10, 27)); // Friday
+    });
+  });
 }
