@@ -1,5 +1,16 @@
 import '../domain/event.dart';
 
+/// Maps the day names stored on [Event.repeatingDays] to `DateTime` weekday ints.
+const Map<String, int> _weekdayMap = {
+  'Monday': DateTime.monday,
+  'Tuesday': DateTime.tuesday,
+  'Wednesday': DateTime.wednesday,
+  'Thursday': DateTime.thursday,
+  'Friday': DateTime.friday,
+  'Saturday': DateTime.saturday,
+  'Sunday': DateTime.sunday,
+};
+
 /// Calculates the target session date for an event based on the current time.
 ///
 /// If the event is a 'One-time' event, it returns the scheduled date or today.
@@ -48,17 +59,10 @@ DateTime getNextOccurrence(Event event, DateTime now) {
     );
   }
 
-  final Map<String, int> weekdays = {
-    'Monday': DateTime.monday,
-    'Tuesday': DateTime.tuesday,
-    'Wednesday': DateTime.wednesday,
-    'Thursday': DateTime.thursday,
-    'Friday': DateTime.friday,
-    'Saturday': DateTime.saturday,
-    'Sunday': DateTime.sunday,
-  };
-
-  final eventWeekdays = event.repeatingDays.map((d) => weekdays[d]!).toList();
+  final eventWeekdays = event.repeatingDays
+      .map((d) => _weekdayMap[d])
+      .whereType<int>()
+      .toList();
   if (eventWeekdays.isEmpty) return today;
 
   // Today, if the scheduled time is still ahead.
@@ -99,17 +103,10 @@ DateTime getLastSupposedOccurrence(Event event, DateTime now) {
     );
   }
 
-  final Map<String, int> weekdays = {
-    'Monday': DateTime.monday,
-    'Tuesday': DateTime.tuesday,
-    'Wednesday': DateTime.wednesday,
-    'Thursday': DateTime.thursday,
-    'Friday': DateTime.friday,
-    'Saturday': DateTime.saturday,
-    'Sunday': DateTime.sunday,
-  };
-
-  final eventWeekdays = event.repeatingDays.map((d) => weekdays[d]!).toList();
+  final eventWeekdays = event.repeatingDays
+      .map((d) => _weekdayMap[d])
+      .whereType<int>()
+      .toList();
   if (eventWeekdays.isEmpty) return today;
 
   // Check today

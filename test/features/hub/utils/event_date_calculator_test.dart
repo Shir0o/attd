@@ -203,5 +203,47 @@ void main() {
 
       expect(getNextOccurrence(event, now), DateTime(2023, 10, 27)); // Friday
     });
+
+    test('returns today for a One-time event without a date', () {
+      final now = DateTime(2023, 10, 25, 10, 0);
+      final event = Event(
+        id: '1',
+        title: 'One Time',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'One-time',
+        createdAt: now,
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2023, 10, 25));
+    });
+
+    test('returns today when repeatingDays is empty', () {
+      final now = DateTime(2023, 10, 25, 10, 0);
+      final event = Event(
+        id: '1',
+        title: 'Weekly',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: const [],
+        createdAt: now,
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2023, 10, 25));
+    });
+
+    test('selects the soonest of multiple repeating days', () {
+      final now = DateTime(2023, 10, 25, 10, 0); // Wednesday
+      final event = Event(
+        id: '1',
+        title: 'Weekly',
+        time: const TimeOfDay(hour: 12, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Friday', 'Monday'],
+        createdAt: now.subtract(const Duration(days: 30)),
+      );
+
+      // Friday (2 days away) beats Monday (5 days away).
+      expect(getNextOccurrence(event, now), DateTime(2023, 10, 27));
+    });
   });
 }
