@@ -4,19 +4,26 @@ import '../../../core/design/app_radii.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 
+/// The bulk default the user picked in [MarkEveryoneSheet].
+///
+/// - [present] / [absent] apply a single status to everyone.
+/// - [smart] resolves each member from recent attendance history (present if
+///   here ≥80% of the last 8 sessions, absent if ≤20%, otherwise left as-is).
+enum BulkMarkChoice { present, absent, smart }
+
 /// Modal bottom sheet for the "Mark everyone" bulk action.
 ///
-/// Returns `true` for "All present", `false` for "All absent", or `null` if
-/// the user dismissed / cancelled. Per design at
-/// `/tmp/design/attd/project/screens.jsx` (MarkEveryoneSheet, lines 249–296).
+/// Returns a [BulkMarkChoice], or `null` if the user dismissed / cancelled.
+/// Per the "02 Quick Marking" design — the bulk sheet offers
+/// All present / All absent / Smart defaults.
 class MarkEveryoneSheet {
   MarkEveryoneSheet._();
 
-  static Future<bool?> show(
+  static Future<BulkMarkChoice?> show(
     BuildContext context, {
     required int memberCount,
   }) {
-    return showModalBottomSheet<bool>(
+    return showModalBottomSheet<BulkMarkChoice>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -88,7 +95,8 @@ class _Sheet extends StatelessWidget {
                     label: 'All present',
                     icon: Icons.check_rounded,
                     tone: ConvTone.present,
-                    onTap: () => Navigator.of(context).pop(true),
+                    onTap: () =>
+                        Navigator.of(context).pop(BulkMarkChoice.present),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -98,10 +106,16 @@ class _Sheet extends StatelessWidget {
                     label: 'All absent',
                     icon: Icons.close_rounded,
                     tone: ConvTone.absent,
-                    onTap: () => Navigator.of(context).pop(false),
+                    onTap: () =>
+                        Navigator.of(context).pop(BulkMarkChoice.absent),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            _SmartBtn(
+              key: const Key('markEveryoneSmart'),
+              onTap: () => Navigator.of(context).pop(BulkMarkChoice.smart),
             ),
             const SizedBox(height: 16),
             Material(
@@ -189,6 +203,73 @@ class _BulkBtn extends StatelessWidget {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width "Smart defaults" tile. Resolves each member from recent
+/// attendance history instead of applying a single status to everyone.
+class _SmartBtn extends StatelessWidget {
+  const _SmartBtn({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+
+    return Material(
+      color: c.cardSoft,
+      borderRadius: AppRadii.tileR,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Color.alphaBlend(
+                    c.primary.withValues(alpha: 0.16),
+                    c.card,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.auto_awesome, size: 22, color: c.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Smart defaults',
+                      style: AppTypography.geist(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: c.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Present if here ≥80% of the last 8 sessions',
+                      style: AppTypography.geist(
+                        fontSize: 12.5,
+                        color: c.ink3,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -20,6 +20,7 @@ import '../utils/bulk_attendance.dart';
 import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
+import 'mark_everyone_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
   const SessionSummaryPage({
@@ -314,16 +315,39 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
-  Future<void> _markAllAttendance(bool present) async {
+  Future<void> _markAllAttendance(BulkMarkChoice choice) async {
     final previousRecords = List<SessionRecord>.from(_currentSession.records);
     final now = DateTime.now();
     final allMembers = _displayFamilies.expand((f) => f.members).toList();
-    final updatedRecords = applyBulkRecords(
-      previousRecords: previousRecords,
-      members: allMembers,
-      present: present,
-      recordedAt: now,
-    );
+
+    final List<SessionRecord> updatedRecords;
+    final String summary;
+    if (choice == BulkMarkChoice.smart) {
+      final recentSessions = await _loadRecentSessions();
+      final result = applyBulkSmartRecords(
+        previousRecords: previousRecords,
+        members: allMembers,
+        recentSessions: recentSessions,
+        recordedAt: now,
+      );
+      updatedRecords = result.records;
+      summary = result.resolved == 0
+          ? 'No members had enough history for a smart guess.'
+          : 'Applied smart defaults to ${result.resolved} '
+              '${result.resolved == 1 ? 'member' : 'members'}.';
+    } else {
+      final present = choice == BulkMarkChoice.present;
+      updatedRecords = applyBulkRecords(
+        previousRecords: previousRecords,
+        members: allMembers,
+        present: present,
+        recordedAt: now,
+      );
+      summary = 'Marked ${allMembers.length} '
+          '${allMembers.length == 1 ? 'member' : 'members'} '
+          '${present ? 'present' : 'absent'}.';
+    }
+
     final updatedSession = _currentSession.copyWith(
       records: updatedRecords,
       updatedAt: now,
@@ -342,16 +366,27 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     messenger.showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 6),
-        content: Text(
-          'Marked ${allMembers.length} ${allMembers.length == 1 ? 'member' : 'members'} '
-          '${present ? 'present' : 'absent'}.',
-        ),
+        content: Text(summary),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () => _restoreRecords(previousRecords),
         ),
       ),
     );
+  }
+
+  /// Loads past sessions (newest-first, excluding the current one) for the
+  /// smart-defaults bulk action.
+  Future<List<Session>> _loadRecentSessions() async {
+    try {
+      final all = await widget.sessionRepository.loadSessions();
+      final sorted = all.toList()
+        ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+      return sorted.where((s) => s.id != _currentSession.id).toList();
+    } catch (e) {
+      debugPrint('Error loading session history for smart defaults: $e');
+      return const [];
+    }
   }
 
   Future<void> _restoreRecords(List<SessionRecord> previousRecords) async {
