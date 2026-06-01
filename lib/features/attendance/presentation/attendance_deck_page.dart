@@ -38,6 +38,7 @@ class AttendanceDeckPage extends StatefulWidget {
     this.initialListMode = false,
     this.startMode,
     this.rosterGrouping,
+    this.deleteOnCancel = false,
   });
 
   final Session session;
@@ -65,6 +66,12 @@ class AttendanceDeckPage extends StatefulWidget {
   /// The event's roster-grouping preset (status vs family). Drives how the
   /// in-session List groups people. Defaults to by-status when unset.
   final RosterGrouping? rosterGrouping;
+
+  /// When true, abandoning the deck (Cancel / system back) discards the
+  /// session. Only set for *freshly created* preseeded sessions whose records
+  /// are throwaway until confirmed — never for resuming an existing session,
+  /// where backing out must preserve already-saved records.
+  final bool deleteOnCancel;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -563,11 +570,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     return PopScope(
       // Confirming the session uses pushReplacement (deck → summary), so the
       // deck route is only ever *popped* when the user cancels — via the X
-      // button or system back. Any pop here therefore means the session was
-      // abandoned, so discard the preseeded session rather than leaving it as a
-      // phantom "taken" state on the hub.
+      // button or system back. For a freshly created preseeded session
+      // ([deleteOnCancel]) that means the session was abandoned, so discard it
+      // rather than leaving a phantom "taken" state on the hub. Resuming an
+      // existing session never sets the flag, so backing out keeps its records.
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
+        if (didPop && widget.deleteOnCancel) {
           widget.sessionRepository.deleteSession(
             _currentSession.id,
             actor: 'System (Cleanup)',

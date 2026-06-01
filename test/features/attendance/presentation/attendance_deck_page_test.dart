@@ -775,6 +775,7 @@ void main() {
       WidgetTester tester, {
       required MockSessionRepository repo,
       required List<Member> members,
+      bool deleteOnCancel = true,
     }) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -786,6 +787,7 @@ void main() {
                     MaterialPageRoute(
                       builder: (_) => AttendanceDeckPage(
                         session: allPresentSession(members),
+                        deleteOnCancel: deleteOnCancel,
                         members: members,
                         sessionRepository: repo,
                         attendanceRepository: MockAttendanceRepository(),
@@ -820,6 +822,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets(
+        'cancelling a resumed session (deleteOnCancel: false) keeps it',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(
+        tester,
+        repo: repo,
+        members: members,
+        deleteOnCancel: false,
+      );
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Resuming an existing session must never delete it on back-out.
+      expect(repo.deleteCalls, isEmpty);
     });
 
     testWidgets('confirming an all-present session keeps it', (tester) async {

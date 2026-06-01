@@ -819,6 +819,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         MaterialPageRoute(
           builder: (_) => AttendanceDeckPage(
             session: session,
+            deleteOnCancel: true,
             members: sessionMembers,
             families: sessionFamilies,
             sessionRepository: widget.sessionRepository,
