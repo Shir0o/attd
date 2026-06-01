@@ -133,6 +133,47 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         _touchedMemberNames.contains(member.displayName);
   }
 
+  /// Whether the user has made any real (non-preseed) marks in this session.
+  bool get _hasUserEdits =>
+      _touchedMemberIds.isNotEmpty || _touchedMemberNames.isNotEmpty;
+
+  /// Cancel (X / system back) on a freshly created session that the user has
+  /// already marked: ask whether to keep those marks or throw the session away,
+  /// rather than silently discarding edited work or leaving a phantom session.
+  Future<void> _confirmCancel() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard attendance?'),
+        content: const Text(
+          'You\'ve marked some attendance for this session. '
+          'Save it as is, or discard the session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'save'),
+            child: const Text('Save as is'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return; // dismissed → stay on the deck
+    if (choice == 'discard') {
+      await widget.sessionRepository.deleteSession(
+        _currentSession.id,
+        actor: 'System (Cleanup)',
+      );
+    }
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -567,19 +608,27 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Confirming the session uses pushReplacement (deck → summary), so the
+    // deck route is only ever *popped* when the user cancels — via the X button
+    // or system back. For a freshly created session ([deleteOnCancel]):
+    //   - untouched → discard silently (a phantom preseeded session, nothing to
+    //     keep);
+    //   - already marked → intercept the pop and ask Save-as-is vs Discard.
+    // Resuming an existing session never sets the flag, so backing out always
+    // keeps its records.
+    final interceptCancel = widget.deleteOnCancel && _hasUserEdits;
     return PopScope(
-      // Confirming the session uses pushReplacement (deck → summary), so the
-      // deck route is only ever *popped* when the user cancels — via the X
-      // button or system back. For a freshly created preseeded session
-      // ([deleteOnCancel]) that means the session was abandoned, so discard it
-      // rather than leaving a phantom "taken" state on the hub. Resuming an
-      // existing session never sets the flag, so backing out keeps its records.
+      canPop: !interceptCancel,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop && widget.deleteOnCancel) {
-          widget.sessionRepository.deleteSession(
-            _currentSession.id,
-            actor: 'System (Cleanup)',
-          );
+        if (didPop) {
+          if (widget.deleteOnCancel && !_hasUserEdits) {
+            widget.sessionRepository.deleteSession(
+              _currentSession.id,
+              actor: 'System (Cleanup)',
+            );
+          }
+        } else {
+          _confirmCancel();
         }
       },
       child: Scaffold(
@@ -622,7 +671,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.of(context).pop(),
+                // maybePop (not pop) so the PopScope intercept runs — a hard
+                // pop would bypass the Save-as-is / Discard prompt.
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.close),
                 color: c.ink2,
                 tooltip: 'Cancel',

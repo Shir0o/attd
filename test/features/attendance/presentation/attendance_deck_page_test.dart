@@ -847,6 +847,58 @@ void main() {
       expect(repo.deleteCalls, isEmpty);
     });
 
+    testWidgets(
+        'cancelling after an edit prompts, and Discard deletes the session',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(tester, repo: repo, members: members);
+
+      // Make a real edit: toggle Dan off.
+      await tester.tap(find.byKey(const ValueKey('memberToggle_1_Dan')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Edits exist → confirmation dialog instead of silent discard.
+      expect(find.text('Save as is'), findsOneWidget);
+      expect(repo.deleteCalls, isEmpty);
+
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets(
+        'cancelling after an edit then Save-as-is keeps the session',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(tester, repo: repo, members: members);
+
+      await tester.tap(find.byKey(const ValueKey('memberToggle_1_Dan')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save as is'));
+      await tester.pumpAndSettle();
+
+      // Saving keeps the edited session — no cleanup delete.
+      expect(repo.deleteCalls, isEmpty);
+    });
+
     testWidgets('confirming an all-present session keeps it', (tester) async {
       final repo = MockSessionRepository();
       final members = [

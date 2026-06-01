@@ -81,6 +81,12 @@ void main() {
       await tester.tap(cancelFinder);
       await tester.pumpAndSettle();
 
+      // Marks were made, so cancelling prompts Save-as-is vs Discard. Keep the
+      // partially-marked session so John Doe remains linked to it below.
+      await tester.pumpUntilFound(find.text('Save as is'));
+      await tester.tap(find.text('Save as is'));
+      await tester.pumpAndSettle();
+
       // 5. Test Historical Accuracy Info
       print('DEBUG: Testing Historical Accuracy Info');
       await hub.tapSettings();
