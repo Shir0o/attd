@@ -1,5 +1,7 @@
+import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/data/session.dart';
@@ -107,6 +109,7 @@ class MockEventRepository implements EventRepository {
 
 class MockSessionRepository implements SessionRepository {
   List<Session> savedSessions = [];
+  final List<String> deleteCalls = [];
 
   @override
   Stream<List<Session>> streamSessions() {
@@ -149,7 +152,9 @@ class MockSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+  Future<void> deleteSession(String sessionId, {required String actor}) async {
+    deleteCalls.add(sessionId);
+  }
 
   @override
   Future<Session> saveSnapshot(Session session, {required String actor}) async {
@@ -737,5 +742,180 @@ void main() {
         AttendanceStatus.absent);
     expect(saved.records.firstWhere((r) => r.memberId == 'b').status,
         AttendanceStatus.present);
+  });
+
+  group('keep-vs-discard on exit', () {
+    // An all-present session as it exists when the deck opens: every member is
+    // pre-marked present by the preseed, none touched by the user.
+    Session allPresentSession(List<Member> members) => Session(
+          id: 'keep-1',
+          eventId: 'e1',
+          title: 'Sunday Service',
+          sessionDate: DateTime.now(),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          createdBy: 'User',
+          currentVersion: 1,
+          records: [
+            for (final m in members)
+              SessionRecord(
+                memberId: m.id,
+                attendee: m.displayName,
+                status: AttendanceStatus.present,
+                recordedAt: DateTime.now(),
+                recordedBy: 'System (Preseed)',
+              ),
+          ],
+        );
+
+    // Pushes the deck on top of a base route so that popping it actually pops
+    // (a deck mounted as `home:` has nothing to pop back to, so PopScope would
+    // never fire).
+    Future<void> pumpDeckPushed(
+      WidgetTester tester, {
+      required MockSessionRepository repo,
+      required List<Member> members,
+      bool deleteOnCancel = true,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AttendanceDeckPage(
+                        session: allPresentSession(members),
+                        deleteOnCancel: deleteOnCancel,
+                        members: members,
+                        sessionRepository: repo,
+                        attendanceRepository: MockAttendanceRepository(),
+                        eventRepository: MockEventRepository(),
+                        startMode: AttendanceStartMode.allPresent,
+                        initialListMode: true,
+                        disableAnimations: true,
+                      ),
+                    ),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('cancelling the deck (X) discards the session', (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(tester, repo: repo, members: members);
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets(
+        'cancelling a resumed session (deleteOnCancel: false) keeps it',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(
+        tester,
+        repo: repo,
+        members: members,
+        deleteOnCancel: false,
+      );
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Resuming an existing session must never delete it on back-out.
+      expect(repo.deleteCalls, isEmpty);
+    });
+
+    testWidgets(
+        'cancelling after an edit prompts, and Discard deletes the session',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(tester, repo: repo, members: members);
+
+      // Make a real edit: toggle Dan off.
+      await tester.tap(find.byKey(const ValueKey('memberToggle_1_Dan')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Edits exist → confirmation dialog instead of silent discard.
+      expect(find.text('Save as is'), findsOneWidget);
+      expect(repo.deleteCalls, isEmpty);
+
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets(
+        'cancelling after an edit then Save-as-is keeps the session',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(tester, repo: repo, members: members);
+
+      await tester.tap(find.byKey(const ValueKey('memberToggle_1_Dan')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save as is'));
+      await tester.pumpAndSettle();
+
+      // Saving keeps the edited session — no cleanup delete.
+      expect(repo.deleteCalls, isEmpty);
+    });
+
+    testWidgets('confirming an all-present session keeps it', (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        Member(id: '1', displayName: 'Dan'),
+        Member(id: '2', displayName: 'Eve'),
+      ];
+
+      await pumpDeckPushed(tester, repo: repo, members: members);
+
+      // The sticky Confirm bar (confirm mode) → pushReplacement to the summary.
+      await tester.tap(find.textContaining('Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SessionSummaryPage), findsOneWidget);
+      // Confirming replaces the deck route rather than popping it, so the
+      // session must survive — no cleanup delete.
+      expect(repo.deleteCalls, isEmpty);
+    });
   });
 }

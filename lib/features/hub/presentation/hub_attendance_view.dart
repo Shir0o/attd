@@ -82,9 +82,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     _isLoading = true;
 
     _dataSubscription?.cancel();
-    _dataSubscription = widget.eventRepository.streamEvents().listen((events) async {
+    _dataSubscription =
+        widget.eventRepository.streamEvents().listen((events) async {
       final sessions = await widget.sessionRepository.loadSessions();
-      
+
       if (mounted) {
         setState(() {
           _events = events;
@@ -93,8 +94,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
         // Mandatory skeleton duration (800ms)
         final elapsed = DateTime.now().difference(startTime);
-        final minDuration = widget.disableAnimations ? Duration.zero : const Duration(milliseconds: 800);
-        
+        final minDuration = widget.disableAnimations
+            ? Duration.zero
+            : const Duration(milliseconds: 800);
+
         if (elapsed < minDuration) {
           Future.delayed(minDuration - elapsed, () {
             if (mounted) setState(() => _isLoading = false);
@@ -115,7 +118,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         _members = families.expand((f) => f.members).toList();
         _sessions = sessions;
       });
-      debugPrint('DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
+      debugPrint(
+          'DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
     }
   }
 
@@ -123,9 +127,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final eventIds = event.memberIds.toSet();
     final result = <Family>[];
     for (final family in _families) {
-      final filtered = family.members
-          .where((m) => eventIds.contains(m.id))
-          .toList();
+      final filtered =
+          family.members.where((m) => eventIds.contains(m.id)).toList();
       if (filtered.isEmpty) continue;
       result.add(family.copyWith(members: filtered));
     }
@@ -144,17 +147,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           event.oneTimeDate!.month == now.month &&
           event.oneTimeDate!.day == now.day;
     }
-    
-    final isToday = event.repeatingDays.any((d) => d.toLowerCase() == dayName.toLowerCase());
+
+    final isToday = event.repeatingDays
+        .any((d) => d.toLowerCase() == dayName.toLowerCase());
     return isToday;
   }
 
   List<Session> _sessionsForEvent(Event event) => _sessions.where((s) {
-    if (s.eventId != null && s.eventId!.isNotEmpty) {
-      return s.eventId == event.id;
-    }
-    return s.title.trim() == event.title.trim();
-  }).toList();
+        if (s.eventId != null && s.eventId!.isNotEmpty) {
+          return s.eventId == event.id;
+        }
+        return s.title.trim() == event.title.trim();
+      }).toList();
 
   /// Resolves the headline status of an event for display on the hub.
   _EventStatus _statusFor(Event event) {
@@ -307,13 +311,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),
-            title: const Text('Delete Event', style: TextStyle(color: Colors.red)),
+            title:
+                const Text('Delete Event', style: TextStyle(color: Colors.red)),
             onTap: () async {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Delete Event'),
-                  content: Text('Are you sure you want to delete "${event.title}"?'),
+                  content:
+                      Text('Are you sure you want to delete "${event.title}"?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -321,7 +327,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      child: const Text('Delete',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),
@@ -407,7 +414,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                     children: [
                       Text(
                         'Today',
-                        style: Theme.of(context).textTheme.displaySmall
+                        style: Theme.of(context)
+                            .textTheme
+                            .displaySmall
                             ?.copyWith(color: context.conv.ink, fontSize: 30),
                       ),
                       if (_todayEventCount > 1) ...[
@@ -437,18 +446,19 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             ),
             SliverPadding(
               padding: const EdgeInsets.all(16),
-              sliver: _isLoading 
-                ? SliverList(
-                    key: const ValueKey('hub_skeleton'),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _EventCardSkeleton(disableAnimations: widget.disableAnimations),
+              sliver: _isLoading
+                  ? SliverList(
+                      key: const ValueKey('hub_skeleton'),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _EventCardSkeleton(
+                              disableAnimations: widget.disableAnimations),
+                        ),
+                        childCount: 3,
                       ),
-                      childCount: 3,
-                    ),
-                  )
-                : _buildEventList(colorScheme),
+                    )
+                  : _buildEventList(colorScheme),
             ),
           ],
         ),
@@ -496,8 +506,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 'Nothing on the calendar yet.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: c.ink,
-                ),
+                      color: c.ink,
+                    ),
               ),
               const SizedBox(height: 8),
               SizedBox(
@@ -566,8 +576,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       // buried in the weekly list.
       final alsoToday = todayEvents.where((e) => e != currentHero).toList();
       if (alsoToday.isNotEmpty) {
-        final doneCount =
-            alsoToday.where((e) => _statusFor(e).taken).length;
+        final doneCount = alsoToday.where((e) => _statusFor(e).taken).length;
         final laterCount = alsoToday.length - doneCount;
         children.add(
           Padding(
@@ -666,7 +675,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final sessionMembers = event.memberIds.isNotEmpty
         ? _members.where((m) => event.memberIds.contains(m.id)).toList()
         : <Member>[];
-    debugPrint('DEBUG: HubAttendanceView.onTap: foundSession=${foundSession?.id}, membersCount=${sessionMembers.length}');
+    debugPrint(
+        'DEBUG: HubAttendanceView.onTap: foundSession=${foundSession?.id}, membersCount=${sessionMembers.length}');
 
     if (sessionMembers.isEmpty && foundSession == null) {
       if (context.mounted) {
@@ -716,7 +726,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final sessionFamilies = _familiesForEvent(event);
 
     if (foundSession != null) {
-      final bool isIncomplete = foundSession.records.length < sessionMembers.length;
+      final bool isIncomplete =
+          foundSession.records.length < sessionMembers.length;
 
       if (isIncomplete) {
         await Navigator.of(context).push(
@@ -804,10 +815,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
       if (!context.mounted) return;
 
-      var resultSession = await Navigator.of(context).push<Session>(
+      await Navigator.of(context).push<Session>(
         MaterialPageRoute(
           builder: (_) => AttendanceDeckPage(
             session: session,
+            deleteOnCancel: true,
             members: sessionMembers,
             families: sessionFamilies,
             sessionRepository: widget.sessionRepository,
@@ -826,22 +838,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       );
 
-      resultSession ??= await widget.sessionRepository.findSessionById(session.id);
-
-      final preseedKeys = preseed.map((r) => r.memberId ?? r.attendee).toSet();
-      final hasUserEdits = resultSession != null &&
-          resultSession.records.any((r) {
-            final key = r.memberId ?? r.attendee;
-            if (!preseedKeys.contains(key)) return true;
-            return r.recordedBy != 'System (Preseed)';
-          });
-
-      if (resultSession != null && !hasUserEdits) {
-        await widget.sessionRepository.deleteSession(
-          session.id,
-          actor: 'System (Cleanup)',
-        );
-      }
+      // Keeping vs discarding the session is decided inside the deck: cancelling
+      // (X / system back) discards it, confirming (Done → summary) keeps it.
     }
     _refreshData();
   }
@@ -1151,7 +1149,8 @@ class _HeroStat extends StatelessWidget {
       children: [
         ConvEyebrow(label),
         const SizedBox(height: 2),
-        Text(value, style: AppTypography.displayNumber(fontSize: 28, color: color)),
+        Text(value,
+            style: AppTypography.displayNumber(fontSize: 28, color: color)),
       ],
     );
   }
@@ -1173,7 +1172,8 @@ class _LastWeekStat extends StatelessWidget {
         children: [
           const ConvEyebrow('Last week'),
           const SizedBox(height: 2),
-          Text('—', style: AppTypography.displayNumber(fontSize: 28, color: c.ink3)),
+          Text('—',
+              style: AppTypography.displayNumber(fontSize: 28, color: c.ink3)),
         ],
       );
     }
@@ -1190,7 +1190,8 @@ class _LastWeekStat extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('${s.present}',
-                style: AppTypography.displayNumber(fontSize: 28, color: c.ink2)),
+                style:
+                    AppTypography.displayNumber(fontSize: 28, color: c.ink2)),
             const SizedBox(width: 4),
             Text('· $pct%',
                 style: AppTypography.geist(fontSize: 14, color: c.ink3)),
@@ -1282,7 +1283,8 @@ class _EventRow extends StatelessWidget {
                 ConvEyebrow(dayLabel),
                 Text(
                   dateNum,
-                  style: AppTypography.displayNumber(fontSize: 24, color: c.ink),
+                  style:
+                      AppTypography.displayNumber(fontSize: 24, color: c.ink),
                 ),
               ],
             ),

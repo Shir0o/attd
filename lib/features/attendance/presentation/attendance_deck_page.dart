@@ -38,6 +38,7 @@ class AttendanceDeckPage extends StatefulWidget {
     this.initialListMode = false,
     this.startMode,
     this.rosterGrouping,
+    this.deleteOnCancel = false,
   });
 
   final Session session;
@@ -65,6 +66,12 @@ class AttendanceDeckPage extends StatefulWidget {
   /// The event's roster-grouping preset (status vs family). Drives how the
   /// in-session List groups people. Defaults to by-status when unset.
   final RosterGrouping? rosterGrouping;
+
+  /// When true, abandoning the deck (Cancel / system back) discards the
+  /// session. Only set for *freshly created* preseeded sessions whose records
+  /// are throwaway until confirmed — never for resuming an existing session,
+  /// where backing out must preserve already-saved records.
+  final bool deleteOnCancel;
 
   @override
   State<AttendanceDeckPage> createState() => _AttendanceDeckPageState();
@@ -124,6 +131,47 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   bool _isMemberTouched(Member member) {
     return _touchedMemberIds.contains(member.id) ||
         _touchedMemberNames.contains(member.displayName);
+  }
+
+  /// Whether the user has made any real (non-preseed) marks in this session.
+  bool get _hasUserEdits =>
+      _touchedMemberIds.isNotEmpty || _touchedMemberNames.isNotEmpty;
+
+  /// Cancel (X / system back) on a freshly created session that the user has
+  /// already marked: ask whether to keep those marks or throw the session away,
+  /// rather than silently discarding edited work or leaving a phantom session.
+  Future<void> _confirmCancel() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard attendance?'),
+        content: const Text(
+          'You\'ve marked some attendance for this session. '
+          'Save it as is, or discard the session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'save'),
+            child: const Text('Save as is'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return; // dismissed → stay on the deck
+    if (choice == 'discard') {
+      await widget.sessionRepository.deleteSession(
+        _currentSession.id,
+        actor: 'System (Cleanup)',
+      );
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -322,8 +370,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final cleanMemberId =
         (memberId == null || memberId.trim().isEmpty) ? null : memberId;
     updatedRecords.removeWhere((r) {
-      final rCleanId =
-          (r.memberId == null || r.memberId!.trim().isEmpty) ? null : r.memberId;
+      final rCleanId = (r.memberId == null || r.memberId!.trim().isEmpty)
+          ? null
+          : r.memberId;
       return cleanMemberId != null
           ? rCleanId == cleanMemberId
           : (rCleanId == null && r.attendee == attendeeName);
@@ -559,18 +608,42 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(colorScheme),
-            Expanded(
-              child:
-                  _isListMode ? _buildListBody() : _buildDeckBody(colorScheme),
-            ),
-            if (!_isListMode) _buildDeckFooter(colorScheme),
-          ],
+    // Confirming the session uses pushReplacement (deck → summary), so the
+    // deck route is only ever *popped* when the user cancels — via the X button
+    // or system back. For a freshly created session ([deleteOnCancel]):
+    //   - untouched → discard silently (a phantom preseeded session, nothing to
+    //     keep);
+    //   - already marked → intercept the pop and ask Save-as-is vs Discard.
+    // Resuming an existing session never sets the flag, so backing out always
+    // keeps its records.
+    final interceptCancel = widget.deleteOnCancel && _hasUserEdits;
+    return PopScope(
+      canPop: !interceptCancel,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          if (widget.deleteOnCancel && !_hasUserEdits) {
+            widget.sessionRepository.deleteSession(
+              _currentSession.id,
+              actor: 'System (Cleanup)',
+            );
+          }
+        } else {
+          _confirmCancel();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(colorScheme),
+              Expanded(
+                child:
+                    _isListMode ? _buildListBody() : _buildDeckBody(colorScheme),
+              ),
+              if (!_isListMode) _buildDeckFooter(colorScheme),
+            ],
+          ),
         ),
       ),
     );
@@ -598,7 +671,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           child: Row(
             children: [
               IconButton(
-                onPressed: () => Navigator.of(context).pop(_currentSession),
+                // maybePop (not pop) so the PopScope intercept runs — a hard
+                // pop would bypass the Save-as-is / Discard prompt.
+                onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.close),
                 color: c.ink2,
                 tooltip: 'Cancel',
@@ -719,11 +794,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                         )
                       : Stack(
                           children: [
-                            Positioned.fill(child: ColoredBox(color: c.cardSoft)),
+                            Positioned.fill(
+                                child: ColoredBox(color: c.cardSoft)),
                             FractionallySizedBox(
                               alignment: Alignment.centerLeft,
-                              widthFactor:
-                                  ((total - t.remaining) / total).clamp(0.0, 1.0),
+                              widthFactor: ((total - t.remaining) / total)
+                                  .clamp(0.0, 1.0),
                               child: ColoredBox(color: c.present),
                             ),
                           ],
@@ -891,7 +967,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               Text(
                 '${t.statusPresent} present, ${t.statusAbsent} absent. '
                 'Tap Done to save.',
-                style: AppTypography.geist(fontSize: 15, color: c.ink2, height: 1.5),
+                style: AppTypography.geist(
+                    fontSize: 15, color: c.ink2, height: 1.5),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1049,7 +1126,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                 height: 60,
                 child: Material(
                   color: Colors.transparent,
-                  shape: CircleBorder(side: BorderSide(color: c.absent, width: 2)),
+                  shape:
+                      CircleBorder(side: BorderSide(color: c.absent, width: 2)),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     key: const Key('absentButton'),
@@ -1156,7 +1234,8 @@ class _DeckCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    ConvAvatar(letter: initial, size: small ? 70 : 88, tone: tone),
+                    ConvAvatar(
+                        letter: initial, size: small ? 70 : 88, tone: tone),
                     SizedBox(height: small ? 16 : 20),
                     Text(
                       member.displayName,
