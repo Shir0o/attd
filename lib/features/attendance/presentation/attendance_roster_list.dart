@@ -19,7 +19,7 @@ export '../models/roster_grouping.dart';
 
 typedef MemberToggle = Future<void> Function(Member member, bool isPresent);
 typedef FamilyBulkToggle = Future<void> Function(Family family, bool isPresent);
-typedef MarkAllToggle = Future<void> Function(bool isPresent);
+typedef MarkAllToggle = Future<void> Function(BulkMarkChoice choice);
 
 /// A reusable roster list used both for in-session attendance entry and for
 /// post-session review on the summary page. Supports family grouping with
@@ -151,12 +151,12 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   ) async {
     final cb = widget.onMarkAll;
     if (cb == null) return;
-    final result = await MarkEveryoneSheet.show(
+    final choice = await MarkEveryoneSheet.show(
       context,
       memberCount: roster.displayMembersMap.length,
     );
-    if (result == null) return;
-    await cb(result);
+    if (choice == null) return;
+    await cb(choice);
   }
 
   Future<void> _setFamilyStatus(Family family, bool present) async {
@@ -279,7 +279,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                         key: const Key('rosterMarkAllPresent'),
                         label: 'All present',
                         leading: const Icon(Icons.done_all_rounded),
-                        onTap: () => widget.onMarkAll!(true),
+                        onTap: () =>
+                            widget.onMarkAll!(BulkMarkChoice.present),
                       ),
                   ],
                 ),

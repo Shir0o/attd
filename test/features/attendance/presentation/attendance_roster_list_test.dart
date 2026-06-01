@@ -4,6 +4,7 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_roster_list.dart';
+import 'package:attendance_tracker/features/attendance/presentation/mark_everyone_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -304,11 +305,11 @@ void main() {
   );
 
   testWidgets(
-    'mark-all sheet "All present" tile invokes onMarkAll with true',
+    'mark-all sheet "All present" tile invokes onMarkAll with present',
     (tester) async {
       final session = sessionWith(members: [alice, bob, carol]);
       final log = <ToggleCall>[];
-      final markedAll = <bool>[];
+      final markedAll = <BulkMarkChoice>[];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -321,7 +322,7 @@ void main() {
                 onToggle: (m, p) async {
                   log.add((id: m.id, present: p));
                 },
-                onMarkAll: (present) async => markedAll.add(present),
+                onMarkAll: (choice) async => markedAll.add(choice),
               ),
             ),
           ),
@@ -334,7 +335,37 @@ void main() {
       expect(find.text('Bulk attendance'), findsOneWidget);
       await tester.tap(find.byKey(const Key('markEveryonePresent')));
       await tester.pumpAndSettle();
-      expect(markedAll, [true]);
+      expect(markedAll, [BulkMarkChoice.present]);
+    },
+  );
+
+  testWidgets(
+    'mark-all sheet "Smart defaults" tile invokes onMarkAll with smart',
+    (tester) async {
+      final session = sessionWith(members: [alice, bob, carol]);
+      final markedAll = <BulkMarkChoice>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 800,
+              child: AttendanceRosterList(
+                session: session,
+                families: [smiths, jones],
+                disableAnimations: true,
+                onToggle: (m, p) async {},
+                onMarkAll: (choice) async => markedAll.add(choice),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('markEveryoneSmart')));
+      await tester.pumpAndSettle();
+      expect(markedAll, [BulkMarkChoice.smart]);
     },
   );
 
@@ -342,7 +373,7 @@ void main() {
       (tester) async {
     final session = sessionWith(members: [alice, bob, carol]);
     final log = <ToggleCall>[];
-    final markedAll = <bool>[];
+    final markedAll = <BulkMarkChoice>[];
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -355,7 +386,7 @@ void main() {
               onToggle: (m, p) async {
                 log.add((id: m.id, present: p));
               },
-              onMarkAll: (present) async => markedAll.add(present),
+              onMarkAll: (choice) async => markedAll.add(choice),
             ),
           ),
         ),
