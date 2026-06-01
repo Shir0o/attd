@@ -729,10 +729,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       // A session that exists here is always a confirmed/"Taken" session, so
       // tapping the card opens the summary (where individual statuses can still
       // be edited) rather than reopening the marking deck.
+      final session = foundSession;
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => SessionSummaryPage(
-            session: foundSession!,
+            session: session,
             members: sessionMembers,
             families: sessionFamilies,
             sessionRepository: widget.sessionRepository,
