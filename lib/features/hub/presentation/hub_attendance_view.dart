@@ -726,42 +726,24 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final sessionFamilies = _familiesForEvent(event);
 
     if (foundSession != null) {
-      final bool isIncomplete =
-          foundSession.records.length < sessionMembers.length;
-
-      if (isIncomplete) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AttendanceDeckPage(
-              session: foundSession!,
-              members: sessionMembers,
-              families: sessionFamilies,
-              sessionRepository: widget.sessionRepository,
-              attendanceRepository: widget.attendanceRepository,
-              eventRepository: widget.eventRepository,
-              event: event,
-              driveService: widget.driveService,
-              disableAnimations: widget.disableAnimations,
-              rosterGrouping: event.rosterGrouping,
-            ),
+      // A session that exists here is always a confirmed/"Taken" session, so
+      // tapping the card opens the summary (where individual statuses can still
+      // be edited) rather than reopening the marking deck.
+      final session = foundSession;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SessionSummaryPage(
+            session: session,
+            members: sessionMembers,
+            families: sessionFamilies,
+            sessionRepository: widget.sessionRepository,
+            attendanceRepository: widget.attendanceRepository,
+            eventRepository: widget.eventRepository,
+            event: event,
+            disableAnimations: widget.disableAnimations,
           ),
-        );
-      } else {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => SessionSummaryPage(
-              session: foundSession!,
-              members: sessionMembers,
-              families: sessionFamilies,
-              sessionRepository: widget.sessionRepository,
-              attendanceRepository: widget.attendanceRepository,
-              eventRepository: widget.eventRepository,
-              event: event,
-              disableAnimations: widget.disableAnimations,
-            ),
-          ),
-        );
-      }
+        ),
+      );
     } else {
       final pickedMode = await showStartModePicker(
         context,
