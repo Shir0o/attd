@@ -53,6 +53,15 @@ void main() {
   Widget wrap(Widget child) =>
       MaterialApp(theme: AppTheme.lightTheme(), home: child);
 
+  // The insights pages scroll; give tests a tall viewport so lazily-built
+  // rows (ranked members, recent sessions, stat tiles) all lay out.
+  void tallSurface(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   group('EventTrendPage', () {
     testWidgets('renders empty state when no sessions exist', (tester) async {
       await tester.pumpWidget(
@@ -73,6 +82,7 @@ void main() {
     testWidgets('renders sparkline + present/absent split for the latest', (
       tester,
     ) async {
+      tallSurface(tester);
       final members = [
         Member(id: 'm1', displayName: 'Alice Smith'),
         Member(id: 'm2', displayName: 'Bob Smith'),
@@ -113,15 +123,14 @@ void main() {
 
       expect(find.text('TRENDS'), findsOneWidget);
       expect(find.text('Today'), findsOneWidget);
-      expect(find.text('LATEST SESSIONS'), findsOneWidget);
+      expect(find.text('RECENT SESSIONS'), findsOneWidget);
     });
 
-    testWidgets('tapping the regulars strip pushes ConsistentMembersPage', (
-      tester,
-    ) async {
+    testWidgets('renders the average hero and range selector', (tester) async {
+      tallSurface(tester);
       final members = [Member(id: 'm1', displayName: 'Alice Smith')];
       final sessions = List.generate(
-        8,
+        4,
         (i) => sessionWith(
           id: 's$i',
           date: DateTime(2026, 1, i + 1),
@@ -141,11 +150,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('REGULARS · 80% IN LAST 8'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ConsistentMembersPage), findsOneWidget);
-      expect(find.text('The reliable few'), findsOneWidget);
+      // All present → 100% average, with the range segmented control + tiles.
+      expect(find.text('Avg · 4 sessions'.toUpperCase()), findsOneWidget);
+      // "12 wk" appears in both the segmented control and the Average tile sub.
+      expect(find.text('12 wk'), findsWidgets);
+      expect(find.text('6 mo'), findsOneWidget);
+      expect(find.text('Year'), findsOneWidget);
+      expect(find.text('BEST'), findsOneWidget);
+      expect(find.text('LOWEST'), findsOneWidget);
     });
   });
 
@@ -182,13 +194,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Alice Smith'), findsOneWidget);
-      expect(find.text('Smith family · highest attendance'), findsOneWidget);
-      // RichText combines ratio segments so we just confirm the "SESSIONS"
-      // eyebrow is rendered alongside the ratio.
+      expect(find.text('Smith family'), findsOneWidget);
+      // Hero shows the "Most consistent" eyebrow and the "SESSIONS" ratio label.
+      expect(find.text('MOST CONSISTENT'), findsOneWidget);
       expect(find.text('SESSIONS'), findsOneWidget);
     });
 
     testWidgets('ranks additional members below the hero', (tester) async {
+      tallSurface(tester);
       final members = [
         Member(id: 'm1', displayName: 'Alice Smith'),
         Member(id: 'm2', displayName: 'Bob Smith'),
@@ -233,9 +246,10 @@ void main() {
       expect(find.text('Dan Solo'), findsOneWidget);
       // Ranked rows display ordinals starting at 2.
       expect(find.text('2'), findsOneWidget);
+      // The hero member's family caption is shown.
       expect(find.text('Smith family'), findsOneWidget);
-      // Members not in any Family render with the "Solo" caption (two of them).
-      expect(find.text('Solo'), findsNWidgets(2));
+      // Ranked rows carry a hits/window ratio eyebrow (e.g. "8/8").
+      expect(find.text('8/8'), findsWidgets);
     });
 
     testWidgets('renders skeleton while animating', (tester) async {
@@ -288,40 +302,6 @@ void main() {
   });
 
   group('EventTrendPage extras', () {
-    testWidgets('regulars headline collapses 4+ names with a +N suffix', (
-      tester,
-    ) async {
-      final members = List.generate(
-        4,
-        (i) => Member(id: 'm$i', displayName: 'Name$i Last'),
-      );
-      final sessions = List.generate(
-        8,
-        (i) => sessionWith(
-          id: 's$i',
-          date: DateTime(2026, 1, i + 1),
-          statuses: {for (final m in members) m.id: AttendanceStatus.present},
-        ),
-      );
-
-      await tester.pumpWidget(
-        wrap(
-          EventTrendPage(
-            event: event,
-            sessions: sessions,
-            members: members,
-            disableAnimations: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining('+1', findRichText: false),
-        findsOneWidget,
-      );
-    });
-
     testWidgets('truncates to the last windowSize sessions', (tester) async {
       final members = [Member(id: 'm1', displayName: 'Alice')];
       // 14 sessions — more than the default windowSize of 12.
@@ -367,34 +347,6 @@ void main() {
       expect(find.byType(EventTrendPage), findsOneWidget);
       await tester.pumpAndSettle(const Duration(seconds: 2));
       expect(find.text('No sessions yet'), findsOneWidget);
-    });
-
-    testWidgets('shows "None yet — keep going" when nobody qualifies', (
-      tester,
-    ) async {
-      final members = [Member(id: 'm1', displayName: 'Alice Smith')];
-      final sessions = List.generate(
-        8,
-        (i) => sessionWith(
-          id: 's$i',
-          date: DateTime(2026, 1, i + 1),
-          statuses: {'m1': AttendanceStatus.absent},
-        ),
-      );
-
-      await tester.pumpWidget(
-        wrap(
-          EventTrendPage(
-            event: event,
-            sessions: sessions,
-            members: members,
-            disableAnimations: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('None yet — keep going'), findsOneWidget);
     });
   });
 }
