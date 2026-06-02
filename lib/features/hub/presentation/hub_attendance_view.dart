@@ -544,7 +544,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       (_isEventToday(event) ? todayEvents : otherEvents).add(event);
     }
     todayEvents.sort(byTime);
-    otherEvents.sort(byTime);
+
+    // Non-today events sort chronologically: by next occurrence date first,
+    // then by time-of-day within the same day. Pre-compute each next-occurrence
+    // date once so the comparator stays cheap.
+    final now = DateTime.now();
+    final nextOccurrence = {
+      for (final event in otherEvents) event: getNextOccurrence(event, now),
+    };
+    otherEvents.sort((a, b) {
+      final dateCompare = nextOccurrence[a]!.compareTo(nextOccurrence[b]!);
+      return dateCompare != 0 ? dateCompare : byTime(a, b);
+    });
 
     final c = context.conv;
     final children = <Widget>[];
@@ -553,7 +564,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     // calm orientation card pointing at the next event instead of a Start hero.
     final restState = todayEvents.isEmpty && otherEvents.isNotEmpty;
     if (restState) {
-      final now = DateTime.now();
       // Pick the soonest *upcoming* occurrence (getLastSupposedOccurrence, which
       // backs _statusFor.displayDate, points at the previous occurrence).
       final next = otherEvents

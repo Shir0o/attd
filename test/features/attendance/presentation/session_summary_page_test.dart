@@ -249,9 +249,12 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Verify Title and Date
+    // Verify Title and the editorial "SAVED · <time>" header eyebrow.
     expect(find.text('Test Session'), findsOneWidget);
-    expect(find.text('Session Date: October 27, 2023'), findsOneWidget);
+    expect(
+      find.textContaining('SAVED · '),
+      findsOneWidget,
+    );
 
     // Section headers are uppercased in UI: "MARKED PRESENT", "MARKED ABSENT"
     expect(find.text('MARKED PRESENT', skipOffstage: false), findsOneWidget);
@@ -1356,6 +1359,12 @@ void main() {
   testWidgets('SessionSummaryPage rebuilds roster when event.memberIds changes via stream', (
     WidgetTester tester,
   ) async {
+    // Tall viewport so the full roster builds within the lazy list.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final mockRepo = MockSessionRepository();
     final mockAttendanceRepo = MockAttendanceRepository();
     final mockEventRepo = MockEventRepository();
