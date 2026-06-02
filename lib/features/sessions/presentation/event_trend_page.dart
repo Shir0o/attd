@@ -7,9 +7,14 @@ import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
+import '../../../../data/session_repository.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
+import '../../attendance/presentation/session_summary_page.dart';
+import '../../attendance/utils/session_roster_utils.dart';
+import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 
 /// Attendance-rate trends for a single event.
@@ -23,6 +28,9 @@ class EventTrendPage extends StatefulWidget {
     required this.members,
     this.families = const [],
     this.windowSize = 12,
+    this.sessionRepository,
+    this.attendanceRepository,
+    this.eventRepository,
     this.disableAnimations = false,
   });
 
@@ -31,6 +39,9 @@ class EventTrendPage extends StatefulWidget {
   final List<Member> members;
   final List<Family> families;
   final int windowSize;
+  final SessionRepository? sessionRepository;
+  final AttendanceRepository? attendanceRepository;
+  final EventRepository? eventRepository;
   final bool disableAnimations;
 
   @override
@@ -72,12 +83,42 @@ class _EventTrendPageState extends State<EventTrendPage> {
         .where((s) => s.eventId == widget.event.id && s.deletedAt == null)
         .toList()
       ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
+    // Mirror SessionSummaryPage: count present/absent over the event roster, so
+    // members with no record default to absent (raw records omit absentees).
+    final rosterMembers = widget.event.memberIds.isEmpty
+        ? widget.members
+        : widget.members
+            .where((m) => widget.event.memberIds.contains(m.id))
+            .toList();
     return relevant.map((s) {
-      final present = s.records
-          .where((r) => r.status == AttendanceStatus.present)
-          .length;
-      return _PointStat(session: s, present: present, total: s.records.length);
+      final roster = SessionRoster(s, rosterMembers);
+      var present = 0;
+      var total = 0;
+      for (final m in roster.sortedMembers) {
+        total++;
+        if (roster.getStatus(m) == AttendanceStatus.present) present++;
+      }
+      return _PointStat(session: s, present: present, total: total);
     }).toList();
+  }
+
+  void _openSummary(Session session) {
+    final repo = widget.sessionRepository;
+    if (repo == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SessionSummaryPage(
+          session: session,
+          members: widget.members,
+          families: widget.families,
+          sessionRepository: repo,
+          attendanceRepository: widget.attendanceRepository,
+          eventRepository: widget.eventRepository,
+          event: widget.event,
+          disableAnimations: widget.disableAnimations,
+        ),
+      ),
+    );
   }
 
   @override
@@ -294,7 +335,13 @@ class _EventTrendPageState extends State<EventTrendPage> {
             for (final p in points.reversed.take(4))
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _SessionRow(point: p, time: event.time),
+                child: _SessionRow(
+                  point: p,
+                  time: event.time,
+                  onTap: widget.sessionRepository == null
+                      ? null
+                      : () => _openSummary(p.session),
+                ),
               ),
             const SizedBox(height: 14),
             Center(
@@ -452,9 +499,10 @@ class _TrendStat extends StatelessWidget {
 }
 
 class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.point, required this.time});
+  const _SessionRow({required this.point, required this.time, this.onTap});
   final _PointStat point;
   final TimeOfDay time;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -463,6 +511,7 @@ class _SessionRow extends StatelessWidget {
     final dow = DateFormat('EEEE').format(point.session.sessionDate);
     final pct = (point.rate * 100).round();
     return ConvCardSoft(
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(
         children: [

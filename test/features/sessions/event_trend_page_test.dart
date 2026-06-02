@@ -1,15 +1,71 @@
 import 'package:attendance_tracker/core/design/app_theme.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
+import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
+import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/sessions/presentation/consistent_members_page.dart';
 import 'package:attendance_tracker/features/sessions/presentation/event_trend_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+/// Minimal repository: only [findSessionById]/[loadSessions] are exercised by
+/// the SessionSummaryPage that a recent-session tap opens.
+class _FakeSessionRepository implements SessionRepository {
+  _FakeSessionRepository(this._sessions);
+  final List<Session> _sessions;
+
+  @override
+  Future<Session?> findSessionById(String id) async {
+    for (final s in _sessions) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  @override
+  Future<List<Session>> loadSessions() async => _sessions;
+
+  @override
+  Stream<List<Session>> streamSessions() => Stream.value(_sessions);
+
+  @override
+  Future<Session> createSession({
+    required String title,
+    String? eventId,
+    required DateTime sessionDate,
+    required String actor,
+    required List<SessionRecord> records,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Session> saveSnapshot(Session session, {required String actor}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Session> duplicate(String sessionId, {required String actor}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteSession(String sessionId, {required String actor}) async {}
+
+  @override
+  Future<List<SessionVersion>> history(String sessionId) async => [];
+
+  @override
+  Future<void> migrateRecords(Map<String, String> nameToIdMap) async {}
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+}
 
 void main() {
   setUpAll(() {
@@ -124,6 +180,81 @@ void main() {
       expect(find.text('TRENDS'), findsOneWidget);
       expect(find.text('Today'), findsOneWidget);
       expect(find.text('RECENT SESSIONS'), findsOneWidget);
+    });
+
+    testWidgets(
+        'counts roster absentees with no record (raw records omit absentees)',
+        (tester) async {
+      tallSurface(tester);
+      // Event roster has 16 members but the session only stores the 5 present
+      // records — absentees were never written. Trends must still show 5 / 11.
+      final members = List.generate(
+        16,
+        (i) => Member(id: 'm$i', displayName: 'Member $i'),
+      );
+      final rosterEvent = Event(
+        id: 'e1',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        memberIds: [for (final m in members) m.id],
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final session = sessionWith(
+        id: 's0',
+        date: DateTime(2026, 5, 30),
+        statuses: {
+          for (var i = 0; i < 5; i++) 'm$i': AttendanceStatus.present,
+        },
+      );
+
+      await tester.pumpWidget(
+        wrap(
+          EventTrendPage(
+            event: rosterEvent,
+            sessions: [session],
+            members: members,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The recent-session row shows present (5) and absent (11) split.
+      expect(find.text('5'), findsWidgets);
+      expect(find.text('11'), findsOneWidget);
+    });
+
+    testWidgets('tapping a recent session opens its summary', (tester) async {
+      tallSurface(tester);
+      final members = [Member(id: 'm1', displayName: 'Alice')];
+      final sessions = List.generate(
+        3,
+        (i) => sessionWith(
+          id: 's$i',
+          date: DateTime(2026, 1, i + 1),
+          statuses: {'m1': AttendanceStatus.present},
+        ),
+      );
+
+      await tester.pumpWidget(
+        wrap(
+          EventTrendPage(
+            event: event,
+            sessions: sessions,
+            members: members,
+            sessionRepository: _FakeSessionRepository(sessions),
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap the most-recent session row (Jan 3).
+      await tester.tap(find.text('Jan 3'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SessionSummaryPage), findsOneWidget);
     });
 
     testWidgets('renders the average hero and range selector', (tester) async {
