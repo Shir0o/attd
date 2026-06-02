@@ -42,6 +42,7 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
   bool _loading = true;
   List<_MemberStreak> _streaks = const [];
   int _relevantSessionCount = 0;
+  int _activeMemberCount = 0;
 
   @override
   void initState() {
@@ -54,6 +55,8 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
     final count = widget.sessions
         .where((s) => s.eventId == widget.event.id && s.deletedAt == null)
         .length;
+    final activeMembers =
+        widget.members.where((m) => m.deletedAt == null).length;
     if (!widget.disableAnimations) {
       await Future<void>.delayed(const Duration(milliseconds: 800));
     }
@@ -61,6 +64,7 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
     setState(() {
       _streaks = streaks;
       _relevantSessionCount = count;
+      _activeMemberCount = activeMembers;
       _loading = false;
     });
   }
@@ -113,6 +117,14 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
     final relevantSessionCount = _relevantSessionCount;
     final windowSize = widget.windowSize;
     final thresholdHits = widget.thresholdHits;
+    final avgPct = streaks.isEmpty
+        ? 0
+        : (streaks
+                      .map((s) => s.hitCount / s.windowSize)
+                      .reduce((a, b) => a + b) /
+                  streaks.length *
+                  100)
+              .round();
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -127,52 +139,130 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
         top: false,
         child: _loading
             ? _Skeleton(disableAnimations: widget.disableAnimations)
-            : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    ConvEyebrow('Regulars', color: c.primary),
-                    const SizedBox(height: 6),
-                    Text(
-                      'The reliable few',
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: c.ink,
-                      ),
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
+                children: [
+                  ConvEyebrow('Regulars', color: c.primary),
+                  const SizedBox(height: 6),
+                  Text(
+                    'The reliable few',
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                      color: c.ink,
+                      fontSize: 40,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      relevantSessionCount < windowSize
-                          ? 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $relevantSessionCount session${relevantSessionCount == 1 ? '' : 's'}'
-                          : 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $windowSize sessions',
-                      style: TextStyle(fontSize: 12, color: c.ink3),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    relevantSessionCount < windowSize
+                        ? 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $relevantSessionCount session${relevantSessionCount == 1 ? '' : 's'} — a quiet nudge to thank your most consistent.'
+                        : 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $windowSize sessions — a quiet nudge to thank your most consistent.',
+                    style: TextStyle(fontSize: 14, color: c.ink2, height: 1.4),
+                  ),
+                  const SizedBox(height: 18),
+                  if (streaks.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: _Empty(c: c),
+                    )
+                  else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _CountTile(
+                            label: 'Regulars',
+                            value: '${streaks.length}',
+                            suffix: ' / $_activeMemberCount',
+                            color: c.ink,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CountTile(
+                            label: 'Avg attendance',
+                            value: '$avgPct%',
+                            color: c.primary,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
-                    if (streaks.isEmpty)
-                      Expanded(child: _Empty(c: c))
-                    else
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          itemCount: streaks.length,
-                          itemBuilder: (context, i) => i == 0
-                              ? Padding(
-                                  padding: const EdgeInsets.only(bottom: 14),
-                                  child: _HeroCard(streak: streaks[0]),
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: _RankedRow(
-                                    rank: i + 1,
-                                    streak: streaks[i],
-                                  ),
-                                ),
+                    _HeroCard(streak: streaks[0]),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: c.ink3,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
+                        const SizedBox(width: 8),
+                        ConvEyebrow('Also reliable'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    for (var i = 1; i < streaks.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _RankedRow(rank: i + 1, streak: streaks[i]),
                       ),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: ConvEyebrow(
+                        'Lives on your device · never shared',
+                        color: c.ink4,
+                        fontSize: 9,
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
+      ),
+    );
+  }
+}
+
+class _CountTile extends StatelessWidget {
+  const _CountTile({
+    required this.label,
+    required this.value,
+    required this.color,
+    this.suffix,
+  });
+  final String label;
+  final String value;
+  final String? suffix;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return ConvCardSoft(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ConvEyebrow(label),
+          const SizedBox(height: 4),
+          RichText(
+            text: TextSpan(
+              style: AppTypography.displayNumber(fontSize: 30, color: color),
+              children: [
+                TextSpan(text: value),
+                if (suffix != null)
+                  TextSpan(
+                    text: suffix,
+                    style: AppTypography.displayNumber(
+                      fontSize: 14,
+                      color: c.ink3,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -270,29 +360,28 @@ class _HeroCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              ConvAvatar(letter: initial, size: 44),
-              const SizedBox(width: 12),
+              ConvAvatar(letter: initial, size: 52),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    ConvEyebrow('Most consistent', color: c.primary, fontSize: 10),
+                    const SizedBox(height: 2),
                     Text(
                       streak.member.displayName,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: c.ink,
+                        fontSize: 22,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (streak.family != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '${streak.family} family · highest attendance',
-                        style: TextStyle(fontSize: 11, color: c.ink3),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                    const SizedBox(height: 2),
+                    Text(
+                      streak.family == null ? 'Solo' : '${streak.family} family',
+                      style: TextStyle(fontSize: 12, color: c.ink3),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -302,7 +391,7 @@ class _HeroCard extends StatelessWidget {
                   RichText(
                     text: TextSpan(
                       style: AppTypography.displayNumber(
-                        fontSize: 32,
+                        fontSize: 40,
                         color: c.primary,
                       ),
                       children: [
@@ -310,8 +399,8 @@ class _HeroCard extends StatelessWidget {
                         TextSpan(
                           text: '/${streak.windowSize}',
                           style: AppTypography.displayNumber(
-                            fontSize: 14,
-                            color: c.primary.withValues(alpha: 0.6),
+                            fontSize: 18,
+                            color: c.primary.withValues(alpha: 0.55),
                           ),
                         ),
                       ],
@@ -322,8 +411,19 @@ class _HeroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          _Ribbon(hits: streak.hits, color: c.primary),
+          const SizedBox(height: 16),
+          _Ribbon(hits: streak.hits, color: c.primary, height: 8, gap: 5),
+          const SizedBox(height: 7),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${streak.windowSize} weeks ago',
+                style: TextStyle(fontSize: 10, color: c.ink3),
+              ),
+              Text('This week', style: TextStyle(fontSize: 10, color: c.ink3)),
+            ],
+          ),
         ],
       ),
     );
@@ -341,24 +441,25 @@ class _RankedRow extends StatelessWidget {
     final initial = streak.member.displayName.isNotEmpty
         ? streak.member.displayName[0].toUpperCase()
         : '?';
+    final pct = (streak.hitCount / streak.windowSize * 100).round();
     return ConvCardSoft(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           SizedBox(
-            width: 18,
+            width: 20,
             child: Text(
               '$rank',
               textAlign: TextAlign.center,
               style: AppTypography.geistTabular(
-                fontSize: 11,
-                color: c.ink3,
+                fontSize: 15,
+                color: c.ink4,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          ConvAvatar(letter: initial, size: 28),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
+          ConvAvatar(letter: initial, size: 38),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,23 +467,36 @@ class _RankedRow extends StatelessWidget {
                 Text(
                   streak.member.displayName,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: c.ink,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  streak.family == null
-                      ? 'Solo'
-                      : '${streak.family} family',
-                  style: TextStyle(fontSize: 10, color: c.ink3),
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 7),
+                SizedBox(
+                  width: 72,
+                  child: _Ribbon(hits: streak.hits, color: c.primary),
                 ),
               ],
             ),
           ),
-          SizedBox(width: 56, child: _Ribbon(hits: streak.hits, color: c.primary)),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$pct%',
+                style: AppTypography.displayNumber(fontSize: 18, color: c.ink),
+              ),
+              const SizedBox(height: 2),
+              ConvEyebrow(
+                '${streak.hitCount}/${streak.windowSize}',
+                color: c.ink3,
+                fontSize: 9,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -390,30 +504,37 @@ class _RankedRow extends StatelessWidget {
 }
 
 class _Ribbon extends StatelessWidget {
-  const _Ribbon({required this.hits, required this.color});
+  const _Ribbon({
+    required this.hits,
+    required this.color,
+    this.height = 5,
+    this.gap = 3,
+  });
   final List<bool> hits;
   final Color color;
+  final double height;
+  final double gap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
     return SizedBox(
-      height: 6,
+      height: height,
       child: Row(
         children: [
           for (var i = 0; i < hits.length; i++) ...[
             Expanded(
               child: Container(
-                height: 5,
+                height: height,
                 decoration: BoxDecoration(
                   color: hits[i]
-                      ? color.withValues(alpha: 0.4 + (i / hits.length) * 0.6)
+                      ? color.withValues(alpha: 0.45 + (i / hits.length) * 0.55)
                       : c.hair,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(height / 2),
                 ),
               ),
             ),
-            if (i < hits.length - 1) const SizedBox(width: 2),
+            if (i < hits.length - 1) SizedBox(width: gap),
           ],
         ],
       ),
