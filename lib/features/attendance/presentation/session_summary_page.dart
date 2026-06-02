@@ -644,15 +644,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           color: colorScheme.onSurface,
           onPressed: () => Navigator.of(context).pop(_currentSession),
         ),
-        title: Text(
-          _currentSession.title.trim(),
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        centerTitle: true,
         actions: [
           IconButton(
             tooltip: 'View data policy',
@@ -685,13 +676,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  ConvEyebrow(
+                    'SAVED · ${DateFormat('MMM d, h:mm a').format(_currentSession.updatedAt)}',
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(height: 6),
                   Text(
-                    'Session Date: ${DateFormat('MMMM d, yyyy').format(_currentSession.sessionDate)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                    _currentSession.title.trim(),
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      color: colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   _StatsCard(
                     presentCount: presentCount,
                     absentCount: absentCount,

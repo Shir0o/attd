@@ -518,8 +518,8 @@ void _registerUncoveredPathTests() {
       await tester.tap(find.text('Jan 1, 2024'));
       await tester.pumpAndSettle();
 
-      // SessionSummaryPage shows the session date label.
-      expect(find.text('Session Date: January 1, 2024'), findsOneWidget);
+      // SessionSummaryPage shows the editorial "SAVED · <time>" header eyebrow.
+      expect(find.text('SAVED · JAN 1, 12:00 AM'), findsOneWidget);
     });
 
     testWidgets('FAB date picker confirm creates a make-up session and cleans up if empty',
