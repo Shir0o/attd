@@ -49,7 +49,7 @@ void main() {
       // Slide 3 -> Slide 4 (final)
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Local-first. Encrypted backup.'), findsOneWidget);
+      expect(find.text('Local-first. Always yours.'), findsOneWidget);
       expect(find.byType(OnboardingCloudArt), findsOneWidget);
       expect(find.text('Get Started'), findsOneWidget);
       expect(find.text('Skip'), findsNothing);
@@ -78,6 +78,28 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.onboardingCompleted, isTrue);
+    });
+
+    testWidgets('deck art card does not overflow under large text scale',
+        (tester) async {
+      // The deck cards are fixed-size decorative postcards; their inner
+      // content must scale down rather than overflow at large text scales.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: const TextScaler.linear(2.0)),
+                child: const Center(child: OnboardingDeckArt()),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(OnboardingDeckArt), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

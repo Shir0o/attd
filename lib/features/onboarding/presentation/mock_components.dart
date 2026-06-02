@@ -19,48 +19,43 @@ class OnboardingDeckArt extends StatelessWidget {
       height: 280,
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          Positioned(
-            top: 30,
-            left: 10,
+          // Back card — fanned left, Absent stamp on its top-left corner.
+          Transform.translate(
+            offset: const Offset(-30, 0),
             child: Transform.rotate(
-              angle: -0.14,
+              angle: -0.122, // -7°
               child: const _DeckCard(
                 letter: 'J',
                 name: 'Jane Smith',
                 tone: ConvTone.absent,
-                width: 170,
-                height: 220,
-                avatarSize: 64,
-                nameSize: 18,
+                width: 168,
+                height: 222,
+                avatarSize: 62,
+                nameSize: 17,
+                stampLabel: 'Absent',
+                stampAlignment: Alignment.topLeft,
               ),
             ),
           ),
-          Positioned(
-            top: 0,
-            left: 70,
+          // Front card — fanned right, Present stamp on its top-right corner.
+          Transform.translate(
+            offset: const Offset(28, 0),
             child: Transform.rotate(
-              angle: 0.07,
+              angle: 0.087, // 5°
               child: const _DeckCard(
                 letter: 'J',
                 name: 'John Doe',
                 tone: ConvTone.present,
-                width: 200,
-                height: 260,
-                avatarSize: 80,
+                width: 192,
+                height: 250,
+                avatarSize: 78,
                 nameSize: 22,
+                stampLabel: 'Present',
+                stampAlignment: Alignment.topRight,
               ),
             ),
-          ),
-          const Positioned(
-            top: 15,
-            right: -10,
-            child: ConvStamp(label: 'Present', tone: ConvTone.present),
-          ),
-          const Positioned(
-            bottom: 80,
-            left: -30,
-            child: ConvStamp(label: 'Absent', tone: ConvTone.absent),
           ),
         ],
       ),
@@ -77,6 +72,8 @@ class _DeckCard extends StatelessWidget {
     required this.height,
     required this.avatarSize,
     required this.nameSize,
+    required this.stampLabel,
+    required this.stampAlignment,
   });
 
   final String letter;
@@ -86,30 +83,54 @@ class _DeckCard extends StatelessWidget {
   final double height;
   final double avatarSize;
   final double nameSize;
+  final String stampLabel;
+  final Alignment stampAlignment;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
+    final stampOnLeft = stampAlignment == Alignment.topLeft;
     return SizedBox(
       width: width,
       height: height,
-      child: ConvCard(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ConvAvatar(letter: letter, size: avatarSize, tone: tone),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: AppTypography.fraunces(
-                fontSize: nameSize,
-                fontWeight: FontWeight.w500,
-                color: c.ink,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Positioned.fill forces the card to the fixed SizedBox size, while
+          // FittedBox keeps the content from overflowing under large
+          // accessibility text scales.
+          Positioned.fill(
+            child: ConvCard(
+              padding: const EdgeInsets.all(18),
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ConvAvatar(letter: letter, size: avatarSize, tone: tone),
+                      const SizedBox(height: 12),
+                      Text(
+                        name,
+                        style: AppTypography.fraunces(
+                          fontSize: nameSize,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            top: 14,
+            left: stampOnLeft ? 14 : null,
+            right: stampOnLeft ? null : 14,
+            child: ConvStamp(label: stampLabel, tone: tone),
+          ),
+        ],
       ),
     );
   }
