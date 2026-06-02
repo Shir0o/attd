@@ -619,7 +619,8 @@ void main() {
     expect(find.textContaining('expected'), findsNWidgets(2));
   });
 
-  testWidgets('no today events: no highlight card, events under Upcoming',
+  testWidgets(
+      'no today events: rest-state card with next-up affordance under This week',
       (tester) async {
     final now = DateTime.now();
     final notTodayDay =
@@ -637,10 +638,39 @@ void main() {
     eventRepository.emit([event]);
     await tester.pumpAndSettle();
 
-    // No highlight card means no "Expected" eyebrow.
+    // Rest-state card instead of the Start hero (no "Expected" stat).
     expect(find.text('EXPECTED'), findsNothing);
-    expect(find.text('UPCOMING'), findsOneWidget);
-    expect(find.text('Mid-week Study'), findsOneWidget);
+    expect(find.text('Nothing scheduled.'), findsOneWidget);
+    expect(find.text('NEXT UP'), findsOneWidget);
+    // Section is "This week", and the event shows in both the card and the list.
+    expect(find.text('THIS WEEK'), findsOneWidget);
+    expect(find.text('UPCOMING'), findsNothing);
+    expect(find.text('Mid-week Study'), findsNWidgets(2));
+  });
+
+  testWidgets('rest-state card tap opens the next event', (tester) async {
+    final now = DateTime.now();
+    final notTodayDay =
+        DateFormat('EEEE').format(now.add(const Duration(days: 2)));
+    final event = Event(
+      id: 'future',
+      title: 'Mid-week Study',
+      time: const TimeOfDay(hour: 19, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [notTodayDay],
+      createdAt: now,
+    );
+
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Nothing scheduled.'));
+    await tester.pumpAndSettle();
+
+    // Tapping the rest-state card routes into the next event's flow (here it has
+    // no members, so it opens member management).
+    expect(find.text('Manage Event Members'), findsOneWidget);
   });
 
   testWidgets('event with session on past day shows Marked status inline', (tester) async {
