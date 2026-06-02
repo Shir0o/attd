@@ -549,6 +549,25 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final c = context.conv;
     final children = <Widget>[];
 
+    // Rest state — nothing scheduled today, but events are still coming. Show a
+    // calm orientation card pointing at the next event instead of a Start hero.
+    final restState = todayEvents.isEmpty && otherEvents.isNotEmpty;
+    if (restState) {
+      final now = DateTime.now();
+      // Pick the soonest *upcoming* occurrence (getLastSupposedOccurrence, which
+      // backs _statusFor.displayDate, points at the previous occurrence).
+      final next = otherEvents
+          .map((e) => (event: e, date: getNextOccurrence(e, now)))
+          .reduce((a, b) => a.date.isBefore(b.date) ? a : b);
+      children.add(
+        _RestStateCard(
+          event: next.event,
+          nextDate: next.date,
+          onTap: () => _handleEventTap(next.event),
+        ),
+      );
+    }
+
     // The highlight card is reserved for a single today event — the soonest
     // one still needing attendance (or the soonest, if all are taken).
     Event? hero;
@@ -621,9 +640,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              ConvEyebrow(hero != null ? 'This week' : 'Upcoming'),
+              ConvEyebrow(hero != null || restState ? 'This week' : 'Upcoming'),
               ConvEyebrow(
-                hero != null
+                hero != null || restState
                     ? '${otherEvents.length} · upcoming'
                     : '${otherEvents.length} · this week',
                 color: c.ink4,
@@ -844,6 +863,171 @@ class _EventStatus {
 
   /// Number of present attendees in the marked session, when [taken] is true.
   final int? presentCount;
+}
+
+/// Rest-state card — shown when nothing is scheduled today but events are still
+/// coming this week. Non-actionable; orients the user and offers a tap-through
+/// to the next event.
+class _RestStateCard extends StatelessWidget {
+  const _RestStateCard({
+    required this.event,
+    required this.nextDate,
+    required this.onTap,
+  });
+
+  final Event event;
+  final DateTime nextDate;
+  final VoidCallback onTap;
+
+  String _inDays(DateTime next) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(next.year, next.month, next.day);
+    final days = target.difference(today).inDays;
+    if (days <= 0) return 'today';
+    if (days == 1) return 'tomorrow';
+    return 'in $days days';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final next = nextDate;
+    final dayLabel = DateFormat('EEE').format(next).toUpperCase();
+    final dateNum = DateFormat('d').format(next);
+    final todayLabel = DateFormat('MMM d').format(DateTime.now()).toUpperCase();
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: AppRadii.cardR,
+        boxShadow: AppShadows.card,
+      ),
+      child: Material(
+        color: c.card,
+        borderRadius: AppRadii.cardR,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
+            children: [
+              // Decorative serif glyph, bleeding off the top-right.
+              Positioned(
+                right: -16,
+                top: -56,
+                child: IgnorePointer(
+                  child: Text(
+                    '§',
+                    style: AppTypography.fraunces(
+                      fontSize: 150,
+                      fontWeight: FontWeight.w400,
+                      color: c.primary.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ConvPill(
+                      label: 'TODAY · $todayLabel',
+                      ghost: true,
+                      fontSize: 11,
+                      letterSpacing: 1.32,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Nothing scheduled.',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: c.ink,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: 260,
+                      child: Text(
+                        'A quiet day — no attendance to take. '
+                        'Your next event is ${_inDays(next)}.',
+                        style: AppTypography.geist(
+                          fontSize: 14,
+                          color: c.ink2,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Divider(height: 1),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 44,
+                          child: Column(
+                            children: [
+                              ConvEyebrow(dayLabel),
+                              Text(
+                                dateNum,
+                                style: AppTypography.displayNumber(
+                                  fontSize: 24,
+                                  color: c.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ConvEyebrow('Next up', color: c.primary),
+                              const SizedBox(height: 2),
+                              Text(
+                                event.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.geist(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: c.ink,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(Icons.schedule, size: 13, color: c.ink3),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    event.time.format(context),
+                                    style: AppTypography.geist(
+                                      fontSize: 12,
+                                      color: c.ink3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.chevron_right, color: c.ink3),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The large editorial "Up next" card — the first/soonest event on the hub.

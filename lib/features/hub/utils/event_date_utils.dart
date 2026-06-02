@@ -1,5 +1,16 @@
 import '../domain/event.dart';
 
+/// Maps the day names stored on [Event.repeatingDays] to `DateTime` weekday ints.
+const Map<String, int> _weekdayMap = {
+  'Monday': DateTime.monday,
+  'Tuesday': DateTime.tuesday,
+  'Wednesday': DateTime.wednesday,
+  'Thursday': DateTime.thursday,
+  'Friday': DateTime.friday,
+  'Saturday': DateTime.saturday,
+  'Sunday': DateTime.sunday,
+};
+
 /// Calculates the target session date for an event based on the current time.
 ///
 /// If the event is a 'One-time' event, it returns the scheduled date or today.
@@ -32,6 +43,52 @@ DateTime calculateTargetDate(Event event, DateTime now) {
   return getLastSupposedOccurrence(event, now);
 }
 
+/// Finds the next date an event is supposed to occur, on or after today.
+///
+/// For repeating events, today only counts if its scheduled time hasn't passed
+/// yet; otherwise the search rolls forward to the next matching weekday.
+DateTime getNextOccurrence(Event event, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+
+  if (event.frequency == 'One-time') {
+    if (event.oneTimeDate == null) return today;
+    return DateTime(
+      event.oneTimeDate!.year,
+      event.oneTimeDate!.month,
+      event.oneTimeDate!.day,
+    );
+  }
+
+  final eventWeekdays = event.repeatingDays
+      .map((d) => _weekdayMap[d])
+      .whereType<int>()
+      .toList();
+  if (eventWeekdays.isEmpty) return today;
+
+  // Today, if the scheduled time is still ahead.
+  if (eventWeekdays.contains(now.weekday)) {
+    final eventTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      event.time.hour,
+      event.time.minute,
+    );
+    if (!now.isAfter(eventTime)) {
+      return today;
+    }
+  }
+
+  for (int i = 1; i <= 7; i++) {
+    final next = today.add(Duration(days: i));
+    if (eventWeekdays.contains(next.weekday)) {
+      return next;
+    }
+  }
+
+  return today;
+}
+
 /// Finds the most recent date an event was supposed to occur,
 /// including today if the event time has passed.
 DateTime getLastSupposedOccurrence(Event event, DateTime now) {
@@ -46,17 +103,10 @@ DateTime getLastSupposedOccurrence(Event event, DateTime now) {
     );
   }
 
-  final Map<String, int> weekdays = {
-    'Monday': DateTime.monday,
-    'Tuesday': DateTime.tuesday,
-    'Wednesday': DateTime.wednesday,
-    'Thursday': DateTime.thursday,
-    'Friday': DateTime.friday,
-    'Saturday': DateTime.saturday,
-    'Sunday': DateTime.sunday,
-  };
-
-  final eventWeekdays = event.repeatingDays.map((d) => weekdays[d]!).toList();
+  final eventWeekdays = event.repeatingDays
+      .map((d) => _weekdayMap[d])
+      .whereType<int>()
+      .toList();
   if (eventWeekdays.isEmpty) return today;
 
   // Check today
