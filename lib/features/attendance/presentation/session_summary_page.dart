@@ -699,6 +699,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                       members: _allMembers,
                       families: _allFamilies,
                       sessionRepository: widget.sessionRepository,
+                      attendanceRepository: widget.attendanceRepository,
+                      eventRepository: widget.eventRepository,
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -844,12 +846,16 @@ class _ConsistentTrendStrip extends StatelessWidget {
     required this.members,
     required this.families,
     required this.sessionRepository,
+    this.attendanceRepository,
+    this.eventRepository,
   });
 
   final Event event;
   final List<Member> members;
   final List<Family> families;
   final SessionRepository sessionRepository;
+  final AttendanceRepository? attendanceRepository;
+  final EventRepository? eventRepository;
 
   Future<List<Session>> _loadSessions() => sessionRepository.loadSessions();
 
@@ -902,6 +908,9 @@ class _ConsistentTrendStrip extends StatelessWidget {
                       sessions: sessions,
                       members: members,
                       families: families,
+                      sessionRepository: sessionRepository,
+                      attendanceRepository: attendanceRepository,
+                      eventRepository: eventRepository,
                     ),
                   ),
                 );

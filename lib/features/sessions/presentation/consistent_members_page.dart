@@ -9,6 +9,7 @@ import '../../../../data/session.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
+import '../../attendance/utils/member_default_resolver.dart';
 import '../../hub/domain/event.dart';
 
 /// Members who attended ≥ 80% of the last 8 sessions of an event.
@@ -22,7 +23,6 @@ class ConsistentMembersPage extends StatefulWidget {
     required this.members,
     this.families = const [],
     this.windowSize = 8,
-    this.thresholdHits = 7,
     this.disableAnimations = false,
   });
 
@@ -31,7 +31,6 @@ class ConsistentMembersPage extends StatefulWidget {
   final List<Member> members;
   final List<Family> families;
   final int windowSize;
-  final int thresholdHits;
   final bool disableAnimations;
 
   @override
@@ -94,7 +93,7 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
         hits.add(present);
       }
       final hitCount = hits.where((h) => h).length;
-      if (hitCount >= widget.thresholdHits) {
+      if (window.isNotEmpty && hitCount / window.length >= kPatternThreshold) {
         streaks.add(
           _MemberStreak(
             member: m,
@@ -116,7 +115,7 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
     final streaks = _streaks;
     final relevantSessionCount = _relevantSessionCount;
     final windowSize = widget.windowSize;
-    final thresholdHits = widget.thresholdHits;
+    final thresholdPct = (kPatternThreshold * 100).round();
     final avgPct = streaks.isEmpty
         ? 0
         : (streaks
@@ -154,8 +153,8 @@ class _ConsistentMembersPageState extends State<ConsistentMembersPage> {
                   const SizedBox(height: 8),
                   Text(
                     relevantSessionCount < windowSize
-                        ? 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $relevantSessionCount session${relevantSessionCount == 1 ? '' : 's'} — a quiet nudge to thank your most consistent.'
-                        : 'Members at ${(thresholdHits / windowSize * 100).round()}%+ across the last $windowSize sessions — a quiet nudge to thank your most consistent.',
+                        ? 'Members at $thresholdPct%+ across the last $relevantSessionCount session${relevantSessionCount == 1 ? '' : 's'} — a quiet nudge to thank your most consistent.'
+                        : 'Members at $thresholdPct%+ across the last $windowSize sessions — a quiet nudge to thank your most consistent.',
                     style: TextStyle(fontSize: 14, color: c.ink2, height: 1.4),
                   ),
                   const SizedBox(height: 18),
