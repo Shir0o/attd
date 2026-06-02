@@ -49,7 +49,7 @@ void main() {
       // Slide 3 -> Slide 4 (final)
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Local-first. Encrypted backup.'), findsOneWidget);
+      expect(find.text('Local-first. Always yours.'), findsOneWidget);
       expect(find.byType(OnboardingCloudArt), findsOneWidget);
       expect(find.text('Get Started'), findsOneWidget);
       expect(find.text('Skip'), findsNothing);

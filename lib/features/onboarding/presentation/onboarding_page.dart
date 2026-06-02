@@ -42,7 +42,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
     _OnboardingSlide(
       eyebrow: '04 · Yours, fully.',
-      title: 'Local-first. Encrypted backup.',
+      title: 'Local-first. Always yours.',
       description:
           'Your data stays on your device. Sync to your own Google Drive — never ours.',
       art: OnboardingCloudArt(),
