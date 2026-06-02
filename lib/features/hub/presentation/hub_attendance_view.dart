@@ -564,16 +564,15 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     // calm orientation card pointing at the next event instead of a Start hero.
     final restState = todayEvents.isEmpty && otherEvents.isNotEmpty;
     if (restState) {
-      // Pick the soonest *upcoming* occurrence (getLastSupposedOccurrence, which
-      // backs _statusFor.displayDate, points at the previous occurrence).
-      final next = otherEvents
-          .map((e) => (event: e, date: getNextOccurrence(e, now)))
-          .reduce((a, b) => a.date.isBefore(b.date) ? a : b);
+      // otherEvents is already sorted by next-occurrence date (then time), so
+      // the first entry is the soonest upcoming event — reuse the precomputed
+      // nextOccurrence map rather than recomputing getNextOccurrence.
+      final nextEvent = otherEvents.first;
       children.add(
         _RestStateCard(
-          event: next.event,
-          nextDate: next.date,
-          onTap: () => _handleEventTap(next.event),
+          event: nextEvent,
+          nextDate: nextOccurrence[nextEvent]!,
+          onTap: () => _handleEventTap(nextEvent),
         ),
       );
     }
