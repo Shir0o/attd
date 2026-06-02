@@ -79,5 +79,27 @@ void main() {
 
       expect(controller.onboardingCompleted, isTrue);
     });
+
+    testWidgets('deck art card does not overflow under large text scale',
+        (tester) async {
+      // The deck cards are fixed-size decorative postcards; their inner
+      // content must scale down rather than overflow at large text scales.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: const TextScaler.linear(2.0)),
+                child: const Center(child: OnboardingDeckArt()),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(OnboardingDeckArt), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

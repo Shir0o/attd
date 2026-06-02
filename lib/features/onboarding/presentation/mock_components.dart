@@ -96,22 +96,32 @@ class _DeckCard extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          ConvCard(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ConvAvatar(letter: letter, size: avatarSize, tone: tone),
-                const SizedBox(height: 12),
-                Text(
-                  name,
-                  style: AppTypography.fraunces(
-                    fontSize: nameSize,
-                    fontWeight: FontWeight.w500,
-                    color: c.ink,
+          // Positioned.fill forces the card to the fixed SizedBox size, while
+          // FittedBox keeps the content from overflowing under large
+          // accessibility text scales.
+          Positioned.fill(
+            child: ConvCard(
+              padding: const EdgeInsets.all(18),
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ConvAvatar(letter: letter, size: avatarSize, tone: tone),
+                      const SizedBox(height: 12),
+                      Text(
+                        name,
+                        style: AppTypography.fraunces(
+                          fontSize: nameSize,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
           Positioned(
