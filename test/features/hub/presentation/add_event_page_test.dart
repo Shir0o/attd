@@ -10,6 +10,8 @@ import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../../helpers/mocks.dart';
+
 class _EventRepository implements EventRepository {
   final List<Event> events;
   Object? createError;
@@ -130,6 +132,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           disableAnimations: true,
         ),
       ),
@@ -153,6 +156,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           disableAnimations: true,
         ),
       ),
@@ -195,6 +199,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           eventToEdit: event,
           disableAnimations: true,
         ),
@@ -220,6 +225,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           disableAnimations: true,
         ),
       ),
@@ -240,6 +246,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           disableAnimations: true,
         ),
       ),
@@ -283,6 +290,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           sessionRepository: sessions,
           eventToEdit: event,
           disableAnimations: true,
@@ -319,6 +327,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           eventToEdit: event,
           disableAnimations: true,
         ),
@@ -343,6 +352,7 @@ void main() {
     await tester.pumpWidget(_wrap(
       AddEventPage(
         eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
         disableAnimations: true,
       ),
     ));
@@ -365,6 +375,7 @@ void main() {
     await tester.pumpWidget(_wrap(
       AddEventPage(
         eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
         disableAnimations: true,
       ),
     ));
@@ -400,6 +411,7 @@ void main() {
     await tester.pumpWidget(_wrap(
       AddEventPage(
         eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
         eventToEdit: event,
         disableAnimations: true,
       ),
@@ -426,6 +438,7 @@ void main() {
     await tester.pumpWidget(_wrap(
       AddEventPage(
         eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
         // disableAnimations omitted, defaults to false -> Hero path.
       ),
     ));
@@ -454,6 +467,7 @@ void main() {
       _wrap(
         AddEventPage(
           eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
           eventToEdit: event,
           disableAnimations: true,
         ),

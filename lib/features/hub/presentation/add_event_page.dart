@@ -5,20 +5,24 @@ import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session_repository.dart';
+import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/roster_grouping.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
+import 'members_page.dart';
 
 class AddEventPage extends StatefulWidget {
   const AddEventPage({
     super.key,
     required this.eventRepository,
+    required this.attendanceRepository,
     this.sessionRepository,
     this.eventToEdit,
     this.disableAnimations = false,
   });
 
   final EventRepository eventRepository;
+  final AttendanceRepository attendanceRepository;
   final SessionRepository? sessionRepository;
   final Event? eventToEdit;
   final bool disableAnimations;
@@ -35,6 +39,7 @@ class _AddEventPageState extends State<AddEventPage> {
   late DateTime _selectedDate;
   late Set<String> _selectedDays;
   late RosterGrouping _grouping;
+  late Set<String> _selectedMemberIds;
   bool _isLoading = true;
   final List<String> _linkedSessions = [];
 
@@ -70,11 +75,13 @@ class _AddEventPageState extends State<AddEventPage> {
       _selectedDate = event.oneTimeDate ?? DateTime.now();
       _selectedDays = event.repeatingDays.toSet();
       _grouping = event.rosterGrouping ?? RosterGrouping.byStatus;
+      _selectedMemberIds = event.memberIds.toSet();
     } else {
       _nameController = TextEditingController();
       _selectedTime = const TimeOfDay(hour: 10, minute: 0);
       _frequency = 'Weekly';
       _grouping = RosterGrouping.byStatus;
+      _selectedMemberIds = <String>{};
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day);
       _selectedDays = {};
@@ -224,7 +231,7 @@ class _AddEventPageState extends State<AddEventPage> {
         frequency: _frequency,
         oneTimeDate: _frequency == 'One-time' ? _selectedDate : null,
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
-        memberIds: widget.eventToEdit?.memberIds ?? [],
+        memberIds: _selectedMemberIds.toList(),
         defaultAttendanceStartMode:
             widget.eventToEdit?.defaultAttendanceStartMode,
         rosterGrouping: _grouping,
@@ -531,6 +538,7 @@ class _AddEventPageState extends State<AddEventPage> {
         const SizedBox(height: 8),
         ConvCardSoft(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          onTap: _openRosterPicker,
           child: Row(
             children: [
               Icon(Icons.people_outline, size: 20, color: c.ink2),
@@ -604,9 +612,26 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 
   String _rosterTitle() {
-    final ids = widget.eventToEdit?.memberIds ?? const [];
+    final ids = _selectedMemberIds;
     if (ids.isEmpty) return 'All members';
     return ids.length == 1 ? '1 person' : '${ids.length} people';
+  }
+
+  Future<void> _openRosterPicker() async {
+    final result = await Navigator.of(context).push<List<String>>(
+      MaterialPageRoute(
+        builder: (context) => MembersPage(
+          attendanceRepository: widget.attendanceRepository,
+          sessionRepository: widget.sessionRepository,
+          selectionMode: true,
+          initialSelectedMemberIds: _selectedMemberIds.toList(),
+          disableAnimations: widget.disableAnimations,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _selectedMemberIds = result.toSet());
+    }
   }
 
   Widget _buildBottomButton(BuildContext context, {required bool isEditing}) {
