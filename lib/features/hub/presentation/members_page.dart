@@ -20,6 +20,8 @@ class MembersPage extends StatefulWidget {
     this.event,
     this.eventRepository,
     this.disableAnimations = false,
+    this.selectionMode = false,
+    this.initialSelectedMemberIds = const [],
   });
 
   final AttendanceRepository attendanceRepository;
@@ -27,6 +29,14 @@ class MembersPage extends StatefulWidget {
   final Event? event;
   final EventRepository? eventRepository;
   final bool disableAnimations;
+
+  /// When true, the page acts as a non-persisting member picker: toggles only
+  /// mutate local state and the chosen ids are returned via [Navigator.pop] when
+  /// the user taps Done. Used by the new/edit-event form before the event exists.
+  final bool selectionMode;
+
+  /// Ids pre-selected when [selectionMode] is true.
+  final List<String> initialSelectedMemberIds;
 
   @override
   State<MembersPage> createState() => _MembersPageState();
@@ -37,6 +47,7 @@ class _MembersPageState extends State<MembersPage> {
   bool _isLoading = true;
   Object? _error;
   Event? _currentEvent;
+  late Set<String> _selectionIds;
   bool _isAdding = false;
   final Map<String, List<({String title, DateTime date})>> _memberUsageMap = {};
 
@@ -47,6 +58,7 @@ class _MembersPageState extends State<MembersPage> {
   void initState() {
     super.initState();
     _currentEvent = widget.event;
+    _selectionIds = widget.initialSelectedMemberIds.toSet();
     _loadFamilies(isInitial: true);
     _loadUsageStats();
   }
@@ -175,7 +187,9 @@ class _MembersPageState extends State<MembersPage> {
           _families = [...(_families ?? []), updatedFamily];
         });
 
-        if (_currentEvent != null && widget.eventRepository != null) {
+        if (widget.selectionMode) {
+          setState(() => _selectionIds.add(newMember.id));
+        } else if (_currentEvent != null && widget.eventRepository != null) {
           await _toggleEventMember(newMember, true);
         }
       }
@@ -662,6 +676,16 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
+  void _toggleSelection(Member member, bool isSelected) {
+    setState(() {
+      if (isSelected) {
+        _selectionIds.add(member.id);
+      } else {
+        _selectionIds.remove(member.id);
+      }
+    });
+  }
+
   Future<void> _toggleEventMember(Member member, bool isSelected) async {
     if (_currentEvent == null || widget.eventRepository == null) return;
 
@@ -703,7 +727,7 @@ class _MembersPageState extends State<MembersPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final isEventMode = _currentEvent != null;
+    final isEventMode = _currentEvent != null || widget.selectionMode;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -721,11 +745,25 @@ class _MembersPageState extends State<MembersPage> {
         ),
         iconTheme: IconThemeData(color: c.ink2),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _showRenameInfo,
-            tooltip: 'About historical records',
-          ),
+          if (widget.selectionMode)
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_selectionIds.toList()),
+              child: Text(
+                'Done',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: c.primary,
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              onPressed: _showRenameInfo,
+              tooltip: 'About historical records',
+            ),
         ],
       ),
       body: Column(
@@ -763,7 +801,9 @@ class _MembersPageState extends State<MembersPage> {
     final memberCount = _getAllMembers(families).length;
 
     if (isEventMode) {
-      final selected = _currentEvent?.memberIds.length ?? 0;
+      final selected = widget.selectionMode
+          ? _selectionIds.length
+          : (_currentEvent?.memberIds.length ?? 0);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -874,10 +914,11 @@ class _MembersPageState extends State<MembersPage> {
     }
 
     final families = _families ?? [];
-    final isEventMode = _currentEvent != null;
+    final isEventMode = _currentEvent != null || widget.selectionMode;
     final searchTerm = _inputController.text.toLowerCase();
-    final selectedIds =
-        isEventMode ? _currentEvent!.memberIds.toSet() : <String>{};
+    final selectedIds = widget.selectionMode
+        ? _selectionIds
+        : (_currentEvent?.memberIds.toSet() ?? <String>{});
 
     List<Member> filter(List<Member> ms) => ms
         .where((m) => m.displayNameLowercase.contains(searchTerm))
@@ -902,9 +943,13 @@ class _MembersPageState extends State<MembersPage> {
           member: m,
           isEventMode: true,
           isSelected: selectedIds.contains(m.id),
-          onToggle: (v) => _toggleEventMember(m, v),
+          onToggle: (v) => widget.selectionMode
+              ? _toggleSelection(m, v)
+              : _toggleEventMember(m, v),
           onEdit: () => _editMember(m),
-          onDelete: () => _toggleEventMember(m, false),
+          onDelete: () => widget.selectionMode
+              ? _toggleSelection(m, false)
+              : _toggleEventMember(m, false),
         ));
       }
     } else {
