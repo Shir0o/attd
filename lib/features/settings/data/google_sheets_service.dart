@@ -88,8 +88,17 @@ class GoogleSheetsService {
       }
     }
 
-    final content = await sessionsFile.readAsString();
-    final List<dynamic> sessionsJson = jsonDecode(content);
+    final List<dynamic> sessionsJson;
+    try {
+      final content = await sessionsFile.readAsString();
+      if (content.isEmpty) return null;
+      final decoded = jsonDecode(content);
+      if (decoded is! List) return null;
+      sessionsJson = decoded;
+    } catch (e, st) {
+      _log.warning('Error parsing sessions.json for Google Sheets sync', e, st);
+      return null;
+    }
 
     final dateFormat = DateFormat('yyyy-MM-dd');
 

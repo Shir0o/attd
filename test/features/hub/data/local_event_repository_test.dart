@@ -208,5 +208,67 @@ void main() {
       expect((await reloaded.findEventById('recent'))?.deletedAt, isNotNull);
       expect((await reloaded.findEventById('active'))?.title, 'Active');
     });
+
+    test('loadRawEvents recovers from healthy backup file when main file is corrupted', () async {
+      final mainFile = File('${tempDir.path}/events.json');
+      final backupFile = File('${tempDir.path}/events.json.bak');
+
+      // Create a valid backup
+      final now = DateTime.now();
+      final events = [
+        Event(
+          id: 'test-event-id',
+          title: 'From Backup Event',
+          time: const TimeOfDay(hour: 9, minute: 30),
+          frequency: 'Weekly',
+          createdAt: now,
+        )
+      ];
+      await backupFile.writeAsString(jsonEncode(events.map((e) => e.toJson()).toList()));
+
+      // Corrupt the main file
+      await mainFile.writeAsString('{corrupted json');
+
+      await repository.refresh();
+      final loaded = await repository.streamEvents().first;
+
+      expect(loaded.length, 1);
+      expect(loaded.first.title, 'From Backup Event');
+
+      // Verify main file has been healed
+      expect(mainFile.existsSync(), isTrue);
+      expect(jsonDecode(mainFile.readAsStringSync()), isList);
+    });
+
+    test('loadRawEvents recovers from healthy backup file when main file is missing', () async {
+      final mainFile = File('${tempDir.path}/events.json');
+      final backupFile = File('${tempDir.path}/events.json.bak');
+
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+
+      // Create a valid backup
+      final now = DateTime.now();
+      final events = [
+        Event(
+          id: 'test-event-id-2',
+          title: 'From Backup Event 2',
+          time: const TimeOfDay(hour: 9, minute: 30),
+          frequency: 'Weekly',
+          createdAt: now,
+        )
+      ];
+      await backupFile.writeAsString(jsonEncode(events.map((e) => e.toJson()).toList()));
+
+      await repository.refresh();
+      final loaded = await repository.streamEvents().first;
+
+      expect(loaded.length, 1);
+      expect(loaded.first.title, 'From Backup Event 2');
+
+      // Verify main file has been restored
+      expect(mainFile.existsSync(), isTrue);
+    });
   });
 }
