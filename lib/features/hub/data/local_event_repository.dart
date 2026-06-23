@@ -33,7 +33,24 @@ class LocalJsonEventRepository implements EventRepository {
 
   Future<List<Event>> _loadRawEvents() async {
     final file = await _storageFile;
-    if (!await file.exists()) return [];
+    if (!await file.exists()) {
+      final backupFile = File('${file.path}.bak');
+      if (await backupFile.exists()) {
+        _log.warning('Main events file missing, attempting recovery from backup');
+        try {
+          final backupContent = await backupFile.readAsString();
+          if (backupContent.isNotEmpty) {
+            final List<dynamic> jsonList = jsonDecode(backupContent);
+            final events = jsonList.map((e) => Event.fromJson(e)).toList();
+            await backupFile.copy(file.path);
+            return events;
+          }
+        } catch (backupError, backupSt) {
+          _log.error('Failed to recover events from backup file', backupError, backupSt);
+        }
+      }
+      return [];
+    }
 
     try {
       final content = await file.readAsString();
@@ -41,7 +58,22 @@ class LocalJsonEventRepository implements EventRepository {
       final List<dynamic> jsonList = jsonDecode(content);
       return jsonList.map((e) => Event.fromJson(e)).toList();
     } catch (e, st) {
-      _log.error('Error loading raw events', e, st);
+      _log.error('Error loading raw events, attempting recovery from backup', e, st);
+      final backupFile = File('${file.path}.bak');
+      if (await backupFile.exists()) {
+        try {
+          final backupContent = await backupFile.readAsString();
+          if (backupContent.isNotEmpty) {
+            final List<dynamic> jsonList = jsonDecode(backupContent);
+            final events = jsonList.map((e) => Event.fromJson(e)).toList();
+            await backupFile.copy(file.path);
+            _log.info('Successfully recovered events from backup');
+            return events;
+          }
+        } catch (backupError, backupSt) {
+          _log.error('Failed to recover events from backup file', backupError, backupSt);
+        }
+      }
       return [];
     }
   }

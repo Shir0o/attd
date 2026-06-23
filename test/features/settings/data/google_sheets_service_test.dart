@@ -238,5 +238,22 @@ void main() {
         throwsA(isA<SocketException>()),
       );
     });
+
+    test('handles corrupted sessions.json file gracefully', () async {
+      await File(p.join(tempDir.path, 'sessions.json')).writeAsString(
+        '{not json',
+      );
+      var requestCount = 0;
+      final client = MockClient((request) async {
+        requestCount++;
+        return http.Response('', HttpStatus.ok);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      expect(requestCount, 0);
+    });
   });
 }

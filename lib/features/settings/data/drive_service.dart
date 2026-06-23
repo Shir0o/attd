@@ -800,6 +800,13 @@ class DriveService extends ChangeNotifier {
         // 3. Update local (atomic write)
         final tmpFile = File('${localFile.path}.tmp');
         await tmpFile.writeAsString(mergedContent);
+        final backupFile = File('${localFile.path}.bak');
+        if (await localFile.exists()) {
+          if (await backupFile.exists()) {
+            await backupFile.delete();
+          }
+          await localFile.rename(backupFile.path);
+        }
         await tmpFile.rename(localFile.path);
 
         // 4. Update remote

@@ -278,5 +278,73 @@ void main() {
       final loaded = await repository.loadSessions();
       expect(loaded.single.records.single.memberId, isNull);
     });
+
+    test('loadSessions recovers from healthy backup file when main file is corrupted', () async {
+      final mainFile = File('${tempDir.path}/sessions.json');
+      final backupFile = File('${tempDir.path}/sessions.json.bak');
+
+      // Create a valid sessions backup content
+      final now = DateTime.now();
+      final sessions = [
+        Session(
+          id: 'test-id',
+          title: 'From Backup',
+          sessionDate: now,
+          records: [],
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          currentVersion: 1,
+        )
+      ];
+      await backupFile.writeAsString(jsonEncode(sessions.map((e) => e.toJson()).toList()));
+
+      // Corrupt the main file
+      await mainFile.writeAsString('{corrupted json');
+
+      await repository.refresh();
+      final loaded = await repository.loadSessions();
+
+      expect(loaded.length, 1);
+      expect(loaded.first.title, 'From Backup');
+      
+      // Verify main file has been healed
+      expect(mainFile.existsSync(), isTrue);
+      expect(jsonDecode(mainFile.readAsStringSync()), isList);
+    });
+
+    test('loadSessions recovers from healthy backup file when main file is missing', () async {
+      final mainFile = File('${tempDir.path}/sessions.json');
+      final backupFile = File('${tempDir.path}/sessions.json.bak');
+
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+
+      // Create a valid sessions backup content
+      final now = DateTime.now();
+      final sessions = [
+        Session(
+          id: 'test-id',
+          title: 'From Backup 2',
+          sessionDate: now,
+          records: [],
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          currentVersion: 1,
+        )
+      ];
+      await backupFile.writeAsString(jsonEncode(sessions.map((e) => e.toJson()).toList()));
+
+      await repository.refresh();
+      final loaded = await repository.loadSessions();
+
+      expect(loaded.length, 1);
+      expect(loaded.first.title, 'From Backup 2');
+      
+      // Verify main file has been restored
+      expect(mainFile.existsSync(), isTrue);
+    });
   });
 }

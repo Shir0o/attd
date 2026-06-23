@@ -66,12 +66,34 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     if (_allFamilies != null) return List<Family>.from(_allFamilies!);
     
     final file = await _file;
-    if (!await file.exists()) return [];
-
-    final content = await file.readAsString();
-    if (content.trim().isEmpty) return [];
+    if (!await file.exists()) {
+      final backupFile = File('${file.path}.bak');
+      if (await backupFile.exists()) {
+        _log.warning('Main families file missing, attempting recovery from backup');
+        try {
+          final backupContent = await backupFile.readAsString();
+          if (backupContent.trim().isNotEmpty) {
+            final decoded = jsonDecode(backupContent);
+            if (decoded is List) {
+              final families = decoded
+                  .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+                  .toList();
+              _allFamilies = families;
+              await backupFile.copy(file.path);
+              return List<Family>.from(families);
+            }
+          }
+        } catch (backupError, backupSt) {
+          _log.error('Failed to recover families from backup file', backupError, backupSt);
+        }
+      }
+      return [];
+    }
 
     try {
+      final content = await file.readAsString();
+      if (content.trim().isEmpty) return [];
+
       final decoded = jsonDecode(content);
       if (decoded is! List) return [];
 
@@ -81,7 +103,27 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       _allFamilies = families;
       return List<Family>.from(families);
     } catch (e, st) {
-      _log.error('Error loading raw families', e, st);
+      _log.error('Error loading raw families, attempting recovery from backup', e, st);
+      final backupFile = File('${file.path}.bak');
+      if (await backupFile.exists()) {
+        try {
+          final backupContent = await backupFile.readAsString();
+          if (backupContent.trim().isNotEmpty) {
+            final decoded = jsonDecode(backupContent);
+            if (decoded is List) {
+              final families = decoded
+                  .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+                  .toList();
+              _allFamilies = families;
+              await backupFile.copy(file.path);
+              _log.info('Successfully recovered families from backup');
+              return List<Family>.from(families);
+            }
+          }
+        } catch (backupError, backupSt) {
+          _log.error('Failed to recover families from backup file', backupError, backupSt);
+        }
+      }
       return [];
     }
   }

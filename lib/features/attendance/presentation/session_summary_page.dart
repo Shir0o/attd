@@ -440,8 +440,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       ),
     );
 
-    if (newName == null || newName.isEmpty || newName == member.displayName)
+    if (newName == null || newName.isEmpty || newName == member.displayName) {
       return;
+    }
 
     final updatedRecords = _currentSession.records.map((r) {
       final matchesById = !isVisitor && r.memberId == member.id;

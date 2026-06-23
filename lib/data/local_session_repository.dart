@@ -214,7 +214,24 @@ class LocalJsonSessionRepository implements SessionRepository {
 
   Future<List<Session>> _loadRawSessions() async {
     final file = await _storageFile;
-    if (!await file.exists()) return [];
+    if (!await file.exists()) {
+      final backupFile = File('${file.path}.bak');
+      if (await backupFile.exists()) {
+        _log.warning('Main sessions file missing, attempting recovery from backup');
+        try {
+          final backupContent = await backupFile.readAsString();
+          if (backupContent.isNotEmpty) {
+            final List<dynamic> jsonList = jsonDecode(backupContent);
+            final sessions = jsonList.map((e) => Session.fromJson(e)).toList();
+            await backupFile.copy(file.path);
+            return sessions;
+          }
+        } catch (backupError, backupSt) {
+          _log.error('Failed to recover sessions from backup file', backupError, backupSt);
+        }
+      }
+      return [];
+    }
 
     try {
       final content = await file.readAsString();
@@ -222,7 +239,23 @@ class LocalJsonSessionRepository implements SessionRepository {
       final List<dynamic> jsonList = jsonDecode(content);
       return jsonList.map((e) => Session.fromJson(e)).toList();
     } catch (e, st) {
-      _log.error('Error loading raw sessions', e, st);
+      _log.error('Error loading raw sessions, attempting recovery from backup', e, st);
+      final backupFile = File('${file.path}.bak');
+      if (await backupFile.exists()) {
+        try {
+          final backupContent = await backupFile.readAsString();
+          if (backupContent.isNotEmpty) {
+            final List<dynamic> jsonList = jsonDecode(backupContent);
+            final sessions = jsonList.map((e) => Session.fromJson(e)).toList();
+            // Restore main file from backup
+            await backupFile.copy(file.path);
+            _log.info('Successfully recovered raw sessions from backup');
+            return sessions;
+          }
+        } catch (backupError, backupSt) {
+          _log.error('Failed to recover sessions from backup file', backupError, backupSt);
+        }
+      }
       return [];
     }
   }

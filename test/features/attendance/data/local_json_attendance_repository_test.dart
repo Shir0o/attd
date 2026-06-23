@@ -329,5 +329,65 @@ void main() {
       final source = all.firstWhere((f) => f.id == fam.id);
       expect(source.members.map((m) => m.id), ['m2']);
     });
+
+    test('fetchFamilies recovers from healthy backup file when main file is corrupted', () async {
+      final mainFile = File(dbPath);
+      final backupFile = File('$dbPath.bak');
+
+      // Create a valid backup
+      final now = DateTime.now();
+      final families = [
+        Family(
+          id: 'fam-1',
+          displayName: 'Recovered Family',
+          members: const [],
+          updatedAt: now,
+        )
+      ];
+      await backupFile.writeAsString(jsonEncode(families.map((e) => e.toJson()).toList()));
+
+      // Corrupt the main file
+      await mainFile.writeAsString('{corrupted json');
+
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final loaded = await repo.fetchFamilies();
+
+      expect(loaded.length, 1);
+      expect(loaded.first.displayName, 'Recovered Family');
+
+      // Verify main file has been healed
+      expect(mainFile.existsSync(), isTrue);
+      expect(jsonDecode(mainFile.readAsStringSync()), isList);
+    });
+
+    test('fetchFamilies recovers from healthy backup file when main file is missing', () async {
+      final mainFile = File(dbPath);
+      final backupFile = File('$dbPath.bak');
+
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+
+      // Create a valid backup
+      final now = DateTime.now();
+      final families = [
+        Family(
+          id: 'fam-2',
+          displayName: 'Recovered Family 2',
+          members: const [],
+          updatedAt: now,
+        )
+      ];
+      await backupFile.writeAsString(jsonEncode(families.map((e) => e.toJson()).toList()));
+
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final loaded = await repo.fetchFamilies();
+
+      expect(loaded.length, 1);
+      expect(loaded.first.displayName, 'Recovered Family 2');
+
+      // Verify main file has been restored
+      expect(mainFile.existsSync(), isTrue);
+    });
   });
 }
