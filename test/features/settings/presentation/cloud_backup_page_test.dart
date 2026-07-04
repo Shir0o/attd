@@ -12,16 +12,17 @@ Widget _wrap(Widget child) => MaterialApp(home: child);
 void main() {
   testWidgets('shows empty cloud backup state', (tester) async {
     final service = _MockDriveService();
-    when(service.listCloudBackups).thenAnswer((_) async => []);
+    when(() => service.listCloudBackups()).thenAnswer((_) async => []);
+    when(() => service.lastSyncTime).thenReturn(null);
 
     await tester.pumpWidget(
       _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Cloud Version History'), findsOneWidget);
+    expect(find.text('VERSION HISTORY'), findsOneWidget);
     expect(find.text('No Cloud Backups'), findsOneWidget);
-    verify(service.listCloudBackups).called(1);
+    verify(() => service.listCloudBackups()).called(1);
   });
 
   testWidgets('lists backups and restores confirmed backup', (tester) async {
@@ -30,7 +31,8 @@ void main() {
       ..id = 'backup-1'
       ..createdTime = DateTime(2025, 2, 3, 14, 30);
 
-    when(service.listCloudBackups).thenAnswer((_) async => [backup]);
+    when(() => service.listCloudBackups()).thenAnswer((_) async => [backup]);
+    when(() => service.lastSyncTime).thenReturn(null);
     when(
       () => service.restoreFromBackup(
         'backup-1',
@@ -43,8 +45,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Monday, Feb 3'), findsOneWidget);
-    expect(find.text('Saved at 2:30 PM'), findsOneWidget);
+    expect(find.textContaining('Feb 3 · 14:30'), findsOneWidget);
 
     await tester.tap(find.text('Restore'));
     await tester.pumpAndSettle();
@@ -67,7 +68,8 @@ void main() {
     final backup = drive.File()
       ..id = 'backup-1'
       ..createdTime = DateTime(2025, 2, 3, 14, 30);
-    when(service.listCloudBackups).thenAnswer((_) async => [backup]);
+    when(() => service.listCloudBackups()).thenAnswer((_) async => [backup]);
+    when(() => service.lastSyncTime).thenReturn(null);
 
     await tester.pumpWidget(
       _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
@@ -90,7 +92,8 @@ void main() {
     final backup = drive.File()
       ..id = 'backup-1'
       ..createdTime = DateTime(2025, 2, 3, 14, 30);
-    when(service.listCloudBackups).thenAnswer((_) async => [backup]);
+    when(() => service.listCloudBackups()).thenAnswer((_) async => [backup]);
+    when(() => service.lastSyncTime).thenReturn(null);
     when(() => service.restoreFromBackup(any(),
             backupDateLabel: any(named: 'backupDateLabel')))
         .thenThrow(Exception('network unavailable'));
@@ -111,13 +114,14 @@ void main() {
   testWidgets('shows load failure and retries', (tester) async {
     final service = _MockDriveService();
     var calls = 0;
-    when(service.listCloudBackups).thenAnswer((_) async {
+    when(() => service.listCloudBackups()).thenAnswer((_) async {
       calls++;
       if (calls == 1) {
         throw Exception('offline');
       }
       return [];
     });
+    when(() => service.lastSyncTime).thenReturn(null);
 
     await tester.pumpWidget(
       _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
@@ -132,5 +136,110 @@ void main() {
 
     expect(find.text('No Cloud Backups'), findsOneWidget);
     expect(calls, 2);
+  });
+
+  testWidgets('shows current badge and hides restore button when in sync',
+      (tester) async {
+    final service = _MockDriveService();
+    final backup = drive.File()
+      ..id = 'backup-1'
+      ..createdTime = DateTime.now().subtract(const Duration(minutes: 5));
+
+    when(() => service.listCloudBackups()).thenAnswer((_) async => [backup]);
+    when(() => service.lastSyncTime).thenReturn(DateTime.now());
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Current'), findsOneWidget);
+    expect(find.text('Restore'), findsNothing);
+  });
+
+  testWidgets('Overwrite Cloud success and error', (tester) async {
+    final service = _MockDriveService();
+    when(() => service.listCloudBackups()).thenAnswer((_) async => []);
+    when(() => service.lastSyncTime).thenReturn(null);
+    when(() => service.overwriteCloudWithLocal()).thenAnswer((_) async {});
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify buttons are rendered
+    expect(find.text('Overwrite cloud'), findsOneWidget);
+    expect(find.text('Overwrite local'), findsOneWidget);
+
+    // Tap Overwrite cloud
+    await tester.tap(find.text('Overwrite cloud'));
+    await tester.pumpAndSettle();
+    expect(find.text('Overwrite Cloud Data?'), findsOneWidget);
+
+    // Cancel first
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    verifyNever(() => service.overwriteCloudWithLocal());
+
+    // Tap Overwrite cloud again and confirm
+    await tester.tap(find.text('Overwrite cloud'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
+    await tester.pumpAndSettle();
+    verify(() => service.overwriteCloudWithLocal()).called(1);
+    expect(find.text('Cloud data overwritten'), findsOneWidget);
+
+    // Error path
+    when(() => service.overwriteCloudWithLocal()).thenThrow(Exception('overwrite failed'));
+    ScaffoldMessenger.of(tester.element(find.byType(CloudBackupPage))).hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Overwrite cloud'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Error: Exception: overwrite failed'), findsOneWidget);
+  });
+
+  testWidgets('Overwrite Local success and error', (tester) async {
+    final service = _MockDriveService();
+    when(() => service.listCloudBackups()).thenAnswer((_) async => []);
+    when(() => service.lastSyncTime).thenReturn(null);
+    when(() => service.overwriteLocalWithCloud()).thenAnswer((_) async {});
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Overwrite local
+    await tester.tap(find.text('Overwrite local'));
+    await tester.pumpAndSettle();
+    expect(find.text('Overwrite Local Data?'), findsOneWidget);
+
+    // Cancel first
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    verifyNever(() => service.overwriteLocalWithCloud());
+
+    // Tap Overwrite local again and confirm
+    await tester.tap(find.text('Overwrite local'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
+    await tester.pumpAndSettle();
+    verify(() => service.overwriteLocalWithCloud()).called(1);
+    expect(find.text('Local data overwritten'), findsOneWidget);
+
+    // Error path
+    when(() => service.overwriteLocalWithCloud()).thenThrow(Exception('overwrite failed'));
+    ScaffoldMessenger.of(tester.element(find.byType(CloudBackupPage))).hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Overwrite local'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Error: Exception: overwrite failed'), findsOneWidget);
   });
 }

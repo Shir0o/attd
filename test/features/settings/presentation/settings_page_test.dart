@@ -660,88 +660,6 @@ void main() {
     expect(find.textContaining('Sync failed:'), findsOneWidget);
   });
 
-  testWidgets('Overwrite Cloud success and error', (tester) async {
-    final driveService = FakeDriveService();
-    await tester.pumpWidget(
-      _settingsPage(
-        themeController: themeController,
-        driveService: driveService,
-      ),
-    );
-    await tester.pumpAndSettle();
-    await signInAndSettle(tester);
-
-    await tester.dragUntilVisible(
-      find.text('Overwrite Cloud'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    await tester.tap(find.text('Overwrite Cloud'));
-    await tester.pumpAndSettle();
-    expect(find.text('Overwrite Cloud Data?'), findsOneWidget);
-
-    // Cancel first to cover that branch.
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-    await tester.pumpAndSettle();
-    expect(driveService.overwriteCloudCalled, isFalse);
-
-    // Confirm now.
-    await tester.tap(find.text('Overwrite Cloud'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
-    await tester.pumpAndSettle();
-    expect(driveService.overwriteCloudCalled, isTrue);
-    expect(find.text('Cloud data overwritten'), findsOneWidget);
-
-    // Error path.
-    driveService.throwOnOverwriteCloud = true;
-    ScaffoldMessenger.of(tester.element(find.byType(SettingsPage)))
-        .hideCurrentSnackBar();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Overwrite Cloud'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Error:'), findsOneWidget);
-  });
-
-  testWidgets('Overwrite Local success and error', (tester) async {
-    final driveService = FakeDriveService();
-    await tester.pumpWidget(
-      _settingsPage(
-        themeController: themeController,
-        driveService: driveService,
-      ),
-    );
-    await tester.pumpAndSettle();
-    await signInAndSettle(tester);
-
-    await tester.dragUntilVisible(
-      find.text('Overwrite Local'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    await tester.ensureVisible(find.text('Overwrite Local'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Overwrite Local'));
-    await tester.pumpAndSettle();
-    expect(find.text('Overwrite Local Data?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
-    await tester.pumpAndSettle();
-    expect(driveService.overwriteLocalCalled, isTrue);
-    expect(find.text('Local data overwritten'), findsOneWidget);
-
-    driveService.throwOnOverwriteLocal = true;
-    ScaffoldMessenger.of(tester.element(find.byType(SettingsPage)))
-        .hideCurrentSnackBar();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Overwrite Local'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Error:'), findsOneWidget);
-  });
-
   testWidgets('Privacy Policy bottom sheet opens', (tester) async {
     await tester.pumpWidget(_settingsPage(themeController: themeController));
     await tester.pumpAndSettle();
@@ -760,7 +678,7 @@ void main() {
     expect(find.text('Anonymized Error Reporting'), findsOneWidget);
   });
 
-  testWidgets('Cloud Version History tile navigates', (tester) async {
+  testWidgets('Version History tile navigates', (tester) async {
     final driveService = FakeDriveService();
     final observer = _PushCountObserver();
     await tester.pumpWidget(
@@ -781,11 +699,11 @@ void main() {
     observer.pushes = 0;
 
     await tester.dragUntilVisible(
-      find.text('Cloud Version History'),
+      find.text('Version history'),
       find.byType(ListView),
       const Offset(0, -200),
     );
-    await tester.tap(find.text('Cloud Version History'));
+    await tester.tap(find.text('Version history'));
     await tester.pump();
     expect(observer.pushes >= 1, isTrue);
     // Let CloudBackupPage finish its initial-load delay (800ms).
