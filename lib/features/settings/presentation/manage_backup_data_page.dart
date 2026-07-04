@@ -1077,15 +1077,18 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           borderRadius: BorderRadius.circular(14),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: List.generate(
-            4,
-            (index) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: AppShimmer(
-                width: 70 + (index * 10).toDouble(),
-                height: 32,
-                borderRadius: BorderRadius.circular(999),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(
+              4,
+              (index) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: AppShimmer(
+                  width: 70 + (index * 10).toDouble(),
+                  height: 32,
+                  borderRadius: BorderRadius.circular(999),
+                ),
               ),
             ),
           ),
