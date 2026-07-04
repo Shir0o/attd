@@ -81,7 +81,7 @@ class SettingsRobot {
   Future<void> verifyOnManageBackupDataPage() async {
     print('DEBUG: verifyOnManageBackupDataPage');
     await tester.pumpUntilFound(find.byType(ManageBackupDataPage));
-    await tester.pumpUntilFound(find.text('BACKUP SUMMARY'));
+    await tester.pumpUntilFound(find.text('Storage inspector'));
   }
 
   Future<void> verifyRecordCount(int expectedTotal) async {
@@ -118,24 +118,36 @@ class SettingsRobot {
   Future<void> deleteBackupRecord(String title) async {
     print('DEBUG: deleteBackupRecord($title)');
     
-    final finder = find.byWidgetPredicate((widget) => 
-      widget is IconButton && 
-      widget.key is ValueKey<String> && 
-      (widget.key as ValueKey<String>).value.startsWith('delete_$title')
-    ).first;
+    // Tap the record row to expand it
+    final rowFinder = find.text(title);
+    await tester.tap(rowFinder);
+    await tester.pumpAndSettle();
 
-    await tester.ensureVisible(finder);
+    // Scroll if needed to ensure the delete button is visible
+    final deleteButton = find.text('Delete record');
+    await tester.ensureVisible(deleteButton);
     await tester.pumpAndSettle();
-    await tester.tap(finder);
+    await tester.tap(deleteButton);
     await tester.pumpAndSettle();
+
+    // If Historical Data Alert is shown, confirm it
+    final continueBtn = find.text('Continue');
+    if (continueBtn.evaluate().isNotEmpty) {
+      await tester.tap(continueBtn);
+      await tester.pumpAndSettle();
+    }
   }
 
   Future<void> saveCleanedBackup() async {
     print('DEBUG: saveCleanedBackup');
-    final button = find.byKey(const ValueKey('save_cleaned_backup_button'));
-    await tester.ensureVisible(button);
+    // In the new UI, individual deletes are immediate. We just press the back button to return to Settings.
+    final backButton = find.byIcon(Icons.arrow_back);
+    if (backButton.evaluate().isNotEmpty) {
+      await tester.tap(backButton);
+    } else {
+      await tester.tap(find.byType(BackButton));
+    }
     await tester.pumpAndSettle();
-    await tester.tap(button);
     await tester.pumpUntilAbsent(find.byType(ManageBackupDataPage));
   }
 }

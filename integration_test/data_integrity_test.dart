@@ -111,24 +111,24 @@ void main() {
       await settings.verifyOnManageBackupDataPage();
       await tester.takeScreenshot(binding, 'data_08_manage_backup_data');
       
-      // 1 Event + 2 Members (one was deleted) + 1 Session = 4.
-      await settings.verifyRecordCount(4); 
+      // 1 Event + 2 Members (one was deleted) + 2 Families + 1 Session + 1 Attendance Record = 7.
+      await settings.verifyRecordCount(7); 
 
       await settings.searchBackup('Test');
       await settings.verifyEventListed('Test Event');
       await tester.takeScreenshot(binding, 'data_09_backup_search');
       
-      // Cleanup: Delete the session from backup
+      // Cleanup: Delete the soft-deleted member from backup
       print('DEBUG: Deleting record from backup');
-      await settings.deleteBackupRecord('Test Event'); // Deletes the session
+      await settings.deleteBackupRecord('John Doe'); // Deletes the soft-deleted member John Doe
       await tester.takeScreenshot(binding, 'data_10_after_delete_backup_record');
       ScaffoldMessenger.maybeOf(tester.element(find.byType(MaterialApp).first))?.clearSnackBars();
       await tester.pump(const Duration(milliseconds: 500));
 
       await tester.pumpAndSettle(const Duration(seconds: 1));
       
-      // Verify record count reduced: 4 -> 3 (pending deletion)
-      await settings.verifyRecordCount(3); 
+      // Verify record count reduced: 7 -> 6
+      await settings.verifyRecordCount(6); 
 
       await settings.saveCleanedBackup();
       
