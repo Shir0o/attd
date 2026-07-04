@@ -806,37 +806,40 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '${results.length} ',
-                                  style: TextStyle(
-                                    color: c.ink,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: results.length == 1 ? 'record' : 'records',
-                                  style: TextStyle(color: c.ink3),
-                                ),
-                                if (issueTotal > 0) ...[
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
                                   TextSpan(
-                                    text: ' · ',
-                                    style: TextStyle(color: c.ink3),
-                                  ),
-                                  TextSpan(
-                                    text: '$issueTotal flagged',
+                                    text: '${results.length} ',
                                     style: TextStyle(
-                                      color: c.absent,
-                                      fontWeight: FontWeight.w500,
+                                      color: c.ink,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                                  TextSpan(
+                                    text: results.length == 1 ? 'record' : 'records',
+                                    style: TextStyle(color: c.ink3),
+                                  ),
+                                  if (issueTotal > 0) ...[
+                                    TextSpan(
+                                      text: ' · ',
+                                      style: TextStyle(color: c.ink3),
+                                    ),
+                                    TextSpan(
+                                      text: '$issueTotal flagged',
+                                      style: TextStyle(
+                                        color: c.absent,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
+                              style: const TextStyle(fontSize: 12),
                             ),
-                            style: const TextStyle(fontSize: 12),
                           ),
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () {
                               setState(() {
@@ -845,7 +848,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: _issuesOnly
                                     ? c.absent.withValues(alpha: 0.14)
@@ -862,14 +865,14 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Container(
-                                    width: 7,
-                                    height: 7,
+                                    width: 6,
+                                    height: 6,
                                     decoration: BoxDecoration(
                                       color: _issuesOnly ? c.absent : c.ink3,
                                       shape: BoxShape.circle,
                                     ),
                                   ),
-                                  const SizedBox(width: 7),
+                                  const SizedBox(width: 5),
                                   Text(
                                     'Only issues',
                                     style: TextStyle(

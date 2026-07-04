@@ -111,8 +111,8 @@ void main() {
       await settings.verifyOnManageBackupDataPage();
       await tester.takeScreenshot(binding, 'data_08_manage_backup_data');
       
-      // 1 Event + 2 Members (one was deleted) + 2 Families + 1 Session + 1 Attendance Record = 7.
-      await settings.verifyRecordCount(7); 
+      // 1 Event + 3 Members (one was deleted) + 3 Families + 1 Session + 1 Attendance Record = 9.
+      await settings.verifyRecordCount(9); 
 
       await settings.searchBackup('Test');
       await settings.verifyEventListed('Test Event');
@@ -127,8 +127,8 @@ void main() {
 
       await tester.pumpAndSettle(const Duration(seconds: 1));
       
-      // Verify record count reduced: 7 -> 6
-      await settings.verifyRecordCount(6); 
+      // Verify record count reduced: 9 -> 8
+      await settings.verifyRecordCount(8); 
 
       await settings.saveCleanedBackup();
       
