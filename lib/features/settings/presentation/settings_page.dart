@@ -478,9 +478,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         if (isSignedIn) ...[
                           _SettingRow(
                             icon: Icons.history,
-                            title: 'Cloud Version History',
+                            title: 'Version history',
                             subtitle:
-                                'View and restore previous cloud snapshots',
+                                'Restore a snapshot · overwrite local or cloud',
                             onTap: () async {
                               await Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -491,86 +491,6 @@ class _SettingsPageState extends State<SettingsPage> {
                               );
                               _markDataModified();
                             },
-                          ),
-                          _SettingRow(
-                            icon: Icons.upload_file,
-                            title: 'Overwrite Cloud',
-                            subtitle: 'Upload local data to Google Drive',
-                            onTap: isSyncing || _isOperating
-                                ? null
-                                : () async {
-                                    final confirmed = await _showConfirmDialog(
-                                      context,
-                                      title: 'Overwrite Cloud Data?',
-                                      message:
-                                          'This will replace all data on your Google Drive with the data currently on this device.',
-                                      confirmLabel: 'Overwrite',
-                                    );
-                                    if (confirmed == true) {
-                                      final messenger =
-                                          ScaffoldMessenger.of(context);
-                                      await _performOperation(() async {
-                                        try {
-                                          await widget.driveService
-                                              .overwriteCloudWithLocal();
-                                          _markDataModified();
-                                          messenger.showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Cloud data overwritten',
-                                              ),
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text('Error: $e'),
-                                            ),
-                                          );
-                                        }
-                                      });
-                                    }
-                                  },
-                          ),
-                          _SettingRow(
-                            icon: Icons.download_for_offline,
-                            title: 'Overwrite Local',
-                            subtitle: 'Replace local data with cloud backup',
-                            onTap: isSyncing || _isOperating
-                                ? null
-                                : () async {
-                                    final confirmed = await _showConfirmDialog(
-                                      context,
-                                      title: 'Overwrite Local Data?',
-                                      message:
-                                          'This will replace all data on this device with the data from your Google Drive.',
-                                      confirmLabel: 'Overwrite',
-                                    );
-                                    if (confirmed == true) {
-                                      final messenger =
-                                          ScaffoldMessenger.of(context);
-                                      await _performOperation(() async {
-                                        try {
-                                          await widget.driveService
-                                              .overwriteLocalWithCloud();
-                                          _markDataModified();
-                                          messenger.showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Local data overwritten',
-                                              ),
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text('Error: $e'),
-                                            ),
-                                          );
-                                        }
-                                      });
-                                    }
-                                  },
                           ),
                         ],
                       ],
