@@ -558,7 +558,7 @@ void main() {
     await tester.tap(find.text('Manage Backup Data'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Local Records Snapshot'), findsOneWidget);
+    expect(find.text('Storage inspector'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();

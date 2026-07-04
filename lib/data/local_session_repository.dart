@@ -353,6 +353,16 @@ class LocalJsonSessionRepository implements SessionRepository {
     return sessions;
   }
 
+  Future<List<Session>> fetchAllSessions() async {
+    return _loadRawSessions();
+  }
+
+  Future<void> saveSessions(List<Session> sessions) async {
+    await _saveToFile(sessions);
+    await refresh();
+  }
+
+
   @override
   Future<Session?> findSessionById(String id) async {
     if (_sessionsCache != null) {
