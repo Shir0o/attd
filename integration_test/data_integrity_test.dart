@@ -121,24 +121,25 @@ void main() {
       }).where((t) => t.isNotEmpty).toList();
       print('DEBUG: TEXTS ON SCREEN: $texts');
 
-      // 1 Event + 3 Members (one was deleted) + 3 Families + 1 Session + 1 Attendance Record = 9.
-      await settings.verifyRecordCount(9); 
+      // 1 Event + 3 Members (one soft-deleted) + 3 Families + 1 Session + 3 Attendance Records = 11.
+      await settings.verifyRecordCount(11); 
 
       await settings.searchBackup('Test');
       await settings.verifyEventListed('Test Event');
       await tester.takeScreenshot(binding, 'data_09_backup_search');
       
-      // Cleanup: Delete the soft-deleted member from backup
+      // Cleanup: Delete the soft-deleted member from backup.
+      // Use 'HIDDEN' to uniquely match the badge of the soft-deleted John Doe member (to avoid name ambiguity).
       print('DEBUG: Deleting record from backup');
-      await settings.deleteBackupRecord('John Doe'); // Deletes the soft-deleted member John Doe
+      await settings.deleteBackupRecord('HIDDEN');
       await tester.takeScreenshot(binding, 'data_10_after_delete_backup_record');
       ScaffoldMessenger.maybeOf(tester.element(find.byType(MaterialApp).first))?.clearSnackBars();
       await tester.pump(const Duration(milliseconds: 500));
 
       await tester.pumpAndSettle(const Duration(seconds: 1));
       
-      // Verify record count reduced: 9 -> 8
-      await settings.verifyRecordCount(8); 
+      // Verify record count reduced: 11 -> 10
+      await settings.verifyRecordCount(10); 
 
       await settings.saveCleanedBackup();
       
