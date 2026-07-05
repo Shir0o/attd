@@ -396,6 +396,59 @@ void main() {
       expect(() => repo.detachMember('m'), throwsA(isA<UnimplementedError>()));
       expect(() => repo.deleteFamily('f'), throwsA(isA<UnimplementedError>()));
     });
+
+    test('fetchAllFamilies works correctly', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final now = DateTime.now();
+      final families = [
+        Family(
+          id: 'fam-x',
+          displayName: 'Test Family',
+          members: const [],
+          updatedAt: now,
+        )
+      ];
+      await repo.saveFamilies(families);
+      final fetched = await repo.fetchAllFamilies();
+      expect(fetched.length, 1);
+      expect(fetched.first.displayName, 'Test Family');
+    });
+
+    test('save error restores from backup', () async {
+      final subDir = Directory('${tempDir.path}/restore_test');
+      await subDir.create(recursive: true);
+      final repo = LocalJsonAttendanceRepository(storagePath: '${subDir.path}/families.json');
+      
+      final now = DateTime.now();
+      final families = [
+        Family(
+          id: 'fam-1',
+          displayName: 'Initial Family',
+          members: const [],
+          updatedAt: now,
+        )
+      ];
+      
+      await repo.saveFamilies(families);
+      await repo.saveFamilies(families); // Second call creates the backup
+
+      final backupFile = File('${subDir.path}/families.json.bak');
+      expect(backupFile.existsSync(), isTrue);
+
+      final mainFile = File('${subDir.path}/families.json');
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+
+      final tempDirVar = Directory('${mainFile.path}.tmp');
+      await tempDirVar.create(recursive: true);
+
+      await repo.saveFamilies(families);
+
+      expect(mainFile.existsSync(), isTrue);
+      // Clean up the directory created at tmp path so it doesn't block other tests
+      await tempDirVar.delete(recursive: true);
+    });
   });
 }
 

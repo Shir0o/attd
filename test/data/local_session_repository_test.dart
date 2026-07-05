@@ -346,5 +346,25 @@ void main() {
       // Verify main file has been restored
       expect(mainFile.existsSync(), isTrue);
     });
+
+    test('fetchAllSessions and saveSessions work correctly', () async {
+      final now = DateTime.now();
+      final sessions = [
+        Session(
+          id: 's-1',
+          title: 'Custom Session',
+          sessionDate: now,
+          records: [],
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Tester',
+          currentVersion: 1,
+        )
+      ];
+      await repository.saveSessions(sessions);
+      final fetched = await repository.fetchAllSessions();
+      expect(fetched.length, 1);
+      expect(fetched.first.title, 'Custom Session');
+    });
   });
 }

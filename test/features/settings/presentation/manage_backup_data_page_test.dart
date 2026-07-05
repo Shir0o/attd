@@ -1,18 +1,18 @@
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
-import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
-import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/settings/presentation/manage_backup_data_page.dart';
+import 'package:attendance_tracker/features/hub/data/local_event_repository.dart';
+import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _AttendanceRepository extends AttendanceRepository {
+class _AttendanceRepository extends LocalJsonAttendanceRepository {
   List<Family> families;
   int saveCount = 0;
   Object? fetchError;
@@ -20,6 +20,7 @@ class _AttendanceRepository extends AttendanceRepository {
 
   _AttendanceRepository(this.families);
 
+  @override
   Future<List<Family>> fetchAllFamilies() async => families;
 
   @override
@@ -55,14 +56,16 @@ class _AttendanceRepository extends AttendanceRepository {
   Stream<List<Family>> streamFamilies() => Stream.value(families);
 }
 
-class _EventRepository implements EventRepository {
+class _EventRepository extends LocalJsonEventRepository {
   List<Event> events;
   int deleteCount = 0;
 
   _EventRepository(this.events);
 
+  @override
   Future<List<Event>> fetchAllEvents() async => events;
 
+  @override
   Future<void> saveEvents(List<Event> events) async {
     this.events = events;
   }
@@ -92,14 +95,16 @@ class _EventRepository implements EventRepository {
   Future<void> updateEvent(Event event) async {}
 }
 
-class _SessionRepository implements SessionRepository {
+class _SessionRepository extends LocalJsonSessionRepository {
   List<Session> sessions;
   int deleteCount = 0;
 
   _SessionRepository(this.sessions);
 
+  @override
   Future<List<Session>> fetchAllSessions() async => sessions;
 
+  @override
   Future<void> saveSessions(List<Session> sessions) async {
     this.sessions = sessions;
   }
@@ -313,6 +318,82 @@ void main() {
     expect(find.text('Storage inspector'), findsOneWidget);
     // All table chips should display '0' counts, so '0' text matches multiple widgets
     expect(find.text('0'), findsAtLeast(1));
+  });
+
+  testWidgets('deletes individual attendance record', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final member = Member(
+      id: 'member-1234',
+      displayName: 'Alice Member',
+      updatedAt: now,
+      deletedAt: now, // soft-deleted
+    );
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Alpha Family',
+        members: [member],
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-1',
+        title: 'Sunday Session',
+        eventId: 'event-1', // active
+        sessionDate: now,
+        records: [
+          SessionRecord(
+            memberId: member.id,
+            attendee: member.displayName,
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Toggle "Only issues" filter (the attendance record is an issue because the member is soft-deleted)
+    await tester.tap(find.text('Only issues'));
+    await tester.pumpAndSettle();
+
+    // Scroll card into view
+    await tester.drag(find.byType(ListView), const Offset(0, -200));
+    await tester.pumpAndSettle();
+
+    // Verify it is shown
+    expect(find.text('mark · present'), findsOneWidget);
+
+    // Expand card
+    await tester.tap(find.text('mark · present'));
+    await tester.pumpAndSettle();
+
+    // Tap delete button for the attendance mark
+    final deleteBtn = find.byKey(const ValueKey('delete_btn_session-1_member-1234'));
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(deleteBtn);
+    await tester.pumpAndSettle();
+
+    // Verify the record is deleted from session repository (it should have saved a session without the record)
+    expect(sessions.sessions.single.records, isEmpty);
   });
 }
 
