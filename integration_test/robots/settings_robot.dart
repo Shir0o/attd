@@ -109,9 +109,9 @@ class SettingsRobot {
   Future<void> searchBackup(String query) async {
     print('DEBUG: searchBackup($query)');
     final textField = find.byType(TextField);
+    await tester.tap(textField);
+    await tester.pumpAndSettle();
     await tester.enterText(textField, query);
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
   }
 
