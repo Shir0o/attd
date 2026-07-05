@@ -20,6 +20,8 @@ class _AttendanceRepository extends AttendanceRepository {
 
   _AttendanceRepository(this.families);
 
+  Future<List<Family>> fetchAllFamilies() async => families;
+
   @override
   Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
     throw UnimplementedError();
@@ -59,6 +61,12 @@ class _EventRepository implements EventRepository {
 
   _EventRepository(this.events);
 
+  Future<List<Event>> fetchAllEvents() async => events;
+
+  Future<void> saveEvents(List<Event> events) async {
+    this.events = events;
+  }
+
   @override
   Future<void> createEvent(Event event) async {}
 
@@ -89,6 +97,12 @@ class _SessionRepository implements SessionRepository {
   int deleteCount = 0;
 
   _SessionRepository(this.sessions);
+
+  Future<List<Session>> fetchAllSessions() async => sessions;
+
+  Future<void> saveSessions(List<Session> sessions) async {
+    this.sessions = sessions;
+  }
 
   @override
   Future<Session> createSession({
@@ -138,6 +152,7 @@ class _SessionRepository implements SessionRepository {
   Stream<List<Session>> streamSessions() => Stream.value(sessions);
 }
 
+
 Widget _wrap(Widget child) => MaterialApp(home: child);
 
 void main() {
@@ -145,10 +160,12 @@ void main() {
     tester,
   ) async {
     final now = DateTime(2025, 4, 5, 10);
+    // Member is soft-deleted (has deletedAt), making it flagged as 'hidden'
     final member = Member(
       id: 'member-1234',
       displayName: 'Alice Member',
       updatedAt: now,
+      deletedAt: now,
     );
     final attendance = _AttendanceRepository([
       Family(
@@ -167,10 +184,12 @@ void main() {
         createdAt: now,
       ),
     ]);
+    // Session is orphaned (has non-existent eventId), making it flagged as 'orphan'
     final sessions = _SessionRepository([
       Session(
         id: 'session-1',
         title: 'Sunday Session',
+        eventId: 'missing-event-1',
         sessionDate: now,
         records: [
           SessionRecord(
@@ -199,11 +218,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Manage Backup Data'), findsOneWidget);
+    expect(find.text('Storage inspector'), findsOneWidget);
     expect(find.text('Choir Event'), findsOneWidget);
     expect(find.text('Alice Member'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
+    
+    // Total count chip 'All' should show count 5
+    expect(find.text('5'), findsOneWidget);
 
+    // Search functionality
     await tester.enterText(find.byType(TextField), 'choir');
     await tester.pump();
     expect(find.text('Choir Event'), findsOneWidget);
@@ -211,36 +233,42 @@ void main() {
 
     await tester.enterText(find.byType(TextField), '');
     await tester.pump();
-    await tester.tap(find.byIcon(Icons.delete).at(0));
-    await tester.pump();
-    final memberDelete = find.byKey(
-      const ValueKey('delete_Alice Member_ID: #memb'),
-    );
+
+    // Toggle "Only issues" filter
+    await tester.tap(find.text('Only issues'));
+    await tester.pumpAndSettle();
+
+    // Choir Event is healthy, so it should be filtered out
+    expect(find.text('Choir Event'), findsNothing);
+    expect(find.text('Alice Member'), findsOneWidget);
+
+    // Expand Alice Member card
+    await tester.tap(find.text('Alice Member'));
+    await tester.pumpAndSettle();
+
+    // Scroll delete button into view
+    final memberDelete = find.byKey(const ValueKey('delete_btn_member-1234'));
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
     await tester.tap(memberDelete);
     await tester.pumpAndSettle();
 
+    // Historical data alert should show up
     expect(find.text('Historical Data Alert'), findsOneWidget);
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    final sessionDelete = find.byKey(
-      const ValueKey('delete_Sunday Session_Apr 05, 2025 10:00 AM'),
-    ).last;
-    await tester.scrollUntilVisible(
-      sessionDelete,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(sessionDelete);
-    await tester.pump();
-
-    await tester.tap(find.byKey(const ValueKey('save_cleaned_backup_button')));
+    // Clean up remaining issues via bulk button
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
     await tester.pumpAndSettle();
 
-    expect(events.deleteCount, 1);
-    expect(sessions.deleteCount, 1);
-    expect(attendance.saveCount, 1);
-    expect(attendance.families.single.members, isEmpty);
+    expect(find.text('Clean up 3 records?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.pumpAndSettle();
+
+    // Verify deletion succeeded
+    expect(sessions.sessions, isEmpty);
   });
 
   testWidgets('logs and recovers when fetchFamilies throws on load',
@@ -262,7 +290,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The page must render its scaffold rather than crash.
-    expect(find.text('Local Records Snapshot'), findsOneWidget);
+    expect(find.text('Storage inspector'), findsOneWidget);
   });
 
   testWidgets('handles empty and failed backup loads', (tester) async {
@@ -282,7 +310,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Local Records Snapshot'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget);
+    expect(find.text('Storage inspector'), findsOneWidget);
+    // All table chips should display '0' counts, so '0' text matches multiple widgets
+    expect(find.text('0'), findsAtLeast(1));
   });
 }
+

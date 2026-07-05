@@ -174,6 +174,10 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     return List<Family>.from(visible);
   }
 
+  Future<List<Family>> fetchAllFamilies() async {
+    return _loadRawFamilies();
+  }
+
   @override
   Future<void> saveFamilies(List<Family> families) async {
     _allFamilies = families;
