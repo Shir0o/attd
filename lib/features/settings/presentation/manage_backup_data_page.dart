@@ -681,7 +681,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       if (_selectedTable != 'all' && r.table != _selectedTable) return false;
       if (_issuesOnly && r.flag == null) return false;
       if (ql.isEmpty) return true;
-      final hay = [r.id, r.table, r.title, r.meta, ...r.fields.values].join(' ').toLowerCase();
+      final hay = [r.id, r.table, r.title, r.meta, r.flag ?? '', ...r.fields.values].join(' ').toLowerCase();
       return hay.contains(ql);
     }).toList();
 
@@ -699,306 +699,312 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       ),
       body: _isLoading
           ? _buildSkeleton(context)
-          : Stack(
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ListView(
-                  padding: EdgeInsets.only(
-                    top: 8,
-                    bottom: issueTotal > 0 ? 120 : 32,
-                  ),
-                  children: [
-                    // Header title & subtitle
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Storage inspector',
-                            style: AppTypography.fraunces(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w500,
-                              color: c.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Every record in the on-device database — including rows the app doesn\'t display. Search to find something you saw in an export but not in the app.',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: c.ink3,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Search field
-                          Container(
-                            decoration: BoxDecoration(
-                              color: c.cardSoft,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
-                              children: [
-                                Icon(Icons.search, color: c.ink3, size: 20),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchController,
-                                    style: TextStyle(color: c.ink, fontSize: 14),
-                                    decoration: InputDecoration(
-                                      hintText: 'Search records, ids, fields…',
-                                      hintStyle: TextStyle(color: c.ink3),
-                                      border: InputBorder.none,
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                                    ),
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _searchQuery = val;
-                                      });
-                                    },
-                                  ),
-                                ),
-                                if (_searchQuery.isNotEmpty)
-                                  GestureDetector(
-                                    onTap: () {
-                                      _searchController.clear();
-                                      setState(() {
-                                        _searchQuery = '';
-                                      });
-                                    },
-                                    child: Icon(Icons.close, color: c.ink3, size: 18),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
+                // Header title & subtitle
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Storage inspector',
+                        style: AppTypography.fraunces(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
                       ),
-                    ),
-
-                    // Table filter chips row
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                      child: Row(
-                        children: [
-                          _buildTableChip('All', 'all', counts['all'] ?? 0),
-                          const SizedBox(width: 8),
-                          _buildTableChip('Events', 'events', counts['events'] ?? 0),
-                          const SizedBox(width: 8),
-                          _buildTableChip('Sessions', 'sessions', counts['sessions'] ?? 0),
-                          const SizedBox(width: 8),
-                          _buildTableChip('Members', 'members', counts['members'] ?? 0),
-                          const SizedBox(width: 8),
-                          _buildTableChip('Families', 'families', counts['families'] ?? 0),
-                          const SizedBox(width: 8),
-                          _buildTableChip('Photos', 'photos', 0),
-                          const SizedBox(width: 8),
-                          _buildTableChip('Attendance', 'attendance', counts['attendance'] ?? 0),
-                        ],
+                      const SizedBox(height: 10),
+                      Text(
+                        'Every record in the on-device database — including rows the app doesn\'t display. Search to find something you saw in an export but not in the app.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: c.ink3,
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-
-                    // Results counter and Issues toggle
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text.rich(
-                              TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: '${results.length} ',
-                                    style: TextStyle(
-                                      color: c.ink,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: results.length == 1 ? 'record' : 'records',
-                                    style: TextStyle(color: c.ink3),
-                                  ),
-                                  if (issueTotal > 0) ...[
-                                    TextSpan(
-                                      text: ' · ',
-                                      style: TextStyle(color: c.ink3),
-                                    ),
-                                    TextSpan(
-                                      text: '$issueTotal flagged',
-                                      style: TextStyle(
-                                        color: c.absent,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _issuesOnly = !_issuesOnly;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: _issuesOnly
-                                    ? c.absent.withValues(alpha: 0.14)
-                                    : Colors.transparent,
-                                border: Border.all(
-                                  color: _issuesOnly
-                                      ? c.absent.withValues(alpha: 0.4)
-                                      : c.hair,
-                                  width: 1.5,
+                      const SizedBox(height: 16),
+                      // Search field
+                      Container(
+                        decoration: BoxDecoration(
+                          color: c.cardSoft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.search, color: c.ink3, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                style: TextStyle(color: c.ink, fontSize: 14),
+                                decoration: InputDecoration(
+                                  hintText: 'Search records, ids, fields…',
+                                  hintStyle: TextStyle(color: c.ink3),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
                                 ),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: _issuesOnly ? c.absent : c.ink3,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Only issues',
-                                    style: TextStyle(
-                                      color: _issuesOnly ? c.absent : c.ink3,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                                onChanged: (val) {
+                                  setState(() {
+                                    _searchQuery = val;
+                                  });
+                                },
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // Records List
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: results.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 46),
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      width: 52,
-                                      height: 52,
-                                      decoration: BoxDecoration(
-                                        color: c.cardSoft,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Icon(Icons.search, color: c.ink4, size: 24),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Text(
-                                      'No records match',
-                                      style: TextStyle(
-                                        color: c.ink2,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      'Try another table or clear the search.',
-                                      style: TextStyle(color: c.ink3, fontSize: 12.5),
-                                    ),
-                                  ],
-                                ),
+                            if (_searchQuery.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                                child: Icon(Icons.close, color: c.ink3, size: 18),
                               ),
-                            )
-                          : Column(
-                              children: results.map((r) {
-                                return _RecordRow(
-                                  key: ValueKey(r.id),
-                                  record: r,
-                                  isExpanded: _openRecordId == r.id,
-                                  onTap: () {
-                                    setState(() {
-                                      _openRecordId = _openRecordId == r.id ? null : r.id;
-                                    });
-                                  },
-                                  onCopy: () {
-                                    Clipboard.setData(ClipboardData(text: r.id));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Copied ${r.id}'),
-                                        duration: const Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                  onDelete: () => _handleDeleteRecord(r),
-                                );
-                              }).toList(),
-                            ),
-                    ),
-                  ],
-                ),
-                if (issueTotal > 0)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(22, 14, 22, 26),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            c.bg,
-                            c.bg,
-                            c.bg.withValues(alpha: 0.0),
                           ],
-                          stops: const [0.0, 0.62, 1.0],
                         ),
                       ),
-                      child: TextButton.icon(
-                        key: const ValueKey('cleanup_flagged_records_button'),
-                        onPressed: () => _showCleanupConfirmation(issueTotal),
-                        icon: Icon(Icons.cleaning_services, color: c.absent),
-                        label: Text(
-                          'Clean up $issueTotal flagged records',
-                          style: TextStyle(
-                            color: c.absent,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                    ],
+                  ),
+                ),
+
+                // Table filter chips row
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                  child: Row(
+                    children: [
+                      _buildTableChip('All', 'all', counts['all'] ?? 0),
+                      const SizedBox(width: 8),
+                      _buildTableChip('Events', 'events', counts['events'] ?? 0),
+                      const SizedBox(width: 8),
+                      _buildTableChip('Sessions', 'sessions', counts['sessions'] ?? 0),
+                      const SizedBox(width: 8),
+                      _buildTableChip('Members', 'members', counts['members'] ?? 0),
+                      const SizedBox(width: 8),
+                      _buildTableChip('Families', 'families', counts['families'] ?? 0),
+                      const SizedBox(width: 8),
+                      _buildTableChip('Photos', 'photos', 0),
+                      const SizedBox(width: 8),
+                      _buildTableChip('Attendance', 'attendance', counts['attendance'] ?? 0),
+                    ],
+                  ),
+                ),
+
+                // Results counter and Issues toggle
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${results.length} ',
+                                style: TextStyle(
+                                  color: c.ink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              TextSpan(
+                                text: results.length == 1 ? 'record' : 'records',
+                                style: TextStyle(color: c.ink3),
+                              ),
+                              if (issueTotal > 0) ...[
+                                TextSpan(
+                                  text: ' · ',
+                                  style: TextStyle(color: c.ink3),
+                                ),
+                                TextSpan(
+                                  text: '$issueTotal flagged',
+                                  style: TextStyle(
+                                    color: c.absent,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
+                          style: const TextStyle(fontSize: 12),
                         ),
-                        style: TextButton.styleFrom(
-                          backgroundColor: c.absent.withValues(alpha: 0.12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            side: BorderSide(
-                              color: c.absent.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _issuesOnly = !_issuesOnly;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: _issuesOnly
+                                ? c.absent.withValues(alpha: 0.14)
+                                : Colors.transparent,
+                            border: Border.all(
+                              color: _issuesOnly
+                                  ? c.absent.withValues(alpha: 0.4)
+                                  : c.hair,
                               width: 1.5,
                             ),
+                            borderRadius: BorderRadius.circular(999),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: _issuesOnly ? c.absent : c.ink3,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Only issues',
+                                style: TextStyle(
+                                  color: _issuesOnly ? c.absent : c.ink3,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                ),
+
+                const SizedBox(height: 4),
+
+                // Records List
+                Expanded(
+                  child: Stack(
+                    children: [
+                      ListView(
+                        padding: EdgeInsets.fromLTRB(
+                          22,
+                          0,
+                          22,
+                          issueTotal > 0 ? 120 : 32,
+                        ),
+                        children: [
+                          results.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 46),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 52,
+                                          height: 52,
+                                          decoration: BoxDecoration(
+                                            color: c.cardSoft,
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: Icon(Icons.search, color: c.ink4, size: 24),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Text(
+                                          'No records match',
+                                          style: TextStyle(
+                                            color: c.ink2,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          'Try another table or clear the search.',
+                                          style: TextStyle(color: c.ink3, fontSize: 12.5),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  children: results.map((r) {
+                                    return _RecordRow(
+                                      key: ValueKey(r.id),
+                                      record: r,
+                                      isExpanded: _openRecordId == r.id,
+                                      onTap: () {
+                                        setState(() {
+                                          _openRecordId = _openRecordId == r.id ? null : r.id;
+                                        });
+                                      },
+                                      onCopy: () {
+                                        Clipboard.setData(ClipboardData(text: r.id));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Copied ${r.id}'),
+                                            duration: const Duration(seconds: 1),
+                                          ),
+                                        );
+                                      },
+                                      onDelete: () => _handleDeleteRecord(r),
+                                    );
+                                  }).toList(),
+                                ),
+                        ],
+                      ),
+                      if (issueTotal > 0)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(22, 14, 22, 26),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  c.bg,
+                                  c.bg,
+                                  c.bg.withValues(alpha: 0.0),
+                                ],
+                                stops: const [0.0, 0.62, 1.0],
+                              ),
+                            ),
+                            child: TextButton.icon(
+                              key: const ValueKey('cleanup_flagged_records_button'),
+                              onPressed: () => _showCleanupConfirmation(issueTotal),
+                              icon: Icon(Icons.cleaning_services, color: c.absent),
+                              label: Text(
+                                'Clean up $issueTotal flagged records',
+                                style: TextStyle(
+                                  color: c.absent,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                backgroundColor: c.absent.withValues(alpha: 0.12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  side: BorderSide(
+                                    color: c.absent.withValues(alpha: 0.3),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
