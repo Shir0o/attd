@@ -132,6 +132,17 @@ void main() {
       // Search for 'HIDDEN' to filter and bring the targeted soft-deleted record directly into view.
       print('DEBUG: Deleting record from backup');
       await settings.searchBackup('HIDDEN');
+
+      // Debug print text on screen after search
+      await tester.pump(const Duration(milliseconds: 1000));
+      final texts2 = find.byType(Text).evaluate().map((el) {
+        final w = el.widget as Text;
+        if (w.data != null) return w.data!;
+        if (w.textSpan != null) return w.textSpan!.toPlainText();
+        return '';
+      }).where((t) => t.isNotEmpty).toList();
+      print('DEBUG: TEXTS ON SCREEN AFTER SEARCH: $texts2');
+
       await settings.deleteBackupRecord('HIDDEN');
       await settings.searchBackup(''); // Clear search
       await tester.takeScreenshot(binding, 'data_10_after_delete_backup_record');
