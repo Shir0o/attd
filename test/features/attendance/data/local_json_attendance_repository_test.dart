@@ -389,5 +389,30 @@ void main() {
       // Verify main file has been restored
       expect(mainFile.existsSync(), isTrue);
     });
+
+    test('AttendanceRepository default implementations throw UnimplementedError', () async {
+      final repo = _TestAttendanceRepository();
+      expect(() => repo.moveMemberToFamily('m', 'f'), throwsA(isA<UnimplementedError>()));
+      expect(() => repo.detachMember('m'), throwsA(isA<UnimplementedError>()));
+      expect(() => repo.deleteFamily('f'), throwsA(isA<UnimplementedError>()));
+    });
   });
 }
+
+class _TestAttendanceRepository extends AttendanceRepository {
+  @override
+  Future<List<Family>> fetchFamilies() async => [];
+  @override
+  Future<void> saveFamilies(List<Family> families) async {}
+  @override
+  Future<Family> addMember(String familyId, Member member) async => throw UnimplementedError();
+  @override
+  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async => throw UnimplementedError();
+  @override
+  Stream<List<Family>> streamFamilies() => Stream.empty();
+  @override
+  Future<void> refresh() async {}
+  @override
+  Future<void> pruneSoftDeleted(DateTime threshold) async {}
+}
+

@@ -270,5 +270,43 @@ void main() {
       // Verify main file has been restored
       expect(mainFile.existsSync(), isTrue);
     });
+
+    test('loadRawEvents catches backup recovery error when main file is missing and backup is corrupted', () async {
+      final mainFile = File('${tempDir.path}/events.json');
+      final backupFile = File('${tempDir.path}/events.json.bak');
+
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+      await backupFile.writeAsString('invalid json');
+
+      await repository.refresh();
+      final loaded = await repository.streamEvents().first;
+      expect(loaded, isEmpty);
+    });
+
+    test('loadRawEvents catches backup recovery error when main file is corrupted and backup is corrupted', () async {
+      final mainFile = File('${tempDir.path}/events.json');
+      final backupFile = File('${tempDir.path}/events.json.bak');
+
+      await mainFile.writeAsString('invalid json');
+      await backupFile.writeAsString('invalid json');
+
+      await repository.refresh();
+      final loaded = await repository.streamEvents().first;
+      expect(loaded, isEmpty);
+    });
+
+    test('save error is caught and logged', () async {
+      final invalidRepo = LocalJsonEventRepository(storagePath: '/non_existent_directory/events.json');
+      // Should not throw because save catches error
+      await invalidRepo.createEvent(Event(
+        id: 'test',
+        title: 'Test',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.now(),
+      ));
+    });
   });
 }

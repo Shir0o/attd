@@ -1,7 +1,7 @@
 import 'dart:io';
 
 const _defaultLcovPath = 'coverage/lcov.info';
-const _defaultMinCoverage = 94.0;
+const _defaultMinCoverage = 95.0;
 
 void main(List<String> args) {
   if (args.contains('--help') || args.contains('-h')) {

@@ -124,4 +124,14 @@ void main() {
       expect(byId['b'], AttendanceStatus.present);
     });
   });
+
+  group('AttendanceStartMode Extension', () {
+    test('label, shortLabel and description are correct', () {
+      for (final mode in AttendanceStartMode.values) {
+        expect(mode.label, isNotEmpty);
+        expect(mode.shortLabel, isNotEmpty);
+        expect(mode.description, isNotEmpty);
+      }
+    });
+  });
 }
