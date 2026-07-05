@@ -111,24 +111,48 @@ void main() {
       await settings.verifyOnManageBackupDataPage();
       await tester.takeScreenshot(binding, 'data_08_manage_backup_data');
       
-      // 1 Event + 2 Members (one was deleted) + 1 Session = 4.
-      await settings.verifyRecordCount(4); 
+      // Debug print text on screen
+      await tester.pump(const Duration(milliseconds: 1000));
+      final texts = find.byType(Text).evaluate().map((el) {
+        final w = el.widget as Text;
+        if (w.data != null) return w.data!;
+        if (w.textSpan != null) return w.textSpan!.toPlainText();
+        return '';
+      }).where((t) => t.isNotEmpty).toList();
+      print('DEBUG: TEXTS ON SCREEN: $texts');
+
+      // 1 Event + 3 Members (one soft-deleted) + 3 Families + 1 Session + 3 Attendance Records = 11.
+      await settings.verifyRecordCount(11); 
 
       await settings.searchBackup('Test');
       await settings.verifyEventListed('Test Event');
       await tester.takeScreenshot(binding, 'data_09_backup_search');
       
-      // Cleanup: Delete the session from backup
+      // Cleanup: Delete the soft-deleted member from backup.
+      // Search for 'HIDDEN' to filter and bring the targeted soft-deleted record directly into view.
       print('DEBUG: Deleting record from backup');
-      await settings.deleteBackupRecord('Test Event'); // Deletes the session
+      await settings.searchBackup('HIDDEN');
+
+      // Debug print text on screen after search
+      await tester.pump(const Duration(milliseconds: 1000));
+      final texts2 = find.byType(Text).evaluate().map((el) {
+        final w = el.widget as Text;
+        if (w.data != null) return w.data!;
+        if (w.textSpan != null) return w.textSpan!.toPlainText();
+        return '';
+      }).where((t) => t.isNotEmpty).toList();
+      print('DEBUG: TEXTS ON SCREEN AFTER SEARCH: $texts2');
+
+      await settings.deleteBackupRecord('HIDDEN');
+      await settings.searchBackup(''); // Clear search
       await tester.takeScreenshot(binding, 'data_10_after_delete_backup_record');
       ScaffoldMessenger.maybeOf(tester.element(find.byType(MaterialApp).first))?.clearSnackBars();
       await tester.pump(const Duration(milliseconds: 500));
 
       await tester.pumpAndSettle(const Duration(seconds: 1));
       
-      // Verify record count reduced: 4 -> 3 (pending deletion)
-      await settings.verifyRecordCount(3); 
+      // Verify record count reduced: 11 -> 10
+      await settings.verifyRecordCount(10); 
 
       await settings.saveCleanedBackup();
       
