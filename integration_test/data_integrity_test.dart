@@ -129,9 +129,11 @@ void main() {
       await tester.takeScreenshot(binding, 'data_09_backup_search');
       
       // Cleanup: Delete the soft-deleted member from backup.
-      // Use 'HIDDEN' to uniquely match the badge of the soft-deleted John Doe member (to avoid name ambiguity).
+      // Search for 'HIDDEN' to filter and bring the targeted soft-deleted record directly into view.
       print('DEBUG: Deleting record from backup');
+      await settings.searchBackup('HIDDEN');
       await settings.deleteBackupRecord('HIDDEN');
+      await settings.searchBackup(''); // Clear search
       await tester.takeScreenshot(binding, 'data_10_after_delete_backup_record');
       ScaffoldMessenger.maybeOf(tester.element(find.byType(MaterialApp).first))?.clearSnackBars();
       await tester.pump(const Duration(milliseconds: 500));
