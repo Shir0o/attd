@@ -119,7 +119,10 @@ class SettingsRobot {
     print('DEBUG: deleteBackupRecord($title)');
     
     // Tap the record row to expand it
-    final rowFinder = find.text(title);
+    final rowFinder = find.descendant(
+      of: find.byType(ListView),
+      matching: find.text(title),
+    ).first;
     await tester.tap(rowFinder);
     await tester.pumpAndSettle();
 
