@@ -111,6 +111,16 @@ void main() {
       await settings.verifyOnManageBackupDataPage();
       await tester.takeScreenshot(binding, 'data_08_manage_backup_data');
       
+      // Debug print text on screen
+      await tester.pump(const Duration(milliseconds: 1000));
+      final texts = find.byType(Text).evaluate().map((el) {
+        final w = el.widget as Text;
+        if (w.data != null) return w.data!;
+        if (w.textSpan != null) return w.textSpan!.toPlainText();
+        return '';
+      }).where((t) => t.isNotEmpty).toList();
+      print('DEBUG: TEXTS ON SCREEN: $texts');
+
       // 1 Event + 3 Members (one was deleted) + 3 Families + 1 Session + 1 Attendance Record = 9.
       await settings.verifyRecordCount(9); 
 
