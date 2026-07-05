@@ -1,4 +1,6 @@
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
+import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -84,5 +86,55 @@ void main() {
       final fromJson = Event.fromJson(json);
       expect(fromJson.title, 'Json Trim');
     });
+
+    test('toJson and fromJson handle defaultAttendanceStartMode and rosterGrouping', () {
+      final eventWithPresets = Event(
+        id: 'event-presets',
+        title: 'Preset Event',
+        time: const TimeOfDay(hour: 11, minute: 0),
+        frequency: 'Weekly',
+        defaultAttendanceStartMode: AttendanceStartMode.allAbsent,
+        rosterGrouping: RosterGrouping.byFamily,
+        createdAt: now,
+      );
+
+      final json = eventWithPresets.toJson();
+      expect(json['defaultAttendanceStartMode'], 'allAbsent');
+      expect(json['rosterGrouping'], 'byFamily');
+
+      final fromJson = Event.fromJson(json);
+      expect(fromJson.defaultAttendanceStartMode, AttendanceStartMode.allAbsent);
+      expect(fromJson.rosterGrouping, RosterGrouping.byFamily);
+    });
+
+    test('copyWith works correctly', () {
+      final baseEvent = Event(
+        id: 'base',
+        title: 'Base',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'One-time',
+        createdAt: now,
+        deletedAt: now,
+      );
+
+      final noChanges = baseEvent.copyWith();
+      expect(noChanges.id, 'base');
+      expect(noChanges.title, 'Base');
+      expect(noChanges.deletedAt, now);
+
+      final changed = baseEvent.copyWith(
+        id: 'new-id',
+        title: 'New Title',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        clearDeletedAt: true,
+      );
+      expect(changed.id, 'new-id');
+      expect(changed.title, 'New Title');
+      expect(changed.time.hour, 10);
+      expect(changed.frequency, 'Weekly');
+      expect(changed.deletedAt, isNull);
+    });
   });
 }
+

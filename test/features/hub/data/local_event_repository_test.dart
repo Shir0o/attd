@@ -270,5 +270,105 @@ void main() {
       // Verify main file has been restored
       expect(mainFile.existsSync(), isTrue);
     });
+
+    test('loadRawEvents catches backup recovery error when main file is missing and backup is corrupted', () async {
+      final mainFile = File('${tempDir.path}/events.json');
+      final backupFile = File('${tempDir.path}/events.json.bak');
+
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+      await backupFile.writeAsString('invalid json');
+
+      await repository.refresh();
+      final loaded = await repository.streamEvents().first;
+      expect(loaded, isEmpty);
+    });
+
+    test('loadRawEvents catches backup recovery error when main file is corrupted and backup is corrupted', () async {
+      final mainFile = File('${tempDir.path}/events.json');
+      final backupFile = File('${tempDir.path}/events.json.bak');
+
+      await mainFile.writeAsString('invalid json');
+      await backupFile.writeAsString('invalid json');
+
+      await repository.refresh();
+      final loaded = await repository.streamEvents().first;
+      expect(loaded, isEmpty);
+    });
+
+    test('save error is caught and logged', () async {
+      final invalidRepo = LocalJsonEventRepository(storagePath: '/non_existent_directory/events.json');
+      // Should not throw because save catches error
+      await invalidRepo.createEvent(Event(
+        id: 'test',
+        title: 'Test',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.now(),
+      ));
+    });
+
+    test('fetchAllEvents and saveEvents work correctly', () async {
+      final now = DateTime.now();
+      final events = [
+        Event(
+          id: 'e-1',
+          title: 'Custom Event',
+          time: const TimeOfDay(hour: 10, minute: 0),
+          frequency: 'One-time',
+          createdAt: now,
+        )
+      ];
+      await repository.saveEvents(events);
+      final fetched = await repository.fetchAllEvents();
+      expect(fetched.length, 1);
+      expect(fetched.first.title, 'Custom Event');
+    });
+
+    test('save error restores from backup', () async {
+      final subDir = Directory('${tempDir.path}/restore_test');
+      await subDir.create(recursive: true);
+      final repo = LocalJsonEventRepository(storagePath: subDir.path);
+      
+      await repo.createEvent(Event(
+        id: 'initial',
+        title: 'Initial Event',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.now(),
+      ));
+      
+      await repo.createEvent(Event(
+        id: 'initial2',
+        title: 'Initial Event 2',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.now(),
+      ));
+
+      final backupFile = File('${subDir.path}/events.json.bak');
+      expect(backupFile.existsSync(), isTrue);
+
+      final mainFile = File('${subDir.path}/events.json');
+      if (mainFile.existsSync()) {
+        mainFile.deleteSync();
+      }
+
+      final tempDirVar = Directory('${mainFile.path}.tmp');
+      await tempDirVar.create(recursive: true);
+
+      await repo.createEvent(Event(
+        id: 'fail',
+        title: 'Fail Event',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.now(),
+      ));
+
+      expect(mainFile.existsSync(), isTrue);
+      // Clean up the directory created at tmp path so it doesn't block other tests
+      await tempDirVar.delete(recursive: true);
+    });
   });
 }
