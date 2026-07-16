@@ -88,5 +88,4 @@ firestore.indexes.json
 docs/design-handoff/
 
 # Agent Configuration (Local Only)
-CLAUDE.md
 GEMINI.md
