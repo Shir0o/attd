@@ -1,3 +1,9 @@
+---
+type: Integration Guide
+title: "Integrations: Google Drive, Sheets, and OAuth"
+description: Explains how Attendance Tracker integrates with Google Drive, Sheets, and OAuth for data sync, backup/restore, and authentication.
+---
+
 # Integrations: Google Drive, Sheets, and OAuth
 
 ## Google OAuth Flow

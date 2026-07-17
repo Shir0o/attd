@@ -1,3 +1,9 @@
+---
+type: Operations Runbook
+title: Operations & Runbooks
+description: Runbook covering local development setup, prerequisites, building, debugging, deployment, and common operational issues for Attendance Tracker.
+---
+
 # Operations & Runbooks
 
 ## Local Development Setup

@@ -1,3 +1,9 @@
+---
+type: Wiki Guide
+title: Attendance Tracker Wiki
+description: Entry point for the OpenWiki documentation covering architecture, features, design system, testing, integrations, and operations for the Attendance Tracker Flutter app.
+---
+
 # Attendance Tracker Wiki
 
 **A modern, fast, and privacy-focused Flutter application for tracking attendance, managing member engagement, and syncing data seamlessly with Google Sheets and Drive.**

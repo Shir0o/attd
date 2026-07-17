@@ -1,3 +1,9 @@
+---
+type: Architecture Guide
+title: Architecture Overview
+description: Describes the feature-sliced, clean-architecture design of the Attendance Tracker app, including its presentation, domain, and data layers.
+---
+
 # Architecture Overview
 
 ## High-Level Design

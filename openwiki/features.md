@@ -1,3 +1,9 @@
+---
+type: Feature Guide
+title: Features & Workflows
+description: Covers the core user-facing workflows in Attendance Tracker, including attendance taking, event management, member and family organization, and insights.
+---
+
 # Features & Workflows
 
 ## Attendance Taking (The Core Workflow)
