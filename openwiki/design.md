@@ -1,3 +1,9 @@
+---
+type: Design Reference
+title: "Design System: Convocation"
+description: Developer reference for Convocation, the Attendance Tracker design system, covering color palette, typography, tokens, components, and patterns.
+---
+
 # Design System: Convocation
 
 The Attendance Tracker uses **Convocation**, an editorial design language that pairs serif display typography with a clinical sans-serif body, postcard-style stamps, and tabular numerals for a calm, considered aesthetic.

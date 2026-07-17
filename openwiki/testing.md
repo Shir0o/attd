@@ -1,3 +1,9 @@
+---
+type: Testing Guide
+title: Testing & Quality
+description: Documents the testing strategy, structure, and 95%+ coverage threshold enforced by tool/check_coverage.dart for Attendance Tracker.
+---
+
 # Testing & Quality
 
 ## Coverage Threshold: 95%+
