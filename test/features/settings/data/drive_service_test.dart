@@ -550,5 +550,23 @@ void main() {
       // Should complete without throwing despite no DriveApi being set up.
       await service.restoreFromBackup('any-file-id');
     });
+
+    test('signIn throws UnsupportedError when supportsAuthenticate is false', () async {
+      when(() => mockGoogleSignIn.supportsAuthenticate()).thenReturn(false);
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      expect(() => service.signIn(), throwsUnsupportedError);
+    });
+
+    test('signInSilently handles null attemptLightweightAuthentication', () async {
+      when(() => mockGoogleSignIn.attemptLightweightAuthentication()).thenReturn(null);
+      final service = DriveService(googleSignIn: mockGoogleSignIn);
+      addTearDown(service.dispose);
+
+      await service.signInSilently();
+      expect(service.currentUser, isNull);
+    });
   });
 }
+

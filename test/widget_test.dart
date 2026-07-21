@@ -162,6 +162,9 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
+  testAttendanceAppDefaults();
+
+
   testWidgets('AttendanceApp loads HubPage without BottomNavigationBar', (
     tester,
   ) async {
@@ -434,3 +437,21 @@ class _RecordingDriveService extends ChangeNotifier implements DriveService {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+void testAttendanceAppDefaults() {
+  test('AttendanceApp initializes default repositories when not provided', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final app = AttendanceApp(
+      themeController: ThemeController(prefs),
+      onboardingController: OnboardingController(prefs),
+      prefs: prefs,
+      disableAnimations: true,
+    );
+    expect(app.repository, isNotNull);
+    expect(app.sessionRepository, isNotNull);
+    expect(app.eventRepository, isNotNull);
+    expect(app.appLockController, isNotNull);
+  });
+}
+

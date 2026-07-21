@@ -15,15 +15,32 @@ const String backgroundSyncUniqueName = 'attendanceTrackerPeriodicSync';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
-  Workmanager().executeTask((taskName, inputData) async {
-    _log.info('Background task executed: $taskName');
-    if (taskName == backgroundSyncTaskName ||
-        taskName == Workmanager.iOSBackgroundTask) {
-      return await performBackgroundSync();
-    }
-    return true;
-  });
+  try {
+    Workmanager().executeTask((taskName, inputData) async {
+      return await executeBackgroundTask(
+        taskName,
+        inputData,
+      );
+    });
+  } catch (e, st) {
+    _log.warning('Callback dispatcher error', e, st);
+  }
 }
+
+Future<bool> executeBackgroundTask(
+  String taskName,
+  Map<String, dynamic>? inputData, {
+  Future<bool> Function()? performSyncOverride,
+}) async {
+  _log.info('Background task executed: $taskName');
+  if (taskName == backgroundSyncTaskName ||
+      taskName == Workmanager.iOSBackgroundTask) {
+    return await (performSyncOverride?.call() ?? performBackgroundSync());
+  }
+  return true;
+}
+
+
 
 Future<bool> performBackgroundSync({
   DriveService Function()? driveServiceBuilder,

@@ -1,6 +1,8 @@
 import 'package:attendance_tracker/features/settings/data/background_sync_service.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +24,15 @@ void main() {
   setUpAll(() {
     registerFallbackValue(ExistingWorkPolicy.replace);
     registerFallbackValue(Constraints(networkType: NetworkType.connected));
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel(
+        'be.tramckrijte.workmanager/background_channel_work_manager',
+      ),
+      (methodCall) async => true,
+    );
   });
+
 
 
   setUp(() {
@@ -175,5 +185,161 @@ void main() {
         );
       },
     );
+
+    test('returns false and records error when sync throws', () async {
+      SharedPreferences.setMockInitialValues({
+        'drive_sync_enabled': true,
+        DriveService.backgroundSyncEnabledKey: true,
+      });
+
+      when(() => mockDriveService.init()).thenAnswer((_) async {});
+      when(() => mockDriveService.currentUser).thenReturn(mockUser);
+      when(
+        () => mockDriveService.syncFiles(
+          actionTitle: any(named: 'actionTitle'),
+          tags: any(named: 'tags'),
+        ),
+      ).thenThrow(Exception('Sync failed Network error'));
+
+      final result = await performBackgroundSync(
+        driveServiceBuilder: () => mockDriveService,
+      );
+
+      expect(result, isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getString(DriveService.lastBackgroundSyncStatusKey),
+        contains('Failed: Exception: Sync failed Network error'),
+      );
+    });
+  });
+
+  group('BackgroundSyncService error handling', () {
+    test('initialize handles Workmanager error gracefully', () async {
+      when(
+        () => mockWorkmanager.initialize(
+          any(),
+          isInDebugMode: any(named: 'isInDebugMode'),
+        ),
+      ).thenThrow(Exception('Workmanager init error'));
+
+      final service = BackgroundSyncService(workmanager: mockWorkmanager);
+      await expectLater(service.initialize(), completes);
+    });
+
+    test('registerPeriodicSync handles Workmanager error gracefully', () async {
+      when(
+        () => mockWorkmanager.registerPeriodicTask(
+          any(),
+          any(),
+          frequency: any(named: 'frequency'),
+          constraints: any(named: 'constraints'),
+          existingWorkPolicy: any(named: 'existingWorkPolicy'),
+        ),
+      ).thenThrow(Exception('Register task error'));
+
+      final service = BackgroundSyncService(workmanager: mockWorkmanager);
+      await expectLater(service.registerPeriodicSync(), completes);
+    });
+
+    test('cancelSync handles Workmanager error gracefully', () async {
+      when(
+        () => mockWorkmanager.cancelByUniqueName(any()),
+      ).thenThrow(Exception('Cancel task error'));
+
+      final service = BackgroundSyncService(workmanager: mockWorkmanager);
+      await expectLater(service.cancelSync(), completes);
+    });
+
+    test('BackgroundSyncService default constructor instantiates Workmanager', () {
+      final service = BackgroundSyncService();
+      expect(service, isNotNull);
+    });
+
+    test('callbackDispatcher runs without throwing', () {
+      expect(() => callbackDispatcher(), returnsNormally);
+    });
+
+    test('executeBackgroundTask calls performSyncOverride for matching task', () async {
+      bool syncCalled = false;
+      final result = await executeBackgroundTask(
+        backgroundSyncTaskName,
+        null,
+        performSyncOverride: () async {
+          syncCalled = true;
+          return true;
+        },
+      );
+      expect(result, isTrue);
+      expect(syncCalled, isTrue);
+    });
+
+    test('executeBackgroundTask returns true for unmatched task name', () async {
+      final result = await executeBackgroundTask(
+        'some_other_task',
+        null,
+      );
+      expect(result, isTrue);
+    });
+  });
+
+
+  group('DriveService Background Sync Settings', () {
+    test('setBackgroundSyncEnabled updates preferences and notifies listeners', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = DriveService();
+      await service.init();
+      expect(service.isBackgroundSyncEnabled, isTrue);
+
+      bool notified = false;
+      service.addListener(() => notified = true);
+
+      await service.setBackgroundSyncEnabled(false);
+      expect(service.isBackgroundSyncEnabled, isFalse);
+      expect(notified, isTrue);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(DriveService.backgroundSyncEnabledKey), isFalse);
+    });
+
+    test('setBackgroundSyncWifiOnly updates preferences and notifies listeners', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = DriveService();
+      await service.init();
+      expect(service.isBackgroundSyncWifiOnly, isTrue);
+
+      bool notified = false;
+      service.addListener(() => notified = true);
+
+      await service.setBackgroundSyncWifiOnly(false);
+      expect(service.isBackgroundSyncWifiOnly, isFalse);
+      expect(notified, isTrue);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(DriveService.backgroundSyncWifiOnlyKey), isFalse);
+    });
+
+    test('init loads saved background sync status and time', () async {
+      final now = DateTime.now();
+      SharedPreferences.setMockInitialValues({
+        DriveService.backgroundSyncEnabledKey: false,
+        DriveService.backgroundSyncWifiOnlyKey: false,
+        DriveService.lastBackgroundSyncTimeKey: now.toIso8601String(),
+        DriveService.lastBackgroundSyncStatusKey: 'Success',
+      });
+
+      final service = DriveService();
+      await service.init();
+
+      expect(service.isSyncing, isFalse);
+      expect(service.lastSyncTime, isNull);
+      expect(service.currentUser, isNull);
+      expect(service.isBackgroundSyncEnabled, isFalse);
+      expect(service.isBackgroundSyncWifiOnly, isFalse);
+      expect(service.lastBackgroundSyncTime?.toIso8601String(), now.toIso8601String());
+      expect(service.lastBackgroundSyncStatus, 'Success');
+    });
   });
 }
+
+

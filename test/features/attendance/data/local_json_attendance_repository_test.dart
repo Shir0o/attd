@@ -449,8 +449,22 @@ void main() {
       // Clean up the directory created at tmp path so it doesn't block other tests
       await tempDirVar.delete(recursive: true);
     });
+
+    test('deleteFamily marks family soft-deleted and detaches live members to singletons', () async {
+      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
+      final family = await repo.addFamily('Smith');
+      await repo.addMember(family.id, Member(id: 'm1', displayName: 'Alice'));
+      await repo.addMember(family.id, Member(id: 'm2', displayName: 'Bob', deletedAt: DateTime.now()));
+
+      await repo.deleteFamily(family.id);
+
+      final families = await repo.fetchFamilies();
+      expect(families.any((f) => f.id == family.id), isFalse);
+      expect(families.any((f) => f.displayName == 'Alice' && f.isAutoSingleton), isTrue);
+    });
   });
 }
+
 
 class _TestAttendanceRepository extends AttendanceRepository {
   @override
