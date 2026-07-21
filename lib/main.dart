@@ -20,7 +20,9 @@ import 'features/auth/data/google_sign_in_service.dart';
 import 'features/settings/application/app_lock_controller.dart';
 import 'features/settings/application/theme_controller.dart';
 import 'features/settings/data/drive_service.dart';
+import 'features/settings/data/background_sync_service.dart';
 import 'features/settings/data/local_backup_service.dart';
+
 import 'features/settings/presentation/app_lock_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/maintenance/data_maintenance_service.dart';
@@ -76,6 +78,15 @@ Future<void> main() async {
 
   final localBackupService = LocalBackupService();
   final googleAuthService = GoogleSignInAuthService();
+
+  final backgroundSyncService = BackgroundSyncService();
+  await backgroundSyncService.initialize();
+  if (prefs.getBool('drive_sync_enabled') == true &&
+      (prefs.getBool(DriveService.backgroundSyncEnabledKey) ?? true)) {
+    await backgroundSyncService.registerPeriodicSync(
+      wifiOnly: prefs.getBool(DriveService.backgroundSyncWifiOnlyKey) ?? true,
+    );
+  }
 
   runApp(
     AttendanceApp(

@@ -4,6 +4,7 @@ import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
+import 'package:attendance_tracker/features/settings/data/background_sync_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
@@ -19,6 +20,9 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:local_auth/local_auth.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class MockBackgroundSyncService extends Mock implements BackgroundSyncService {}
+
 
 class MockAttendanceRepository extends AttendanceRepository {
   @override
@@ -111,6 +115,18 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   @override
   bool isDriveSyncEnabled = false;
 
+  @override
+  bool isBackgroundSyncEnabled = true;
+
+  @override
+  bool isBackgroundSyncWifiOnly = true;
+
+  @override
+  DateTime? lastBackgroundSyncTime;
+
+  @override
+  String? lastBackgroundSyncStatus;
+
   bool throwOnSignIn = false;
   bool throwOnSync = false;
   bool throwOnOverwriteCloud = false;
@@ -118,6 +134,19 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   bool overwriteCloudCalled = false;
   bool overwriteLocalCalled = false;
   int syncFilesCalls = 0;
+
+  @override
+  Future<void> setBackgroundSyncEnabled(bool enabled) async {
+    isBackgroundSyncEnabled = enabled;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> setBackgroundSyncWifiOnly(bool wifiOnly) async {
+    isBackgroundSyncWifiOnly = wifiOnly;
+    notifyListeners();
+  }
+
 
   @override
   Future<void> signIn() async {
@@ -703,7 +732,10 @@ void main() {
       find.byType(ListView),
       const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Version history'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Version history'));
+
     await tester.pump();
     expect(observer.pushes >= 1, isTrue);
     // Let CloudBackupPage finish its initial-load delay (800ms).
@@ -863,4 +895,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(prefs.getString('googleSheetsUrl'), '');
   });
+
+  testWidgets('Background Auto-Sync section renders when signed in', (tester) async {
+    final fakeDrive = FakeDriveService();
+    fakeDrive.currentUser = FakeGoogleSignInAccount();
+    fakeDrive.isDriveSyncEnabled = true;
+    fakeDrive.isBackgroundSyncEnabled = true;
+    fakeDrive.isBackgroundSyncWifiOnly = true;
+    fakeDrive.lastBackgroundSyncTime = DateTime.now();
+    fakeDrive.lastBackgroundSyncStatus = 'Success';
+
+    await tester.pumpWidget(_settingsPage(
+      themeController: themeController,
+      driveService: fakeDrive,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Background Auto-Sync'), findsOneWidget);
+    expect(find.text('Require Wi-Fi'), findsOneWidget);
+    expect(find.textContaining('Last auto-synced'), findsOneWidget);
+  });
 }
+
+

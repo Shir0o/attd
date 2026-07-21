@@ -7,6 +7,7 @@ import '../../reports/report_export_page.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/google_sheets_service.dart';
+import '../data/background_sync_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import '../../attendance/data/attendance_repository.dart';
@@ -33,6 +34,7 @@ class SettingsPage extends StatefulWidget {
     required this.eventRepository,
     required this.sessionRepository,
     this.appLockController,
+    this.backgroundSyncService,
     this.disableAnimations = false,
   });
 
@@ -43,7 +45,9 @@ class SettingsPage extends StatefulWidget {
   final EventRepository eventRepository;
   final SessionRepository sessionRepository;
   final AppLockController? appLockController;
+  final BackgroundSyncService? backgroundSyncService;
   final bool disableAnimations;
+
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -477,6 +481,53 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         if (isSignedIn) ...[
                           _SettingRow(
+                            icon: Icons.autorenew,
+                            title: 'Background Auto-Sync',
+                            subtitle: _formatLastBackgroundSync(
+                              widget.driveService.lastBackgroundSyncTime,
+                              widget.driveService.lastBackgroundSyncStatus,
+                            ),
+                            trailing: Switch(
+                              value: widget.driveService.isBackgroundSyncEnabled,
+                              onChanged: (val) async {
+                                await widget.driveService
+                                    .setBackgroundSyncEnabled(val);
+                                final bgService = widget.backgroundSyncService ??
+                                    BackgroundSyncService();
+                                if (val) {
+                                  await bgService.registerPeriodicSync(
+                                    wifiOnly: widget.driveService
+                                        .isBackgroundSyncWifiOnly,
+                                  );
+                                } else {
+                                  await bgService.cancelSync();
+                                }
+                              },
+                            ),
+                          ),
+                          if (widget.driveService.isBackgroundSyncEnabled) ...[
+                            _SettingRow(
+                              icon: Icons.wifi,
+                              title: 'Require Wi-Fi',
+                              subtitle:
+                                  'Only auto-sync when connected to Wi-Fi',
+                              trailing: Switch(
+                                value: widget
+                                    .driveService.isBackgroundSyncWifiOnly,
+                                onChanged: (val) async {
+                                  await widget.driveService
+                                      .setBackgroundSyncWifiOnly(val);
+                                  final bgService =
+                                      widget.backgroundSyncService ??
+                                          BackgroundSyncService();
+                                  await bgService.registerPeriodicSync(
+                                    wifiOnly: val,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                          _SettingRow(
                             icon: Icons.history,
                             title: 'Version history',
                             subtitle:
@@ -493,6 +544,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             },
                           ),
                         ],
+
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -1485,3 +1537,26 @@ class _AppLockTileState extends State<_AppLockTile> {
     );
   }
 }
+
+String _formatLastBackgroundSync(DateTime? time, String? status) {
+  if (time == null) {
+    if (status != null && status.isNotEmpty) {
+      return 'Status: $status';
+    }
+    return 'Periodic background backup every 12 hours';
+  }
+  final now = DateTime.now();
+  final diff = now.difference(time);
+  String timeStr;
+  if (diff.inMinutes < 1) {
+    timeStr = 'Just now';
+  } else if (diff.inMinutes < 60) {
+    timeStr = '${diff.inMinutes}m ago';
+  } else if (diff.inHours < 24) {
+    timeStr = '${diff.inHours}h ago';
+  } else {
+    timeStr = '${diff.inDays}d ago';
+  }
+  return 'Last auto-synced $timeStr${status != null ? ' · $status' : ''}';
+}
+
