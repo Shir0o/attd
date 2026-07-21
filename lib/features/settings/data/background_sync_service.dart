@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -109,7 +109,6 @@ class BackgroundSyncService {
     try {
       await _workmanager.initialize(
         callbackDispatcher,
-        isInDebugMode: kDebugMode,
       );
     } catch (e, st) {
       _log.warning('Failed to initialize Workmanager', e, st);
@@ -127,7 +126,7 @@ class BackgroundSyncService {
         constraints: Constraints(
           networkType: networkType,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       );
       _log.info(
         'Registered periodic background sync task (wifiOnly: $wifiOnly)',

@@ -22,7 +22,7 @@ void main() {
   late MockGoogleSignInAccount mockUser;
 
   setUpAll(() {
-    registerFallbackValue(ExistingWorkPolicy.replace);
+    registerFallbackValue(ExistingPeriodicWorkPolicy.update);
     registerFallbackValue(Constraints(networkType: NetworkType.connected));
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -48,7 +48,6 @@ void main() {
       when(
         () => mockWorkmanager.initialize(
           any(),
-          isInDebugMode: any(named: 'isInDebugMode'),
         ),
       ).thenAnswer((_) async {});
 
@@ -58,7 +57,6 @@ void main() {
       verify(
         () => mockWorkmanager.initialize(
           any(),
-          isInDebugMode: any(named: 'isInDebugMode'),
         ),
       ).called(1);
     });
@@ -85,7 +83,7 @@ void main() {
             backgroundSyncTaskName,
             frequency: const Duration(hours: 12),
             constraints: any(named: 'constraints'),
-            existingWorkPolicy: ExistingWorkPolicy.replace,
+            existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
           ),
         ).called(1);
       },
@@ -219,7 +217,6 @@ void main() {
       when(
         () => mockWorkmanager.initialize(
           any(),
-          isInDebugMode: any(named: 'isInDebugMode'),
         ),
       ).thenThrow(Exception('Workmanager init error'));
 
