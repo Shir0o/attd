@@ -199,7 +199,7 @@ flutter run
 
 **Fixing data persistence** → Check `lib/data/local_session_repository.dart`, `lib/features/attendance/data/attendance_repository.dart`, or `lib/features/hub/data/local_event_repository.dart`. All repos support `.bak` recovery.
 
-**Modifying sync** → See `lib/features/settings/data/drive_service.dart` and `lib/features/settings/data/google_sheets_service.dart`. Sync is manual by default; automatic sync is a user-configurable option.
+**Modifying sync** → See `lib/features/settings/data/drive_service.dart` and `lib/features/settings/data/google_sheets_service.dart`. Sync is manual by default; foreground automatic sync and background periodic sync (`lib/features/settings/data/background_sync_service.dart`, via `workmanager`) are both user-configurable options. See [Background Auto-Sync](/openwiki/integrations.md#background-auto-sync).
 
 ## Git History & Context
 

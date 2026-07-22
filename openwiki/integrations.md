@@ -240,6 +240,28 @@ if (_isDriveSyncEnabled) {
 }
 ```
 
+### Background Auto-Sync
+
+**File:** `lib/features/settings/data/background_sync_service.dart`
+
+Unlike the foreground "Auto Sync" above (which fires on app resume/save), Background Auto-Sync runs even when the app is not open, using the [`workmanager`](https://pub.dev/packages/workmanager) plugin to schedule OS-level periodic work (Android `WorkManager` / iOS `BGTaskScheduler`).
+
+**Behavior:**
+
+- Registered from `main.dart` on startup if Drive sync and background sync are both enabled in `SharedPreferences`
+- Runs every 12 hours via `BackgroundSyncService.registerPeriodicSync()`, with an optional `wifiOnly` constraint (`NetworkType.unmetered` vs `NetworkType.connected`)
+- `callbackDispatcher()` is the `@pragma('vm:entry-point')` entry that Workmanager invokes in a background isolate; it delegates to `executeBackgroundTask()` → `performBackgroundSync()`
+- `performBackgroundSync()` re-initializes `SharedPreferences` and a fresh `DriveService`, skips the sync if Drive sync is disabled or the user isn't signed in, otherwise calls `driveService.syncFiles(actionTitle: 'Background Auto-Sync', tags: ['Auto-Sync'])`
+- Last run outcome is persisted via `DriveService.lastBackgroundSyncTimeKey` / `lastBackgroundSyncStatusKey` and surfaced in the Settings page's "Background Auto-Sync" row (see [Settings & Configuration](/openwiki/features.md))
+
+**Settings toggles** (`DriveService`):
+- `backgroundSyncEnabledKey` — defaults to `true`; toggling calls `BackgroundSyncService.registerPeriodicSync()` or `.cancelSync()`
+- `backgroundSyncWifiOnlyKey` — defaults to `true`; re-registers the periodic task with the new network constraint when changed
+
+**Testing:** `test/features/settings/data/background_sync_service_test.dart` covers initialization, registration/cancellation, sync-skip conditions (disabled prefs, not signed in), and error handling. `DriveService` background-sync preference plumbing is covered in `test/features/settings/data/drive_service_test.dart`.
+
+**Watch out for:** Workmanager requires native platform wiring (`AndroidManifest.xml` receiver + iOS `BGTaskScheduler` permitted identifiers) in addition to the Dart API — if background sync silently never fires on a real device, check native registration first, not just the Dart-side toggle state.
+
 ## Google Sheets Export
 
 ### Overview

@@ -296,10 +296,11 @@ The "Storage Inspector" shows:
 
 **Setting Rows (ConvCardSoft):**
 1. **Cloud Backup** → Opens Cloud Version History page
-2. **Manage Data** → Opens Storage Inspector
-3. **Theme** — Light / Dark / System toggle
-4. **App Lock** — Biometric unlock on/off
-5. **Version** — App version + build number
+2. **Background Auto-Sync** (shown only when signed in) — Toggle for periodic background backup every 12 hours, plus a "Require Wi-Fi" sub-toggle; shows last auto-sync time/status. See [Background Auto-Sync](/openwiki/integrations.md#background-auto-sync) for the underlying mechanism.
+3. **Manage Data** → Opens Storage Inspector
+4. **Theme** — Light / Dark / System toggle
+5. **App Lock** — Biometric unlock on/off
+6. **Version** — App version + build number
 
 ### Cloud Version History
 

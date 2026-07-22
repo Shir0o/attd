@@ -47,6 +47,7 @@ Pure Dart functions, domain logic, and repository implementations.
 | `test/features/hub/data/local_event_repository_test.dart` | Event CRUD, recurring logic, soft delete | Event persistence |
 | `test/features/hub/domain/event_test.dart` | Event entity, copyWith, JSON serialization | Event domain logic |
 | `test/features/settings/data/google_sheets_service_test.dart` | Sheets export formatting, error handling | Sheets export logic |
+| `test/features/settings/data/background_sync_service_test.dart` | Workmanager init/registration/cancellation, sync-skip conditions, error handling | Background Auto-Sync (see [Integrations](/openwiki/integrations.md#background-auto-sync)) |
 | `test/features/auth/data/google_sign_in_service_test.dart` | OAuth flow, token refresh | Google Sign-In integration |
 | `test/features/attendance/utils/session_preseed_test.dart` | 80% rule, smart defaults | Pre-seeding logic |
 | `test/features/attendance/utils/bulk_attendance_test.dart` | Bulk mark all, smart defaults resolver | Bulk action logic |
