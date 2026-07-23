@@ -47,7 +47,7 @@ bool isConnectionAbortError(Object e) {
       return true;
     }
   }
-  if (e is SocketException || e is HttpException) {
+  if (e is SocketException) {
     final msg = e.toString().toLowerCase();
     if (msg.contains('connection abort') ||
         msg.contains('connection reset') ||
@@ -58,6 +58,7 @@ bool isConnectionAbortError(Object e) {
   }
   return false;
 }
+
 
 bool isTransientNetworkError(Object e) {
   if (isConnectionAbortError(e)) return true;
@@ -1203,4 +1204,20 @@ class DriveService extends ChangeNotifier {
   ) {
     return _mergeHistoryMaps(local, remote);
   }
+
+  @visibleForTesting
+  Future<T> testRetryDriveOperation<T>(
+    Future<T> Function() operation, {
+    int maxAttempts = 3,
+    Duration initialDelay = const Duration(milliseconds: 500),
+    Future<void> Function(Duration)? delayOverride,
+  }) {
+    return _retryDriveOperation(
+      operation,
+      maxAttempts: maxAttempts,
+      initialDelay: initialDelay,
+      delayOverride: delayOverride,
+    );
+  }
 }
+

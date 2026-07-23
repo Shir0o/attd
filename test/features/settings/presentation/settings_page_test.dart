@@ -129,11 +129,13 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
 
   bool throwOnSignIn = false;
   bool throwOnSync = false;
+  Object? customSyncError;
   bool throwOnOverwriteCloud = false;
   bool throwOnOverwriteLocal = false;
   bool overwriteCloudCalled = false;
   bool overwriteLocalCalled = false;
   int syncFilesCalls = 0;
+
 
   @override
   Future<void> setBackgroundSyncEnabled(bool enabled) async {
@@ -203,9 +205,13 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
     isSyncing = false;
     lastSyncTime = DateTime.now();
     notifyListeners();
+    if (customSyncError != null) {
+      throw customSyncError!;
+    }
     if (throwOnSync) {
       throw StateError('sync failed');
     }
+
   }
 
   @override
@@ -915,6 +921,26 @@ void main() {
     expect(find.text('Require Wi-Fi'), findsOneWidget);
     expect(find.textContaining('Last auto-synced'), findsOneWidget);
   });
+
+  testWidgets('Sync button displays SnackBar message on SyncInterruptedException', (tester) async {
+    final fakeDrive = FakeDriveService();
+    await tester.pumpWidget(_settingsPage(
+      themeController: themeController,
+      driveService: fakeDrive,
+    ));
+    await tester.pumpAndSettle();
+    await signInAndSettle(tester);
+
+    fakeDrive.customSyncError = SyncInterruptedException('Sync paused because app was closed.');
+
+    await tester.tap(find.text('Sync Now'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Sync paused because app was closed.'), findsOneWidget);
+  });
 }
+
+
 
 

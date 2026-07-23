@@ -632,8 +632,50 @@ void main() {
         expect(ex.toString(), contains('SyncInterruptedException: Sync paused'));
         expect(ex.toString(), contains('Exception: Abort'));
       });
+
+      test('testRetryDriveOperation uses delayOverride and retries transient errors', () async {
+        final service = DriveService(googleSignIn: mockGoogleSignIn);
+        addTearDown(service.dispose);
+
+        int attempts = 0;
+        final delays = <Duration>[];
+
+        final result = await service.testRetryDriveOperation(
+          () async {
+            attempts++;
+            if (attempts < 3) {
+              throw http.ClientException('Transient error');
+            }
+            return 'success';
+          },
+          delayOverride: (d) async => delays.add(d),
+        );
+
+        expect(result, 'success');
+        expect(attempts, 3);
+        expect(delays.length, 2);
+        expect(delays[0], const Duration(milliseconds: 500));
+        expect(delays[1], const Duration(milliseconds: 1000));
+      });
+
+      test('testRetryDriveOperation rethrows immediately on non-transient errors', () async {
+        final service = DriveService(googleSignIn: mockGoogleSignIn);
+        addTearDown(service.dispose);
+
+        int attempts = 0;
+        expect(
+          () => service.testRetryDriveOperation(() async {
+            attempts++;
+            throw FormatException('Fatal parse error');
+          }),
+          throwsFormatException,
+        );
+
+        expect(attempts, 1);
+      });
     });
   });
 }
+
 
 
