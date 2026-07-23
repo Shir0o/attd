@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
@@ -567,6 +570,70 @@ void main() {
       await service.signInSilently();
       expect(service.currentUser, isNull);
     });
+
+    group('Connection Abort & Transient Network Errors', () {
+      test('isConnectionAbortError identifies ClientException and SocketException aborts', () {
+        expect(
+          isConnectionAbortError(
+            http.ClientException('Software caused connection abort'),
+          ),
+          isTrue,
+        );
+        expect(
+          isConnectionAbortError(
+            const SocketException('Software caused connection abort'),
+          ),
+          isTrue,
+        );
+        expect(
+          isConnectionAbortError(
+            const SocketException('Connection reset by peer'),
+          ),
+          isTrue,
+        );
+        expect(
+          isConnectionAbortError(
+            const HttpException('Connection closed before full header was received'),
+          ),
+          isFalse,
+        );
+        expect(
+          isConnectionAbortError(Exception('Generic error')),
+          isFalse,
+        );
+      });
+
+      test('isTransientNetworkError identifies transient exceptions', () {
+        expect(
+          isTransientNetworkError(http.ClientException('Network drop')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(const SocketException('No route to host')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(const HttpException('Http error')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(TimeoutException('Request timed out')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(Exception('Business logic error')),
+          isFalse,
+        );
+      });
+
+      test('SyncInterruptedException formats message correctly', () {
+        final ex = SyncInterruptedException('Sync paused', Exception('Abort'));
+        expect(ex.message, 'Sync paused');
+        expect(ex.toString(), contains('SyncInterruptedException: Sync paused'));
+        expect(ex.toString(), contains('Exception: Abort'));
+      });
+    });
   });
 }
+
 

@@ -436,6 +436,13 @@ class _SettingsPageState extends State<SettingsPage> {
                                                         ),
                                                       );
                                                     }
+                                                  } on SyncInterruptedException catch (e) {
+                                                    scaffoldMessenger
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(e.message),
+                                                      ),
+                                                    );
                                                   } catch (e) {
                                                     scaffoldMessenger
                                                         .showSnackBar(
@@ -446,6 +453,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                                     );
                                                   }
                                                 });
+
                                               },
                                         icon: isSyncing
                                             ? const SizedBox(

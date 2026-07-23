@@ -4,12 +4,15 @@ import 'dart:io';
 
 // ignore: depend_on_referenced_packages
 import 'package:archive/archive.dart';
+import 'package:attendance_tracker/features/settings/data/background_sync_service.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
+
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 // ignore: depend_on_referenced_packages
@@ -31,6 +34,9 @@ class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 class MockDriveApi extends Mock implements drive.DriveApi {}
 
 class MockFilesResource extends Mock implements drive.FilesResource {}
+
+class MockBackgroundSyncService extends Mock implements BackgroundSyncService {}
+
 
 class _FakeDriveFile extends Fake implements drive.File {}
 
@@ -407,5 +413,119 @@ void main() {
       final ids = merged.map((m) => (m as Map)['id']).toSet();
       expect(ids, containsAll({'existing', 'restored'}));
     });
+
+    test('syncFiles throws SyncInterruptedException and invokes onSyncInterrupted on connection abort',
+        () async {
+      bool interruptedCallbackCalled = false;
+
+      final abortService = DriveService(
+        googleSignIn: signIn,
+        onSyncInterrupted: () async {
+          interruptedCallbackCalled = true;
+        },
+      );
+      abortService.debugSetDriveApi(api);
+      addTearDown(abortService.dispose);
+
+      when(() => files.list(
+            q: any(named: 'q'),
+            $fields: any(named: r'$fields'),
+            orderBy: any(named: 'orderBy'),
+            pageSize: any(named: 'pageSize'),
+          )).thenThrow(
+        http.ClientException('Software caused connection abort'),
+      );
+
+      await expectLater(
+        abortService.syncFiles(),
+        throwsA(isA<SyncInterruptedException>()),
+      );
+
+      expect(interruptedCallbackCalled, isTrue);
+    });
+
+    test('syncFiles enqueues immediate background sync on connection abort if backgroundSyncService is set',
+        () async {
+      final mockBgSyncService = MockBackgroundSyncService();
+      when(() => mockBgSyncService.enqueueImmediateOneOffSync())
+          .thenAnswer((_) async {});
+
+      final abortService = DriveService(
+        googleSignIn: signIn,
+        backgroundSyncService: mockBgSyncService,
+      );
+      abortService.debugSetDriveApi(api);
+      addTearDown(abortService.dispose);
+
+      when(() => files.list(
+            q: any(named: 'q'),
+            $fields: any(named: r'$fields'),
+            orderBy: any(named: 'orderBy'),
+            pageSize: any(named: 'pageSize'),
+          )).thenThrow(
+        http.ClientException('Software caused connection abort'),
+      );
+
+      await expectLater(
+        abortService.syncFiles(),
+        throwsA(isA<SyncInterruptedException>()),
+      );
+
+      verify(() => mockBgSyncService.enqueueImmediateOneOffSync()).called(1);
+    });
+
+    test('zip snapshot file is deleted in finally block even when backup upload fails',
+        () async {
+      stubBasicFolders();
+
+      // Make zip file creation fail on upload
+      when(() => files.create(
+            any(),
+            uploadMedia: any(named: 'uploadMedia'),
+          )).thenThrow(
+        http.ClientException('Software caused connection abort'),
+      );
+
+      // Create a local session file so filesToSync has content
+      final localFile = File(p.join(tempDir.path, 'sessions.json'));
+      await localFile.writeAsString('[]');
+
+      await expectLater(
+        service.syncFiles(),
+        throwsA(isA<SyncInterruptedException>()),
+      );
+
+      // Verify no orphan .zip file remains in tempDir/documents
+      final zipFiles = tempDir
+          .listSync()
+          .where((f) => f.path.endsWith('.zip'))
+          .toList();
+      expect(zipFiles, isEmpty);
+    });
+
+    test('Drive API operation retries up to 3 times on transient ClientException', () async {
+      stubBasicFolders();
+      int backupQueryAttempts = 0;
+      when(() => files.list(
+            q: any(named: 'q', that: contains('attendance_snapshot_')),
+            $fields: any(named: r'$fields'),
+            orderBy: any(named: 'orderBy'),
+            pageSize: any(named: 'pageSize'),
+          )).thenAnswer((_) async {
+        backupQueryAttempts++;
+        if (backupQueryAttempts < 3) {
+          throw http.ClientException('Connection reset');
+        }
+        return drive.FileList(
+          files: [_file('b1', 'attendance_snapshot_20250101_000000.zip')],
+        );
+      });
+
+      final result = await service.listCloudBackups();
+      expect(backupQueryAttempts, 3);
+      expect(result.length, 1);
+    });
   });
 }
+
+

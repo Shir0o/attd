@@ -144,4 +144,20 @@ class BackgroundSyncService {
       _log.warning('Failed to cancel background sync', e, st);
     }
   }
+
+  Future<void> enqueueImmediateOneOffSync() async {
+    try {
+      await _workmanager.registerOneOffTask(
+        '${backgroundSyncUniqueName}_oneoff_${DateTime.now().millisecondsSinceEpoch}',
+        backgroundSyncTaskName,
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+        ),
+      );
+      _log.info('Enqueued immediate one-off background sync task');
+    } catch (e, st) {
+      _log.warning('Failed to enqueue one-off background sync', e, st);
+    }
+  }
 }
+
