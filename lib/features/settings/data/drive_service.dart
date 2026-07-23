@@ -8,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:archive/archive_io.dart';
 import 'package:app_attest_integrity/app_attest_integrity.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -17,10 +18,61 @@ import '../../../../data/session_repository.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
+import 'background_sync_service.dart';
 
 final _log = AppLogger('DriveService');
 
+class SyncInterruptedException implements Exception {
+  SyncInterruptedException([
+    this.message =
+        'Sync paused because app was closed or network was interrupted. Background sync will retry.',
+    this.cause,
+  ]);
+
+  final String message;
+  final Object? cause;
+
+  @override
+  String toString() =>
+      'SyncInterruptedException: $message${cause != null ? ' ($cause)' : ''}';
+}
+
+bool isConnectionAbortError(Object e) {
+  if (e is http.ClientException) {
+    final msg = e.message.toLowerCase();
+    if (msg.contains('connection abort') ||
+        msg.contains('connection reset') ||
+        msg.contains('connection closed') ||
+        msg.contains('software caused connection abort')) {
+      return true;
+    }
+  }
+  if (e is SocketException) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('connection abort') ||
+        msg.contains('connection reset') ||
+        msg.contains('broken pipe') ||
+        msg.contains('software caused connection abort')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+bool isTransientNetworkError(Object e) {
+  if (isConnectionAbortError(e)) return true;
+  if (e is http.ClientException ||
+      e is SocketException ||
+      e is HttpException ||
+      e is TimeoutException) {
+    return true;
+  }
+  return false;
+}
+
 class SyncStats {
+
   int newSessions = 0;
   int newEvents = 0;
   int newMembers = 0;
@@ -45,6 +97,8 @@ class DriveService extends ChangeNotifier {
     this.sessionRepository,
     this.attendanceRepository,
     this.eventRepository,
+    this.backgroundSyncService,
+    this.onSyncInterrupted,
   }) : _googleSignIn = googleSignIn ?? GoogleSignIn.instance {
     // v7: Track current user via the authenticationEvents stream rather
     // than the removed `currentUser` getter.
@@ -58,10 +112,42 @@ class DriveService extends ChangeNotifier {
   final SessionRepository? sessionRepository;
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
+  final BackgroundSyncService? backgroundSyncService;
+  final Future<void> Function()? onSyncInterrupted;
+
+  Future<T> _retryDriveOperation<T>(
+    Future<T> Function() operation, {
+    int maxAttempts = 3,
+    Duration initialDelay = const Duration(milliseconds: 500),
+    Future<void> Function(Duration)? delayOverride,
+  }) async {
+    int attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        return await operation();
+      } catch (e) {
+        if (attempt >= maxAttempts || !isTransientNetworkError(e)) {
+          rethrow;
+        }
+        final delay = initialDelay * (1 << (attempt - 1));
+        _log.warning(
+          'Drive API operation transient error (attempt $attempt/$maxAttempts), retrying in ${delay.inMilliseconds}ms...',
+          e,
+        );
+        if (delayOverride != null) {
+          await delayOverride(delay);
+        } else {
+          await Future.delayed(delay);
+        }
+      }
+    }
+  }
 
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authSubscription;
   GoogleSignInAccount? _currentUser;
   GoogleSignInClientAuthorization? _authorization;
+
 
   drive.DriveApi? _driveApi;
   DateTime? _lastSyncTime;
@@ -299,9 +385,11 @@ class DriveService extends ChangeNotifier {
 
     final query =
         "name = '$_syncFolderName' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-    final folderList = await _driveApi!.files.list(
-      q: query,
-      $fields: 'files(id)',
+    final folderList = await _retryDriveOperation(
+      () => _driveApi!.files.list(
+        q: query,
+        $fields: 'files(id)',
+      ),
     );
 
     if (folderList.files != null && folderList.files!.isNotEmpty) {
@@ -314,7 +402,9 @@ class DriveService extends ChangeNotifier {
       ..name = _syncFolderName
       ..mimeType = 'application/vnd.google-apps.folder';
 
-    final createdFolder = await _driveApi!.files.create(folder);
+    final createdFolder = await _retryDriveOperation(
+      () => _driveApi!.files.create(folder),
+    );
     _appFolderId = createdFolder.id;
     return _appFolderId!;
   }
@@ -324,9 +414,11 @@ class DriveService extends ChangeNotifier {
 
     final query =
         "name = '$_backupFolderName' and '$parentId' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-    final folderList = await _driveApi!.files.list(
-      q: query,
-      $fields: 'files(id)',
+    final folderList = await _retryDriveOperation(
+      () => _driveApi!.files.list(
+        q: query,
+        $fields: 'files(id)',
+      ),
     );
 
     if (folderList.files != null && folderList.files!.isNotEmpty) {
@@ -340,10 +432,13 @@ class DriveService extends ChangeNotifier {
       ..parents = [parentId]
       ..mimeType = 'application/vnd.google-apps.folder';
 
-    final createdFolder = await _driveApi!.files.create(folder);
+    final createdFolder = await _retryDriveOperation(
+      () => _driveApi!.files.create(folder),
+    );
     _backupFolderId = createdFolder.id;
     return _backupFolderId!;
   }
+
 
   Future<void> overwriteCloudWithLocal() async {
     if (_isSyncing) return;
@@ -551,6 +646,18 @@ class DriveService extends ChangeNotifier {
       );
       rethrow;
     } catch (e, st) {
+      if (isConnectionAbortError(e)) {
+        _log.warning('Sync interrupted by network/app backgrounding', e, st);
+        if (onSyncInterrupted != null) {
+          await onSyncInterrupted!.call();
+        } else if (backgroundSyncService != null && isBackgroundSyncEnabled) {
+          await backgroundSyncService!.enqueueImmediateOneOffSync();
+        }
+        throw SyncInterruptedException(
+          'Sync paused because app was closed or network was interrupted. Background sync will retry.',
+          e,
+        );
+      }
       _log.error('Sync failed', e, st);
       rethrow;
     } finally {
@@ -567,14 +674,16 @@ class DriveService extends ChangeNotifier {
     List<String> tags = const [],
     bool isInitialSetup = false,
   }) async {
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final backupName = 'attendance_snapshot_$timestamp.zip';
+    final backupPath = p.join(docsDir.path, backupName);
+    final backupFile = File(backupPath);
+
     try {
       final backupFolderId = await _getOrCreateBackupFolder(parentId);
 
       // Create ZIP
       final encoder = ZipFileEncoder();
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final backupName = 'attendance_snapshot_$timestamp.zip';
-      final backupPath = p.join(docsDir.path, backupName);
       encoder.create(backupPath);
 
       try {
@@ -589,7 +698,6 @@ class DriveService extends ChangeNotifier {
       }
 
       // Upload ZIP
-      final backupFile = File(backupPath);
       final media = drive.Media(backupFile.openRead(), backupFile.lengthSync());
 
       final String user = currentUser?.displayName ?? 'System';
@@ -605,14 +713,30 @@ class DriveService extends ChangeNotifier {
         ..description = jsonEncode(metadata)
         ..parents = [backupFolderId];
 
-      await _driveApi!.files.create(driveFile, uploadMedia: media);
-
-      // Cleanup local ZIP
-      await backupFile.delete();
+      await _retryDriveOperation(
+        () => _driveApi!.files.create(driveFile, uploadMedia: media),
+      );
     } catch (e, st) {
-      _log.error('Failed to create cloud backup', e, st);
+      if (isConnectionAbortError(e)) {
+        _log.warning(
+          'Cloud backup interrupted by network/app backgrounding',
+          e,
+          st,
+        );
+      } else {
+        _log.error('Failed to create cloud backup', e, st);
+      }
+    } finally {
+      if (await backupFile.exists()) {
+        try {
+          await backupFile.delete();
+        } catch (e) {
+          _log.warning('Failed to delete temporary backup zip file', e);
+        }
+      }
     }
   }
+
 
   Future<List<drive.File>> listCloudBackups() async {
     if (_driveApi == null) return [];
@@ -621,14 +745,17 @@ class DriveService extends ChangeNotifier {
 
     final query =
         "'$backupFolderId' in parents and trashed = false and name contains 'attendance_snapshot_'";
-    final fileList = await _driveApi!.files.list(
-      q: query,
-      $fields: 'files(id, name, description, createdTime, size)',
-      orderBy: 'createdTime desc',
-      pageSize: 1000,
+    final fileList = await _retryDriveOperation(
+      () => _driveApi!.files.list(
+        q: query,
+        $fields: 'files(id, name, description, createdTime, size)',
+        orderBy: 'createdTime desc',
+        pageSize: 1000,
+      ),
     );
 
     return fileList.files ?? [];
+
   }
 
   Future<void> restoreFromBackup(String fileId, {String? backupDateLabel}) async {
@@ -715,9 +842,11 @@ class DriveService extends ChangeNotifier {
   Future<Map<String, drive.File>> _listRemoteFiles(String folderId) async {
     final query =
         "'$folderId' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'";
-    final fileList = await _driveApi!.files.list(
-      q: query,
-      $fields: 'files(id, name, modifiedTime)',
+    final fileList = await _retryDriveOperation(
+      () => _driveApi!.files.list(
+        q: query,
+        $fields: 'files(id, name, modifiedTime)',
+      ),
     );
 
     final map = <String, drive.File>{};
@@ -747,7 +876,9 @@ class DriveService extends ChangeNotifier {
     await Future.wait(
       duplicatesToTrash.map((id) async {
         try {
-          await _driveApi!.files.update(drive.File()..trashed = true, id);
+          await _retryDriveOperation(
+            () => _driveApi!.files.update(drive.File()..trashed = true, id),
+          );
           _log.info('Trashed duplicate remote file: $id');
         } catch (e, st) {
           _log.warning('Failed to trash duplicate', e, st);
@@ -764,14 +895,18 @@ class DriveService extends ChangeNotifier {
       ..name = name
       ..parents = [folderId];
 
-    await _driveApi!.files.create(driveFile, uploadMedia: media);
+    await _retryDriveOperation(
+      () => _driveApi!.files.create(driveFile, uploadMedia: media),
+    );
   }
 
   Future<void> _updateFile(String fileId, File localFile) async {
     final media = drive.Media(localFile.openRead(), localFile.lengthSync());
-    // update modifiedTime explicitly? Drive updates it automatically.
-    await _driveApi!.files.update(drive.File(), fileId, uploadMedia: media);
+    await _retryDriveOperation(
+      () => _driveApi!.files.update(drive.File(), fileId, uploadMedia: media),
+    );
   }
+
 
   Future<void> _mergeAndSyncFile(
     String fileId,
@@ -1022,12 +1157,12 @@ class DriveService extends ChangeNotifier {
   }
 
   Future<void> _downloadFile(String fileId, File localFile) async {
-    final media =
-        await _driveApi!.files.get(
-              fileId,
-              downloadOptions: drive.DownloadOptions.fullMedia,
-            )
-            as drive.Media;
+    final media = await _retryDriveOperation(
+      () async => (await _driveApi!.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      )) as drive.Media,
+    );
 
     final List<int> dataStore = [];
     await media.stream.forEach((data) {
@@ -1036,13 +1171,15 @@ class DriveService extends ChangeNotifier {
 
     await localFile.writeAsBytes(dataStore);
 
-    final remoteFile =
-        await _driveApi!.files.get(fileId, $fields: 'modifiedTime')
-            as drive.File;
+    final remoteFile = await _retryDriveOperation(
+      () async => (await _driveApi!.files.get(fileId, $fields: 'modifiedTime'))
+          as drive.File,
+    );
     if (remoteFile.modifiedTime != null) {
       await localFile.setLastModified(remoteFile.modifiedTime!);
     }
   }
+
 
   @visibleForTesting
   // ignore: use_setters_to_change_properties
@@ -1067,4 +1204,20 @@ class DriveService extends ChangeNotifier {
   ) {
     return _mergeHistoryMaps(local, remote);
   }
+
+  @visibleForTesting
+  Future<T> testRetryDriveOperation<T>(
+    Future<T> Function() operation, {
+    int maxAttempts = 3,
+    Duration initialDelay = const Duration(milliseconds: 500),
+    Future<void> Function(Duration)? delayOverride,
+  }) {
+    return _retryDriveOperation(
+      operation,
+      maxAttempts: maxAttempts,
+      initialDelay: initialDelay,
+      delayOverride: delayOverride,
+    );
+  }
 }
+

@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
@@ -567,6 +570,112 @@ void main() {
       await service.signInSilently();
       expect(service.currentUser, isNull);
     });
+
+    group('Connection Abort & Transient Network Errors', () {
+      test('isConnectionAbortError identifies ClientException and SocketException aborts', () {
+        expect(
+          isConnectionAbortError(
+            http.ClientException('Software caused connection abort'),
+          ),
+          isTrue,
+        );
+        expect(
+          isConnectionAbortError(
+            const SocketException('Software caused connection abort'),
+          ),
+          isTrue,
+        );
+        expect(
+          isConnectionAbortError(
+            const SocketException('Connection reset by peer'),
+          ),
+          isTrue,
+        );
+        expect(
+          isConnectionAbortError(
+            const HttpException('Connection closed before full header was received'),
+          ),
+          isFalse,
+        );
+        expect(
+          isConnectionAbortError(Exception('Generic error')),
+          isFalse,
+        );
+      });
+
+      test('isTransientNetworkError identifies transient exceptions', () {
+        expect(
+          isTransientNetworkError(http.ClientException('Network drop')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(const SocketException('No route to host')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(const HttpException('Http error')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(TimeoutException('Request timed out')),
+          isTrue,
+        );
+        expect(
+          isTransientNetworkError(Exception('Business logic error')),
+          isFalse,
+        );
+      });
+
+      test('SyncInterruptedException formats message correctly', () {
+        final ex = SyncInterruptedException('Sync paused', Exception('Abort'));
+        expect(ex.message, 'Sync paused');
+        expect(ex.toString(), contains('SyncInterruptedException: Sync paused'));
+        expect(ex.toString(), contains('Exception: Abort'));
+      });
+
+      test('testRetryDriveOperation uses delayOverride and retries transient errors', () async {
+        final service = DriveService(googleSignIn: mockGoogleSignIn);
+        addTearDown(service.dispose);
+
+        int attempts = 0;
+        final delays = <Duration>[];
+
+        final result = await service.testRetryDriveOperation(
+          () async {
+            attempts++;
+            if (attempts < 3) {
+              throw http.ClientException('Transient error');
+            }
+            return 'success';
+          },
+          delayOverride: (d) async => delays.add(d),
+        );
+
+        expect(result, 'success');
+        expect(attempts, 3);
+        expect(delays.length, 2);
+        expect(delays[0], const Duration(milliseconds: 500));
+        expect(delays[1], const Duration(milliseconds: 1000));
+      });
+
+      test('testRetryDriveOperation rethrows immediately on non-transient errors', () async {
+        final service = DriveService(googleSignIn: mockGoogleSignIn);
+        addTearDown(service.dispose);
+
+        int attempts = 0;
+        expect(
+          () => service.testRetryDriveOperation(() async {
+            attempts++;
+            throw FormatException('Fatal parse error');
+          }),
+          throwsFormatException,
+        );
+
+        expect(attempts, 1);
+      });
+    });
   });
 }
+
+
 

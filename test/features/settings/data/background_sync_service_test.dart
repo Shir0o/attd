@@ -101,7 +101,29 @@ void main() {
         () => mockWorkmanager.cancelByUniqueName(backgroundSyncUniqueName),
       ).called(1);
     });
+
+    test('enqueueImmediateOneOffSync calls Workmanager.registerOneOffTask', () async {
+      when(
+        () => mockWorkmanager.registerOneOffTask(
+          any(),
+          any(),
+          constraints: any(named: 'constraints'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final service = BackgroundSyncService(workmanager: mockWorkmanager);
+      await service.enqueueImmediateOneOffSync();
+
+      verify(
+        () => mockWorkmanager.registerOneOffTask(
+          any(that: contains('${backgroundSyncUniqueName}_oneoff_')),
+          backgroundSyncTaskName,
+          constraints: any(named: 'constraints'),
+        ),
+      ).called(1);
+    });
   });
+
 
   group('performBackgroundSync', () {
     test('skips when drive sync is disabled', () async {
