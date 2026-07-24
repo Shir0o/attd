@@ -293,6 +293,7 @@ The "Storage Inspector" shows:
 - Green "Synced" status dot
 - Last sync timestamp
 - Side-by-side buttons: "Sign out" / "Sync now"
+- If "Sync now" is interrupted by an app backgrounding or network drop, a SnackBar shows a friendly retry message instead of a generic failure (see [Transient Network Errors & Connection Abort Handling](/openwiki/integrations.md#transient-network-errors--connection-abort-handling))
 
 **Setting Rows (ConvCardSoft):**
 1. **Cloud Backup** → Opens Cloud Version History page

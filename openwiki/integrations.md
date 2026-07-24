@@ -220,6 +220,24 @@ try {
 }
 ```
 
+### Transient Network Errors & Connection Abort Handling
+
+**File:** `lib/features/settings/data/drive_service.dart`
+
+Every Drive API call in `DriveService` (folder lookup/create, file list/create/update/get, uploads, downloads) is wrapped in `_retryDriveOperation()`, which retries up to 3 attempts with exponential backoff (`initialDelay * 2^(attempt-1)`, default 500ms/1s/2s) for anything `isTransientNetworkError()` classifies as transient (`http.ClientException`, `SocketException`, `HttpException`, `TimeoutException`).
+
+A narrower check, `isConnectionAbortError()`, detects socket-level terminations specifically (connection abort/reset/closed, "software caused connection abort") — the pattern seen when the OS suspends the app mid-sync (e.g. user backgrounds the app or the network drops). When `syncFiles()` catches one of these:
+
+1. It logs a warning (not an error) since this is an expected, recoverable condition.
+2. It calls `onSyncInterrupted` if the caller supplied one, otherwise it calls `backgroundSyncService.enqueueImmediateOneOffSync()` (if a `BackgroundSyncService` was injected and background sync is enabled) to schedule an immediate Workmanager retry.
+3. It throws `SyncInterruptedException` — a distinct exception type from generic sync failures — with a user-friendly message: *"Sync paused because app was closed or network was interrupted. Background sync will retry."*
+
+`settings_page.dart` catches `SyncInterruptedException` separately from other errors and shows its message directly in a SnackBar, rather than the generic "Sync failed" message.
+
+Local `.zip` backup snapshots are now always cleaned up in a `finally` block (previously only deleted on the success path), preventing orphaned temp files from accumulating on disk when an upload is interrupted.
+
+**Testing:** `test/features/settings/data/drive_service_api_test.dart` and `drive_service_test.dart` cover retry-until-success behavior, `SyncInterruptedException` propagation, `onSyncInterrupted`/`backgroundSyncService.enqueueImmediateOneOffSync()` invocation, and zip cleanup-on-failure. `test/features/settings/presentation/settings_page_test.dart` covers the SnackBar message for interrupted syncs.
+
 ### Auto Sync (Optional)
 
 **Setting:** Disabled by default. User can opt-in via Settings toggle.
@@ -250,6 +268,7 @@ Unlike the foreground "Auto Sync" above (which fires on app resume/save), Backgr
 
 - Registered from `main.dart` on startup if Drive sync and background sync are both enabled in `SharedPreferences`
 - Runs every 12 hours via `BackgroundSyncService.registerPeriodicSync()`, with an optional `wifiOnly` constraint (`NetworkType.unmetered` vs `NetworkType.connected`)
+- `enqueueImmediateOneOffSync()` schedules a one-off Workmanager task (unique name suffixed with a timestamp, `NetworkType.connected` constraint) for near-term retry; `DriveService.syncFiles()` calls this automatically when a sync is interrupted by a connection abort (see [Transient Network Errors & Connection Abort Handling](#transient-network-errors--connection-abort-handling))
 - `callbackDispatcher()` is the `@pragma('vm:entry-point')` entry that Workmanager invokes in a background isolate; it delegates to `executeBackgroundTask()` → `performBackgroundSync()`
 - `performBackgroundSync()` re-initializes `SharedPreferences` and a fresh `DriveService`, skips the sync if Drive sync is disabled or the user isn't signed in, otherwise calls `driveService.syncFiles(actionTitle: 'Background Auto-Sync', tags: ['Auto-Sync'])`
 - Last run outcome is persisted via `DriveService.lastBackgroundSyncTimeKey` / `lastBackgroundSyncStatusKey` and surfaced in the Settings page's "Background Auto-Sync" row (see [Settings & Configuration](/openwiki/features.md))

@@ -27,6 +27,7 @@ dart run tool/check_coverage.dart --lcov coverage/custom.info --min 95.0
 ```
 
 **Recent improvements:**
+- PR #133 added Drive sync resilience tests (`drive_service_api_test.dart`, `drive_service_test.dart`, `background_sync_service_test.dart`, `settings_page_test.dart`) covering retry-with-backoff, `SyncInterruptedException`, and zip cleanup-on-failure — see [Transient Network Errors & Connection Abort Handling](/openwiki/integrations.md#transient-network-errors--connection-abort-handling)
 - PR #128 added `google_sign_in_service_test.dart` (closing Google Auth coverage gap)
 - Expanded domain entity copy/serialization tests
 - Improved local repository exception handling coverage

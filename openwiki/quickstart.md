@@ -205,6 +205,7 @@ flutter run
 
 Recent major changes (last 20 commits):
 
+- **#133** Google Drive sync resilience & connection abort handling — retry-with-backoff for transient Drive API errors, `SyncInterruptedException` for graceful handling of app-backgrounded/network-dropped syncs, and an immediate one-off background sync failover. See [Transient Network Errors & Connection Abort Handling](/openwiki/integrations.md#transient-network-errors--connection-abort-handling)
 - **#128** Test coverage elevated to 95%+ (added `google_sign_in_service_test.dart`, expanded domain/repository coverage)
 - **#126** Redesigned Manage Backup Data Page ("Storage inspector") with bulk-cleanup, record type filters, detail drawers
 - **#127** PR-Agent workflow updated to use Gemini 2.5 Flash
