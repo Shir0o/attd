@@ -232,8 +232,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         .toSet();
 
     // Map Members
+    final seenMemberIds = <String>{};
     for (final family in _families) {
       for (final member in family.members) {
+        if (!seenMemberIds.add(member.id)) continue;
         final isDeleted = member.deletedAt != null || family.deletedAt != null;
         records.add(DbRecord(
           id: member.id,
@@ -932,9 +934,11 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                   ),
                                 )
                               : Column(
-                                  children: results.map((r) {
+                                  children: results.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final r = entry.value;
                                     return _RecordRow(
-                                      key: ValueKey(r.id),
+                                      key: ValueKey('${r.table}_${r.id}_$index'),
                                       record: r,
                                       isExpanded: _openRecordId == r.id,
                                       onTap: () {
