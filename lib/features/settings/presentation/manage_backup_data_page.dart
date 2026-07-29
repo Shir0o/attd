@@ -37,6 +37,8 @@ class DbRecord {
   final String? flag; // 'hidden' | 'orphan' | null
   final String? note;
   final Map<String, String> fields;
+
+  String get uniqueKey => '${table}_$id';
 }
 
 class ManageBackupDataPage extends StatefulWidget {
@@ -937,13 +939,14 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                   children: results.asMap().entries.map((entry) {
                                     final index = entry.key;
                                     final r = entry.value;
+                                    final key = r.uniqueKey;
                                     return _RecordRow(
                                       key: ValueKey('${r.table}_${r.id}_$index'),
                                       record: r,
-                                      isExpanded: _openRecordId == r.id,
+                                      isExpanded: _openRecordId == key,
                                       onTap: () {
                                         setState(() {
-                                          _openRecordId = _openRecordId == r.id ? null : r.id;
+                                          _openRecordId = _openRecordId == key ? null : key;
                                         });
                                       },
                                       onCopy: () {
