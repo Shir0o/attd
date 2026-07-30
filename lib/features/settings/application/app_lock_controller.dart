@@ -26,11 +26,22 @@ class AppLockController extends ChangeNotifier {
   bool _enabled = false;
   bool _isLocked = false;
   bool _isAuthenticating = false;
+  bool _isExternalAuthInProgress = false;
   DateTime? _backgroundedAt;
 
   bool get isEnabled => _enabled;
   bool get isLocked => _enabled && _isLocked;
   bool get isAuthenticating => _isAuthenticating;
+  bool get isExternalAuthInProgress => _isExternalAuthInProgress;
+
+  /// Marks whether an external authentication flow (e.g. Google Sign-In) is
+  /// active. While true, lifecycle backgrounding will not trigger app lock.
+  void setExternalAuthInProgress(bool inProgress) {
+    _isExternalAuthInProgress = inProgress;
+    if (inProgress) {
+      _backgroundedAt = null;
+    }
+  }
 
   /// Returns true if the device has biometrics or a device credential set up.
   Future<bool> canUseAppLock() async {
@@ -69,6 +80,7 @@ class AppLockController extends ChangeNotifier {
 
   /// Called when app is paused/detached.
   void markBackgrounded() {
+    if (_isAuthenticating || _isExternalAuthInProgress) return;
     _backgroundedAt = DateTime.now();
   }
 
@@ -78,6 +90,7 @@ class AppLockController extends ChangeNotifier {
   /// re-prompt for authentication.
   void onResumed() {
     if (!_enabled) return;
+    if (_isAuthenticating || _isExternalAuthInProgress) return;
     final at = _backgroundedAt;
     _backgroundedAt = null;
     final shouldLock = _isLocked ||
@@ -116,6 +129,7 @@ class AppLockController extends ChangeNotifier {
       return false;
     } finally {
       _isAuthenticating = false;
+      _backgroundedAt = null;
       notifyListeners();
     }
   }

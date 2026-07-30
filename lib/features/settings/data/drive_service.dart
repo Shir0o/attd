@@ -18,6 +18,7 @@ import '../../../../data/session_repository.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
+import '../application/app_lock_controller.dart';
 import 'background_sync_service.dart';
 
 final _log = AppLogger('DriveService');
@@ -99,7 +100,9 @@ class DriveService extends ChangeNotifier {
     this.eventRepository,
     this.backgroundSyncService,
     this.onSyncInterrupted,
-  }) : _googleSignIn = googleSignIn ?? GoogleSignIn.instance {
+    AppLockController? appLockController,
+  })  : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+        _appLockController = appLockController {
     // v7: Track current user via the authenticationEvents stream rather
     // than the removed `currentUser` getter.
     _authSubscription = _googleSignIn.authenticationEvents.listen(
@@ -109,6 +112,7 @@ class DriveService extends ChangeNotifier {
   }
 
   final GoogleSignIn _googleSignIn;
+  final AppLockController? _appLockController;
   final SessionRepository? sessionRepository;
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
@@ -290,6 +294,7 @@ class DriveService extends ChangeNotifier {
   }
 
   Future<void> signIn() async {
+    _appLockController?.setExternalAuthInProgress(true);
     try {
       await _checkIntegrity();
       if (!_googleSignIn.supportsAuthenticate()) {
@@ -311,6 +316,8 @@ class DriveService extends ChangeNotifier {
     } catch (e, st) {
       _log.warning('Sign in failed', e, st);
       rethrow;
+    } finally {
+      _appLockController?.setExternalAuthInProgress(false);
     }
   }
 
@@ -354,10 +361,16 @@ class DriveService extends ChangeNotifier {
   /// Ensures we hold a valid [GoogleSignInClientAuthorization] for the
   /// Drive scopes, requesting interactive consent only if needed.
   Future<void> _ensureAuthorization(GoogleSignInAccount account) async {
-    var auth = await account.authorizationClient
-        .authorizationForScopes(_driveScopes);
-    auth ??= await account.authorizationClient.authorizeScopes(_driveScopes);
-    _authorization = auth;
+    _appLockController?.setExternalAuthInProgress(true);
+    try {
+      var auth = await account.authorizationClient
+          .authorizationForScopes(_driveScopes);
+      auth ??=
+          await account.authorizationClient.authorizeScopes(_driveScopes);
+      _authorization = auth;
+    } finally {
+      _appLockController?.setExternalAuthInProgress(false);
+    }
   }
 
   Future<void> _saveLastSyncTime(DateTime time) async {

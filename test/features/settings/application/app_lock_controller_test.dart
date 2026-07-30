@@ -232,5 +232,40 @@ void main() {
       c.onResumed();
       expect(c.isLocked, isFalse);
     });
+
+    test('ignores markBackgrounded and onResumed while external auth is in progress',
+        () async {
+      await prefs.setBool('app_lock_enabled', true);
+      final c = AppLockController(
+        prefs,
+        auth: auth,
+        backgroundLockThreshold: const Duration(milliseconds: 10),
+      );
+      when(
+        () => auth.authenticate(
+          localizedReason: any(named: 'localizedReason'),
+          options: any(named: 'options'),
+        ),
+      ).thenAnswer((_) async => true);
+      await c.unlock();
+      expect(c.isLocked, isFalse);
+
+      c.setExternalAuthInProgress(true);
+      expect(c.isExternalAuthInProgress, isTrue);
+
+      c.markBackgrounded();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      c.onResumed();
+      expect(c.isLocked, isFalse);
+
+      c.setExternalAuthInProgress(false);
+      expect(c.isExternalAuthInProgress, isFalse);
+
+      // Now normal backgrounding should trigger lock as expected
+      c.markBackgrounded();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      c.onResumed();
+      expect(c.isLocked, isTrue);
+    });
   });
 }

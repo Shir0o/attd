@@ -1,6 +1,7 @@
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/logging/app_logger.dart';
+import '../../settings/application/app_lock_controller.dart';
 import '../application/google_auth_service.dart';
 import '../domain/entities/google_account.dart';
 
@@ -11,10 +12,14 @@ final _log = AppLogger('GoogleSignIn');
 const List<String> _basicScopes = <String>['email', 'profile'];
 
 class GoogleSignInAuthService implements GoogleAuthService {
-  GoogleSignInAuthService({GoogleSignIn? googleSignIn})
-    : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+  GoogleSignInAuthService({
+    GoogleSignIn? googleSignIn,
+    AppLockController? appLockController,
+  })  : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+        _appLockController = appLockController;
 
   final GoogleSignIn _googleSignIn;
+  final AppLockController? _appLockController;
   GoogleAccount? _currentUser;
 
   @override
@@ -22,6 +27,7 @@ class GoogleSignInAuthService implements GoogleAuthService {
 
   @override
   Future<GoogleAccount?> signIn() async {
+    _appLockController?.setExternalAuthInProgress(true);
     try {
       // v7: signIn() was split into authenticate() (interactive auth) and
       // authorizeScopes() (per-scope OAuth authorization).
@@ -55,6 +61,8 @@ class GoogleSignInAuthService implements GoogleAuthService {
     } catch (error, stackTrace) {
       _log.warning('Google Sign-In Error', error, stackTrace);
       rethrow;
+    } finally {
+      _appLockController?.setExternalAuthInProgress(false);
     }
   }
 

@@ -74,10 +74,13 @@ Future<void> main() async {
     attendanceRepository: attendanceRepository,
     sessionRepository: sessionRepository,
     eventRepository: eventRepository,
+    appLockController: appLockController,
   );
 
   final localBackupService = LocalBackupService();
-  final googleAuthService = GoogleSignInAuthService();
+  final googleAuthService = GoogleSignInAuthService(
+    appLockController: appLockController,
+  );
 
   final backgroundSyncService = BackgroundSyncService();
   await backgroundSyncService.initialize();
