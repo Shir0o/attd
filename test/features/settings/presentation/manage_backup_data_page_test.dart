@@ -395,5 +395,47 @@ void main() {
     // Verify the record is deleted from session repository (it should have saved a session without the record)
     expect(sessions.sessions.single.records, isEmpty);
   });
+
+  testWidgets('handles duplicate member entries across families without duplicate key exception', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final member = Member(
+      id: 'b85ddc4b-fc69-4c0b-81e1-1cd00183495d',
+      displayName: 'Duplicate Member',
+      updatedAt: now,
+    );
+    // Same member present in multiple families (e.g. custom family + auto-singleton family)
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Family One',
+        members: [member],
+        updatedAt: now,
+      ),
+      Family(
+        id: 'family-2',
+        displayName: 'Family Two (Auto-Singleton)',
+        members: [member],
+        isAutoSingleton: true,
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Storage inspector'), findsOneWidget);
+    expect(find.text('Duplicate Member'), findsOneWidget);
+  });
 }
 
