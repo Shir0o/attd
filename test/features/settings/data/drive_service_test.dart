@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 class MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
+
+class MockAppLockController extends Mock implements AppLockController {}
 
 void main() {
   group('DriveService Merge Logic Scenarios', () {
@@ -672,6 +675,26 @@ void main() {
         );
 
         expect(attempts, 1);
+      });
+
+      test('signIn toggles external auth flag on AppLockController', () async {
+        final mockAppLockController = MockAppLockController();
+        when(() => mockAppLockController.setExternalAuthInProgress(any())).thenReturn(null);
+        final serviceWithLock = DriveService(
+          googleSignIn: mockGoogleSignIn,
+          appLockController: mockAppLockController,
+        );
+        addTearDown(serviceWithLock.dispose);
+
+        when(() => mockGoogleSignIn.supportsAuthenticate()).thenReturn(false);
+
+        await expectLater(
+          serviceWithLock.signIn(),
+          throwsA(isA<UnsupportedError>()),
+        );
+
+        verify(() => mockAppLockController.setExternalAuthInProgress(true)).called(1);
+        verify(() => mockAppLockController.setExternalAuthInProgress(false)).called(1);
       });
     });
   });

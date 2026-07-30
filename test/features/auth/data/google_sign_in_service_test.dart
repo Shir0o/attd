@@ -2,12 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:attendance_tracker/features/auth/data/google_sign_in_service.dart';
+import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 class MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
 class MockGoogleSignInAuthentication extends Mock implements GoogleSignInAuthentication {}
 class MockGoogleSignInAuthorizationClient extends Mock implements GoogleSignInAuthorizationClient {}
 class MockGoogleSignInClientAuthorization extends Mock implements GoogleSignInClientAuthorization {}
+class MockAppLockController extends Mock implements AppLockController {}
 
 void main() {
   group('GoogleSignInAuthService', () {
@@ -147,6 +149,21 @@ void main() {
 
       expect(authService.currentUser, isNull);
       verify(() => mockGoogleSignIn.signOut()).called(1);
+    });
+
+    test('signIn toggles external auth flag on AppLockController', () async {
+      final mockAppLockController = MockAppLockController();
+      final serviceWithLock = GoogleSignInAuthService(
+        googleSignIn: mockGoogleSignIn,
+        appLockController: mockAppLockController,
+      );
+
+      when(() => mockGoogleSignIn.supportsAuthenticate()).thenReturn(false);
+
+      await serviceWithLock.signIn();
+
+      verify(() => mockAppLockController.setExternalAuthInProgress(true)).called(1);
+      verify(() => mockAppLockController.setExternalAuthInProgress(false)).called(1);
     });
   });
 }
