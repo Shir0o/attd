@@ -60,7 +60,15 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-## 5. Changelog Context & Tracking
+## 5. Test-Driven Development (TDD)
+
+**Write tests before or alongside code changes to guide design and verify behavior.**
+
+- **Red-Green-Refactor**: Write failing unit or widget tests first that capture the desired behavior or reproduce bugs, implement the minimal implementation to pass, then refactor cleanly.
+- **Coverage Guard**: Always write or update relevant tests when adding features or modifying code to maintain project line coverage above the required threshold (95.0%).
+- **Verification**: Run unit and widget tests (`flutter test`) and static analysis (`flutter analyze`) to confirm correctness before considering work ready for PR.
+
+## 6. Changelog Context & Tracking
 
 **Always prevent regression by checking the changelog before making changes, and always update the changelog after.**
 
