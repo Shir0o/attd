@@ -393,21 +393,11 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
             for (final rec in s.records) {
               final recRecordedAtStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(rec.recordedAt);
               final isMatch = (memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName) &&
-                  recRecordedAtStr == recordedAtStr;
+                  (recordedAtStr == null || recordedAtStr == '—' || recRecordedAtStr == recordedAtStr);
               if (isMatch && !removedTarget) {
                 removedTarget = true;
               } else {
                 records.add(rec);
-              }
-            }
-            if (!removedTarget) {
-              for (final rec in s.records) {
-                final isMatch = memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName;
-                if (isMatch && !removedTarget) {
-                  removedTarget = true;
-                } else {
-                  records.add(rec);
-                }
               }
             }
             updatedSessions[sessionIndex] = s.copyWith(records: records);
