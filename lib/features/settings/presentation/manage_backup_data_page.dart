@@ -14,6 +14,7 @@ import '../../hub/data/event_repository.dart';
 import '../../hub/data/local_event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../../data/session.dart';
+import '../../../data/session_record.dart';
 import '../../../data/local_session_repository.dart';
 import '../../../data/session_repository.dart';
 
@@ -184,6 +185,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           'days': event.repeatingDays.toString(),
           'time': '${event.time.hour.toString().padLeft(2, '0')}:${event.time.minute.toString().padLeft(2, '0')}',
           'members': '${event.memberIds.length}',
+          'date': DateFormat('yyyy-MM-dd').format(event.createdAt),
           'created': DateFormat('yyyy-MM-dd HH:mm').format(event.createdAt),
           'deletedAt': event.deletedAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(event.deletedAt!) : 'null',
         },
@@ -219,6 +221,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           'id': session.id,
           'event_id': session.eventId ?? '—',
           'date': DateFormat('yyyy-MM-dd').format(session.sessionDate),
+          'formatted_date': DateFormat('MMM dd, yyyy').format(session.sessionDate),
           'records': '${session.records.length}',
           'created_by': session.createdBy,
           'deletedAt': session.deletedAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(session.deletedAt!) : 'null',
@@ -289,11 +292,16 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       ));
     }
 
-    // Map Attendance (marks)
+    // Map Attendance (marks) & Track Duplicates (event name + date + attendant name match)
+    final Map<String, String> seenAttendanceKeys = {};
     for (final session in _sessions) {
+      final sessionDateStr = DateFormat('yyyy-MM-dd').format(session.sessionDate);
+      final sessionDateFormatted = DateFormat('MMM dd, yyyy').format(session.sessionDate);
+
       for (final record in session.records) {
         final isSessionDeleted = session.deletedAt != null;
         final isMemberDeleted = record.memberId != null && !activeMemberIds.contains(record.memberId);
+        final compositeKey = '${session.title.trim().toLowerCase()}|$sessionDateStr|${record.attendee.trim().toLowerCase()}';
 
         String? flag;
         String? note;
@@ -303,15 +311,20 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         } else if (isMemberDeleted) {
           flag = 'orphan';
           note = 'This attendance mark references member ID ${record.memberId}, who has been deleted or is missing from the roster.';
+        } else if (seenAttendanceKeys.containsKey(compositeKey)) {
+          flag = 'duplicate';
+          note = 'Duplicate attendance entry detected: matches event "${session.title}", date "$sessionDateStr", and attendant "${record.attendee}".';
+        } else {
+          seenAttendanceKeys[compositeKey] = '${session.id}_${record.memberId ?? record.attendee}';
         }
 
-        final recordKey = '${session.id}_${record.memberId ?? record.attendee}';
+        final recordKey = '${session.id}_${record.memberId ?? record.attendee}_${record.recordedAt.millisecondsSinceEpoch}';
 
         records.add(DbRecord(
           id: recordKey,
           table: 'attendance',
           title: 'mark · ${record.status.name}',
-          meta: '${session.title} · ${record.attendee}',
+          meta: '${session.title} · ${record.attendee} · $sessionDateFormatted',
           flag: flag,
           note: note,
           fields: {
@@ -319,6 +332,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
             'member_id': record.memberId ?? '—',
             'attendee': record.attendee,
             'status': record.status.name,
+            'date': sessionDateStr,
+            'formatted_date': sessionDateFormatted,
             'recordedAt': DateFormat('yyyy-MM-dd HH:mm:ss').format(record.recordedAt),
             'recordedBy': record.recordedBy,
           },
@@ -368,17 +383,33 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           final sessionId = r.fields['session_id'];
           final memberId = r.fields['member_id'] == '—' ? null : r.fields['member_id'];
           final attendeeName = r.fields['attendee'];
+          final recordedAtStr = r.fields['recordedAt'];
 
           final sessionIndex = updatedSessions.indexWhere((s) => s.id == sessionId);
           if (sessionIndex != -1) {
             final s = updatedSessions[sessionIndex];
-            final records = s.records.where((rec) {
-              if (memberId != null) {
-                return rec.memberId != memberId;
+            bool removedTarget = false;
+            final records = <SessionRecord>[];
+            for (final rec in s.records) {
+              final recRecordedAtStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(rec.recordedAt);
+              final isMatch = (memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName) &&
+                  recRecordedAtStr == recordedAtStr;
+              if (isMatch && !removedTarget) {
+                removedTarget = true;
               } else {
-                return rec.attendee != attendeeName;
+                records.add(rec);
               }
-            }).toList();
+            }
+            if (!removedTarget) {
+              for (final rec in s.records) {
+                final isMatch = memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName;
+                if (isMatch && !removedTarget) {
+                  removedTarget = true;
+                } else {
+                  records.add(rec);
+                }
+              }
+            }
             updatedSessions[sessionIndex] = s.copyWith(records: records);
             sessionsChanged = true;
           }
@@ -451,6 +482,11 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
 
   void _showCleanupConfirmation(int issueTotal) {
     final c = context.conv;
+    final hiddenCount = _allRecords.where((r) => r.flag == 'hidden').length;
+    final orphanCount = _allRecords.where((r) => r.flag == 'orphan').length;
+    final duplicateCount = _allRecords.where((r) => r.flag == 'duplicate').length;
+    final duplicateRecords = _allRecords.where((r) => r.flag == 'duplicate').toList();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -497,7 +533,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                'This deletes every hidden and orphaned record from the on-device database. It can\'t be undone — but no visible members, families or marked sessions are affected.',
+                'Dry Run & Validation summary of $issueTotal flagged record(s) ready for cleanup.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13.5,
@@ -505,6 +541,145 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                   height: 1.5,
                 ),
               ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  color: c.cardSoft,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  children: [
+                    if (duplicateCount > 0)
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD97706).withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.copy, color: Color(0xFFD97706), size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$duplicateCount Duplicate attendance entries',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                ),
+                                Text(
+                                  'Matching event + date + attendant',
+                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (hiddenCount > 0) ...[
+                      if (duplicateCount > 0) const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: c.clayDeep.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.visibility_off_outlined, color: c.clayDeep, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$hiddenCount Soft-deleted records',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                ),
+                                Text(
+                                  'Hidden in main database',
+                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (orphanCount > 0) ...[
+                      if (duplicateCount > 0 || hiddenCount > 0) const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: c.absent.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.link_off, color: c.absent, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$orphanCount Orphaned references',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                ),
+                                Text(
+                                  'Unlinked member or event IDs',
+                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (duplicateRecords.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Duplicates Preview:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.ink),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  decoration: BoxDecoration(
+                    color: c.cardSoft,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: duplicateRecords.length,
+                    itemBuilder: (context, index) {
+                      final r = duplicateRecords[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          '• ${r.meta}',
+                          style: TextStyle(fontSize: 11, color: c.ink2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
               const SizedBox(height: 22),
               Row(
                 children: [
@@ -1161,6 +1336,7 @@ class _RecordRow extends StatelessWidget {
 
     final isOrphan = record.flag == 'orphan';
     final isHidden = record.flag == 'hidden';
+    final isDuplicate = record.flag == 'duplicate';
     final isFlagged = record.flag != null;
 
     Color iconColor = c.ink3;
@@ -1182,6 +1358,13 @@ class _RecordRow extends StatelessWidget {
       badgeText = 'HIDDEN';
       badgeFg = c.clayDeep;
       badgeBg = c.clayDeep.withValues(alpha: 0.15);
+    } else if (isDuplicate) {
+      const amber = Color(0xFFD97706);
+      iconColor = amber;
+      labelColor = amber;
+      badgeText = 'DUPLICATE';
+      badgeFg = amber;
+      badgeBg = amber.withValues(alpha: 0.15);
     }
 
     IconData icon;

@@ -386,7 +386,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Tap delete button for the attendance mark
-    final deleteBtn = find.byKey(const ValueKey('delete_btn_session-1_member-1234'));
+    final deleteBtn = find.text('Delete record');
     await tester.drag(find.byType(ListView), const Offset(0, -400));
     await tester.pumpAndSettle();
     await tester.tap(deleteBtn);
@@ -436,6 +436,118 @@ void main() {
 
     expect(find.text('Storage inspector'), findsOneWidget);
     expect(find.text('Duplicate Member'), findsOneWidget);
+  });
+
+  testWidgets('displays date, enables date search, flags duplicate attendance entries, and shows dry run validation', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final later = DateTime(2025, 4, 5, 10, 5);
+
+    final member = Member(
+      id: 'member-101',
+      displayName: 'John Doe',
+      updatedAt: now,
+    );
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Doe Family',
+        members: [member],
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-1',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+    ]);
+
+    // Create 2 sessions for the same event and date, both containing an attendance record for 'John Doe'
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-1',
+        title: 'Sunday Service',
+        eventId: 'event-1',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [
+          SessionRecord(
+            memberId: member.id,
+            attendee: 'John Doe',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 'session-2',
+        title: 'Sunday Service',
+        eventId: 'event-1',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [
+          SessionRecord(
+            memberId: member.id,
+            attendee: 'John Doe',
+            status: AttendanceStatus.present,
+            recordedAt: later,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verify Date Search
+    await tester.enterText(find.byType(TextField), '2025-04-05');
+    await tester.pump();
+    expect(find.textContaining('Sunday Service'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), 'Apr 05');
+    await tester.pump();
+    expect(find.textContaining('Sunday Service'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pump();
+
+    // 2. Verify Duplicate Flagging
+    expect(find.text('DUPLICATE'), findsOneWidget);
+
+    // 3. Verify Dry Run Validation Sheet
+    final cleanupButton = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Dry Run & Validation'), findsOneWidget);
+    expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
+
+    // Execute cleanup from sheet
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.pumpAndSettle();
+
+    // Verify duplicate attendance record was safely removed while primary was kept
+    final s1 = sessions.sessions.firstWhere((s) => s.id == 'session-1');
+    final s2 = sessions.sessions.firstWhere((s) => s.id == 'session-2');
+    expect(s1.records.length + s2.records.length, equals(1));
   });
 }
 
