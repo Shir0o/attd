@@ -15,10 +15,7 @@ Thank you for choosing **Attendance Tracker**. This Privacy Policy explains how 
 The core functionality of the app involves managing member lists and recording attendance for events. This data (including names, event titles, and dates) is **stored locally on your device**. We do not have access to this data unless you choose to sync it with your own Google Drive.
 
 ### Usage & Diagnostic Data
-To improve app stability and performance, we use **Firebase Crashlytics**. 
-- **What is collected:** Stack traces, crash reports, and basic device information (e.g., device model, OS version).
-- **Anonymity:** This data does not contain personally identifiable information (PII) like your name or email.
-- **Purpose:** To identify and fix bugs and crashes.
+This app operates 100% locally on your device. We do not collect, transmit, or monitor stack traces, crash reports, or diagnostic usage data via third-party services like Firebase Crashlytics.
 
 ## 2. Google Services & Permissions
 

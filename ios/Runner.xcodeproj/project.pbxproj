@@ -14,7 +14,6 @@
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
-		8B38D45C3C644C7E44AE65CB /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FA257DDC4D5EA4EA5673354A /* FirebaseCrashlytics */; };
 		8CB4DC6827712CA071886C06 /* libPods-RunnerTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 136848C97183EC5187AE7049 /* libPods-RunnerTests.a */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
@@ -89,7 +88,6 @@
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
 				219FFE2CF8FC0D246F4E5BE9 /* libPods-Runner.a in Frameworks */,
 				34ED2D9264A9484E2CD750EE /* FirebaseCore in Frameworks */,
-				8B38D45C3C644C7E44AE65CB /* FirebaseCrashlytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -208,7 +206,6 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				F3D8C61E2E4923F5004D2608 /* [Firebase Crashlytics] Upload Symbols */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
@@ -219,7 +216,6 @@
 			packageProductDependencies = (
 				78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */,
 				3F468DA663D11C32E59DFDBB /* FirebaseCore */,
-				FA257DDC4D5EA4EA5673354A /* FirebaseCrashlytics */,
 			);
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
@@ -291,26 +287,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		F3D8C61E2E4923F5004D2608 /* [Firebase Crashlytics] Upload Symbols */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)",
-				"$(SRCROOT)/Runner/GoogleService-Info.plist",
-			);
-			name = "[Firebase Crashlytics] Upload Symbols";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "run_script=\"\"\nfor path in \\\n  \"${BUILD_DIR}/../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${TEMP_DIR}/../../../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${TEMP_DIR}/../../../../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${TEMP_DIR}/../../../../../../SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\" \\\n  \"${PROJECT_DIR}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"; do\n  if [ -f \"$path\" ]; then\n    run_script=\"$path\"\n    break\n  fi\ndone\n\nif [ -n \"$run_script\" ]; then\n  \"$run_script\"\nelse\n  echo \"error: Firebase Crashlytics run script not found.\"\n  exit 1\nfi\n";
-		};
 		162FCA4E9662798D7F2C1125 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -790,11 +766,6 @@
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlutterGeneratedPluginSwiftPackage;
-		};
-		FA257DDC4D5EA4EA5673354A /* FirebaseCrashlytics */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B157C629688EB8B8E24FBF00 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
