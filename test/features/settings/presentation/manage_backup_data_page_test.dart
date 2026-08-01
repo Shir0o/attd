@@ -539,8 +539,15 @@ void main() {
 
     expect(find.textContaining('Dry Run & Validation'), findsOneWidget);
     expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
+    expect(find.textContaining('Duplicates Preview:'), findsOneWidget);
 
-    // Execute cleanup from sheet
+    // Cancel modal first to test cancel action
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+    await tester.pumpAndSettle();
+
+    // Re-open cleanup modal and execute cleanup
+    await tester.tap(cleanupButton);
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
     await tester.pumpAndSettle();
 
@@ -548,6 +555,250 @@ void main() {
     final s1 = sessions.sessions.firstWhere((s) => s.id == 'session-1');
     final s2 = sessions.sessions.firstWhere((s) => s.id == 'session-2');
     expect(s1.records.length + s2.records.length, equals(1));
+  });
+
+  testWidgets('shows member historical data warning dialog when deleting member linked to past sessions', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    // Member flagged as hidden
+    final member = Member(
+      id: 'member-linked',
+      displayName: 'Linked Member',
+      updatedAt: now,
+      deletedAt: now,
+    );
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Family One',
+        members: [member],
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-1',
+        title: 'Past Report',
+        sessionDate: now,
+        records: [
+          SessionRecord(
+            memberId: member.id,
+            attendee: member.displayName,
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Filter issues only to find Linked Member
+    await tester.tap(find.text('Only issues'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Linked Member'), findsOneWidget);
+
+    // Expand member card
+    await tester.tap(find.text('Linked Member'));
+    await tester.pumpAndSettle();
+
+    // Tap delete record
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete record'));
+    await tester.pumpAndSettle();
+
+    // Historical data alert dialog should be shown
+    expect(find.text('Historical Data Alert'), findsOneWidget);
+    expect(find.textContaining('Linked Member is linked to 1 past session reports'), findsOneWidget);
+
+    // Tap Continue to confirm deletion
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.pumpAndSettle();
+
+    // Verify member was removed from attendance repository
+    expect(attendance.families.single.members, isEmpty);
+  });
+
+  testWidgets('switches table chips, handles empty search state, and renders loading skeleton', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final attendance = _AttendanceRepository([]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-1',
+        title: 'Sample Event',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+    ]);
+    final sessions = _SessionRepository([]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: false,
+        ),
+      ),
+    );
+
+    // Initial loading pump shows skeleton
+    await tester.pump();
+    expect(find.byType(ManageBackupDataPage), findsOneWidget);
+
+    await tester.pumpAndSettle(const Duration(seconds: 1));
+
+    // Tap table filter chips
+    for (final table in ['events', 'sessions', 'members', 'families', 'photos', 'attendance', 'all']) {
+      final chipFinder = find.byKey(ValueKey('chip_$table'));
+      await tester.ensureVisible(chipFinder);
+      await tester.tap(chipFinder);
+      await tester.pump();
+    }
+
+    // Search query with no matching records
+    final textField = find.byType(TextField);
+    await tester.enterText(textField, 'nonexistent_query_xyz');
+    await tester.pump();
+
+    expect(find.text('No records match'), findsOneWidget);
+
+    // Clear search query
+    await tester.enterText(textField, '');
+    await tester.pump();
+
+    expect(find.text('No records match'), findsNothing);
+  });
+
+  testWidgets('shows dry run validation breakdown with all issue types (duplicate, hidden, orphan)', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final later = DateTime(2025, 4, 5, 10, 5);
+
+    // Soft-deleted member (hidden)
+    final hiddenMember = Member(
+      id: 'm-hidden',
+      displayName: 'Hidden Person',
+      updatedAt: now,
+      deletedAt: now,
+    );
+    final activeMember = Member(
+      id: 'm-active',
+      displayName: 'Active Attendee',
+      updatedAt: now,
+    );
+
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'fam-1',
+        displayName: 'Family Alpha',
+        members: [hiddenMember, activeMember],
+        updatedAt: now,
+      ),
+    ]);
+
+    final events = _EventRepository([
+      Event(
+        id: 'event-1',
+        title: 'Weekly Meeting',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+    ]);
+
+    // Sessions: s1 and s2 form a duplicate attendance mark; s3 is orphaned (references non-existent event)
+    final sessions = _SessionRepository([
+      Session(
+        id: 's-1',
+        title: 'Weekly Meeting',
+        eventId: 'event-1',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [
+          SessionRecord(
+            memberId: 'm-active',
+            attendee: 'Active Attendee',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 's-2',
+        title: 'Weekly Meeting',
+        eventId: 'event-1',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [
+          SessionRecord(
+            memberId: 'm-active',
+            attendee: 'Active Attendee',
+            status: AttendanceStatus.present,
+            recordedAt: later,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 's-orphan',
+        title: 'Orphaned Session',
+        eventId: 'missing-event-999',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Open dry run cleanup sheet
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
+    await tester.pumpAndSettle();
+
+    // Verify all 3 issue breakdown sections are displayed
+    expect(find.textContaining('Duplicate attendance entries'), findsOneWidget);
+    expect(find.textContaining('Soft-deleted records'), findsOneWidget);
+    expect(find.textContaining('Orphaned references'), findsOneWidget);
+
+    // Clean up
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.pumpAndSettle();
   });
 }
 
