@@ -1,5 +1,5 @@
 import 'package:attendance_tracker/core/quick_actions/quick_actions_service.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quick_actions/quick_actions.dart';
 
@@ -21,13 +21,23 @@ class FakeQuickActions extends QuickActions {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  test('QuickActionsService initializes shortcuts and handles take_attendance',
-      () async {
+  testWidgets('QuickActionsService initializes shortcuts and pops navigator to root',
+      (WidgetTester tester) async {
     const fake = FakeQuickActions();
     final service = QuickActionsService(quickActions: fake);
     final navKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navKey,
+        initialRoute: '/',
+        routes: {
+          '/': (_) => const Scaffold(body: Text('Hub Root')),
+          '/detail': (_) => const Scaffold(body: Text('Detail Screen')),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
 
     await service.initialize(navigatorKey: navKey);
 
@@ -38,9 +48,19 @@ void main() {
       QuickActionsService.takeAttendanceType,
     );
 
-    // Invoke handler with take_attendance type
-    expect(() => FakeQuickActions.handler?.call('take_attendance'), returnsNormally);
-    // Invoke handler with unknown type
+    // Push a nested route onto the navigator
+    navKey.currentState!.pushNamed('/detail');
+    await tester.pumpAndSettle();
+    expect(find.text('Detail Screen'), findsOneWidget);
+
+    // Invoke handler with take_attendance type -> pops back to root
+    FakeQuickActions.handler?.call('take_attendance');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hub Root'), findsOneWidget);
+    expect(find.text('Detail Screen'), findsNothing);
+
+    // Invoke handler with unknown type -> no-op
     expect(() => FakeQuickActions.handler?.call('unknown_action'), returnsNormally);
   });
 }
