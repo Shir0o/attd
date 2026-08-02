@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+- **Report Export Feature Toggle & Firebase Crashlytics Removal**: Added an persistent "Enable Report Export" feature toggle switch in `SettingsPage` (defaulting to `false`). When toggled off, both the "Advanced Reporting" and "Export Report" rows are hidden. Completely removed `firebase_crashlytics` package dependencies, Flutter error handlers, logger facade references, native Android/iOS build phase scripts and plugin configurations, and privacy policy disclosures. Updated unit and widget tests.
+
 - **Backup Data Cleaner Date Display, Date Search & Duplicate Detection**: Enhanced `ManageBackupDataPage` ("Storage Inspector") to format and surface session dates in attendance, session, and event record cards and fields, enabling flexible date searching (e.g. `2026-08-01` or `Aug 01, 2026`). Implemented duplicate attendance entry scanning matching Event Name + Date + Attendant Name, displaying a distinct amber `DUPLICATE` badge and match details. Integrated a pre-execution Dry Run & Validation breakdown sheet detailing soft-deleted, orphaned, and duplicate record counts prior to permanent database cleanup, with timestamp-precise record removal logic. Added comprehensive widget testing.
 - **TDD Guidelines in Agent Instructions**: Updated `AGENTS.md` and `CLAUDE.md` to incorporate Test-Driven Development (TDD) behavioral guidelines, emphasizing Red-Green-Refactor workflows, coverage guardrails, and verification standards.
 

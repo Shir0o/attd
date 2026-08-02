@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'dart:ui';
 
 import 'core/design/app_theme.dart';
 import 'data/local_session_repository.dart';
@@ -40,18 +38,13 @@ Future<void> main() async {
   // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
 
-  // Initialize Firebase first so Crashlytics is available, then install error
-  // handlers before any further async work so startup failures are captured.
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   FlutterError.onError = (errorDetails) {
-    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-  };
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
+    FlutterError.presentError(errorDetails);
   };
 
   final prefs = await SharedPreferences.getInstance();

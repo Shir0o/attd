@@ -373,10 +373,14 @@ void main() {
     );
     expect(find.text('Backup to Local Storage'), findsOneWidget);
     await tester.dragUntilVisible(
-      find.text('Export Report'),
+      find.text('Enable Report Export'),
       find.byType(ListView),
       const Offset(0, -300),
     );
+    expect(find.text('Enable Report Export'), findsOneWidget);
+    expect(find.text('Export Report'), findsNothing);
+    await themeController.updateReportExportEnabled(true);
+    await tester.pumpAndSettle();
     expect(find.text('Export Report'), findsOneWidget);
   });
 
@@ -465,6 +469,9 @@ void main() {
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pump();
     expect(localBackupService.backupCalled, isTrue);
+
+    await themeController.updateReportExportEnabled(true);
+    await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
       find.text('Export Report'),
@@ -565,6 +572,9 @@ void main() {
         .hideCurrentSnackBar();
     await tester.pumpAndSettle();
 
+    await themeController.updateReportExportEnabled(true);
+    await tester.pumpAndSettle();
+
     await tester.dragUntilVisible(
       find.text('Export Report'),
       find.byType(ListView),
@@ -596,6 +606,9 @@ void main() {
     expect(find.text('Storage inspector'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    await themeController.updateReportExportEnabled(true);
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
@@ -710,7 +723,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Local-First Storage'), findsOneWidget);
-    expect(find.text('Anonymized Error Reporting'), findsOneWidget);
+    expect(find.text('No Diagnostic Tracking'), findsOneWidget);
   });
 
   testWidgets('Version History tile navigates', (tester) async {

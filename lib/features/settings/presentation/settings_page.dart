@@ -648,36 +648,67 @@ class _SettingsPageState extends State<SettingsPage> {
                             }
                           },
                         ),
-                        _SettingRow(
-                          icon: Icons.summarize,
-                          title: 'Advanced Reporting',
-                          subtitle: 'Filter and export custom reports',
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ReportExportPage(
-                                  sessionRepository: widget.sessionRepository,
+                        ListenableBuilder(
+                          listenable: widget.themeController,
+                          builder: (context, _) {
+                            final isReportExportEnabled =
+                                widget.themeController.isReportExportEnabled;
+                            return Column(
+                              children: [
+                                _SettingRow(
+                                  key: const ValueKey(
+                                    'enable_report_export_tile',
+                                  ),
+                                  icon: Icons.ios_share,
+                                  title: 'Enable Report Export',
+                                  subtitle: 'Show export and reporting options',
+                                  showChevron: false,
+                                  trailing: Switch(
+                                    value: isReportExportEnabled,
+                                    onChanged: (val) {
+                                      widget.themeController
+                                          .updateReportExportEnabled(val);
+                                    },
+                                  ),
                                 ),
-                              ),
+                                if (isReportExportEnabled) ...[
+                                  _SettingRow(
+                                    icon: Icons.summarize,
+                                    title: 'Advanced Reporting',
+                                    subtitle: 'Filter and export custom reports',
+                                    onTap: () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ReportExportPage(
+                                            sessionRepository:
+                                                widget.sessionRepository,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  _SettingRow(
+                                    icon: Icons.file_download_outlined,
+                                    title: 'Export Report',
+                                    subtitle: 'Download CSV',
+                                    onTap: () async {
+                                      final scaffoldMessenger =
+                                          ScaffoldMessenger.of(context);
+                                      try {
+                                        await widget.localBackupService
+                                            .exportData();
+                                      } catch (e) {
+                                        scaffoldMessenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('Export failed: $e'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ],
                             );
-                          },
-                        ),
-                        _SettingRow(
-                          icon: Icons.ios_share,
-                          title: 'Export Report',
-                          subtitle: 'Download CSV',
-                          onTap: () async {
-                            final scaffoldMessenger =
-                                ScaffoldMessenger.of(context);
-                            try {
-                              await widget.localBackupService.exportData();
-                            } catch (e) {
-                              scaffoldMessenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Export failed: $e'),
-                                ),
-                              );
-                            }
                           },
                         ),
                       ],
@@ -801,8 +832,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                               _buildPolicyPoint(
                                                 context,
                                                 Icons.bug_report_outlined,
-                                                'Anonymized Error Reporting',
-                                                'We use Firebase Crashlytics to catch bugs and improve app stability. This service collects anonymous technical data about app crashes (such as device model and stack traces). No personal information is ever sent.',
+                                                'No Diagnostic Tracking',
+                                                'This app runs 100% locally and does not send crash logs, error reports, or telemetry data to any third-party services.',
                                               ),
                                               _buildPolicyPoint(
                                                 context,

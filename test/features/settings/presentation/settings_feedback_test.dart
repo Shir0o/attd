@@ -101,6 +101,8 @@ void main() {
       find.byType(ListView),
       const Offset(0, -300),
     );
+    await tester.ensureVisible(feedbackTile);
+    await tester.pumpAndSettle();
     await tester.tap(feedbackTile);
     await tester.pumpAndSettle();
 
