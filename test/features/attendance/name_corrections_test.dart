@@ -77,4 +77,31 @@ void main() {
     expect(result[0].displayName, 'Patel Household');
     expect(result[1].displayName, 'Patel Household');
   });
+
+  test('applyNameCorrection handles member property differences correctly', () {
+    final families = [
+      Family(
+        id: 'fam-1',
+        displayName: 'Smith Family',
+        members: [
+          Member(
+            id: 'mem-1',
+            displayName: 'John S.',
+            isVisitor: true,
+            defaultStatus: AttendanceStatus.absent,
+          ),
+        ],
+      ),
+    ];
+
+    final result = applyNameCorrection(
+      families: families,
+      subject: 'John S.',
+      correctedName: 'John Smith',
+    );
+
+    expect(result.first.members[0].displayName, 'John Smith');
+    expect(result.first.members[0].isVisitor, isTrue);
+    expect(result.first.members[0].defaultStatus, AttendanceStatus.absent);
+  });
 }
