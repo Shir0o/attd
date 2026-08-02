@@ -12,6 +12,8 @@ import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/sessions/presentation/consistent_members_page.dart';
+import 'package:attendance_tracker/features/sessions/presentation/event_trend_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -1535,6 +1537,66 @@ void main() {
       final restored = await mockRepo.findSessionById('s1');
       expect(restored!.records.single.memberId, '1');
       expect(restored.records.single.status, AttendanceStatus.absent);
+    },
+  );
+
+  testWidgets(
+    'SessionSummaryPage tapping Regulars and Trends cards opens detail pages',
+    (WidgetTester tester) async {
+      final mockRepo = MockSessionRepository();
+      final mockAttendanceRepo = MockAttendanceRepository();
+      final mockEventRepo = MockEventRepository();
+
+      final alice = Member(id: '1', displayName: 'Alice');
+      final event = Event(
+        id: 'e1',
+        title: 'Weekly Gathering',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        memberIds: const ['1'],
+        createdAt: DateTime.now(),
+      );
+      mockEventRepo.seed(event);
+
+      final session = Session(
+        id: 's1',
+        eventId: 'e1',
+        title: 'Weekly Gathering',
+        sessionDate: DateTime.now(),
+        records: const [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'User',
+      );
+      mockRepo.addSession(session);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionSummaryPage(
+            session: session,
+            event: event,
+            members: [alice],
+            sessionRepository: mockRepo,
+            attendanceRepository: mockAttendanceRepo,
+            eventRepository: mockEventRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Regulars card
+      await tester.tap(find.text('REGULARS · 8 WK'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ConsistentMembersPage), findsOneWidget);
+      // Pop back
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      // Tap Trends card
+      await tester.tap(find.text('TRENDS · 12 WK'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EventTrendPage), findsOneWidget);
     },
   );
 }
