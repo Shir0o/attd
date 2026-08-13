@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+- **Persistent Event Attendance Mode**: Event attendance mode ("All absent", "All present", "Smart defaults") is now picked once on first attendance, saved directly to the `Event` entity, and reused automatically on subsequent attendance sessions without re-prompting. Added an "Attendance Mode" tile to the event card's three-dot (`...`) overflow menu on the home page, allowing users to view and update the remembered start mode preference at any time. Added widget tests to `hub_attendance_view_test.dart`.
+
 - **Test Coverage Expansion Above 95%**: Added new unit tests for `QuickActionsService` (`quick_actions_service_test.dart`) and Convocation design system tokens (`app_design_tokens_test.dart`), and expanded test coverage for member comparison logic in `applyNameCorrection` and Regulars/Trends card navigation in `SessionSummaryPage`. Pushed overall line coverage to **95.36%** with 583 passing unit and widget tests.
 
 - **Report Export Feature Toggle & Firebase Crashlytics Removal**: Added an persistent "Enable Report Export" feature toggle switch in `SettingsPage` (defaulting to `false`). When toggled off, both the "Advanced Reporting" and "Export Report" rows are hidden. Completely removed `firebase_crashlytics` package dependencies, Flutter error handlers, logger facade references, native Android/iOS build phase scripts and plugin configurations, and privacy policy disclosures. Updated unit and widget tests.

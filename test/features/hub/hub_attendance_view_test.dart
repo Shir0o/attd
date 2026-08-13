@@ -8,8 +8,9 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
-import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
+import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
@@ -200,6 +201,7 @@ void main() {
   Event todayEvent({
     List<String> memberIds = const [],
     RosterGrouping? rosterGrouping = RosterGrouping.byStatus,
+    AttendanceStartMode? defaultAttendanceStartMode,
   }) {
     final now = DateTime.now();
     return Event(
@@ -209,8 +211,7 @@ void main() {
       frequency: 'Weekly',
       repeatingDays: [DateFormat('EEEE').format(now)],
       memberIds: memberIds,
-      // Default to a chosen preset so existing tests skip the first-time
-      // grouping prompt; pass `null` to exercise that prompt explicitly.
+      defaultAttendanceStartMode: defaultAttendanceStartMode,
       rosterGrouping: rosterGrouping,
       createdAt: now,
     );
@@ -354,6 +355,76 @@ void main() {
 
     // Then the normal start-mode picker follows.
     expect(find.byKey(const Key('startModeConfirmButton')), findsOneWidget);
+  });
+
+  testWidgets(
+      'subsequent attendance reuses remembered start mode without showing picker',
+      (tester) async {
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: [Member(id: 'member-1', displayName: 'Alice')],
+        updatedAt: DateTime.now(),
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([
+      todayEvent(
+        memberIds: ['member-1'],
+        defaultAttendanceStartMode: AttendanceStartMode.allPresent,
+      )
+    ]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sunday Service'));
+    await tester.pumpAndSettle();
+
+    // The start-mode picker does NOT appear because defaultAttendanceStartMode is set.
+    expect(find.byKey(const Key('startModeConfirmButton')), findsNothing);
+
+    expect(sessionRepository.createdSessions, hasLength(1));
+    expect(sessionRepository.createdSessions.single.title, 'Sunday Service');
+    expect(sessionRepository.createdSessions.single.eventId, 'event-1');
+  });
+
+  testWidgets('action menu: Attendance Mode allows changing start mode',
+      (tester) async {
+    await pumpView(tester);
+    eventRepository.emit([
+      todayEvent(defaultAttendanceStartMode: AttendanceStartMode.allAbsent)
+    ]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Attendance Mode'), findsOneWidget);
+    expect(find.text('Start with all absent'), findsOneWidget);
+
+    await tester.tap(find.text('Attendance Mode'));
+    await tester.pumpAndSettle();
+
+    // Sheet title and save button appear
+    expect(find.text('Attendance Mode'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+
+    // Pick "Start with all present"
+    await tester.tap(
+      find.byKey(
+        ValueKey('start_mode_${AttendanceStartMode.allPresent.name}'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(eventRepository.updatedEvents, isNotEmpty);
+    expect(
+      eventRepository.updatedEvents.last.defaultAttendanceStartMode,
+      AttendanceStartMode.allPresent,
+    );
   });
 
   testWidgets('action menu: Manage Members navigates to members page',

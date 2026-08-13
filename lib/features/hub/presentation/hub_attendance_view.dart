@@ -270,6 +270,38 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('Attendance Mode'),
+            subtitle: Text(
+              event.defaultAttendanceStartMode?.label ?? 'Not set',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              final pickedMode = await showStartModePicker(
+                context,
+                initial: event.defaultAttendanceStartMode,
+                title: 'Attendance Mode',
+                confirmLabel: 'Save',
+              );
+              if (pickedMode != null &&
+                  pickedMode != event.defaultAttendanceStartMode) {
+                final updatedEvent = event.copyWith(
+                  defaultAttendanceStartMode: pickedMode,
+                  updatedAt: DateTime.now(),
+                );
+                try {
+                  await widget.eventRepository.updateEvent(updatedEvent);
+                } catch (e) {
+                  debugPrint('Error saving start mode preference: $e');
+                }
+                _refreshData();
+              }
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.history),
             title: const Text('View History'),
             onTap: () async {
@@ -775,20 +807,22 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       );
     } else {
-      final pickedMode = await showStartModePicker(
-        context,
-        initial: event.defaultAttendanceStartMode,
-      );
-      if (pickedMode == null) return;
-      if (!context.mounted) return;
+      AttendanceStartMode? pickedMode = event.defaultAttendanceStartMode;
 
-      if (event.defaultAttendanceStartMode != pickedMode) {
-        final updatedEvent = event.copyWith(
+      if (pickedMode == null) {
+        pickedMode = await showStartModePicker(
+          context,
+          initial: AttendanceStartMode.allAbsent,
+        );
+        if (pickedMode == null) return;
+        if (!context.mounted) return;
+
+        event = event.copyWith(
           defaultAttendanceStartMode: pickedMode,
           updatedAt: DateTime.now(),
         );
         try {
-          await widget.eventRepository.updateEvent(updatedEvent);
+          await widget.eventRepository.updateEvent(event);
         } catch (e) {
           debugPrint('Error saving start mode preference: $e');
         }

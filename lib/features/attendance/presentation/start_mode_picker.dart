@@ -8,20 +8,32 @@ import '../models/attendance_start_mode.dart';
 Future<AttendanceStartMode?> showStartModePicker(
   BuildContext context, {
   AttendanceStartMode? initial,
+  String title = 'Start attendance',
+  String confirmLabel = 'Start',
 }) {
   final selected = initial ?? AttendanceStartMode.allAbsent;
   return showModalBottomSheet<AttendanceStartMode>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (context) => _StartModePickerSheet(initial: selected),
+    builder: (context) => _StartModePickerSheet(
+      initial: selected,
+      title: title,
+      confirmLabel: confirmLabel,
+    ),
   );
 }
 
 class _StartModePickerSheet extends StatefulWidget {
-  const _StartModePickerSheet({required this.initial});
+  const _StartModePickerSheet({
+    required this.initial,
+    required this.title,
+    required this.confirmLabel,
+  });
 
   final AttendanceStartMode initial;
+  final String title;
+  final String confirmLabel;
 
   @override
   State<_StartModePickerSheet> createState() => _StartModePickerSheetState();
@@ -49,7 +61,7 @@ class _StartModePickerSheetState extends State<_StartModePickerSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Start attendance',
+              widget.title,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -86,7 +98,7 @@ class _StartModePickerSheetState extends State<_StartModePickerSheet> {
                   child: FilledButton(
                     key: const Key('startModeConfirmButton'),
                     onPressed: () => Navigator.of(context).pop(_selected),
-                    child: const Text('Start'),
+                    child: Text(widget.confirmLabel),
                   ),
                 ),
               ],
