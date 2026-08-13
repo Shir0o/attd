@@ -79,6 +79,15 @@ After completing a feature or bug fix:
 - Update the `[Unreleased]` section of `CHANGELOG.md` with a concise bullet point describing the change. Focus on the core functionality added, modified, or fixed.
 - Keep changelog descriptions brief and distinct from full release notes.
 
+## 7. PR Lifecycle & Monitoring
+
+**Monitor Pull Requests after creation to ensure CI checks pass and comments are addressed.**
+
+After creating a Pull Request:
+- Wait/check back in **5 minutes** to inspect PR status (`gh pr checks`, `gh pr view`).
+- Verify CI pipeline status, check for merge conflicts, and review any automated or reviewer comments/reviews (e.g. PR-Agent).
+- Resolve any CI failures, address feedback, or push fixes promptly.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
