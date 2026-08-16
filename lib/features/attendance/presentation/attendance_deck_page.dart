@@ -97,6 +97,33 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   final Set<String> _touchedMemberIds = {};
   final Set<String> _touchedMemberNames = {};
 
+  /// Background write queue. Every attendance mark updates the UI immediately
+  /// and enqueues its disk write here, so rapid swipes never wait on I/O.
+  /// Writes run one at a time (each awaits the previous) so concurrent
+  /// read-modify-write on the shared sessions file can never interleave.
+  Future<void> _saveQueue = Future.value();
+
+  /// Serializes a session write through the background queue. Every call still
+  /// writes in order (preserving version history); callers that need the write
+  /// finished before proceeding (undo, discard) await the returned future.
+  Future<void> _enqueueSave(Session session) {
+    _saveQueue = _saveQueue.then((_) async {
+      try {
+        await widget.sessionRepository.saveSnapshot(session, actor: 'User');
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save record: $e')),
+          );
+        }
+      }
+    });
+    return _saveQueue;
+  }
+
+  /// Completes once every enqueued write has finished.
+  Future<void> _drainSaves() => _saveQueue;
+
   /// Live drag progress of the top card, used to fade the deck's left/right
   /// hint zones in and out without rebuilding the card itself.
   final ValueNotifier<SwipeProgress> _dragProgress = ValueNotifier(
@@ -167,6 +194,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
     if (choice == null || !mounted) return; // dismissed → stay on the deck
     if (choice == 'discard') {
+      // Drain any background writes first so a pending saveSnapshot can't
+      // recreate the session after we delete it.
+      await _drainSaves();
       await widget.sessionRepository.deleteSession(
         _currentSession.id,
         actor: 'System (Cleanup)',
@@ -391,16 +421,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       });
     }
 
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save record: $e')),
-        );
-      }
-    }
+    // Optimistic: update the UI now, persist in the background. The write is
+    // serialized with every other mark so rapid swipes never wait on disk I/O.
+    // Not awaited — callers advance the deck immediately.
+    unawaited(_enqueueSave(updatedSession));
   }
 
   Future<void> _processAttendance(AttendanceStatus status) async {
@@ -420,7 +444,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           _navSeq++;
         });
       } else {
-        // Finished all members
+        // Finished all members. Advance the index first so the deck shows the
+        // "All marked." state while the final writes drain, then navigate.
+        setState(() {
+          _currentIndex = next;
+          _navSeq++;
+        });
         _finishAndNavigate();
       }
     }
@@ -457,16 +486,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     if (mounted) {
       setState(() => _updateSession(updatedSession));
     }
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save records: $e')),
-        );
-      }
-    }
+    await _enqueueSave(updatedSession);
   }
 
   Future<void> _markCurrentFamilyPresent() async {
@@ -486,6 +506,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
     _history.add(_currentIndex);
     if (next >= widget.members.length) {
+      // Advance the index first so the deck shows the "All marked." state
+      // while the final writes drain, then navigate.
+      setState(() {
+        _currentIndex = next;
+        _navSeq++;
+      });
       _finishAndNavigate();
     } else {
       setState(() {
@@ -519,20 +545,25 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   void _finishAndNavigate() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => SessionSummaryPage(
-          session: _currentSession,
-          members: widget.members,
-          families: widget.families,
-          sessionRepository: widget.sessionRepository,
-          attendanceRepository: widget.attendanceRepository,
-          eventRepository: widget.eventRepository,
-          event: _currentEvent ?? widget.event,
-          disableAnimations: widget.disableAnimations,
+    // Flush any in-flight background writes first so the summary (which
+    // re-reads the session from disk) always reflects every mark.
+    _drainSaves().then((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => SessionSummaryPage(
+            session: _currentSession,
+            members: widget.members,
+            families: widget.families,
+            sessionRepository: widget.sessionRepository,
+            attendanceRepository: widget.attendanceRepository,
+            eventRepository: widget.eventRepository,
+            event: _currentEvent ?? widget.event,
+            disableAnimations: widget.disableAnimations,
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   void _showAddMemberSheet() {
@@ -623,10 +654,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           if (widget.deleteOnCancel && !_hasUserEdits) {
-            widget.sessionRepository.deleteSession(
-              _currentSession.id,
-              actor: 'System (Cleanup)',
-            );
+            // Drain background writes first so a pending saveSnapshot can't
+            // recreate the session after we delete it.
+            _drainSaves().then((_) {
+              widget.sessionRepository.deleteSession(
+                _currentSession.id,
+                actor: 'System (Cleanup)',
+              );
+            });
           }
         } else {
           _confirmCancel();
@@ -883,17 +918,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       updatedAt: now,
     );
     if (mounted) setState(() => _updateSession(updatedSession));
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save records: $e')),
-        );
-      }
-      return;
-    }
+    await _enqueueSave(updatedSession);
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -930,15 +955,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       updatedAt: DateTime.now(),
     );
     if (mounted) setState(() => _updateSession(restored));
-    try {
-      await widget.sessionRepository.saveSnapshot(restored, actor: 'User');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to undo: $e')),
-        );
-      }
-    }
+    await _enqueueSave(restored);
   }
 
   /// Eyebrow caption under the name on a deck card: "Loner" for a singleton /
