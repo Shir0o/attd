@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
@@ -171,6 +173,18 @@ class MockSessionRepository implements SessionRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
+/// [MockSessionRepository] whose saveSnapshot blocks until [saveGate] fires,
+/// letting tests observe the deck while a write is still in flight.
+class DelayedSessionRepository extends MockSessionRepository {
+  final Completer<void> saveGate = Completer<void>();
+
+  @override
+  Future<Session> saveSnapshot(Session session, {required String actor}) async {
+    await saveGate.future;
+    return super.saveSnapshot(session, actor: actor);
+  }
+}
+
 void main() {
   testWidgets('AttendanceDeckPage swipes right to mark present', (
     WidgetTester tester,
@@ -273,6 +287,107 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
     expect(find.text('PRESENT'), findsOneWidget);
+  });
+
+  testWidgets('swipe advances to the next card before the save completes', (
+    WidgetTester tester,
+  ) async {
+    final repo = DelayedSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime.now(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+      currentVersion: 1,
+      records: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [
+            Member(id: 'a', displayName: 'Alice'),
+            Member(id: 'b', displayName: 'Bob'),
+            Member(id: 'c', displayName: 'Charlie'),
+          ],
+          sessionRepository: repo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+
+    // Swipe Alice present; the fly-off completes but the disk write is gated.
+    await tester.drag(find.byType(SwipeableCard), const Offset(300, 0));
+    await tester.pump(); // start dismiss animation
+    await tester.pump(const Duration(milliseconds: 800)); // fly-off → onSwipeRight
+    await tester.pump(); // render next card
+
+    // Bob's card is already on screen while the write is still pending.
+    expect(find.text('Bob'), findsOneWidget);
+    expect(repo.savedSessions, isEmpty);
+
+    // Release the gate: the queued write lands with Alice marked present.
+    repo.saveGate.complete();
+    await tester.pumpAndSettle();
+    expect(repo.savedSessions, hasLength(1));
+    expect(repo.savedSessions.first.records.first.attendee, 'Alice');
+    expect(
+      repo.savedSessions.first.records.first.status,
+      AttendanceStatus.present,
+    );
+  });
+
+  testWidgets(
+      'finishing the deck waits for pending saves before showing the summary',
+      (WidgetTester tester) async {
+    final repo = DelayedSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test',
+      sessionDate: DateTime.now(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+      currentVersion: 1,
+      records: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AttendanceDeckPage(
+          session: session,
+          members: [Member(id: 'a', displayName: 'Alice')],
+          sessionRepository: repo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+
+    // Mark the only member present; the final write is still in flight.
+    await tester.drag(find.byType(SwipeableCard), const Offset(300, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump();
+
+    // Deck shows "All marked." and defers navigation until the write lands.
+    expect(find.text('All marked.'), findsOneWidget);
+    expect(find.byType(SessionSummaryPage), findsNothing);
+    expect(repo.savedSessions, isEmpty);
+
+    repo.saveGate.complete();
+    await tester.pumpAndSettle();
+
+    expect(repo.savedSessions, hasLength(1));
+    expect(find.byType(SessionSummaryPage), findsOneWidget);
   });
 
   testWidgets('AttendanceDeckPage add-sheet picking a global member appends to event.memberIds', (

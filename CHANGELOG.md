@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+- **Optimistic Speed Swipe Attendance**: The speed-swipe deck now updates the UI and advances to the next card immediately on each swipe, instead of blocking on a full disk write before advancing. Writes are serialized through a background queue (still every mark, in order, preserving version history) so rapid swipes never wait on I/O, and pending writes are flushed before navigating to the summary or discarding a session so the on-disk session always reflects every mark.
+
 - **Persistent Event Attendance Mode**: Event attendance mode ("All absent", "All present", "Smart defaults") is now picked once on first attendance, saved directly to the `Event` entity, and reused automatically on subsequent attendance sessions without re-prompting. Added an "Attendance Mode" tile to the event card's three-dot (`...`) overflow menu on the home page, allowing users to view and update the remembered start mode preference at any time. Added widget tests to `hub_attendance_view_test.dart`.
 
 - **Test Coverage Expansion Above 95%**: Added new unit tests for `QuickActionsService` (`quick_actions_service_test.dart`) and Convocation design system tokens (`app_design_tokens_test.dart`), and expanded test coverage for member comparison logic in `applyNameCorrection` and Regulars/Trends card navigation in `SessionSummaryPage`. Pushed overall line coverage to **95.36%** with 583 passing unit and widget tests.
