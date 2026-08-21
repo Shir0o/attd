@@ -346,6 +346,46 @@ void main() {
     expect(appLockController.markBackgroundedCalls, 2);
     expect(driveService.syncCalls, 1);
   });
+
+  testWidgets('AttendanceApp lifecycle paused skips drive sync while locked',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'onboarding_completed': true,
+      'app_lock_enabled': true,
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final themeController = ThemeController(prefs);
+    final onboardingController = OnboardingController(prefs);
+    final appLockController = _LockedRecordingAppLockController(prefs);
+    final driveService = _RecordingDriveService()..isDriveSyncEnabled = true;
+
+    final eventRepo = MockEventRepository()..emit([]);
+
+    await tester.pumpWidget(
+      AttendanceApp(
+        themeController: themeController,
+        onboardingController: onboardingController,
+        appLockController: appLockController,
+        driveService: driveService,
+        repository: MockAttendanceRepository(),
+        sessionRepository: MockSessionRepository(),
+        eventRepository: eventRepo,
+        prefs: prefs,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(appLockController.markBackgroundedCalls, 1);
+    expect(driveService.syncCalls, 0);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(appLockController.onResumedCalls, 1);
+    expect(driveService.syncCalls, 0);
+  });
 }
 
 class _RecordingAttendanceRepository extends AttendanceRepository {
@@ -405,6 +445,25 @@ class _RecordingAppLockController extends AppLockController {
     onResumedCalls++;
     super.onResumed();
   }
+}
+
+class _LockedRecordingAppLockController extends _RecordingAppLockController {
+  _LockedRecordingAppLockController(super.prefs);
+
+  @override
+  bool get isEnabled => true;
+
+  @override
+  bool get isLocked => true;
+
+  @override
+  bool get isAuthenticating => false;
+
+  @override
+  bool get isExternalAuthInProgress => false;
+
+  @override
+  Future<bool> unlock() async => false;
 }
 
 class _RecordingDriveService extends ChangeNotifier implements DriveService {

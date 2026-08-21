@@ -205,8 +205,14 @@ class _AttendanceAppState extends State<AttendanceApp>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       widget.appLockController.markBackgrounded();
-      // Trigger sync when app is backgrounded or closed, if enabled
-      if (widget.driveService?.isDriveSyncEnabled ?? false) {
+      // Don't start Drive sync while the app is locked or a system auth
+      // prompt is active. Google's silent sign-in can otherwise run during
+      // biometric authentication and cause a redundant second lock prompt.
+      final lockIsActive = widget.appLockController.isLocked ||
+          widget.appLockController.isAuthenticating ||
+          widget.appLockController.isExternalAuthInProgress;
+      if (!lockIsActive &&
+          (widget.driveService?.isDriveSyncEnabled ?? false)) {
         widget.driveService?.syncFiles();
       }
     } else if (state == AppLifecycleState.resumed) {

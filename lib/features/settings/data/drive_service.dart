@@ -294,6 +294,9 @@ class DriveService extends ChangeNotifier {
   }
 
   Future<void> signInSilently() async {
+    // Even the "silent" Google path can emit lifecycle events on some
+    // platforms; keep app lock from treating those as a re-lock trigger.
+    _appLockController?.setExternalAuthInProgress(true);
     try {
       // v7: attemptLightweightAuthentication replaces signInSilently.
       // It can return null synchronously on some platforms (hence the ?).
@@ -312,6 +315,8 @@ class DriveService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _log.info('Silent sign in failed: $e');
+    } finally {
+      _appLockController?.setExternalAuthInProgress(false);
     }
   }
 

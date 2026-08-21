@@ -574,6 +574,24 @@ void main() {
       expect(service.currentUser, isNull);
     });
 
+    test('signInSilently toggles external auth flag on AppLockController', () async {
+      final mockAppLockController = MockAppLockController();
+      when(() => mockAppLockController.setExternalAuthInProgress(any()))
+          .thenReturn(null);
+      final service = DriveService(
+        googleSignIn: mockGoogleSignIn,
+        appLockController: mockAppLockController,
+      );
+      addTearDown(service.dispose);
+
+      await service.signInSilently();
+
+      verify(() => mockAppLockController.setExternalAuthInProgress(true))
+          .called(1);
+      verify(() => mockAppLockController.setExternalAuthInProgress(false))
+          .called(1);
+    });
+
     group('Connection Abort & Transient Network Errors', () {
       test('isConnectionAbortError identifies ClientException and SocketException aborts', () {
         expect(
