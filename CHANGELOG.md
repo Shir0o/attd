@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+- **Swift Package Manager & Android Tooling Migration**: Upgraded `workmanager` to `^0.10.9` to adopt `workmanager_apple` with native Swift Package Manager support, removed unmaintained `app_attest_integrity` dependency and cleaned up unverified client-side attestation checks in `DriveService`, and upgraded Gradle wrapper to `9.1.0`, Android Gradle Plugin (AGP) to `9.0.1`, and Kotlin Gradle Plugin (KGP) to `2.3.20`.
+
 - **Optimistic Speed Swipe Attendance**: The speed-swipe deck now updates the UI and advances to the next card immediately on each swipe, instead of blocking on a full disk write before advancing. Writes are serialized through a background queue (still every mark, in order, preserving version history) so rapid swipes never wait on I/O, and pending writes are flushed before navigating to the summary or discarding a session so the on-disk session always reflects every mark.
 
 - **Persistent Event Attendance Mode**: Event attendance mode ("All absent", "All present", "Smart defaults") is now picked once on first attendance, saved directly to the `Event` entity, and reused automatically on subsequent attendance sessions without re-prompting. Added an "Attendance Mode" tile to the event card's three-dot (`...`) overflow menu on the home page, allowing users to view and update the remembered start mode preference at any time. Added widget tests to `hub_attendance_view_test.dart`.

@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:archive/archive_io.dart';
-import 'package:app_attest_integrity/app_attest_integrity.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
@@ -267,36 +266,9 @@ class DriveService extends ChangeNotifier {
   }
 
 
-  Future<void> _checkIntegrity() async {
-    try {
-      if (Platform.isAndroid && yourGoogleProjectNumber == 0) {
-        _log.warning(
-          'GOOGLE_CLOUD_PROJECT_NUMBER not set; Play Integrity API will fail.',
-        );
-        return; // Fail gracefully
-      }
-      final String nonce = base64Url.encode(
-        utf8.encode(DateTime.now().toIso8601String()),
-      );
-      const plugin = AppAttestIntegrity();
-      if (Platform.isAndroid) {
-        await plugin.verify(
-          clientData: nonce,
-          androidCloudProjectNumber: yourGoogleProjectNumber,
-        );
-      } else if (Platform.isIOS) {
-        await plugin.verify(clientData: nonce);
-      }
-      _log.info('App Integrity check passed.');
-    } catch (e, st) {
-      _log.warning('App Integrity check failed', e, st);
-    }
-  }
-
   Future<void> signIn() async {
     _appLockController?.setExternalAuthInProgress(true);
     try {
-      await _checkIntegrity();
       if (!_googleSignIn.supportsAuthenticate()) {
         throw UnsupportedError(
           'Interactive Google Sign-In is not supported on this platform.',
@@ -562,8 +534,6 @@ class DriveService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _checkIntegrity();
-
       if (_driveApi == null) {
         // Try to initialize silently if signed in
         if (_currentUser != null) {
