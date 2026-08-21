@@ -2,20 +2,26 @@ PODS:
   - app_attest_integrity (0.0.1):
     - Flutter
   - Flutter (1.0.0)
+  - workmanager_apple (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - app_attest_integrity (from `.symlinks/plugins/app_attest_integrity/ios`)
   - Flutter (from `Flutter`)
+  - workmanager_apple (from `.symlinks/plugins/workmanager_apple/ios`)
 
 EXTERNAL SOURCES:
   app_attest_integrity:
     :path: ".symlinks/plugins/app_attest_integrity/ios"
   Flutter:
     :path: Flutter
+  workmanager_apple:
+    :path: ".symlinks/plugins/workmanager_apple/ios"
 
 SPEC CHECKSUMS:
   app_attest_integrity: 0944379c25ab94fa18dd42f63981ef9a2dcb3094
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  workmanager_apple: 904529ae31e97fc5be632cf628507652294a0778
 
 PODFILE CHECKSUM: 78be583c235352b5cf1412120ab8c114754ce443
 
