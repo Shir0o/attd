@@ -2,6 +2,61 @@
 *   **Bug Fixes**:
     *   **Fixed Android Release Build**: Added the missing `android/app/proguard-rules.pro` file so R8 no longer fails when building a release app bundle with "Supplied proguard configuration does not exist".
 
+*   **Attendance & Marking**:
+    *   **Optimistic Speed Swipe Attendance**: The speed-swipe deck now updates the UI and advances to the next card immediately on each swipe, instead of blocking on a full disk write before advancing. Writes are serialized through a background queue so rapid swipes never wait on I/O, and pending writes are flushed before leaving a session so the on-disk session always reflects every mark.
+    *   **Persistent Event Attendance Mode**: Event attendance mode ("All absent", "All present", "Smart defaults") is now picked once on first attendance, saved to the `Event` entity, and reused automatically on subsequent attendance sessions. Added an "Attendance Mode" tile to the event card's three-dot menu on the home page.
+    *   **Smart Defaults in "Mark everyone" Sheet**: The bulk action sheet now offers a third **Smart defaults** option alongside All present / All absent. It resolves each member from recent attendance history using the existing `resolveDefault` rule, with an undo snackbar reporting how many members were resolved.
+    *   **Quick Marking Deck & Confirm List Redesign**: Rebuilt the quick-marking deck and roster confirm list to match the "02 Quick Marking" design — centered Deck/List toggle, contained progress bar, resized undo/absent/present actions, ghost "Add guest" button, drag hint zones, next-card peek, and singleton captions.
+    *   **Quick Marking Start-Mode Routing**: The start mode now picks the entry view — All absent opens the speed-swipe deck, while All present / Smart open the pre-marked roster List view.
+    *   **Smooth Footer-Button Swipe**: Present/Absent footer buttons now play the same fly-off animation as a manual swipe, with a re-entry guard against double-advance. Removed artificial deck/summary skeletons and fixed an undo blank-card reuse bug.
+    *   **Smart Preseeds Skipping & Deck Undo Stack**: The deck now respects and skips members pre-marked by Smart defaults, uses an O(1) set-based cache to avoid UI-thread lookups, and uses a list-based undo stack for robust Undo navigation.
+
+*   **Hub & Home**:
+    *   **Hub Convocation "01 Hub" Rebuild**: Rebuilt the Hub on the Convocation design system with an "Up next" hero card and compact "Upcoming" rows.
+    *   **Hub Today Highlight & "Also today" Group**: The hero card is reserved for the soonest unmarked today event; remaining same-day events appear in an "Also today" group, non-today events move under "This week", and a "{n} EVENTS" pill is shown when multiple events fall on today.
+    *   **Hub "Nothing scheduled" Rest State**: When no events are scheduled today but more are coming this week, the hub now shows a calm rest-state card with a "Next up" affordance.
+    *   **Hub "Taken" Card Routing Fix**: Tapping a marked ("Taken") event card now always opens the session summary instead of reopening the marking deck.
+    *   **Hub "Taken" State After All-Present Confirm**: Confirming "Start with all present" now keeps the session instead of silently discarding it, so the event correctly shows its marked state on return to the hub.
+    *   **Hub Event Row "Taken" Status & Three-Dot Menu**: Marked status moved into the row subtitle and the same three-dot overflow menu used by the hero card was added to hub event rows.
+    *   **Hub Upcoming Events Chronological Sorting**: Upcoming events now sort by next occurrence date first, then time-of-day.
+
+*   **Design System & UI**:
+    *   **Onboarding Convocation Rebuild**: Rebuilt onboarding on the Convocation design system with four editorial art widgets and collapsed the flow from 5 slides to 4.
+    *   **Onboarding "07 · Onboarding" Conformance**: Brought the onboarding flow in line with the final design bundle, including corrected "Quick marking" deck art and copy.
+    *   **Settings Page Convocation Overhaul**: Rebuilt `settings_page.dart` with the Convocation design system, including a Google Drive hero card, section eyebrows, soft cards, and updated skeleton styling.
+    *   **Session Summary Editorial Header**: Reworked the session summary header to match the "05 Session Summary" design — the title now appears as a large serif display title with a `SAVED · <time>` eyebrow.
+    *   **"05 Insights" Regulars & Trends Rebuild**: Rebuilt Regulars and Trends screens to the "05 Insights" design with count strips, hero cards, range selectors, bar charts, stat tiles, and recent-session lists.
+    *   **Insights Follow-ups**: Regulars now uses a true ≥80% threshold, Trends rows are tappable and open session summaries, and Trends present/absent counts now match the Session Summary.
+    *   **Equal Height Regulars & Trends Cards**: Aligned the heights of the Regulars and Trends dashboard cards on the session summary page.
+    *   **Redesigned Manage Backup Data Page ("Storage inspector")**: Fully redesigned the backup management screen with serif headers, Geist monospace details, filter chips, status badges, sticky bulk-cleanup bar, and record detail expansion.
+    *   **Version History & Force Sync Overhaul**: Redesigned the Cloud Version History page as a detailed timeline snapshot list and moved force-sync controls ("Overwrite local" / "Overwrite cloud") directly onto it.
+
+*   **Data, Backup & Sync**:
+    *   **Background Auto-Sync for Google Drive Backup**: Implemented periodic background sync to Google Drive using Workmanager, every 12 hours when enabled, with network constraints and status tracking in Settings.
+    *   **Google Drive Sync Resilience & Connection Abort Handling**: Enhanced sync to handle socket terminations/connection aborts, added retry with exponential backoff, cleanup of temporary backup files, and immediate one-off background task failover.
+    *   **Database Corruption Recovery & Sync Resilience**: Local JSON databases now heal from `.bak` files if corrupted or missing; fixed a Drive file rename conflict and made Google Sheets sync payload generation resilient.
+    *   **Backup Data Cleaner Date Display, Date Search & Duplicate Detection**: Enhanced the Storage Inspector with formatted session dates, date search, duplicate attendance detection, and a pre-execution Dry Run & Validation breakdown.
+    *   **Manage Backup Data Storage Inspector Duplicate Key Fix**: Deduplicated members across family lists and fixed duplicate key assertions in the backup data list.
+    *   **Report Export Feature Toggle & Firebase Crashlytics Removal**: Added an "Enable Report Export" toggle (default off) and fully removed Firebase Crashlytics dependencies, handlers, build scripts, and privacy disclosures.
+
+*   **Bug Fixes & Stability**:
+    *   **Fix Double App Lock Prompt During Google Sign-In & Authentication**: Fixed a redundant second device unlock prompt when opening Google Sign-In or interactive scope authorization.
+    *   **Roster List Duplicate-Row Fix**: Deduplicated members by id in the deck list view and scoped attendance record overwrites by member id, preventing duplicate rows and name-collision overwrites.
+    *   **New-Event Roster Member Picker**: The Roster row on the new/edit-event form now opens the member edit page as a non-persisting picker, returning chosen members only when the event is saved.
+
+*   **Platform & Tooling**:
+    *   **Swift Package Manager & Android Tooling Migration**: Upgraded `workmanager` to `^0.10.9` with native SPM support, removed `app_attest_integrity`, upgraded Gradle to `9.1.0`, AGP to `9.0.1`, and Kotlin to `2.3.20`.
+    *   **iOS Swift PM Dependencies Resolution**: Resolved and upgraded Swift Package Manager dependencies (`AppAuth-iOS` to `2.1.0`, `GoogleSignIn-iOS` to `9.2.0`).
+    *   **Crashlytics Build Phase Automation**: Added the Firebase Crashlytics upload-symbols build phase to the Xcode project for automatic dSYM generation and upload.
+
+*   **Testing & CI**:
+    *   **Test Coverage Expansion Above 95%**: Added new unit tests and expanded coverage across QuickActions, design tokens, member comparison, and Regulars/Trends navigation — overall line coverage is now **95.36%**.
+    *   **Test Coverage Threshold Elevation**: Raised the coverage guard threshold from 94.0% to 95.0%.
+    *   **TDD Guidelines in Agent Instructions**: Updated `AGENTS.md` and `CLAUDE.md` with TDD behavioral guidelines.
+    *   **PR-Agent (Qodo) Automated PR Review**: Added a self-hosted PR-Agent GitHub Actions workflow using Gemini for automated PR review.
+    *   **PR-Agent Configuration Update**: Switched the PR Agent workflow to the `cisa-campus-work-traker` configuration with Gemini models and `/improve` trigger behavior.
+    *   **OpenWiki Workflow Fixes & Integration**: Fixed the OpenWiki workflow provider, YAML front matter, and `workflows: write` permission issues, and began tracking the generated wiki and agent instruction files.
+
 # 1.3.0+22
 *   **Infrastructure & Security**:
     *   **⚡ Environment Variable System**: Integrated `flutter_dotenv` to manage sensitive configuration values (Google OAuth IDs, Firebase keys) via a `.env` file. This removes hard-coded identifiers from the source code and simplifies the development workflow.
