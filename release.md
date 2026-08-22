@@ -1,3 +1,7 @@
+# 1.3.1+23
+*   **Bug Fixes**:
+    *   **Fixed Android Release Build**: Added the missing `android/app/proguard-rules.pro` file so R8 no longer fails when building a release app bundle with "Supplied proguard configuration does not exist".
+
 # 1.3.0+22
 *   **Infrastructure & Security**:
     *   **⚡ Environment Variable System**: Integrated `flutter_dotenv` to manage sensitive configuration values (Google OAuth IDs, Firebase keys) via a `.env` file. This removes hard-coded identifiers from the source code and simplifies the development workflow.
