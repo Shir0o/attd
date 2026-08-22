@@ -11,6 +11,7 @@ Welcome to the documentation suite. This guide provides a comprehensive overview
 ### 🚀 Getting Started
 - **[Introduction](./INTRODUCTION.md)**: High-level overview of the app and key features.
 - **[User Guide](./USER_GUIDE.md)**: How to use the app, manage members, and track attendance.
+- **[Support](./SUPPORT.md)**: Get help, contact support, and view troubleshooting tips.
 
 ### 🛠 Development & Architecture
 - **[Architecture](./ARCHITECTURE.md)**: Deep dive into the Feature-Sliced Architecture and key design patterns.
@@ -28,4 +29,4 @@ Welcome to the documentation suite. This guide provides a comprehensive overview
 - **Shared Preferences & JSON Storage**: High-performance local persistence.
 
 ---
-*Last updated: April 22, 2026*
+*Last updated: August 21, 2026*
