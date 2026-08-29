@@ -131,7 +131,16 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   List<Member> _getAllMembers(List<Family> families) {
-    return families.expand((f) => f.members).toList();
+    final seen = <String>{};
+    final result = <Member>[];
+    for (final f in families) {
+      for (final m in f.members) {
+        if (m.deletedAt == null && seen.add(m.id)) {
+          result.add(m);
+        }
+      }
+    }
+    return result;
   }
 
   Future<void> _addMember(String name) async {
@@ -928,6 +937,19 @@ class _MembersPageState extends State<MembersPage> {
 
     if (isEventMode) {
       final all = filter(_getAllMembers(families));
+      final nameCounts = <String, int>{};
+      for (final m in all) {
+        nameCounts[m.displayName] = (nameCounts[m.displayName] ?? 0) + 1;
+      }
+      final memberFamilyMap = <String, String>{};
+      for (final f in families) {
+        for (final m in f.members) {
+          if (!f.isAutoSingleton && f.displayName.isNotEmpty) {
+            memberFamilyMap[m.id] = f.displayName;
+          }
+        }
+      }
+
       all.sort((a, b) {
         final aSel = selectedIds.contains(a.id);
         final bSel = selectedIds.contains(b.id);
@@ -939,10 +961,13 @@ class _MembersPageState extends State<MembersPage> {
         children.add(ConvSectionLabel(label: 'Roster · ${all.length}'));
       }
       for (final m in all) {
+        final hasDuplicateName = (nameCounts[m.displayName] ?? 0) > 1;
+        final familyName = hasDuplicateName ? memberFamilyMap[m.id] : null;
         children.add(_MemberRow(
           member: m,
           isEventMode: true,
           isSelected: selectedIds.contains(m.id),
+          familyName: familyName,
           onToggle: (v) => widget.selectionMode
               ? _toggleSelection(m, v)
               : _toggleEventMember(m, v),
@@ -1059,6 +1084,7 @@ class _MemberRow extends StatelessWidget {
     required this.member,
     required this.isEventMode,
     required this.isSelected,
+    this.familyName,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
@@ -1067,6 +1093,7 @@ class _MemberRow extends StatelessWidget {
   final Member member;
   final bool isEventMode;
   final bool isSelected;
+  final String? familyName;
   final ValueChanged<bool> onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1077,6 +1104,13 @@ class _MemberRow extends StatelessWidget {
     final letter = member.displayName.isEmpty
         ? '?'
         : member.displayName.characters.first.toUpperCase();
+
+    final statusText = isEventMode
+        ? (isSelected ? 'Assigned' : 'Not assigned')
+        : 'Member';
+    final subtitleText = (familyName != null && familyName!.isNotEmpty)
+        ? '$statusText · $familyName'
+        : statusText;
 
     return Dismissible(
       key: ValueKey('dismiss_${member.id}_$isEventMode'),
@@ -1144,9 +1178,7 @@ class _MemberRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        isEventMode
-                            ? (isSelected ? 'Assigned' : 'Not assigned')
-                            : 'Member',
+                        subtitleText,
                         style: AppTypography.geist(
                           fontSize: 12,
                           color: c.ink3,

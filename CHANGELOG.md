@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased]
 
+- **Member Deduplication & Disambiguation in Roster and Add Person Autocomplete** (issue #142): Deduplicated member entities by ID across families in event member management (`MembersPage`) and attendance autocomplete (`AddMemberSheet`), preventing duplicate rows for the same member identity. Added contextual family name subtitles (`Assigned · <Family Name>` / `<Family Name>`) when distinct members share identical display names so users can accurately distinguish and assign them. Added regression widget test suites with 100% test pass rate.
+
 - **Swift Package Manager & Android Tooling Migration**: Upgraded `workmanager` to `^0.10.9` to adopt `workmanager_apple` with native Swift Package Manager support, removed unmaintained `app_attest_integrity` dependency and cleaned up unverified client-side attestation checks in `DriveService`, and upgraded Gradle wrapper to `9.1.0`, Android Gradle Plugin (AGP) to `9.0.1`, and Kotlin Gradle Plugin (KGP) to `2.3.20`.
 
 - **Optimistic Speed Swipe Attendance**: The speed-swipe deck now updates the UI and advances to the next card immediately on each swipe, instead of blocking on a full disk write before advancing. Writes are serialized through a background queue (still every mark, in order, preserving version history) so rapid swipes never wait on I/O, and pending writes are flushed before navigating to the summary or discarding a session so the on-disk session always reflects every mark.

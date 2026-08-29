@@ -6,6 +6,7 @@ import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
@@ -447,6 +448,52 @@ void main() {
       expect(deleteCalled, isFalse, reason: 'Session should not be deleted');
       expect(resultSession?.records.length, 1);
       expect(resultSession?.records.first.attendee, 'Only Member');
+    },
+  );
+
+  testWidgets(
+    'AddMemberSheet deduplicates identical member IDs and disambiguates members with identical names',
+    (tester) async {
+      final m1 = Member(id: 'm1', displayName: 'Zoe Alvarez');
+      final m2 = Member(id: 'm2', displayName: 'Zoe Alvarez');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (_) => AddMemberSheet(
+                        onAdd: (_, __, ___, ____) {},
+                        availableMembers: [m1, m1, m2],
+                        families: [
+                          Family(id: 'f1', displayName: 'Alvarez East', members: [m1]),
+                          Family(id: 'f2', displayName: 'Alvarez West', members: [m2]),
+                        ],
+                      ),
+                    );
+                  },
+                  child: const Text('Open Sheet'),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Zoe');
+      await tester.pumpAndSettle();
+
+      // Only 2 suggestions should exist (m1 deduplicated from [m1, m1, m2])
+      expect(find.text('Zoe Alvarez'), findsNWidgets(2));
+      expect(find.text('Alvarez East'), findsOneWidget);
+      expect(find.text('Alvarez West'), findsOneWidget);
     },
   );
 }

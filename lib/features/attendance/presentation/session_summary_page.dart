@@ -612,6 +612,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           _addAttendee(name, isPresent, isGuest, existingMember);
         },
         availableMembers: _allMembers,
+        families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
       ),
     );
   }

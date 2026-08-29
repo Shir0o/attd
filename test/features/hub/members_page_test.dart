@@ -778,6 +778,70 @@ void main() {
 
       expect(find.textContaining('Failed to remove member'), findsOneWidget);
     });
+
+    testWidgets('MembersPage in event mode deduplicates duplicate member IDs across families', (tester) async {
+      final member1 = Member(id: 'm1', displayName: 'Luis Vazquez');
+      mockAttendanceRepo.families = [
+        Family(id: 'f1', displayName: 'Vazquez Family', members: [member1]),
+        Family(id: 'f2', displayName: 'Luis Vazquez', isAutoSingleton: true, members: [member1]),
+      ];
+      final event = Event(
+        id: 'e1',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        memberIds: ['m1'],
+        createdAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MembersPage(
+            attendanceRepository: mockAttendanceRepo,
+            event: event,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Luis Vazquez'), findsOneWidget);
+      expect(find.text('ROSTER · 1'), findsOneWidget);
+      expect(find.text('1 / 1'), findsOneWidget);
+    });
+
+    testWidgets('MembersPage in event mode disambiguates distinct members sharing identical names', (tester) async {
+      final member1 = Member(id: 'm1', displayName: 'Luis Vazquez');
+      final member2 = Member(id: 'm2', displayName: 'Luis Vazquez');
+      mockAttendanceRepo.families = [
+        Family(id: 'f1', displayName: 'Vazquez North', members: [member1]),
+        Family(id: 'f2', displayName: 'Vazquez South', members: [member2]),
+      ];
+      final event = Event(
+        id: 'e1',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        memberIds: ['m1'],
+        createdAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MembersPage(
+            attendanceRepository: mockAttendanceRepo,
+            event: event,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Luis Vazquez'), findsNWidgets(2));
+      expect(find.text('ROSTER · 2'), findsOneWidget);
+      expect(find.text('Assigned · Vazquez North'), findsOneWidget);
+      expect(find.text('Not assigned · Vazquez South'), findsOneWidget);
+    });
   });
 }
 
@@ -837,4 +901,3 @@ class _StubSessionRepository implements SessionRepository {
   @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
-
