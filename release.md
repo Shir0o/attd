@@ -1,3 +1,8 @@
+# 1.3.2+24
+*   **Documentation**:
+    *   **Added Support Page**: Hosted a new `SUPPORT.md` page on the project's GitHub Pages documentation site so users can find help, contact options, and project links in one place. Wired the page into the docs index for direct navigation.
+    *   **Expanded Release Notes**: Backfilled and expanded the `release.md` history with detailed changes since the previous release, consolidating Hub, Onboarding, Session Summary, Insights, Backup, and Tooling updates into a single reference.
+
 # 1.3.1+23
 *   **Bug Fixes**:
     *   **Fixed Android Release Build**: Added the missing `android/app/proguard-rules.pro` file so R8 no longer fails when building a release app bundle with "Supplied proguard configuration does not exist".
