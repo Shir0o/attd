@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. This change
 
 ---
 
+
+## [1.3.2+24] - 2026-08-29
+
+- **Support Page on GitHub Pages**: Added a new `SUPPORT.md` page hosted on the project's GitHub Pages documentation site, linked from the docs index, giving users a single place to find help, contact options, and project links.
+- **Expanded Release Notes History**: Backfilled and expanded `release.md` with detailed changes since the previous release so Hub, Onboarding, Session Summary, Insights, Backup, and Tooling updates are consolidated into a single reference.
+
 ## [Unreleased]
 
 - **Member Deduplication & Disambiguation in Roster and Add Person Autocomplete** (issue #142): Deduplicated member entities by ID across families in event member management (`MembersPage`) and attendance autocomplete (`AddMemberSheet`), preventing duplicate rows for the same member identity. Added contextual family name subtitles (`Assigned · <Family Name>` / `<Family Name>`) when distinct members share identical display names so users can accurately distinguish and assign them. Added regression widget test suites with 100% test pass rate.
