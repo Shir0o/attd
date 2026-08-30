@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/family.dart';
 import '../models/member.dart';
 
 class AddMemberSheet extends StatefulWidget {
@@ -6,6 +7,7 @@ class AddMemberSheet extends StatefulWidget {
     super.key,
     required this.onAdd,
     this.availableMembers = const [],
+    this.families = const [],
   });
 
   final void Function(
@@ -15,6 +17,7 @@ class AddMemberSheet extends StatefulWidget {
     Member? existingMember,
   ) onAdd;
   final List<Member> availableMembers;
+  final List<Family> families;
 
   @override
   State<AddMemberSheet> createState() => _AddMemberSheetState();
@@ -58,10 +61,28 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Deduplicate available members by ID
+    final seenIds = <String>{};
+    final uniqueMembers = <Member>[];
+    for (final m in widget.availableMembers) {
+      if (m.deletedAt == null && (m.id.isEmpty || seenIds.add(m.id))) {
+        uniqueMembers.add(m);
+      }
+    }
+
+    final memberFamilyMap = <String, String>{};
+    for (final f in widget.families) {
+      for (final m in f.members) {
+        if (!f.isAutoSingleton && f.displayName.isNotEmpty) {
+          memberFamilyMap[m.id] = f.displayName;
+        }
+      }
+    }
+
     final query = _nameController.text.toLowerCase().trim();
     final suggestions = query.isEmpty
         ? <Member>[]
-        : widget.availableMembers
+        : uniqueMembers
             .where((m) =>
                 m.displayName.toLowerCase().contains(query) &&
                 m.id != _selectedExistingMember?.id)
@@ -163,6 +184,10 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         ),
                         child: Column(
                           children: suggestions.map((member) {
+                            final familyName = memberFamilyMap[member.id];
+                            final subtitle = (familyName != null && familyName.isNotEmpty)
+                                ? familyName
+                                : 'Existing Member';
                             return Material(
                               color: Colors.transparent,
                               child: ListTile(
@@ -178,7 +203,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                                   ),
                                 ),
                                 title: Text(member.displayName),
-                                subtitle: const Text('Existing Member'),
+                                subtitle: Text(subtitle),
                                 onTap: () => _selectMember(member),
                               ),
                             );

@@ -576,6 +576,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           _addAttendee(name, isPresent, isGuest, existingMember);
         },
         availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
+        families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
       ),
     );
   }
