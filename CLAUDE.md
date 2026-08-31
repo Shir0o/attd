@@ -79,6 +79,10 @@ After completing a feature or bug fix:
 - Update the `[Unreleased]` section of `CHANGELOG.md` with a concise bullet point describing the change. Focus on the core functionality added, modified, or fixed.
 - Keep changelog descriptions brief and distinct from full release notes.
 
+## 7. Releasing
+
+For Android release workflow, conventional-commit PR title format, and Play Console upload steps, see [RELEASING.md](RELEASING.md). For the rationale behind the pipeline choices, see [docs/adr/0001-release-automation.md](docs/adr/0001-release-automation.md).
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

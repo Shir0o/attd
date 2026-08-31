@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "releaseType": "pubspec",
+  "packageName": "attendance_tracker",
+  "bumpMinorPreMajor": true,
+  "bumpPatchForMinorPreMajor": true,
+  "includeComponentInTag": false,
+  "pullRequestTitlePattern": "chore: release${scope} v${version}",
+  "branch": "main",
+  "changelogPath": "CHANGELOG.md",
+  "changelogSections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "refactor", "section": "Refactoring" },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build System", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true },
+    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true }
+  ],
+  "extraFiles": [
+    {
+      "type": "json",
+      "path": ".release-please-manifest.json",
+      "jsonpath": "$.packages.attendance_tracker"
+    }
+  ]
+}

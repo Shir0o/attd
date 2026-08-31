@@ -88,6 +88,10 @@ After creating a Pull Request:
 - Verify CI pipeline status, check for merge conflicts, and review any automated or reviewer comments/reviews (e.g. PR-Agent).
 - Resolve any CI failures, address feedback, or push fixes promptly.
 
+## 8. Releasing
+
+For Android release workflow, conventional-commit PR title format, and Play Console upload steps, see [RELEASING.md](RELEASING.md). For the rationale behind the pipeline choices, see [docs/adr/0001-release-automation.md](docs/adr/0001-release-automation.md).
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
