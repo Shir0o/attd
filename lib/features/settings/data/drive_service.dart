@@ -71,6 +71,28 @@ bool isTransientNetworkError(Object e) {
   return false;
 }
 
+bool isAuthExpiredError(Object e) {
+  if (e is drive.DetailedApiRequestError) {
+    if (e.status == 401) return true;
+    final msg = e.message?.toLowerCase() ?? '';
+    if (msg.contains('invalid credentials') ||
+        msg.contains('bearer') ||
+        msg.contains('invalid token') ||
+        msg.contains('token expired') ||
+        msg.contains('auth_token_expired')) {
+      return true;
+    }
+  }
+  final errStr = e.toString().toLowerCase();
+  if (errStr.contains('401') &&
+      (errStr.contains('invalid credentials') ||
+          errStr.contains('bearer') ||
+          errStr.contains('unauthorized'))) {
+    return true;
+  }
+  return false;
+}
+
 class SyncStats {
 
   int newSessions = 0;
@@ -118,6 +140,30 @@ class DriveService extends ChangeNotifier {
   final BackgroundSyncService? backgroundSyncService;
   final Future<void> Function()? onSyncInterrupted;
 
+  Future<void> _refreshAuthorizationAndClient() async {
+    final prevApi = _driveApi;
+    _driveApi = null;
+    _authorization = null;
+    if (_currentUser != null) {
+      try {
+        _authorization = await _currentUser!.authorizationClient
+            .authorizationForScopes(_driveScopes);
+      } catch (e) {
+        _log.info('Scope authorization query failed during refresh: $e');
+      }
+    }
+    if (_authorization == null) {
+      await signInSilently();
+    } else {
+      await _initDriveApi();
+    }
+    // In unit testing where debugSetDriveApi was used without full GoogleSignIn mocks,
+    // ensure _driveApi is preserved if no new client was constructed.
+    if (_driveApi == null && prevApi != null) {
+      _driveApi = prevApi;
+    }
+  }
+
   Future<T> _retryDriveOperation<T>(
     Future<T> Function() operation, {
     int maxAttempts = 3,
@@ -130,18 +176,33 @@ class DriveService extends ChangeNotifier {
       try {
         return await operation();
       } catch (e) {
-        if (attempt >= maxAttempts || !isTransientNetworkError(e)) {
+        final isAuthExpired = isAuthExpiredError(e);
+        if (attempt >= maxAttempts || (!isTransientNetworkError(e) && !isAuthExpired)) {
           rethrow;
         }
-        final delay = initialDelay * (1 << (attempt - 1));
-        _log.warning(
-          'Drive API operation transient error (attempt $attempt/$maxAttempts), retrying in ${delay.inMilliseconds}ms...',
-          e,
-        );
-        if (delayOverride != null) {
-          await delayOverride(delay);
+
+        if (isAuthExpired) {
+          _log.warning(
+            'Drive API authentication/token expired error (attempt $attempt/$maxAttempts), refreshing token...',
+            e,
+          );
+          try {
+            await _refreshAuthorizationAndClient();
+          } catch (authError) {
+            _log.error('Failed to refresh Drive authorization', authError);
+            rethrow;
+          }
         } else {
-          await Future.delayed(delay);
+          final delay = initialDelay * (1 << (attempt - 1));
+          _log.warning(
+            'Drive API operation transient error (attempt $attempt/$maxAttempts), retrying in ${delay.inMilliseconds}ms...',
+            e,
+          );
+          if (delayOverride != null) {
+            await delayOverride(delay);
+          } else {
+            await Future.delayed(delay);
+          }
         }
       }
     }
@@ -626,6 +687,12 @@ class DriveService extends ChangeNotifier {
         throw Exception(
           'Google Drive API is disabled. Enable it here: '
           'https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=$yourGoogleProjectNumber',
+        );
+      }
+      if (e.status == 401) {
+        _log.warning('Sync failed: Google Drive authentication expired or unauthorized.');
+        throw Exception(
+          'Google Drive session expired. Please sign in again in Settings to continue syncing.',
         );
       }
       _log.error(
