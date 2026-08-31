@@ -31,6 +31,14 @@ class _FakePathProviderPlatform extends PathProviderPlatform
 
 class MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
+class MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
+
+class MockGoogleSignInAuthorizationClient extends Mock
+    implements GoogleSignInAuthorizationClient {}
+
+class MockGoogleSignInClientAuthorization extends Mock
+    implements GoogleSignInClientAuthorization {}
+
 class MockDriveApi extends Mock implements drive.DriveApi {}
 
 class MockFilesResource extends Mock implements drive.FilesResource {}
@@ -524,6 +532,57 @@ void main() {
       final result = await service.listCloudBackups();
       expect(backupQueryAttempts, 3);
       expect(result.length, 1);
+    });
+
+    test('Drive API operation retries and succeeds when encountering 401 expired Bearer token', () async {
+      stubBasicFolders();
+      int backupQueryAttempts = 0;
+      when(() => files.list(
+            q: any(named: 'q', that: contains('attendance_snapshot_')),
+            $fields: any(named: r'$fields'),
+            orderBy: any(named: 'orderBy'),
+            pageSize: any(named: 'pageSize'),
+          )).thenAnswer((_) async {
+        backupQueryAttempts++;
+        if (backupQueryAttempts == 1) {
+          throw drive.DetailedApiRequestError(
+            401,
+            'Invalid Credentials: Bearer token is expired',
+          );
+        }
+        return drive.FileList(
+          files: [_file('b1', 'attendance_snapshot_20250101_000000.zip')],
+        );
+      });
+
+      final result = await service.listCloudBackups();
+      expect(backupQueryAttempts, 2);
+      expect(result.length, 1);
+    });
+
+    test('syncFiles rethrows user-friendly error on 401 when re-authorization is exhausted', () async {
+      when(() => files.list(
+            q: any(named: 'q'),
+            $fields: any(named: r'$fields'),
+            orderBy: any(named: 'orderBy'),
+            pageSize: any(named: 'pageSize'),
+          )).thenThrow(
+        drive.DetailedApiRequestError(
+          401,
+          'Invalid Credentials: Bearer token is expired',
+        ),
+      );
+
+      await expectLater(
+        service.syncFiles(),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Google Drive session expired. Please sign in again'),
+          ),
+        ),
+      );
     });
   });
 }
