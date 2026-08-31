@@ -27,9 +27,9 @@ lane :play_upload do |options|
     track: "internal",
     aab: aab_path,
     json_key: "fastlane/play-supply-credentials.json",
-    # Don't change release status: internal track releases are visible
-    # only to opted-in testers and require manual promotion to production.
-    release_status: "completed",
+    # Default to draft so a bad AAB does NOT auto-notify internal-track
+    # testers; the maintainer reviews and promotes in the Play Console UI.
+    release_status: "draft",
     skip_upload_metadata: true,
     skip_upload_images: true,
     skip_upload_screenshots: true,

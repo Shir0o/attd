@@ -121,7 +121,32 @@ jobs:
           echo "apk=$APK" >> "$GITHUB_OUTPUT"
           echo "Located AAB=$AAB and APK=$APK"
 
+      - name: Check if release artifacts are already attached (idempotency)
+        id: check-existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          existing_aab=$(gh release view "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --json assets \
+            --jq '.assets[] | select(.name | endswith(".aab")) | .name' \
+            2>/dev/null || echo "")
+          existing_apk=$(gh release view "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --json assets \
+            --jq '.assets[] | select(.name | endswith(".apk")) | .name' \
+            2>/dev/null || echo "")
+          if [ -n "$existing_aab" ] && [ -n "$existing_apk" ]; then
+            echo "skip_attach=true" >> "$GITHUB_OUTPUT"
+            echo "Release artifacts already attached; skipping re-upload."
+          else
+            echo "skip_attach=false" >> "$GITHUB_OUTPUT"
+            echo "Release artifacts not yet attached; will upload."
+          fi
+
       - name: Attach AAB and APK to GitHub Release
+        if: steps.check-existing.outputs.skip_attach != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -129,6 +154,7 @@ jobs:
           files: |
             ${{ steps.locate.outputs.aab }}
             ${{ steps.locate.outputs.apk }}
+
 
       - name: Determine if this is a pre-release tag
         id: prerelease

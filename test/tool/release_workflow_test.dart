@@ -109,4 +109,32 @@ void main() {
       isTrue,
     );
   });
+
+  test('release workflow checks for existing attachments before re-uploading',
+      () {
+    final jobs = workflow['jobs'] as YamlMap;
+    final buildJob = jobs['build-and-publish'] as YamlMap;
+    final steps = buildJob['steps'] as YamlList;
+    final checkStep = steps.firstWhere((s) {
+      final id = s['id'];
+      return id == 'check-existing';
+    }, orElse: () => null);
+    expect(checkStep, isNotNull,
+        reason:
+            'release.yml must include a `check-existing` step for idempotent re-runs.');
+  });
+
+  test('Attach step is gated by the skip_attach output', () {
+    final jobs = workflow['jobs'] as YamlMap;
+    final buildJob = jobs['build-and-publish'] as YamlMap;
+    final steps = buildJob['steps'] as YamlList;
+    final attachStep = steps.firstWhere((s) {
+      final uses = s['uses'];
+      return uses is String && uses.startsWith('softprops/action-gh-release');
+    }, orElse: () => null);
+    expect(attachStep, isNotNull);
+    final ifCond = attachStep['if'] as String;
+    expect(ifCond, contains('check-existing'));
+    expect(ifCond, contains('skip_attach'));
+  });
 }
