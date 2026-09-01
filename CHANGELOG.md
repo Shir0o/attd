@@ -7,10 +7,82 @@ All notable changes to this project will be documented in this file. This change
 ## [Unreleased]
 
 - **Fast Marking Modes for Large Rosters** (issue #152): Added four alternative in-session marking surfaces for large rosters — Rapid entry (bottom-anchored search that keeps focus and self-clears), Likely here (tap-to-mark grid ordered by recent attendance), Households (one tap per family) and Initials pad (two-stage A–Z filter, no keyboard) — selected per event via a new "Fast marking mode" dropdown (`Event.markingMode`, defaulting to Likely here) and shown as a third segment beside Deck and List. Added unit and widget tests at the existing host, event-editor and model seams.
-
+- **Automatic OAuth Token Refresh on 401 Bearer Expiry in DriveService** (issue #144): Resolved intermittent "Bearer token expired / Invalid Credentials" errors when triggering manual or background Google Drive syncs after an hour of inactivity. `DriveService._retryDriveOperation` now catches 401 auth failures, queries fresh scope authorization from `GoogleSignIn` to construct a new `DriveApi` HTTP client, and transparently retries the failed operation. Added unit tests for 401 auto-recovery and graceful re-authentication prompts when authorization cannot be refreshed.
 - **Member Deduplication & Disambiguation in Roster and Add Person Autocomplete** (issue #142): Deduplicated member entities by ID across families in event member management (`MembersPage`) and attendance autocomplete (`AddMemberSheet`), preventing duplicate rows for the same member identity. Added contextual family name subtitles (`Assigned · <Family Name>` / `<Family Name>`) when distinct members share identical display names so users can accurately distinguish and assign them. Added regression widget test suites with 100% test pass rate.
+- **Android Release Automation Pipeline** (issue #146): Added release-please + fastlane supply + Play App Signing pipeline. New workflows `release.yml`, `release-please.yml`, `pr-title-lint.yml`, fastlane config, `RELEASING.md`, ADR `docs/adr/0001-release-automation.md`, and a `[1.4.0]` CHANGELOG backfill section. Deleted legacy `release.md` (AI-generated from inception; superseded by release-please's Keep-a-Changelog output).
+- **Switch release-please to `dart` release-type + semver-only versions** (issue #146 follow-up): The original `pubspec` release-type config failed at runtime with `versionString.match is not a function` because release-please doesn't understand Flutter's `versionName+versionCode` format. `pubspec.yaml` is now `version: 1.3.2` (bare semver). The release workflow derives `versionCode` from the tag with `major*10000 + minor*100 + patch` (e.g. `v1.3.3` → `10303`) and passes it via `flutter build --build-number`. All historical CHANGELOG version headings were stripped of their `+N` suffix (sub-bullet `(1.3.1+23)` / `(1.3.2+24)` tags retained as historical references to the published versionCode at the time).
+## [1.4.0] - Backfill
 
-## [1.3.2+24] - 2026-08-29
+> **Backfill from prior history.** This section was pre-seeded to consolidate the
+> 13 versions (`1.0.10` → `1.3.2`) that shipped in CHANGELOG but never
+> made it to a GitHub Release. Future release-please runs will append new
+> entries below this header — do not edit the backfill content above this line.
+
+### Documentation
+- **Support page on GitHub Pages** (1.3.2+24): Added a new `SUPPORT.md` page hosted on the project's GitHub Pages documentation site, linked from the docs index.
+- **Expanded release notes history** (1.3.2+24): Backfilled `release.md` with detailed changes since the previous release; this section supersedes that file.
+
+### Bug Fixes
+- **Fixed Android release build** (1.3.1+23): Added the missing `android/app/proguard-rules.pro` so R8 no longer fails when building a release app bundle with "Supplied proguard configuration does not exist".
+
+### Attendance & Marking
+- **Persistent event attendance mode** (1.3.1+23): Start mode is picked once, saved on `Event`, and surfaced in the event card's three-dot menu.
+- **Smart defaults in "Mark everyone" sheet** (1.3.1+23): Third "Smart defaults" option beside All present / All absent.
+- **Quick marking deck & confirm list redesign** (1.3.1+23): Centered Deck/List toggle, contained progress bar, ghost "Add guest" button, drag hint zones, next-card peek.
+- **Quick marking start-mode routing** (1.3.1+23): All absent → deck, All present / Smart → list view.
+- **Smooth footer-button swipe** (1.3.1+23): Present/Absent buttons play the same fly-off animation as a manual swipe.
+- **Smart preseeds skipping & deck undo stack** (1.3.1+23): Deck skips members pre-marked by Smart defaults; list-based undo stack.
+
+### Hub & Home
+- **Hub Convocation "01 Hub" rebuild** (1.3.1+23): Up-next hero card + compact upcoming rows on the Convocation design system.
+- **Hub today highlight & "Also today" group** (1.3.1+23): Hero reserved for the soonest unmarked today event; same-day remainder drops under "Also today".
+- **Hub "Nothing scheduled" rest state** (1.3.1+23): Calm rest card with "Next up" affordance when today is empty but the week isn't.
+- **Hub "Taken" card routing fix** (1.3.1+23): Tapping a Taken card always opens the session summary.
+- **Hub "Taken" state after all-present confirm** (1.3.1+23): Confirmed all-present sessions persist instead of silently discarding.
+- **Hub event row "Taken" status & three-dot menu** (1.3.1+23): Status moved into subtitle; three-dot overflow menu added to rows.
+- **Hub upcoming events chronological sorting** (1.3.1+23): Sort by next-occurrence date first, then time-of-day.
+
+### Design System & UI
+- **Onboarding Convocation rebuild** (1.3.1+23): Four editorial art widgets, 5 → 4 slides.
+- **Onboarding "07 · Onboarding" conformance** (1.3.1+23): Corrected "Quick marking" deck art and copy.
+- **Settings page Convocation overhaul** (1.3.1+23): Rebuilt `settings_page.dart` on the Convocation system.
+- **Session summary editorial header** (1.3.1+23): Large serif display title with `SAVED · <time>` eyebrow.
+- **"05 Insights" Regulars & Trends rebuild** (1.3.1+23): Count strips, hero cards, range selectors, bar charts.
+- **Insights follow-ups** (1.3.1+23): True ≥80% Regulars threshold, tappable Trends rows, corrected absent-count math.
+- **Equal height Regulars & Trends cards** (1.3.1+23): IntrinsicHeight + stretch alignment.
+- **Redesigned Manage Backup Data page** (1.3.1+23): Serif headers, Geist monospace details, filter chips, status badges.
+- **Version history & force sync overhaul** (1.3.1+23): Timeline snapshot list; force-sync controls live on Cloud Version History.
+
+### Data, Backup & Sync
+- **Background auto-sync for Google Drive backup** (1.3.1+23): Workmanager-driven 12-hour sync with network constraints.
+- **Google Drive sync resilience & connection abort handling** (1.3.1+23): Exponential-backoff retry, .zip cleanup, `SyncInterruptedException`.
+- **Database corruption recovery & sync resilience** (1.3.1+23): `.bak` file healing; Drive file rename conflict fix.
+- **Backup data cleaner date display, date search & duplicate detection** (1.3.1+23): Formatted session dates, duplicate-attendance scanning, dry-run breakdown.
+- **Manage backup data storage inspector duplicate key fix** (1.3.1+23): Composite `ValueKey`s, `uniqueKey` on `DbRecord`.
+- **Report export feature toggle & Firebase Crashlytics removal** (1.3.1+23): Default-off "Enable Report Export"; Crashlytics fully removed.
+
+### Bug Fixes & Stability
+- **Fix double app lock prompt during Google sign-in & authentication** (1.3.1+23): `setExternalAuthInProgress(bool)` guards against double unlocks.
+- **Roster list duplicate-row fix** (1.3.1+23): Dedup members by id; attendance overwrites scoped by member id.
+- **New-event roster member picker** (1.3.1+23): Roster row opens `MembersPage` as a non-persisting picker.
+
+### Platform & Tooling
+- **Swift Package Manager & Android tooling migration** (1.3.1+23): `workmanager` `^0.10.9`, removed `app_attest_integrity`, Gradle 9.1.0 / AGP 9.0.1 / Kotlin 2.3.20.
+- **iOS Swift PM dependencies resolution** (1.3.1+23): `AppAuth-iOS` 2.1.0, `GoogleSignIn-iOS` 9.2.0.
+- **Crashlytics build phase automation** (1.3.1+23): dSYM upload-symbols phase added to Xcode project.
+
+### Testing & CI
+- **Test coverage expansion above 95%** (1.3.1+23): New tests for QuickActions, design tokens, member comparison, Regulars/Trends navigation.
+- **Test coverage threshold elevation** (1.3.1+23): Threshold raised from 94.0% to 95.0%.
+- **TDD guidelines in agent instructions** (1.3.1+23): `AGENTS.md` and `CLAUDE.md` updated with TDD behavioural guidelines.
+- **PR-Agent (Qodo) automated PR review** (1.3.1+23): Self-hosted workflow using Gemini; auto `/review` enabled.
+- **PR-Agent configuration update** (1.3.1+23): Switched to `cisa-campus-work-traker` with `/improve` trigger.
+- **OpenWiki workflow fixes & integration** (1.3.1+23): Provider switch, YAML front matter, `workflows: write` permission; wiki tracked.
+
+### Earlier versions (1.0.10+11 → 1.3.0+22)
+- The full per-version detail for these releases lived in `release.md`, which was deleted in this PR (see spec #146). For audit purposes, the changelog headings for those versions remain below in the **Recent Changes** section, which preserves the per-PR attribution.
+
+## [1.3.2] - 2026-08-29
 
 - **Support Page on GitHub Pages**: Added a new `SUPPORT.md` page hosted on the project's GitHub Pages documentation site, linked from the docs index, giving users a single place to find help, contact options, and project links.
 - **Expanded Release Notes History**: Backfilled and expanded `release.md` with detailed changes since the previous release so Hub, Onboarding, Session Summary, Insights, Backup, and Tooling updates are consolidated into a single reference.

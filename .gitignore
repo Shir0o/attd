@@ -87,5 +87,9 @@ firestore.indexes.json
 # URL whenever design changes are needed. DESIGN_SPEC.md is the durable spec.
 docs/design-handoff/
 
+# fastlane Play Store service-account JSON is mounted by the release
+# workflow from the PLAY_SUPPLY_JSON_KEY secret. Never commit it.
+fastlane/play-supply-credentials.json
+
 # Agent Configuration (Local Only)
 GEMINI.md

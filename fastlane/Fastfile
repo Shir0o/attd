@@ -1,0 +1,40 @@
+default_platform(:android)
+
+# Mirrors the package id in android/app/build.gradle.kts and the
+# Play Console app listing. Update both here and in Play Console if the
+# application id ever changes.
+APP_PACKAGE_NAME = "com.attd.tracker"
+
+# AAB path is supplied by the release workflow via FASTLANE_AAB_PATH
+# so the Fastfile stays build-artefact-agnostic.
+DEFAULT_AAB_PATH = File.expand_path("../build/app/outputs/bundle/release/app-release.aab", __dir__)
+
+# Lane: play_upload
+#
+# Uploads the AAB to the Play Console internal testing track.
+# The release workflow is responsible for mounting
+# `fastlane/play-supply-credentials.json` from the PLAY_SUPPLY_JSON_KEY
+# secret before invoking this lane.
+lane :play_upload do |options|
+  aab_path = options[:aab_path] || ENV["FASTLANE_AAB_PATH"] || DEFAULT_AAB_PATH
+
+  unless File.exist?(aab_path)
+    UI.user_error!("AAB not found at #{aab_path}. Confirm the build step ran successfully.")
+  end
+
+  upload_to_play_store(
+    package_name: APP_PACKAGE_NAME,
+    track: "internal",
+    aab: aab_path,
+    json_key: "fastlane/play-supply-credentials.json",
+    # Default to draft so a bad AAB does NOT auto-notify internal-track
+    # testers; the maintainer reviews and promotes in the Play Console UI.
+    release_status: "draft",
+    skip_upload_metadata: true,
+    skip_upload_images: true,
+    skip_upload_screenshots: true,
+    validate_only: false,
+  )
+
+  UI.success("Uploaded #{aab_path} to Play Console internal track for #{APP_PACKAGE_NAME}.")
+end
