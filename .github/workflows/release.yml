@@ -65,12 +65,7 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          # Don't use bundler-cache: it caches a resolved Gemfile.lock
-          # between runs and can serve a stale fastlane version with a
-          # different google-api-client call signature. Run `bundle install`
-          # fresh each time so the version pinning in the Gemfile is what
-          # we actually run.
-          bundler-cache: false
+          bundler-cache: true
 
       - name: Install dependencies
         run: flutter pub get
