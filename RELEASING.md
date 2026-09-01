@@ -64,9 +64,13 @@ them under **Settings → Secrets and variables → Actions**:
 | `KEY_PASSWORD`          | Password for the upload key.                                            |
 | `STORE_PASSWORD`        | Password for the keystore file itself.                                  |
 | `PLAY_SUPPLY_JSON_KEY`  | Contents of the Play Console service-account JSON (release-manager).    |
-| `RELEASE_PLEASE_TOKEN`  | PAT with `contents: write` and `pull-requests: write`. Optional — release-please falls back to `GITHUB_TOKEN` for single-repo PRs, but a PAT avoids the default-token's per-job permission cap and is required for fork PRs. |
+| `GOOGLE_SERVICES_JSON`  | Contents of `android/app/google-services.json`. The Google Services Gradle plugin requires this at build time; mounted from this secret at workflow runtime, never logged. |
 
-### Generating / locating the CI upload keystore
+> **Note:** `RELEASE_PLEASE_TOKEN` is **not** in the required list. release-please
+> authenticates with the workflow's own `GITHUB_TOKEN`, which works because the
+> repo's **Settings → Actions → General → Workflow permissions** is set to
+> `Allow GitHub Actions to create and approve pull requests` with
+> `Read and write permissions`. No PAT is required.
 
 Play App Signing is already enabled on this app. The CI signs AABs with
 the **upload key** (the key registered on the Play Console); Google's
@@ -108,10 +112,7 @@ gh secret set PLAY_SUPPLY_JSON_KEY --repo Shir0o/attd < ~/path/to/key.json
 ## Troubleshooting
 
 | Symptom                                                | Likely cause                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------- |
-| Release-please bot doesn't open a release PR           | No conventional-commit PR titles since the last release tag, or all PR titles were `chore:`/`docs:`/`test:`/`build:`/`ci:`/`refactor:` (none trigger a bump). Add a real `fix:` or `feat:` title. |
-| `release.yml` fails on secret check                    | One of the six secrets is empty/missing in repo settings.     |
-| `flutter build appbundle` fails with "Supplied proguard configuration does not exist" | `android/app/proguard-rules.pro` was deleted. Restore it.    |
+| `release.yml` fails on secret check                    | One of the six required secrets is empty/missing in repo settings. |
 | Play Console upload fails with "versionCode not higher than previous" | Two tags have the same `major*10000 + minor*100 + patch`. Don't re-tag without bumping. |
 | Play Console upload fails with "package not found"     | The applicationId in `android/app/build.gradle.kts` does not match the Play Console listing. Update the Fastfile `APP_PACKAGE_NAME` to match. |
 | Play Console upload fails with "permission denied" / 403 | The service account named in `PLAY_SUPPLY_JSON_KEY` has not been granted Release Manager on the Play Console. Re-link it. |

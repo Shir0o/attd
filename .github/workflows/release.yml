@@ -1,4 +1,5 @@
 name: Release
+
 # Triggered when release-please pushes a version tag (e.g. v1.3.3).
 # Builds a signed APK + AAB (each carrying the derived versionCode from
 # the tag), attaches both to the GitHub Release, and uploads the AAB
@@ -32,10 +33,11 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           PLAY_SUPPLY_JSON_KEY: ${{ secrets.PLAY_SUPPLY_JSON_KEY }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           set -euo pipefail
           missing=()
-          for var in ANDROID_KEYSTORE_BASE64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD PLAY_SUPPLY_JSON_KEY; do
+          for var in ANDROID_KEYSTORE_BASE64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD PLAY_SUPPLY_JSON_KEY GOOGLE_SERVICES_JSON; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
@@ -61,6 +63,19 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Seed google-services.json from secrets
+        # The Google Services Gradle plugin requires android/app/google-services.json
+        # to exist at build time, even though the values come from the runtime
+        # Firebase config in Dart. We mount it from the GOOGLE_SERVICES_JSON
+        # secret at workflow runtime, never logging the contents.
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          set -euo pipefail
+          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          chmod 600 android/app/google-services.json
+          echo "google-services.json mounted (contents not echoed)."
 
       - name: Seed .env and firebase_options.dart for asset bundling
         run: |
@@ -174,7 +189,6 @@ jobs:
             ${{ steps.locate.outputs.aab }}
             ${{ steps.locate.outputs.apk }}
 
-
       - name: Determine if this is a pre-release tag
         id: prerelease
         run: |
@@ -203,4 +217,3 @@ jobs:
         run: |
           tag="${{ github.ref_name }}"
           echo "Tag $tag matches a pre-release pattern (rc/beta); skipping Play Console upload."
-

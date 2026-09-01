@@ -35,9 +35,6 @@ void main() {
     final jobs = workflow['jobs'] as YamlMap;
     final buildJob = jobs['build-and-publish'] as YamlMap;
     final steps = buildJob['steps'] as YamlList;
-    // The Play Console upload step is gated on is_prerelease != 'true', i.e.
-    // it runs for stable tags. The Fastfile (in fastlane/) is responsible
-    // for naming the track; the release workflow only triggers the upload.
     final hasUploadStep = steps.any((s) {
       final run = s['run'];
       return run is String && run.contains('fastlane play_upload');
@@ -80,9 +77,28 @@ void main() {
       'KEY_PASSWORD',
       'STORE_PASSWORD',
       'PLAY_SUPPLY_JSON_KEY',
+      'GOOGLE_SERVICES_JSON',
     ]) {
       expect(run, contains(secret));
     }
+  });
+
+  test('release workflow mounts google-services.json from the secret', () {
+    final jobs = workflow['jobs'] as YamlMap;
+    final buildJob = jobs['build-and-publish'] as YamlMap;
+    final steps = buildJob['steps'] as YamlList;
+    final mountStep = steps.firstWhere(
+      (s) {
+        final name = (s as YamlMap)['name'];
+        return name is String && name.toLowerCase().contains('google-services.json');
+      },
+      orElse: () => YamlMap(),
+    );
+    expect(mountStep, isNot(YamlMap()),
+        reason:
+            'release.yml must mount google-services.json from '
+            'GOOGLE_SERVICES_JSON, otherwise the Google Services Gradle '
+            'plugin fails on processDebugGoogleServices.');
   });
 
   test('release workflow masks keystore contents from logs', () {
