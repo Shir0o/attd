@@ -1,5 +1,5 @@
 {
-  "name": "Protect main branch",
+  "name": "Protect main",
   "target": "branch",
   "enforcement": "active",
   "bypass_actors": [
@@ -11,7 +11,7 @@
   ],
   "conditions": {
     "ref_name": {
-      "include": ["refs/heads/main"],
+      "include": ["~DEFAULT_BRANCH"],
       "exclude": []
     }
   },
@@ -22,19 +22,23 @@
       "type": "pull_request",
       "parameters": {
         "required_approving_review_count": 1,
-        "dismiss_stale_reviews_on_push": true,
+        "dismiss_stale_reviews_on_push": false,
         "require_code_owner_review": true,
-        "require_last_push_approval": true,
-        "required_review_thread_resolution": true
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false,
+        "require_extra_approval_for_unattributed_changes": true,
+        "allowed_merge_methods": ["merge", "squash", "rebase"]
       }
     },
     {
       "type": "required_status_checks",
       "parameters": {
-        "strict_required_status_checks_policy": true,
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "Analyze & Test" },
-          { "context": "Lint & Test" }
+          { "context": "Unit & Widget Tests" },
+          { "context": "Integration Tests" },
+          { "context": "Validate conventional commit title" }
         ]
       }
     },

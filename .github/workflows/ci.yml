@@ -11,7 +11,7 @@ on:
       - 'pubspec.lock'
       - 'analysis_options.yaml'
       - 'tool/**'
-      - '.github/workflows/flutter-tests.yml'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 concurrency:
