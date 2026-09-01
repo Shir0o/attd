@@ -4,165 +4,184 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
 void main() {
-  late YamlMap workflow;
-
   setUpAll(() {
     final f = File('.github/workflows/release.yml');
     if (!f.existsSync()) {
       fail('.github/workflows/release.yml missing.');
     }
-    workflow = loadYaml(f.readAsStringSync()) as YamlMap;
   });
 
-  YamlMap buildJob() {
-    return (workflow['jobs'] as YamlMap)['build-and-publish'] as YamlMap;
-  }
-
-  YamlList buildSteps() {
-    return buildJob()['steps'] as YamlList;
-  }
-
-  test('release workflow triggers on tag push', () {
-    final push = workflow['on']['push'] as YamlMap;
-    final tags = (push['tags'] as YamlList).map((t) => t as String).toList();
-    expect(tags, contains('v*'));
-  });
-
-  test('release workflow runs fastlane play_upload (which lives in fastlane/Fastfile)',
-      () {
-    final steps = buildSteps();
-    final hasFastlaneStep = steps.any((s) {
-      final run = s['run'];
-      return run is String && run.contains('fastlane play_upload');
+  group('Gemfile', () {
+    test('Gemfile exists so bundler can resolve fastlane + google-api-client',
+        () {
+      expect(File('Gemfile').existsSync(), isTrue,
+          reason: 'Gemfile is required so ruby/setup-ruby + bundler-cache '
+              'can resolve the fastlane gem before the Play Console upload.');
     });
-    expect(hasFastlaneStep, isTrue);
   });
 
-  test('release workflow uploads to the internal track by default', () {
-    final steps = buildSteps();
-    final hasUploadStep = steps.any((s) {
-      final run = s['run'];
-      return run is String && run.contains('fastlane play_upload');
+  group('release.yml structure', () {
+    late YamlMap workflow;
+
+    setUpAll(() {
+      workflow =
+          loadYaml(File('.github/workflows/release.yml').readAsStringSync())
+              as YamlMap;
     });
-    expect(hasUploadStep, isTrue,
-        reason: 'Stable tags must trigger fastlane play_upload.');
-  });
 
-  test('release workflow skips Play Console upload for rc/beta tags', () {
-    final steps = buildSteps();
-    final hasSkipStep = steps.any((s) {
-      final name = s['name'];
-      final ifCond = s['if'];
-      final run = s['run'];
-      return name is String &&
-          name.toLowerCase().contains('skip play console') &&
-          ifCond is String &&
-          ifCond.contains('is_prerelease') &&
-          run is String;
-    });
-    expect(hasSkipStep, isTrue);
-  });
-
-  test('release workflow checks for all required secrets before doing any work',
-      () {
-    final steps = buildSteps();
-    final checkStep = steps.firstWhere(
-      (s) => s['id'] == 'check-secrets',
-      orElse: () => YamlMap(),
-    );
-    expect(checkStep, isNot(YamlMap()));
-
-    final run = checkStep['run'] as String;
-    for (final secret in [
-      'ANDROID_KEYSTORE_BASE64',
-      'KEY_ALIAS',
-      'KEY_PASSWORD',
-      'STORE_PASSWORD',
-      'PLAY_SUPPLY_JSON_KEY',
-      'GOOGLE_SERVICES_JSON',
-    ]) {
-      expect(run, contains(secret));
+    YamlMap buildJob() {
+      return (workflow['jobs'] as YamlMap)['build-and-publish'] as YamlMap;
     }
-  });
 
-  test('release workflow mounts google-services.json from the secret', () {
-    final steps = buildSteps();
-    final mountStep = steps.firstWhere(
-      (s) {
+    YamlList buildSteps() {
+      return buildJob()['steps'] as YamlList;
+    }
+
+    test('release workflow triggers on tag push', () {
+      final push = workflow['on']['push'] as YamlMap;
+      final tags = (push['tags'] as YamlList).map((t) => t as String).toList();
+      expect(tags, contains('v*'));
+    });
+
+    test('release workflow runs fastlane play_upload (which lives in fastlane/Fastfile)',
+        () {
+      final steps = buildSteps();
+      final hasFastlaneStep = steps.any((s) {
+        final run = s['run'];
+        return run is String && run.contains('fastlane play_upload');
+      });
+      expect(hasFastlaneStep, isTrue);
+    });
+
+    test('release workflow uploads to the internal track by default', () {
+      final steps = buildSteps();
+      final hasUploadStep = steps.any((s) {
+        final run = s['run'];
+        return run is String && run.contains('fastlane play_upload');
+      });
+      expect(hasUploadStep, isTrue,
+          reason: 'Stable tags must trigger fastlane play_upload.');
+    });
+
+    test('release workflow skips Play Console upload for rc/beta tags', () {
+      final steps = buildSteps();
+      final hasSkipStep = steps.any((s) {
         final name = s['name'];
-        return name is String && name.toLowerCase().contains('google-services.json');
-      },
-      orElse: () => YamlMap(),
-    );
-    expect(mountStep, isNot(YamlMap()),
-        reason:
-            'release.yml must mount google-services.json from '
-            'GOOGLE_SERVICES_JSON, otherwise the Google Services Gradle '
-            'plugin fails on processDebugGoogleServices.');
-  });
-
-  test('release workflow masks keystore contents from logs', () {
-    final steps = buildSteps();
-    for (final step in steps) {
-      final run = step['run'];
-      if (run is! String) continue;
-      expect(run, isNot(contains('cat android/key.properties')),
-          reason: 'cat-ing key.properties would leak secrets to logs.');
-    }
-  });
-
-  test('release workflow uses the gradlew generated by the bootstrap step', () {
-    final steps = buildSteps();
-    expect(
-      steps.any((s) =>
-          s['name'] == 'Bootstrap Android project (Generates gradlew)'),
-      isTrue,
-    );
-  });
-
-  test('release workflow sets up Ruby + Bundler before invoking fastlane', () {
-    final steps = buildSteps();
-    // The Ruby setup step must appear *before* the Play Console upload step
-    // (which invokes `bundle exec fastlane`). Otherwise the runner has no
-    // bundler and the upload fails with "bundle: command not found".
-    final rubyStepIdx = steps.indexWhere((s) {
-      final uses = s['uses'];
-      return uses is String && uses.startsWith('ruby/setup-ruby');
+        final ifCond = s['if'];
+        final run = s['run'];
+        return name is String &&
+            name.toLowerCase().contains('skip play console') &&
+            ifCond is String &&
+            ifCond.contains('is_prerelease') &&
+            run is String;
+      });
+      expect(hasSkipStep, isTrue);
     });
-    final uploadStepIdx = steps.indexWhere((s) {
-      final run = s['run'];
-      return run is String && run.contains('bundle exec fastlane play_upload');
+
+    test('release workflow checks for all required secrets before doing any work',
+        () {
+      final steps = buildSteps();
+      final checkStep = steps.firstWhere(
+        (s) => s['id'] == 'check-secrets',
+        orElse: () => YamlMap(),
+      );
+      expect(checkStep, isNot(YamlMap()));
+
+      final run = checkStep['run'] as String;
+      for (final secret in [
+        'ANDROID_KEYSTORE_BASE64',
+        'KEY_ALIAS',
+        'KEY_PASSWORD',
+        'STORE_PASSWORD',
+        'PLAY_SUPPLY_JSON_KEY',
+        'GOOGLE_SERVICES_JSON',
+      ]) {
+        expect(run, contains(secret));
+      }
     });
-    expect(rubyStepIdx, greaterThanOrEqualTo(0),
-        reason: 'release.yml must include a ruby/setup-ruby step.');
-    expect(uploadStepIdx, greaterThanOrEqualTo(0),
-        reason: 'release.yml must run `bundle exec fastlane play_upload`.');
-    expect(rubyStepIdx, lessThan(uploadStepIdx),
-        reason:
-            'ruby/setup-ruby must come before the Play Console upload step.');
-  });
 
-  test('release workflow checks for existing attachments before re-uploading',
-      () {
-    final steps = buildSteps();
-    final checkStep = steps.firstWhere(
-      (s) => s['id'] == 'check-existing',
-      orElse: () => YamlMap(),
-    );
-    expect(checkStep, isNot(YamlMap()),
-        reason:
-            'release.yml must include a `check-existing` step for idempotent re-runs.');
-  });
+    test('release workflow mounts google-services.json from the secret', () {
+      final steps = buildSteps();
+      final mountStep = steps.firstWhere(
+        (s) {
+          final name = s['name'];
+          return name is String &&
+              name.toLowerCase().contains('google-services.json');
+        },
+        orElse: () => YamlMap(),
+      );
+      expect(mountStep, isNot(YamlMap()),
+          reason:
+              'release.yml must mount google-services.json from '
+              'GOOGLE_SERVICES_JSON, otherwise the Google Services Gradle '
+              'plugin fails on processDebugGoogleServices.');
+    });
 
-  test('Attach step is gated by the skip_attach output', () {
-    final steps = buildSteps();
-    final attachStep = steps.firstWhere((s) {
-      final uses = s['uses'];
-      return uses is String && uses.startsWith('softprops/action-gh-release');
-    }, orElse: () => YamlMap());
-    expect(attachStep, isNot(YamlMap()));
-    final ifCond = attachStep['if'] as String;
-    expect(ifCond, contains('check-existing'));
-    expect(ifCond, contains('skip_attach'));
+    test('release workflow masks keystore contents from logs', () {
+      final steps = buildSteps();
+      for (final step in steps) {
+        final run = step['run'];
+        if (run is! String) continue;
+        expect(run, isNot(contains('cat android/key.properties')),
+            reason: 'cat-ing key.properties would leak secrets to logs.');
+      }
+    });
+
+    test('release workflow uses the gradlew generated by the bootstrap step',
+        () {
+      final steps = buildSteps();
+      expect(
+        steps.any((s) =>
+            s['name'] == 'Bootstrap Android project (Generates gradlew)'),
+        isTrue,
+      );
+    });
+
+    test('release workflow sets up Ruby + Bundler before invoking fastlane',
+        () {
+      final steps = buildSteps();
+      // The Ruby setup step must appear *before* the Play Console upload step
+      // (which invokes `bundle exec fastlane`). Otherwise the runner has no
+      // bundler and the upload fails with "bundle: command not found".
+      final rubyStepIdx = steps.indexWhere((s) {
+        final uses = s['uses'];
+        return uses is String && uses.startsWith('ruby/setup-ruby');
+      });
+      final uploadStepIdx = steps.indexWhere((s) {
+        final run = s['run'];
+        return run is String && run.contains('bundle exec fastlane play_upload');
+      });
+      expect(rubyStepIdx, greaterThanOrEqualTo(0),
+          reason: 'release.yml must include a ruby/setup-ruby step.');
+      expect(uploadStepIdx, greaterThanOrEqualTo(0),
+          reason: 'release.yml must run `bundle exec fastlane play_upload`.');
+      expect(rubyStepIdx, lessThan(uploadStepIdx),
+          reason:
+              'ruby/setup-ruby must come before the Play Console upload step.');
+    });
+
+    test('release workflow checks for existing attachments before re-uploading',
+        () {
+      final steps = buildSteps();
+      final checkStep = steps.firstWhere(
+        (s) => s['id'] == 'check-existing',
+        orElse: () => YamlMap(),
+      );
+      expect(checkStep, isNot(YamlMap()),
+          reason:
+              'release.yml must include a `check-existing` step for idempotent re-runs.');
+    });
+
+    test('Attach step is gated by the skip_attach output', () {
+      final steps = buildSteps();
+      final attachStep = steps.firstWhere((s) {
+        final uses = s['uses'];
+        return uses is String && uses.startsWith('softprops/action-gh-release');
+      }, orElse: () => YamlMap());
+      expect(attachStep, isNot(YamlMap()));
+      final ifCond = attachStep['if'] as String;
+      expect(ifCond, contains('check-existing'));
+      expect(ifCond, contains('skip_attach'));
+    });
   });
 }
