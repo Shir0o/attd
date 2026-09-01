@@ -65,7 +65,10 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true
+          bundler-cache: false
+
+      - name: Install Ruby dependencies
+        run: bundle install
 
       - name: Install dependencies
         run: flutter pub get
@@ -205,7 +208,6 @@ jobs:
           set -euo pipefail
           echo "$PLAY_SUPPLY_JSON_KEY" > fastlane/play-supply-credentials.json
           chmod 600 fastlane/play-supply-credentials.json
-          bundle install
           bundle exec fastlane play_upload
           rm -f fastlane/play-supply-credentials.json
           echo "Uploaded to Play Console internal track."
