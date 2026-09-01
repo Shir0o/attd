@@ -1,7 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "releaseType": "pubspec",
-  "packageName": "attendance_tracker",
+  "releaseType": "dart",
   "bumpMinorPreMajor": true,
   "bumpPatchForMinorPreMajor": true,
   "includeComponentInTag": false,
@@ -19,11 +18,11 @@
     { "type": "ci", "section": "Continuous Integration", "hidden": true },
     { "type": "chore", "section": "Miscellaneous Chores", "hidden": true }
   ],
-  "extraFiles": [
+  "extra-files": [
     {
       "type": "json",
       "path": ".release-please-manifest.json",
-      "jsonpath": "$.packages.attendance_tracker"
+      "jsonpath": "$"
     }
   ]
 }

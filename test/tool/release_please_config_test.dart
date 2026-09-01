@@ -19,38 +19,58 @@ void main() {
       config = jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>;
     });
 
-    test('declares the attendance_tracker package', () {
-      expect(config['packageName'], 'attendance_tracker');
-    });
-
-    test('uses the pubspec release type so versionCode bumps with versionName',
+    test('uses the dart release-type (the only one that handles pubspec.yaml)',
         () {
-      expect(config['releaseType'], 'pubspec');
+      expect(config['releaseType'], 'dart');
     });
 
-    test('bumps version (not just versionCode) on each release', () {
-      final includeComponentInTag = config['includeComponentInTag'];
-      expect(includeComponentInTag, isFalse);
+    test('does NOT pin packageName to attendance_tracker (dart release-type uses "." in the manifest)',
+        () {
+      // The old `pubspec` release-type used `packageName`. The `dart`
+      // release-type uses `.` as the package key in the manifest.
+      expect(config.containsKey('packageName'), isFalse,
+          reason:
+              '`packageName` is a `pubspec`-release-type field. The '
+              '`dart` release-type uses the manifest\'s `.` key instead.');
     });
 
     test('targets main as the release branch', () {
       expect(config['branch'], 'main');
     });
 
-    test('changelog-path points at CHANGELOG.md (not the deleted release.md)',
-        () {
+    test('changelog-path points at CHANGELOG.md', () {
       expect(config['changelogPath'], 'CHANGELOG.md');
     });
 
-    test('extra-files excludes release.md so legacy content does not resurface',
+    test('version is bumped on the tag (no separate component suffix)', () {
+      expect(config['includeComponentInTag'], isFalse);
+    });
+
+    test('excludes release.md so the deleted legacy file cannot resurface',
         () {
-      final extraFiles = config['extraFiles'] as List<dynamic>?;
+      final extraFiles = config['extra-files'] as List<dynamic>?;
       expect(extraFiles, isNotNull);
       expect(
-        extraFiles!.any((entry) => (entry as Map<String, dynamic>)['path'] == 'release.md'),
+        extraFiles!.any((entry) =>
+            (entry as Map<String, dynamic>)['path'] == 'release.md'),
         isFalse,
         reason: 'release.md was deleted; release-please must not try to write it.',
       );
+    });
+
+    test('changelogSections lists every conventional type the lint workflow allows',
+        () {
+      final sections = (config['changelogSections'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final releasePleaseTypes = sections.map((s) => s['type'] as String).toSet();
+      // All conventional types we expect; release-please also accepts
+      // `revert` even when no changelogSection is declared for it.
+      expect(releasePleaseTypes.containsAll([
+        'feat',
+        'fix',
+        'perf',
+        'refactor',
+      ]), isTrue);
     });
   });
 
@@ -67,11 +87,16 @@ void main() {
           jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     });
 
-    test('pins the attendance_tracker package to its current pubspec version',
-        () {
-      final pkg = manifest['packages']?['attendance_tracker'];
-      expect(pkg, isNotNull);
-      expect(pkg, '1.3.2+24');
+    test('uses the "." package key for a single-package Flutter repo', () {
+      expect(manifest.containsKey('.'), isTrue);
+    });
+
+    test('current version is a bare semver (no +versionCode suffix)', () {
+      final version = manifest['.'] as String;
+      expect(version, '1.3.2');
+      // The +N suffix breaks release-please's pubspec parsing; flag any
+      // re-introduction immediately.
+      expect(version, isNot(contains('+')));
     });
   });
 }

@@ -8,9 +8,9 @@ All notable changes to this project will be documented in this file. This change
 
 - **Automatic OAuth Token Refresh on 401 Bearer Expiry in DriveService** (issue #144): Resolved intermittent "Bearer token expired / Invalid Credentials" errors when triggering manual or background Google Drive syncs after an hour of inactivity. `DriveService._retryDriveOperation` now catches 401 auth failures, queries fresh scope authorization from `GoogleSignIn` to construct a new `DriveApi` HTTP client, and transparently retries the failed operation. Added unit tests for 401 auto-recovery and graceful re-authentication prompts when authorization cannot be refreshed.
 - **Member Deduplication & Disambiguation in Roster and Add Person Autocomplete** (issue #142): Deduplicated member entities by ID across families in event member management (`MembersPage`) and attendance autocomplete (`AddMemberSheet`), preventing duplicate rows for the same member identity. Added contextual family name subtitles (`Assigned · <Family Name>` / `<Family Name>`) when distinct members share identical display names so users can accurately distinguish and assign them. Added regression widget test suites with 100% test pass rate.
-- **Android Release Automation Pipeline** (issue #146): Added release-please + fastlane supply + Play App Signing pipeline. New workflows `release.yml`, `release-please.yml`, `pr-title-lint.yml`, fastlane config, `RELEASING.md`, ADR `docs/adr/0001-release-automation.md`, and a `[1.4.0+26]` CHANGELOG backfill section. Deleted legacy `release.md` (AI-generated from inception; superseded by release-please's Keep-a-Changelog output).
-
-## [1.4.0+26] - Backfill
+- **Android Release Automation Pipeline** (issue #146): Added release-please + fastlane supply + Play App Signing pipeline. New workflows `release.yml`, `release-please.yml`, `pr-title-lint.yml`, fastlane config, `RELEASING.md`, ADR `docs/adr/0001-release-automation.md`, and a `[1.4.0]` CHANGELOG backfill section. Deleted legacy `release.md` (AI-generated from inception; superseded by release-please's Keep-a-Changelog output).
+- **Switch release-please to `dart` release-type + semver-only versions** (issue #146 follow-up): The original `pubspec` release-type config failed at runtime with `versionString.match is not a function` because release-please doesn't understand Flutter's `versionName+versionCode` format. `pubspec.yaml` is now `version: 1.3.2` (bare semver). The release workflow derives `versionCode` from the tag with `major*10000 + minor*100 + patch` (e.g. `v1.3.3` → `10303`) and passes it via `flutter build --build-number`. All historical CHANGELOG version headings were stripped of their `+N` suffix (sub-bullet `(1.3.1+23)` / `(1.3.2+24)` tags retained as historical references to the published versionCode at the time).
+## [1.4.0] - Backfill
 
 > **Backfill from prior history.** This section was pre-seeded to consolidate the
 > 13 versions (`1.0.10+11` → `1.3.2+24`) that shipped in CHANGELOG but never
@@ -81,7 +81,7 @@ All notable changes to this project will be documented in this file. This change
 ### Earlier versions (1.0.10+11 → 1.3.0+22)
 - The full per-version detail for these releases lived in `release.md`, which was deleted in this PR (see spec #146). For audit purposes, the changelog headings for those versions remain below in the **Recent Changes** section, which preserves the per-PR attribution.
 
-## [1.3.2+24] - 2026-08-29
+## [1.3.2] - 2026-08-29
 
 - **Support Page on GitHub Pages**: Added a new `SUPPORT.md` page hosted on the project's GitHub Pages documentation site, linked from the docs index, giving users a single place to find help, contact options, and project links.
 - **Expanded Release Notes History**: Backfilled and expanded `release.md` with detailed changes since the previous release so Hub, Onboarding, Session Summary, Insights, Backup, and Tooling updates are consolidated into a single reference.

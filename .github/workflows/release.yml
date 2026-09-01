@@ -1,9 +1,9 @@
 name: Release
-
-# Triggered when release-please pushes a version tag (e.g. v1.3.3+25).
-# Builds a signed APK + AAB, attaches both to the GitHub Release, and
-# uploads the AAB to the Play Console internal testing track via
-# fastlane supply. Production promotion stays a manual Play Console click.
+# Triggered when release-please pushes a version tag (e.g. v1.3.3).
+# Builds a signed APK + AAB (each carrying the derived versionCode from
+# the tag), attaches both to the GitHub Release, and uploads the AAB
+# to the Play Console internal testing track via fastlane supply.
+# Production promotion stays a manual Play Console click.
 on:
   push:
     tags:
@@ -95,6 +95,25 @@ jobs:
           chmod 600 android/key.properties
           echo "CI keystore and key.properties assembled (file contents not echoed)."
 
+      - name: Derive Android versionCode from tag (major*10000 + minor*100 + patch)
+        id: vc
+        run: |
+          set -euo pipefail
+          tag="${{ github.ref_name }}"
+          # Strip leading 'v' if present.
+          ver="${tag#v}"
+          # Strip any pre-release suffix (e.g. -rc1, -beta2).
+          ver="${ver%%-*}"
+          # Parse semver X.Y.Z
+          IFS='.' read -r major minor patch <<< "$ver"
+          if [ -z "$major" ] || [ -z "$minor" ] || [ -z "$patch" ]; then
+            echo "::error::Could not parse semver from tag '$tag' (parsed major='$major' minor='$minor' patch='$patch')."
+            exit 1
+          fi
+          code=$(( 10#$major * 10000 + 10#$minor * 100 + 10#$patch ))
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Derived versionCode=$code from tag $tag (major=$major minor=$minor patch=$patch)"
+
       - name: Bootstrap Android project (Generates gradlew)
         run: flutter build apk --debug
         env:
@@ -102,10 +121,10 @@ jobs:
           CI: 'true'
 
       - name: Build signed release AAB
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --build-number=${{ steps.vc.outputs.code }}
 
       - name: Build signed release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --build-number=${{ steps.vc.outputs.code }}
 
       - name: Locate built artifacts
         id: locate
@@ -184,3 +203,4 @@ jobs:
         run: |
           tag="${{ github.ref_name }}"
           echo "Tag $tag matches a pre-release pattern (rc/beta); skipping Play Console upload."
+
