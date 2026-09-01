@@ -58,10 +58,15 @@ line totals, and enforces a 66.9% minimum line coverage baseline. Raise the
 threshold in `tool/check_coverage.dart` as follow-up coverage work lands.
 
 ### 3. Integration Tests
-Run comprehensive end-to-end scenarios (requires a running emulator or physical device):
+Run comprehensive end-to-end scenarios locally (requires a running emulator or physical device):
 ```bash
 flutter test integration_test/app_test.dart
 ```
+
+In CI, integration tests run on Firebase Test Lab:
+- **Nightly**: Automatically at 3 AM UTC daily on `main`.
+- **On-Demand PRs**: Automatically on pull requests labeled with `ci:integration-test`.
+- **Manual**: Via GitHub Actions `workflow_dispatch` trigger.
 
 ### 4. Golden Screenshots
 Update the visual regression tests and generate screenshots for marketing:
@@ -70,9 +75,10 @@ flutter test --update-goldens test/store_screenshots_test.dart
 ```
 
 ## CI/CD Pipeline
-We use GitHub Actions for automated testing.
-- **Flutter Tests**: Runs `analyze` and `test` on every pull request.
-- **Robo Tests**: (Optional) Automated UI traversal on Firebase Test Lab.
+We use GitHub Actions for automated testing:
+- **Fast Feedback CI (`ci.yml`)**: Runs static analysis, unit & widget tests, and coverage ratchet checks on every PR (completes in ~1–2 minutes).
+- **Integration Tests (`integration-tests.yml`)**: Runs full end-to-end suite on Firebase Test Lab nightly, on `workflow_dispatch`, or when a PR is tagged with the `ci:integration-test` label.
+- **Robo Tests (`robo-tests.yml`)**: Automated UI traversal on Firebase Test Lab nightly at 2 AM UTC.
 
 ---
 *Refer to [Architecture](./ARCHITECTURE.md) for a deep dive into the code structure.*
