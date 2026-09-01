@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file. This change
 
 ---
 
+## [1.3.3](https://github.com/Shir0o/attd/compare/v1.3.2...v1.3.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* drop broken RELEASE_PLEASE_TOKEN to fall back to GITHUB_TOKEN ([a235a12](https://github.com/Shir0o/attd/commit/a235a12b6aca9462391a58d1594612ed7621523f))
+* re-trigger release-please after enabling workflow write permissions ([9a96bc4](https://github.com/Shir0o/attd/commit/9a96bc41060b7113e9ed4f05f8fdef88aab2412c))
+* re-trigger release-please with full workflow write + approval perms ([a9d9065](https://github.com/Shir0o/attd/commit/a9d90656c84b373d4d2501ca44c9ae840cef4e9c))
+* remove broken extra-files block that caused versionString.match error ([c34ac35](https://github.com/Shir0o/attd/commit/c34ac355e784e2e0cb655e131588bfbc44143010))
+* switch manifest to release-please v4 packages format ([17cd9fc](https://github.com/Shir0o/attd/commit/17cd9fcbe05172d3c1fcf1b95da3d13810a8071e))
+* switch release-please config to v4 packages format ([0d8b0ef](https://github.com/Shir0o/attd/commit/0d8b0eff7bae732ac987b510ad099f95d698ce1a))
+* trigger release-please with v1.3.2 baseline in place ([eae211a](https://github.com/Shir0o/attd/commit/eae211aac74206d28452a39f3599f3da2860b429))
+* use object-form manifest version ([355a069](https://github.com/Shir0o/attd/commit/355a069daacd575ca4fe11343c114250007f91b0))
+
 ## [Unreleased]
 
 - **Automatic OAuth Token Refresh on 401 Bearer Expiry in DriveService** (issue #144): Resolved intermittent "Bearer token expired / Invalid Credentials" errors when triggering manual or background Google Drive syncs after an hour of inactivity. `DriveService._retryDriveOperation` now catches 401 auth failures, queries fresh scope authorization from `GoogleSignIn` to construct a new `DriveApi` HTTP client, and transparently retries the failed operation. Added unit tests for 401 auto-recovery and graceful re-authentication prompts when authorization cannot be refreshed.
