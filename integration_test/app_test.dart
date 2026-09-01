@@ -178,6 +178,7 @@ void main() {
       // 8. User completes the session
       print('DEBUG: Step 8 - Complete session');
       // All 3 members should be in the deck
+      await attendance.useDeck();
       await attendance.verifyCardName('Alice');
       await tester.takeScreenshot(binding, '10e_attendance_deck_card_1');
       await attendance.swipePresent();

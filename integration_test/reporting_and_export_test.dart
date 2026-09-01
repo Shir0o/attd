@@ -48,6 +48,7 @@ void main() {
       // 3. Start and complete session
       await hub.tapEventCard('Report Event');
       await tester.pumpAndSettle();
+      await attendance.useDeck();
       await attendance.markPresent();
       await attendance.finishSession();
       

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../attendance/models/attendance_start_mode.dart';
+import '../../attendance/models/marking_mode.dart';
 import '../../attendance/models/roster_grouping.dart';
 
 class Event {
@@ -18,6 +19,12 @@ class Event {
   /// `null` means the user has not chosen yet — the first time attendance is
   /// taken they are asked (defaulting to status), and the choice is saved here.
   final RosterGrouping? rosterGrouping;
+
+  /// Per-event preset for which fast marking surface the session offers beside
+  /// the Deck and the List. `null` means never chosen — [resolvedMarkingMode]
+  /// falls back to [kDefaultMarkingMode] rather than prompting, so existing
+  /// events pick up the default without an extra step.
+  final MarkingMode? markingMode;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -32,11 +39,16 @@ class Event {
     this.memberIds = const [],
     this.defaultAttendanceStartMode,
     this.rosterGrouping,
+    this.markingMode,
     required this.createdAt,
     DateTime? updatedAt,
     this.deletedAt,
   }) : title = title.trim(),
        updatedAt = updatedAt ?? createdAt;
+
+  /// The fast marking mode this event actually uses, applying the default when
+  /// none has been chosen.
+  MarkingMode get resolvedMarkingMode => markingMode ?? kDefaultMarkingMode;
 
   Map<String, dynamic> toJson() {
     return {
@@ -50,6 +62,7 @@ class Event {
       if (defaultAttendanceStartMode != null)
         'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
       if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
+      if (markingMode != null) 'markingMode': markingMode!.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -66,6 +79,7 @@ class Event {
     List<String>? memberIds,
     AttendanceStartMode? defaultAttendanceStartMode,
     RosterGrouping? rosterGrouping,
+    MarkingMode? markingMode,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -82,6 +96,7 @@ class Event {
       defaultAttendanceStartMode:
           defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
       rosterGrouping: rosterGrouping ?? this.rosterGrouping,
+      markingMode: markingMode ?? this.markingMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
@@ -110,6 +125,16 @@ class Event {
         }
       }
     }
+    MarkingMode? mode;
+    final modeKey = json['markingMode'] as String?;
+    if (modeKey != null) {
+      for (final m in MarkingMode.values) {
+        if (m.name == modeKey) {
+          mode = m;
+          break;
+        }
+      }
+    }
     return Event(
       id: json['id'] as String,
       title: (json['title'] as String).trim(),
@@ -133,6 +158,7 @@ class Event {
           [],
       defaultAttendanceStartMode: startMode,
       rosterGrouping: grouping,
+      markingMode: mode,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)

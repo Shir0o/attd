@@ -880,6 +880,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             initialListMode: pickedMode != AttendanceStartMode.allAbsent,
             startMode: pickedMode,
             rosterGrouping: event.rosterGrouping,
+            markingMode: event.markingMode,
           ),
         ),
       );

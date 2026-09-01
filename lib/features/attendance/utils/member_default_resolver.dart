@@ -1,5 +1,6 @@
 import '../../../data/session.dart';
 import '../models/attendance_status.dart';
+import '../models/member.dart';
 
 /// Window and threshold for past-pattern based defaults.
 /// Tunable here; no settings UI for now.
@@ -41,4 +42,49 @@ ResolvedDefault resolveDefault(
   if (presentRatio >= kPatternThreshold) return ResolvedDefault.present;
   if (presentRatio <= 1 - kPatternThreshold) return ResolvedDefault.absent;
   return ResolvedDefault.ask;
+}
+
+/// A member's recent attendance rate over the last [kPatternWindow] sessions,
+/// or `null` when fewer than [kPatternMinSamples] of them recorded the member.
+///
+/// [recentSessions] should be passed newest-first, as for [resolveDefault].
+double? attendanceRate(String memberId, List<Session> recentSessions) {
+  var samples = 0;
+  var present = 0;
+  for (final session in recentSessions.take(kPatternWindow)) {
+    for (final record in session.records) {
+      if (record.memberId == memberId) {
+        samples++;
+        if (record.status == AttendanceStatus.present) present++;
+        break;
+      }
+    }
+  }
+  if (samples < kPatternMinSamples) return null;
+  return present / samples;
+}
+
+/// Orders [members] by how likely each is to be at this session.
+///
+/// Highest recent attendance rate first; members without enough history to
+/// rank ([attendanceRate] returning `null`) follow every ranked member, and
+/// display name breaks any remaining tie. Never mutates [members].
+List<Member> rankByLikelihood(
+  List<Member> members,
+  List<Session> recentSessions,
+) {
+  final rates = <String, double?>{
+    for (final m in members) m.id: attendanceRate(m.id, recentSessions),
+  };
+  return members.toList()
+    ..sort((a, b) {
+      final ra = rates[a.id];
+      final rb = rates[b.id];
+      if (ra != rb) {
+        if (ra == null) return 1;
+        if (rb == null) return -1;
+        return rb.compareTo(ra);
+      }
+      return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+    });
 }

@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
@@ -136,5 +137,67 @@ void main() {
       expect(changed.deletedAt, isNull);
     });
   });
-}
 
+  group('Event markingMode', () {
+    final now = DateTime(2026, 1, 1);
+
+    Event base({MarkingMode? mode}) => Event(
+          id: 'e1',
+          title: 'Sunday Service',
+          time: const TimeOfDay(hour: 9, minute: 0),
+          frequency: 'Weekly',
+          markingMode: mode,
+          createdAt: now,
+        );
+
+    test('resolves to the default when never chosen', () {
+      expect(base().markingMode, isNull);
+      expect(base().resolvedMarkingMode, kDefaultMarkingMode);
+    });
+
+    test('resolves to the chosen mode once set', () {
+      expect(
+        base(mode: MarkingMode.households).resolvedMarkingMode,
+        MarkingMode.households,
+      );
+    });
+
+    test('an explicit "off" is kept rather than defaulted away', () {
+      expect(
+        base(mode: MarkingMode.none).resolvedMarkingMode,
+        MarkingMode.none,
+      );
+    });
+
+    test('round-trips through JSON', () {
+      for (final mode in MarkingMode.values) {
+        final parsed = Event.fromJson(base(mode: mode).toJson());
+        expect(parsed.markingMode, mode, reason: mode.name);
+      }
+    });
+
+    test('omits the key entirely when never chosen', () {
+      expect(base().toJson().containsKey('markingMode'), isFalse);
+    });
+
+    test('an event saved before this feature parses as unchosen', () {
+      final legacy = base().toJson()..remove('markingMode');
+      expect(Event.fromJson(legacy).markingMode, isNull);
+      expect(Event.fromJson(legacy).resolvedMarkingMode, kDefaultMarkingMode);
+    });
+
+    test('an unrecognised stored value parses as unchosen', () {
+      final json = base().toJson()..['markingMode'] = 'teleportation';
+      expect(Event.fromJson(json).markingMode, isNull);
+    });
+
+    test('copyWith carries the mode through and can change it', () {
+      final event = base(mode: MarkingMode.rapidEntry);
+      expect(event.copyWith().markingMode, MarkingMode.rapidEntry);
+      expect(
+        event.copyWith(markingMode: MarkingMode.initialsPad).markingMode,
+        MarkingMode.initialsPad,
+      );
+    });
+  });
+}

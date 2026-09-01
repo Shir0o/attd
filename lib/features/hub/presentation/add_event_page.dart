@@ -6,6 +6,7 @@ import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/models/marking_mode.dart';
 import '../../attendance/models/roster_grouping.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -39,6 +40,7 @@ class _AddEventPageState extends State<AddEventPage> {
   late DateTime _selectedDate;
   late Set<String> _selectedDays;
   late RosterGrouping _grouping;
+  late MarkingMode _markingMode;
   late Set<String> _selectedMemberIds;
   bool _isLoading = true;
   final List<String> _linkedSessions = [];
@@ -75,12 +77,14 @@ class _AddEventPageState extends State<AddEventPage> {
       _selectedDate = event.oneTimeDate ?? DateTime.now();
       _selectedDays = event.repeatingDays.toSet();
       _grouping = event.rosterGrouping ?? RosterGrouping.byStatus;
+      _markingMode = event.resolvedMarkingMode;
       _selectedMemberIds = event.memberIds.toSet();
     } else {
       _nameController = TextEditingController();
       _selectedTime = const TimeOfDay(hour: 10, minute: 0);
       _frequency = 'Weekly';
       _grouping = RosterGrouping.byStatus;
+      _markingMode = kDefaultMarkingMode;
       _selectedMemberIds = <String>{};
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day);
@@ -235,6 +239,7 @@ class _AddEventPageState extends State<AddEventPage> {
         defaultAttendanceStartMode:
             widget.eventToEdit?.defaultAttendanceStartMode,
         rosterGrouping: _grouping,
+        markingMode: _markingMode,
         createdAt: createdAt,
       );
 
@@ -605,6 +610,77 @@ class _AddEventPageState extends State<AddEventPage> {
         const SizedBox(height: 9),
         Text(
           'Sets how people are grouped while you take attendance.',
+          style: AppTypography.geist(fontSize: 12, color: c.ink3),
+        ),
+
+        const SizedBox(height: 22),
+
+        // Fast marking preset — which surface fills the third segment beside
+        // Deck and List during a session. Five options, so a dropdown rather
+        // than the two-up cards above.
+        const ConvEyebrow('Fast marking mode'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: c.cardSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<MarkingMode>(
+              key: const Key('markingModeDropdown'),
+              value: _markingMode,
+              isExpanded: true,
+              borderRadius: BorderRadius.circular(14),
+              icon: Icon(Icons.expand_more_rounded, color: c.ink3),
+              style: AppTypography.geist(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: c.ink,
+              ),
+              // Two-line items so each option carries the "best when" line;
+              // the closed button shows the label alone.
+              itemHeight: 68,
+              selectedItemBuilder: (context) => [
+                for (final mode in MarkingMode.values)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(mode.label),
+                  ),
+              ],
+              items: [
+                for (final mode in MarkingMode.values)
+                  DropdownMenuItem(
+                    key: Key('markingMode_${mode.name}'),
+                    value: mode,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(mode.label),
+                        const SizedBox(height: 2),
+                        Text(
+                          mode.hint,
+                          style: AppTypography.geist(
+                            fontSize: 11.5,
+                            color: c.ink3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              onChanged: (mode) {
+                if (mode != null) setState(() => _markingMode = mode);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 9),
+        Text(
+          _markingMode.hint,
           style: AppTypography.geist(fontSize: 12, color: c.ink3),
         ),
       ],
