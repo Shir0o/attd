@@ -6,14 +6,15 @@
 
 ## Context
 
-The repo's CHANGELOG.md tracked versions up to `1.3.2+24` but only one
-GitHub Release (`v1.0.9+10`, 2026-03-15) had ever been cut. Releasing was
+The repo's CHANGELOG.md tracked versions up to `1.3.2` but only one
+GitHub Release (`v1.0.9`, 2026-03-15) had ever been cut. Releasing was
 fully manual: maintainer bumped `pubspec.yaml` by hand, built locally,
 uploaded to Play Console by hand, cut a tag by hand, wrote release notes
 by hand. Releases were a half-day of bespoke work and a one-step-away
 disaster every time.
 
 ## Decision
+
 
 We adopt a release pipeline built from four pieces:
 
