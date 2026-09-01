@@ -61,7 +61,9 @@ class _HouseholdsViewState extends State<HouseholdsView> {
         final r = matchRank(m.displayName, _query);
         if (r != null && (best == null || r < best)) best = r;
       }
-      if (best != null) scored.add((family: family, rank: best));
+      if (best != null && family.members.isNotEmpty) {
+        scored.add((family: family, rank: best));
+      }
     }
     scored.sort((a, b) {
       if (a.rank != b.rank) return a.rank.compareTo(b.rank);
@@ -75,11 +77,14 @@ class _HouseholdsViewState extends State<HouseholdsView> {
         : ordered;
   }
 
-  bool _isPlainRow(Family family) =>
-      family.isAutoSingleton || family.members.length <= 1;
+  bool _isPlainRow(Family family) => family.members.length == 1;
 
+  /// Marks the household present, or clears it again when everyone in it is
+  /// already here — the button has to be able to undo itself, and from an
+  /// all-present start clearing is the only useful direction.
   Future<void> _markFamily(Family family) async {
-    await widget.onFamilyToggle(family, true);
+    final allHere = widget.roster.presentCountIn(family) == family.members.length;
+    await widget.onFamilyToggle(family, !allHere);
     if (!mounted) return;
     setState(() {
       _controller.clear();
@@ -181,8 +186,10 @@ class _HouseholdCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final present = family.members.where(roster.isPresent).length;
+    final present = roster.presentCountIn(family);
+    final usual = roster.usualCountIn(family);
     final total = family.members.length;
+    final allHere = present == total;
 
     return Container(
       decoration: BoxDecoration(
@@ -222,7 +229,7 @@ class _HouseholdCard extends StatelessWidget {
                     const SizedBox(height: 1),
                     Text(
                       '$total ${total == 1 ? 'member' : 'members'} · '
-                      '$present here',
+                      '$present here · usually $usual',
                       style: AppTypography.geist(fontSize: 12, color: c.ink3),
                     ),
                   ],
@@ -243,8 +250,13 @@ class _HouseholdCard extends StatelessWidget {
                   borderRadius: AppRadii.compactR,
                 ),
               ),
-              icon: const Icon(Icons.done_all_rounded, size: 18),
-              label: Text('Mark all $total present'),
+              icon: Icon(
+                allHere ? Icons.remove_done_rounded : Icons.done_all_rounded,
+                size: 18,
+              ),
+              label: Text(
+                allHere ? 'Clear all $total' : 'Mark all $total present',
+              ),
             ),
           ),
           const SizedBox(height: 12),

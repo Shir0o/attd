@@ -1,5 +1,6 @@
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
+import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
@@ -91,7 +92,11 @@ Future<Harness> pumpMode(
   MarkingMode mode, {
   AttendanceStatus seed = AttendanceStatus.absent,
   bool withHistory = false,
+  AttendanceStartMode? startMode,
 }) async {
+  // Mirrors the hub: anything but an all-absent start opens the confirm List.
+  final opensOnList =
+      startMode != null && startMode != AttendanceStartMode.allAbsent;
   final sessions = MockSessionRepository();
   if (withHistory) sessions.setSessions(_history());
 
@@ -105,6 +110,8 @@ Future<Harness> pumpMode(
         attendanceRepository: MockAttendanceRepository(),
         eventRepository: MockEventRepository(),
         markingMode: mode,
+        startMode: startMode,
+        initialListMode: opensOnList,
         disableAnimations: true,
       ),
     ),
@@ -524,6 +531,155 @@ void main() {
       await tester.tap(find.byKey(const Key('fastMarkingUndo_duc')));
       await tester.pumpAndSettle();
       expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.absent);
+    });
+  });
+
+  group('every surface reports into the same session', () {
+    for (final mode in [
+      MarkingMode.rapidEntry,
+      MarkingMode.likelyHere,
+      MarkingMode.households,
+      MarkingMode.initialsPad,
+    ]) {
+      testWidgets('${mode.name}: the header tally counts a mark made here',
+          (tester) async {
+        await pumpMode(tester, mode);
+        expect(find.textContaining('4 left'), findsWidgets);
+
+        switch (mode) {
+          case MarkingMode.rapidEntry:
+            await typeQuery(tester, const Key('rapidEntryField'), 'duc');
+            await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
+          case MarkingMode.likelyHere:
+            await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
+          case MarkingMode.households:
+            await typeQuery(tester, const Key('householdsField'), 'duc nguyen');
+            await tester.tap(find.byKey(const Key('householdMember_duc')));
+          case MarkingMode.initialsPad:
+            await tester.tap(find.byKey(const Key('initialsKey_D')));
+            await tester.pumpAndSettle();
+            await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
+          case MarkingMode.none:
+            fail('not a fast surface');
+        }
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('3 left'), findsWidgets);
+      });
+
+      testWidgets('${mode.name}: a guest can be added without leaving',
+          (tester) async {
+        await pumpMode(tester, mode);
+        switch (mode) {
+          case MarkingMode.rapidEntry:
+            await typeQuery(tester, const Key('rapidEntryField'), 'zzzz');
+            await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
+          case MarkingMode.likelyHere:
+            await tester.tap(find.byKey(const Key('likelyHereSearch')));
+            await tester.pumpAndSettle();
+            await typeQuery(tester, const Key('rapidEntryField'), 'zzzz');
+            await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
+          case MarkingMode.households:
+            await typeQuery(tester, const Key('householdsField'), 'zzzz');
+            await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
+          case MarkingMode.initialsPad:
+            await tester.tap(find.byKey(const Key('initialsAddGuest')));
+          case MarkingMode.none:
+            fail('not a fast surface');
+        }
+        await tester.pumpAndSettle();
+        expect(find.text('Add Person'), findsOneWidget);
+      });
+    }
+  });
+
+  group('under a confirm-mode session everyone starts present', () {
+    testWidgets('the grid can flip somebody absent', (tester) async {
+      final h = await pumpMode(
+        tester,
+        MarkingMode.likelyHere,
+        seed: AttendanceStatus.present,
+        startMode: AttendanceStartMode.allPresent,
+      );
+      // The confirm List owns the opening surface; the fast one is a segment.
+      await tester.tap(find.text('Likely'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('likelyHereChip_bao')));
+      await tester.pumpAndSettle();
+      expect(await savedStatus(h.sessions, 'bao'), AttendanceStatus.absent);
+    });
+
+    testWidgets('a bulk-default session still opens on the confirm List',
+        (tester) async {
+      await pumpMode(
+        tester,
+        MarkingMode.likelyHere,
+        seed: AttendanceStatus.present,
+        startMode: AttendanceStartMode.allPresent,
+      );
+      expect(find.byKey(const Key('likelyHereChip_bao')), findsNothing);
+      expect(find.text('Likely'), findsOneWidget);
+    });
+
+    testWidgets('the household button clears a family that is already here',
+        (tester) async {
+      final h = await pumpMode(
+        tester,
+        MarkingMode.households,
+        seed: AttendanceStatus.present,
+        startMode: AttendanceStartMode.allPresent,
+      );
+      await tester.tap(find.text('Family'));
+      await tester.pumpAndSettle();
+      await typeQuery(tester, const Key('householdsField'), 'nguyen');
+
+      expect(find.text('Clear all 3'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('householdMarkAll_f-nguyen')));
+      await tester.pumpAndSettle();
+
+      for (final id in ['an', 'duc', 'bao']) {
+        expect(await savedStatus(h.sessions, id), AttendanceStatus.absent);
+      }
+    });
+  });
+
+  group('undo covers both directions', () {
+    testWidgets('an accidental un-mark can be taken back', (tester) async {
+      final h = await pumpMode(
+        tester,
+        MarkingMode.rapidEntry,
+        seed: AttendanceStatus.present,
+      );
+      await typeQuery(tester, const Key('rapidEntryField'), 'sam');
+      await tester.tap(find.byKey(const Key('fastMarkingResult_sam')));
+      await tester.pumpAndSettle();
+      expect(await savedStatus(h.sessions, 'sam'), AttendanceStatus.absent);
+
+      await tester.tap(find.byKey(const Key('fastMarkingUndo_sam')));
+      await tester.pumpAndSettle();
+      expect(await savedStatus(h.sessions, 'sam'), AttendanceStatus.present);
+    });
+  });
+
+  group('search results explain themselves', () {
+    testWidgets('the matched run of the name is highlighted', (tester) async {
+      await pumpMode(tester, MarkingMode.rapidEntry);
+      await typeQuery(tester, const Key('rapidEntryField'), 'ngu');
+
+      final name = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('fastMarkingResult_an')),
+          matching: find.byWidgetPredicate(
+            (w) => w is Text && w.textSpan != null,
+          ),
+        ),
+      );
+      final spans = (name.textSpan! as TextSpan).children!.cast<TextSpan>();
+      final highlighted = spans.singleWhere(
+        (s) => s.style?.backgroundColor != null,
+      );
+      expect(highlighted.text, 'Ngu');
     });
   });
 }

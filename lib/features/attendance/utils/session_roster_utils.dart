@@ -196,8 +196,7 @@ List<SearchEntry> rankedSearch(
     if (pa != pb) {
       if (pa == null) return 1;
       if (pb == null) return -1;
-      final byPriority = pa.compareTo(pb);
-      if (byPriority != 0) return byPriority;
+      return pa.compareTo(pb);
     }
     return a.entry.member.displayName.toLowerCase().compareTo(
           b.entry.member.displayName.toLowerCase(),

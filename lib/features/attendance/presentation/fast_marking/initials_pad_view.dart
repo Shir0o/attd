@@ -22,10 +22,12 @@ class InitialsPadView extends StatefulWidget {
     super.key,
     required this.roster,
     required this.onToggle,
+    required this.onAddGuest,
   });
 
   final FastMarkingRoster roster;
   final MemberMarkCallback onToggle;
+  final VoidCallback onAddGuest;
 
   @override
   State<InitialsPadView> createState() => _InitialsPadViewState();
@@ -51,15 +53,18 @@ class _InitialsPadViewState extends State<InitialsPadView> {
 
   List<Member> get _results {
     if (_first == null) return const [];
-    final out = <Member>[];
+    // Unmarked first: a letter only lights up while it still has an unmarked
+    // match, so that match must be the one the list actually shows.
+    final unmarked = <Member>[];
+    final marked = <Member>[];
     for (final m in widget.roster.members) {
       final initials = nameInitials(m.displayName);
       if (initials.first != _first) continue;
       if (_last != null && initials.last != _last) continue;
-      out.add(m);
-      if (out.length == _maxResults) break;
+      (widget.roster.isPresent(m) ? marked : unmarked).add(m);
     }
-    return out;
+    final out = [...unmarked, ...marked];
+    return out.length > _maxResults ? out.sublist(0, _maxResults) : out;
   }
 
   void _tapLetter(String letter) {
@@ -93,10 +98,7 @@ class _InitialsPadViewState extends State<InitialsPadView> {
     await widget.onToggle(member, !wasPresent);
     if (!mounted) return;
     setState(() {
-      if (!wasPresent) {
-        _justMarked.insert(0, (member: member, previousPresent: wasPresent));
-        if (_justMarked.length > _maxUndo) _justMarked.removeLast();
-      }
+      pushMark(_justMarked, member, wasPresent, limit: _maxUndo);
       // Marking is the end of one lookup — clear back to the full pad so the
       // next person starts from the same place every time.
       _first = null;
@@ -158,7 +160,9 @@ class _InitialsPadViewState extends State<InitialsPadView> {
             color: c.bg2,
             border: Border(top: BorderSide(color: c.hair)),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          // 12pt gutters, not 16: at 16 the seven keys fall to 43.9pt wide on
+          // a 375pt phone, under the 44pt hit-target floor.
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -192,6 +196,13 @@ class _InitialsPadViewState extends State<InitialsPadView> {
                       style: AppTypography.geist(fontSize: 12, color: c.ink3),
                     ),
                   const Spacer(),
+                  ConvPill(
+                    key: const Key('initialsAddGuest'),
+                    label: 'Guest',
+                    ghost: true,
+                    leading: const Icon(Icons.person_add_alt_1_outlined),
+                    onTap: widget.onAddGuest,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),

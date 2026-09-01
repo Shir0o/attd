@@ -110,6 +110,19 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   /// "% recently" line the fast surfaces show. Loaded in the background;
   /// until it arrives the surfaces simply fall back to alphabetical order.
   List<Session> _recentSessions = const [];
+
+  /// Cached likelihood for [_recentSessions]. Rebuilt only when the history
+  /// arrives, never on the rebuild that follows each mark.
+  MarkingLikelihood? _likelihood;
+  List<Session>? _likelihoodFrom;
+
+  MarkingLikelihood get _memoisedLikelihood {
+    if (_likelihood == null || !identical(_likelihoodFrom, _recentSessions)) {
+      _likelihoodFrom = _recentSessions;
+      _likelihood = MarkingLikelihood(widget.members, _recentSessions);
+    }
+    return _likelihood!;
+  }
   final SwipeableCardController _swipeController = SwipeableCardController();
   // Bumped on every navigation so each card gets a unique key. Prevents the
   // AnimatedSwitcher from reusing a dismissed card's off-screen state when
@@ -899,7 +912,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       session: _currentSession,
       members: widget.members,
       families: _sessionFamilies,
-      recentSessions: _recentSessions,
+      likelihood: _memoisedLikelihood,
     );
     return switch (_markingMode) {
       MarkingMode.rapidEntry => RapidEntryView(
@@ -921,6 +934,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       MarkingMode.initialsPad => InitialsPadView(
           roster: roster,
           onToggle: _toggleMemberFromList,
+          onAddGuest: _showAddMemberSheet,
         ),
       MarkingMode.none => const SizedBox.shrink(),
     };
@@ -1015,14 +1029,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   /// Loads past sessions (newest-first, excluding the current one) for the
   /// smart-defaults bulk action.
-  /// Warms [_recentSessions] for the fast marking surfaces without blocking
-  /// the first frame.
-  Future<void> _primeRecentSessions() async {
-    final sessions = await _loadRecentSessions();
-    if (!mounted) return;
-    setState(() => _recentSessions = sessions);
-  }
-
   Future<List<Session>> _loadRecentSessions() async {
     try {
       final all = await widget.sessionRepository.loadSessions();
@@ -1033,6 +1039,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       debugPrint('Error loading session history for smart defaults: $e');
       return const [];
     }
+  }
+
+  /// Warms [_recentSessions] for the fast marking surfaces without blocking
+  /// the first frame.
+  Future<void> _primeRecentSessions() async {
+    final sessions = await _loadRecentSessions();
+    if (!mounted) return;
+    setState(() => _recentSessions = sessions);
   }
 
   Future<void> _restoreSessionRecords(

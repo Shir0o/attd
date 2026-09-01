@@ -76,10 +76,7 @@ class _RapidEntryViewState extends State<RapidEntryView> {
     await widget.onToggle(member, !wasPresent);
     if (!mounted) return;
     setState(() {
-      if (!wasPresent) {
-        _justMarked.insert(0, (member: member, previousPresent: wasPresent));
-        if (_justMarked.length > _maxUndo) _justMarked.removeLast();
-      }
+      pushMark(_justMarked, member, wasPresent, limit: _maxUndo);
       _controller.clear();
       _query = '';
     });
@@ -150,6 +147,7 @@ class _RapidEntryViewState extends State<RapidEntryView> {
                         member: results[i].member,
                         isPresent: widget.roster.isPresent(results[i].member),
                         subtitle: widget.roster.subtitleFor(results[i].member),
+                        query: _query,
                         isTopHit: i == 0 && unambiguous,
                         onTap: () => _mark(results[i].member),
                       ),

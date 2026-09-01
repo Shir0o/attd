@@ -638,12 +638,38 @@ class _AddEventPageState extends State<AddEventPage> {
                 fontWeight: FontWeight.w600,
                 color: c.ink,
               ),
+              // Two-line items so each option carries the "best when" line;
+              // the closed button shows the label alone.
+              itemHeight: 68,
+              selectedItemBuilder: (context) => [
+                for (final mode in MarkingMode.values)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(mode.label),
+                  ),
+              ],
               items: [
                 for (final mode in MarkingMode.values)
                   DropdownMenuItem(
                     key: Key('markingMode_${mode.name}'),
                     value: mode,
-                    child: Text(mode.label),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(mode.label),
+                        const SizedBox(height: 2),
+                        Text(
+                          mode.hint,
+                          style: AppTypography.geist(
+                            fontSize: 11.5,
+                            color: c.ink3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
               ],
               onChanged: (mode) {

@@ -8,6 +8,21 @@ import '../../models/member.dart';
 /// A mark the user just made, kept so it can be undone in one tap.
 typedef MarkedEntry = ({Member member, bool previousPresent});
 
+/// Records a completed mark on the undo stack, keeping the most recent
+/// [limit].
+///
+/// Marks in *both* directions go on: an accidental un-mark is exactly the slip
+/// worth being able to take back.
+void pushMark(
+  List<MarkedEntry> stack,
+  Member member,
+  bool previousPresent, {
+  int limit = 3,
+}) {
+  stack.insert(0, (member: member, previousPresent: previousPresent));
+  if (stack.length > limit) stack.removeLast();
+}
+
 /// Shared row for the fast marking surfaces: avatar, name, one-line context,
 /// and a trailing state control. Tapping anywhere on the row toggles.
 class FastMarkingRow extends StatelessWidget {
@@ -18,12 +33,17 @@ class FastMarkingRow extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.isTopHit = false,
+    this.query = '',
   });
 
   final Member member;
   final bool isPresent;
   final String subtitle;
   final VoidCallback onTap;
+
+  /// The search text this row matched, highlighted inside the name so it is
+  /// obvious why the row is in the results.
+  final String query;
 
   /// The row the keyboard's return key would mark — drawn with a ring.
   final bool isTopHit;
@@ -67,15 +87,14 @@ class FastMarkingRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      member.displayName,
-                      style: AppTypography.geist(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: c.ink,
+                    _HighlightedName(
+                      name: member.displayName,
+                      query: query,
+                      color: c.ink,
+                      highlight: Color.alphaBlend(
+                        c.primary.withValues(alpha: 0.22),
+                        c.card,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -96,6 +115,56 @@ class FastMarkingRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The member's name with the matched run of [query] tinted. Falls back to
+/// plain text when there is no query or it does not appear.
+class _HighlightedName extends StatelessWidget {
+  const _HighlightedName({
+    required this.name,
+    required this.query,
+    required this.color,
+    required this.highlight,
+  });
+
+  final String name;
+  final String query;
+  final Color color;
+  final Color highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppTypography.geist(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: color,
+    );
+    final q = query.trim().toLowerCase();
+    final at = q.isEmpty ? -1 : name.toLowerCase().indexOf(q);
+    if (at < 0) {
+      return Text(
+        name,
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: [
+          TextSpan(text: name.substring(0, at)),
+          TextSpan(
+            text: name.substring(at, at + q.length),
+            style: TextStyle(backgroundColor: highlight),
+          ),
+          TextSpan(text: name.substring(at + q.length)),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -150,7 +219,7 @@ class JustMarkedStack extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 2),
           child: Text(
-            'JUST MARKED · TAP TO UNDO',
+            'LAST FEW MARKS · TAP TO UNDO',
             style: AppTypography.eyebrow(color: c.ink4),
           ),
         ),
@@ -172,7 +241,9 @@ class JustMarkedStack extends StatelessWidget {
                       letter: entries[i].member.displayName.isNotEmpty
                           ? entries[i].member.displayName[0].toUpperCase()
                           : '?',
-                      tone: ConvTone.present,
+                      tone: entries[i].previousPresent
+                          ? ConvTone.absent
+                          : ConvTone.present,
                       size: 28,
                     ),
                     const SizedBox(width: 10),
