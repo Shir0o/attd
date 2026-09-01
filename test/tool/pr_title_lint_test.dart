@@ -14,18 +14,28 @@ void main() {
 
     final config =
         jsonDecode(configFile.readAsStringSync()) as Map<String, dynamic>;
-    final sections = (config['changelogSections'] as List<dynamic>)
-        .cast<Map<String, dynamic>>();
+
+    // v4 schema nests release-please config under packages: { ".": {...} }.
+    final sectionsRaw = (config['packages'] as Map<String, dynamic>?)?['.'] ??
+        config;
+    final sections = (sectionsRaw['changelog-sections'] as List<dynamic>?)
+            ?.cast<Map<String, dynamic>>() ??
+        // v3 fallback (camelCase, top-level)
+        ((config['changelogSections'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? <Map<String, dynamic>>[]);
     final releasePleaseTypes = sections.map((s) => s['type'] as String).toSet();
 
     final workflowFile = File('.github/workflows/pr-title-lint.yml');
     expect(workflowFile.existsSync(), isTrue);
     final workflow = loadYaml(workflowFile.readAsStringSync()) as YamlMap;
     final steps = workflow['jobs']['lint']['steps'] as YamlList;
-    final withBlock = steps
-        .firstWhere((s) => (s['with'] as YamlMap).containsKey('types'))['with']
-        as YamlMap;
-    final typesField = withBlock['types'] as String;
+    final stepWithTypes = steps.cast<YamlMap>().firstWhere(
+          (s) => (s['with'] as YamlMap?)?.containsKey('types') ?? false,
+          orElse: () => YamlMap(),
+        );
+    if (stepWithTypes.isEmpty) {
+      fail('pr-title-lint workflow has no step with a `types` allow-list.');
+    }
+    final typesField = stepWithTypes['with']['types'] as String;
 
     final lintTypes = typesField
         .split('\n')
@@ -42,7 +52,7 @@ void main() {
       isTrue,
       reason:
           'pr-title-lint must allow every type in release-please-config.json '
-          'changelogSections (plus `revert`). Missing: '
+          'changelog-sections (plus `revert`). Missing: '
           '${allRequired.difference(lintTypes)}',
     );
   });
