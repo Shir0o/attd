@@ -4,9 +4,24 @@ All notable changes to this project will be documented in this file. This change
 
 ---
 
+## [1.3.3](https://github.com/Shir0o/attd/compare/v1.3.2...v1.3.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* drop broken RELEASE_PLEASE_TOKEN to fall back to GITHUB_TOKEN ([a235a12](https://github.com/Shir0o/attd/commit/a235a12b6aca9462391a58d1594612ed7621523f))
+* re-trigger release-please after enabling workflow write permissions ([9a96bc4](https://github.com/Shir0o/attd/commit/9a96bc41060b7113e9ed4f05f8fdef88aab2412c))
+* re-trigger release-please with full workflow write + approval perms ([a9d9065](https://github.com/Shir0o/attd/commit/a9d90656c84b373d4d2501ca44c9ae840cef4e9c))
+* remove broken extra-files block that caused versionString.match error ([c34ac35](https://github.com/Shir0o/attd/commit/c34ac355e784e2e0cb655e131588bfbc44143010))
+* switch manifest to release-please v4 packages format ([17cd9fc](https://github.com/Shir0o/attd/commit/17cd9fcbe05172d3c1fcf1b95da3d13810a8071e))
+* switch release-please config to v4 packages format ([0d8b0ef](https://github.com/Shir0o/attd/commit/0d8b0eff7bae732ac987b510ad099f95d698ce1a))
+* trigger release-please with v1.3.2 baseline in place ([eae211a](https://github.com/Shir0o/attd/commit/eae211aac74206d28452a39f3599f3da2860b429))
+* use object-form manifest version ([355a069](https://github.com/Shir0o/attd/commit/355a069daacd575ca4fe11343c114250007f91b0))
+
 ## [Unreleased]
 
 - **Fast Marking Modes for Large Rosters** (issue #152): Added four alternative in-session marking surfaces for large rosters — Rapid entry (bottom-anchored search that keeps focus and self-clears), Likely here (tap-to-mark grid ordered by recent attendance), Households (one tap per family) and Initials pad (two-stage A–Z filter, no keyboard) — selected per event via a new "Fast marking mode" dropdown (`Event.markingMode`, defaulting to Likely here) and shown as a third segment beside Deck and List. Added unit and widget tests at the existing host, event-editor and model seams.
+- **Fix stuck CI pipeline: align branch protection and paths filter** (issue #154): Required status checks "Unit & Widget Tests" and "Integration Tests" never reported on workflow-only PRs because `ci.yml` had a `paths:` filter that excluded `.github/workflows/` changes. Broadened the filter to `.github/workflows/**` so CI always runs when workflows change. Synced the local `main-branch-protection.json` record with the live GitHub ruleset and added "Validate conventional commit title" as a required check. Fixed a stale path reference (`flutter-tests.yml` → `ci.yml`).
 - **Automatic OAuth Token Refresh on 401 Bearer Expiry in DriveService** (issue #144): Resolved intermittent "Bearer token expired / Invalid Credentials" errors when triggering manual or background Google Drive syncs after an hour of inactivity. `DriveService._retryDriveOperation` now catches 401 auth failures, queries fresh scope authorization from `GoogleSignIn` to construct a new `DriveApi` HTTP client, and transparently retries the failed operation. Added unit tests for 401 auto-recovery and graceful re-authentication prompts when authorization cannot be refreshed.
 - **Member Deduplication & Disambiguation in Roster and Add Person Autocomplete** (issue #142): Deduplicated member entities by ID across families in event member management (`MembersPage`) and attendance autocomplete (`AddMemberSheet`), preventing duplicate rows for the same member identity. Added contextual family name subtitles (`Assigned · <Family Name>` / `<Family Name>`) when distinct members share identical display names so users can accurately distinguish and assign them. Added regression widget test suites with 100% test pass rate.
 - **Android Release Automation Pipeline** (issue #146): Added release-please + fastlane supply + Play App Signing pipeline. New workflows `release.yml`, `release-please.yml`, `pr-title-lint.yml`, fastlane config, `RELEASING.md`, ADR `docs/adr/0001-release-automation.md`, and a `[1.4.0]` CHANGELOG backfill section. Deleted legacy `release.md` (AI-generated from inception; superseded by release-please's Keep-a-Changelog output).
