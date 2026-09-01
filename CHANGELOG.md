@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. This change
 
 ---
 
+## [1.3.5](https://github.com/Shir0o/attd/compare/v1.3.4...v1.3.5) (2026-09-01)
+
+
+### Bug Fixes
+
+* **release:** patch fastlane commit_edit kwarg mismatch for google-api-client 0.53 ([#162](https://github.com/Shir0o/attd/issues/162)) ([170d015](https://github.com/Shir0o/attd/commit/170d015203a3498f6ef5647ca9fb0ef19ccaab44))
+
 ## [1.3.4](https://github.com/Shir0o/attd/compare/v1.3.3...v1.3.4) (2026-09-01)
 
 
