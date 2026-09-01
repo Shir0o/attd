@@ -68,6 +68,7 @@ void main() {
       // 4. Start attendance and mark John Doe
       await hub.tapEventCard('Test Event');
       await tester.pumpAndSettle();
+      await attendance.useDeck();
       await tester.pumpUntilFound(find.text('John Doe'));
       await tester.takeScreenshot(binding, 'data_03_attendance_card');
       await attendance.markPresent();

@@ -60,6 +60,7 @@ void main() {
 
       // 4. Test Undo functionality
       print('DEBUG: Testing Undo');
+      await attendance.useDeck();
       await tester.pumpUntilFound(find.text('Regular Member 1'));
       await attendance.markPresent();
       

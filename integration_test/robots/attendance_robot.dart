@@ -10,6 +10,22 @@ class AttendanceRobot {
 
   final WidgetTester tester;
 
+  /// Selects the speed-swipe deck.
+  ///
+  /// A session now opens on the event's fast marking mode (Likely here by
+  /// default), so anything that drives the deck has to ask for it first. A
+  /// no-op when the deck is already showing, or when the event has fast
+  /// marking off and the deck is the entry view.
+  Future<void> useDeck() async {
+    print('DEBUG: useDeck');
+    if (find.byType(SwipeableCard).evaluate().isNotEmpty) return;
+    final deckSegment = find.text('Deck');
+    await tester.pumpUntilFound(deckSegment);
+    await tester.tap(deckSegment);
+    await tester.pumpAndSettle();
+    await tester.pumpUntilFound(find.byType(SwipeableCard));
+  }
+
   Future<void> verifyCardName(String name) async {
     print('DEBUG: verifyCardName($name)');
     final finder = find.text(name);

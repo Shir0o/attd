@@ -99,6 +99,7 @@ void main() {
 
       await hub.tapEventCard('Youth Group Attendance');
       await tester.pump(const Duration(milliseconds: 1500));
+      await attendance.useDeck();
       await attendance.verifyCardName('Alex Rivera');
       await capture('09_attendance_deck_first_card');
 
