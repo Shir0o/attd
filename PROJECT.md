@@ -10,7 +10,7 @@
 - Run the full test suite after modifications to confirm correctness.
 - Ensure static analysis (`flutter analyze`) passes with no errors or warnings.
 - Keep test coverage aligned with the code changes; avoid skipping tests without justification.
-- All tests (unit, widget, and integration) must pass before a PR is considered ready.
+- All unit and widget tests must pass and coverage thresholds must be met before a PR is considered ready (integration tests run nightly or via the `ci:integration-test` label).
 ## Sandbox Setup (Flutter CLI)
 - Install Flutter in the sandbox: `git clone https://github.com/flutter/flutter.git -b stable ~/.flutter`.
 - Add the Flutter binary to your PATH for the session: `export PATH="$HOME/.flutter/bin:$PATH"`.
