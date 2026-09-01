@@ -498,6 +498,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                 eventRepository: widget.eventRepository,
                 event: widget.event,
                 disableAnimations: widget.disableAnimations,
+                rosterGrouping: widget.event.rosterGrouping,
+                markingMode: widget.event.markingMode,
               ),
         ),
       );

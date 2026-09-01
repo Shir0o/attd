@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
+import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
@@ -206,6 +207,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: members,
           sessionRepository: fakeRepo,
@@ -259,6 +261,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: members,
           sessionRepository: fakeRepo,
@@ -307,6 +310,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [
             Member(id: 'a', displayName: 'Alice'),
@@ -361,6 +365,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [Member(id: 'a', displayName: 'Alice')],
           sessionRepository: repo,
@@ -427,6 +432,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [inEvent],
           sessionRepository: fakeRepo,
@@ -495,6 +501,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [m],
           sessionRepository: fakeRepo,
@@ -551,6 +558,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [alice, bob],
           families: [family],
@@ -621,6 +629,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [alice, bob],
           families: [family],
@@ -688,6 +697,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [alice, bob],
           families: [family],
@@ -763,6 +773,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [alice, bob, charlie],
           sessionRepository: fakeRepo,
@@ -830,6 +841,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: [aliceOne, aliceTwo],
           families: [family],
@@ -901,6 +913,7 @@ void main() {
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => AttendanceDeckPage(
+                        markingMode: MarkingMode.none,
                         session: allPresentSession(members),
                         deleteOnCancel: deleteOnCancel,
                         members: members,

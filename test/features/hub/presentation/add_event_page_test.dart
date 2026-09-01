@@ -4,6 +4,7 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
+import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
@@ -482,5 +483,106 @@ void main() {
 
     expect(repository.deleteCount, 1);
     expect(find.textContaining('Error deleting event'), findsOneWidget);
+  });
+
+  group('fast marking mode preset', () {
+    Future<void> pumpEditor(WidgetTester tester, _EventRepository repo,
+        {Event? editing}) async {
+      await tester.pumpWidget(
+        _wrap(
+          AddEventPage(
+            eventRepository: repo,
+            attendanceRepository: MockAttendanceRepository(),
+            eventToEdit: editing,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    /// The dropdown sits below the fold, and the editor's ListView disposes
+    /// what scrolls off — so anything above it must be filled in first.
+    Future<void> scrollToDropdown(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('markingModeDropdown')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a new event defaults to the default mode', (tester) async {
+      final repository = _EventRepository();
+      await pumpEditor(tester, repository);
+
+      await tester.enterText(find.byType(TextFormField), 'Sunday Service');
+      await tester.tap(find.byKey(const ValueKey('save_event_button')));
+      await tester.pumpAndSettle();
+
+      expect(repository.events.single.markingMode, kDefaultMarkingMode);
+    });
+
+    testWidgets('offers every mode, described by name', (tester) async {
+      await pumpEditor(tester, _EventRepository());
+      await scrollToDropdown(tester);
+      await tester.tap(find.byKey(const Key('markingModeDropdown')));
+      await tester.pumpAndSettle();
+
+      for (final mode in MarkingMode.values) {
+        expect(find.text(mode.label), findsWidgets, reason: mode.name);
+      }
+    });
+
+    testWidgets('picking a mode saves it on the event', (tester) async {
+      final repository = _EventRepository();
+      await pumpEditor(tester, repository);
+
+      await tester.enterText(find.byType(TextFormField), 'Sunday Service');
+      await scrollToDropdown(tester);
+      await tester.tap(find.byKey(const Key('markingModeDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(MarkingMode.households.label).last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('save_event_button')));
+      await tester.pumpAndSettle();
+
+      expect(repository.events.single.markingMode, MarkingMode.households);
+    });
+
+    testWidgets('shows the hint for the selected mode', (tester) async {
+      await pumpEditor(tester, _EventRepository());
+      await scrollToDropdown(tester);
+      expect(find.text(kDefaultMarkingMode.hint), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('markingModeDropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(MarkingMode.none.label).last);
+      await tester.pumpAndSettle();
+
+      expect(find.text(MarkingMode.none.hint), findsOneWidget);
+    });
+
+    testWidgets('editing an event pre-selects its stored mode', (tester) async {
+      final event = Event(
+        id: 'e1',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: const ['Monday'],
+        markingMode: MarkingMode.initialsPad,
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final repository = _EventRepository([event]);
+      await pumpEditor(tester, repository, editing: event);
+      await scrollToDropdown(tester);
+
+      expect(find.text(MarkingMode.initialsPad.hint), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('save_event_button')));
+      await tester.pumpAndSettle();
+      expect(repository.events.single.markingMode, MarkingMode.initialsPad);
+    });
   });
 }

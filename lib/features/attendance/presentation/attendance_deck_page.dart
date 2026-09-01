@@ -11,6 +11,7 @@ import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../models/attendance_start_mode.dart';
 import '../models/attendance_status.dart';
+import '../models/marking_mode.dart';
 import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/bulk_attendance.dart';
@@ -20,9 +21,18 @@ import '../../hub/domain/event.dart';
 import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
+import 'fast_marking/fast_marking_model.dart';
+import 'fast_marking/households_view.dart';
+import 'fast_marking/initials_pad_view.dart';
+import 'fast_marking/likely_here_view.dart';
+import 'fast_marking/rapid_entry_view.dart';
 import 'mark_everyone_sheet.dart';
 import 'session_summary_page.dart';
 import 'swipeable_card.dart';
+
+/// Which marking surface the session is currently showing. The third one is
+/// whichever fast mode the event's preset names.
+enum _Surface { deck, list, fast }
 
 class AttendanceDeckPage extends StatefulWidget {
   const AttendanceDeckPage({
@@ -39,6 +49,7 @@ class AttendanceDeckPage extends StatefulWidget {
     this.initialListMode = false,
     this.startMode,
     this.rosterGrouping,
+    this.markingMode,
     this.deleteOnCancel = false,
   });
 
@@ -68,6 +79,11 @@ class AttendanceDeckPage extends StatefulWidget {
   /// in-session List groups people. Defaults to by-status when unset.
   final RosterGrouping? rosterGrouping;
 
+  /// The event's fast-marking preset — which surface fills the third segment
+  /// beside Deck and List. `null` resolves to [kDefaultMarkingMode]; passing
+  /// [MarkingMode.none] leaves the session with Deck and List alone.
+  final MarkingMode? markingMode;
+
   /// When true, abandoning the deck (Cancel / system back) discards the
   /// session. Only set for *freshly created* preseeded sessions whose records
   /// are throwaway until confirmed — never for resuming an existing session,
@@ -87,8 +103,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
-  bool _isListMode = false;
+  _Surface _surface = _Surface.deck;
   final List<int> _history = [];
+
+  /// Past sessions (newest-first) backing the likelihood ordering and the
+  /// "% recently" line the fast surfaces show. Loaded in the background;
+  /// until it arrives the surfaces simply fall back to alphabetical order.
+  List<Session> _recentSessions = const [];
   final SwipeableCardController _swipeController = SwipeableCardController();
   // Bumped on every navigation so each card gets a unique key. Prevents the
   // AnimatedSwitcher from reusing a dismissed card's off-screen state when
@@ -134,6 +155,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   /// "changed" tally and per-row highlight — a member is "changed" when their
   /// current status differs from this baseline.
   final Map<String, AttendanceStatus> _baselineStatus = {};
+
+  bool get _isDeckMode => _surface == _Surface.deck;
+
+  MarkingMode get _markingMode => widget.markingMode ?? kDefaultMarkingMode;
 
   /// True when the List opened from a bulk default (all-present / smart): the
   /// user confirms exceptions rather than marking from scratch.
@@ -208,7 +233,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   @override
   void initState() {
     super.initState();
-    _isListMode = widget.initialListMode;
+    // A bulk-default session (all-present / smart) always opens on the confirm
+    // List — confirming exceptions is a different job from marking from
+    // scratch. Otherwise the event's fast-marking preset picks the surface,
+    // falling back to the Deck when it is off.
+    _surface = widget.initialListMode
+        ? _Surface.list
+        : (_markingMode == MarkingMode.none ? _Surface.deck : _Surface.fast);
     _updateSession(widget.session);
     _snapshotBaseline(widget.session);
     _currentEvent = widget.event;
@@ -218,6 +249,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         'DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
     _remainingMembers.addAll(widget.members);
+    if (_markingMode != MarkingMode.none) {
+      unawaited(_primeRecentSessions());
+    }
     _subscribeToMembers();
     _subscribeToEvents();
 
@@ -675,10 +709,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             children: [
               _buildHeader(colorScheme),
               Expanded(
-                child:
-                    _isListMode ? _buildListBody() : _buildDeckBody(colorScheme),
+                child: switch (_surface) {
+                  _Surface.deck => _buildDeckBody(colorScheme),
+                  _Surface.list => _buildListBody(),
+                  _Surface.fast => _buildFastMarkingBody(),
+                },
               ),
-              if (!_isListMode) _buildDeckFooter(colorScheme),
+              if (_isDeckMode) _buildDeckFooter(colorScheme),
             ],
           ),
         ),
@@ -776,26 +813,32 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Center(
-            child: SegmentedButton<bool>(
+            child: SegmentedButton<_Surface>(
               key: const Key('deckListModeToggle'),
               style: const ButtonStyle(
                 side: WidgetStatePropertyAll(BorderSide.none),
               ),
-              segments: const [
-                ButtonSegment(
-                  value: false,
+              segments: [
+                const ButtonSegment(
+                  value: _Surface.deck,
                   label: Text('Deck'),
                   icon: Icon(Icons.style_outlined),
                 ),
-                ButtonSegment(
-                  value: true,
+                const ButtonSegment(
+                  value: _Surface.list,
                   label: Text('List'),
                   icon: Icon(Icons.list_alt),
                 ),
+                // The third segment is whichever fast mode the event picked.
+                if (_markingMode != MarkingMode.none)
+                  ButtonSegment(
+                    value: _Surface.fast,
+                    label: Text(_markingMode.shortLabel),
+                    icon: const Icon(Icons.bolt_outlined),
+                  ),
               ],
-              selected: {_isListMode},
-              onSelectionChanged: (sel) =>
-                  setState(() => _isListMode = sel.first),
+              selected: {_surface},
+              onSelectionChanged: (sel) => setState(() => _surface = sel.first),
               showSelectedIcon: false,
             ),
           ),
@@ -810,7 +853,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               height: 4,
               child: total == 0
                   ? ColoredBox(color: c.cardSoft)
-                  : _isListMode
+                  : !_isDeckMode
                       ? LayoutBuilder(
                           builder: (context, constraints) {
                             final w = constraints.maxWidth;
@@ -846,6 +889,41 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         ),
       ],
     );
+  }
+
+  /// The event's chosen fast marking surface. Every one of them writes through
+  /// the same per-member and per-family callbacks the List uses, so marks made
+  /// here are indistinguishable from marks made anywhere else in the session.
+  Widget _buildFastMarkingBody() {
+    final roster = FastMarkingRoster(
+      session: _currentSession,
+      members: widget.members,
+      families: _sessionFamilies,
+      recentSessions: _recentSessions,
+    );
+    return switch (_markingMode) {
+      MarkingMode.rapidEntry => RapidEntryView(
+          roster: roster,
+          onToggle: _toggleMemberFromList,
+          onAddGuest: _showAddMemberSheet,
+        ),
+      MarkingMode.likelyHere => LikelyHereView(
+          roster: roster,
+          onToggle: _toggleMemberFromList,
+          onAddGuest: _showAddMemberSheet,
+        ),
+      MarkingMode.households => HouseholdsView(
+          roster: roster,
+          onToggle: _toggleMemberFromList,
+          onFamilyToggle: _toggleFamilyFromList,
+          onAddGuest: _showAddMemberSheet,
+        ),
+      MarkingMode.initialsPad => InitialsPadView(
+          roster: roster,
+          onToggle: _toggleMemberFromList,
+        ),
+      MarkingMode.none => const SizedBox.shrink(),
+    };
   }
 
   Widget _buildListBody() {
@@ -937,6 +1015,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   /// Loads past sessions (newest-first, excluding the current one) for the
   /// smart-defaults bulk action.
+  /// Warms [_recentSessions] for the fast marking surfaces without blocking
+  /// the first frame.
+  Future<void> _primeRecentSessions() async {
+    final sessions = await _loadRecentSessions();
+    if (!mounted) return;
+    setState(() => _recentSessions = sessions);
+  }
+
   Future<List<Session>> _loadRecentSessions() async {
     try {
       final all = await widget.sessionRepository.loadSessions();

@@ -5,6 +5,7 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
+import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
@@ -146,6 +147,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: members,
           sessionRepository: mockRepo,
@@ -220,6 +222,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: members,
           sessionRepository: mockRepo,
@@ -277,6 +280,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AttendanceDeckPage(
+          markingMode: MarkingMode.none,
           session: session,
           members: members,
           sessionRepository: mockRepo,
@@ -347,6 +351,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: AttendanceDeckPage(
+            markingMode: MarkingMode.none,
             session: session,
             members: members,
             sessionRepository: mockRepo,
@@ -410,6 +415,7 @@ void main() {
                   await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => AttendanceDeckPage(
+                        markingMode: MarkingMode.none,
                         session: session,
                         members: members,
                         sessionRepository: mockRepo,
