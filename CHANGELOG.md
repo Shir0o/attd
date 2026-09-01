@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file. This change
 ## [1.4.0] - Backfill
 
 > **Backfill from prior history.** This section was pre-seeded to consolidate the
-> 13 versions (`1.0.10+11` → `1.3.2+24`) that shipped in CHANGELOG but never
+> 13 versions (`1.0.10` → `1.3.2`) that shipped in CHANGELOG but never
 > made it to a GitHub Release. Future release-please runs will append new
 > entries below this header — do not edit the backfill content above this line.
 
