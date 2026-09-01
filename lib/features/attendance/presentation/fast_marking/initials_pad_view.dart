@@ -167,35 +167,42 @@ class _InitialsPadViewState extends State<InitialsPadView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // One Expanded carries the prompt so the chips and the guest
+              // affordance always fit: two chips plus the prompt is wider than
+              // a phone.
               Row(
                 children: [
-                  if (_first != null)
+                  if (_first != null) ...[
                     _InitialChip(
                       chipKey: const Key('initialsChip_first'),
                       label: 'FIRST',
                       letter: _first!,
                       onClear: _reset,
                     ),
-                  if (_last != null) ...[
                     const SizedBox(width: 8),
+                  ],
+                  if (_last != null) ...[
                     _InitialChip(
                       chipKey: const Key('initialsChip_last'),
                       label: 'SURNAME',
                       letter: _last!,
                       onClear: () => setState(() => _last = null),
                     ),
+                    const SizedBox(width: 8),
                   ],
-                  if (_first == null)
-                    Text(
-                      'Pick a first-name initial',
+                  Expanded(
+                    child: Text(
+                      _first == null
+                          ? 'Pick a first-name initial'
+                          : _last == null
+                              ? 'Now a surname initial'
+                              : '',
                       style: AppTypography.geist(fontSize: 12, color: c.ink3),
-                    )
-                  else if (_last == null)
-                    Text(
-                      'Now a surname initial',
-                      style: AppTypography.geist(fontSize: 12, color: c.ink3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  const Spacer(),
+                  ),
+                  const SizedBox(width: 8),
                   ConvPill(
                     key: const Key('initialsAddGuest'),
                     label: 'Guest',

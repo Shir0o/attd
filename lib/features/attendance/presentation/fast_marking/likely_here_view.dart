@@ -70,10 +70,17 @@ class _LikelyHereViewState extends State<LikelyHereView> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               const ConvEyebrow('Likely here'),
-              const Spacer(),
-              Text(
-                '${unmarked.length} left · most frequent first',
-                style: AppTypography.geist(fontSize: 11.5, color: c.ink4),
+              const SizedBox(width: 12),
+              // Expanded, not a Spacer + bare Text: the eyebrow's wide letter
+              // spacing plus this caption is more than a phone's width.
+              Expanded(
+                child: Text(
+                  '${unmarked.length} left · most frequent first',
+                  style: AppTypography.geist(fontSize: 11.5, color: c.ink4),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
               ),
             ],
           ),
@@ -90,7 +97,7 @@ class _LikelyHereViewState extends State<LikelyHereView> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    mainAxisExtent: 60,
+                    mainAxisExtent: 64,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
@@ -178,18 +185,23 @@ class _LikelyChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                member.displayName,
-                style: AppTypography.geist(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                  height: 1.2,
-                  color: isPresent ? c.onPrimary : c.ink,
+              // Flexible, not a bare Text: a name that wraps to two lines (or
+              // a large system text scale) must eat into its own space and
+              // ellipsize rather than push the meta line out of the tile.
+              Flexible(
+                child: Text(
+                  member.displayName,
+                  style: AppTypography.geist(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.2,
+                    color: isPresent ? c.onPrimary : c.ink,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               if (isPresent)
                 Row(
                   mainAxisSize: MainAxisSize.min,

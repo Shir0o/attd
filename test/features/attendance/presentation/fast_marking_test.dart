@@ -33,7 +33,10 @@ Family get _okafor => Family(
 
 List<Member> get _roster => [..._nguyens.members, ..._okafor.members];
 
-Session _session({AttendanceStatus seed = AttendanceStatus.absent}) {
+Session _session({
+  AttendanceStatus seed = AttendanceStatus.absent,
+  List<Member>? members,
+}) {
   final at = DateTime(2026, 3, 1);
   return Session(
     id: 'current',
@@ -43,7 +46,7 @@ Session _session({AttendanceStatus seed = AttendanceStatus.absent}) {
     updatedAt: at,
     createdBy: 'User',
     records: [
-      for (final m in _roster)
+      for (final m in (members ?? _roster))
         SessionRecord(
           memberId: m.id,
           attendee: m.displayName,
@@ -93,19 +96,22 @@ Future<Harness> pumpMode(
   AttendanceStatus seed = AttendanceStatus.absent,
   bool withHistory = false,
   AttendanceStartMode? startMode,
+  List<Family>? families,
 }) async {
   // Mirrors the hub: anything but an all-absent start opens the confirm List.
   final opensOnList =
       startMode != null && startMode != AttendanceStartMode.allAbsent;
   final sessions = MockSessionRepository();
   if (withHistory) sessions.setSessions(_history());
+  final roster = families ?? [_nguyens, _okafor];
+  final members = roster.expand((f) => f.members).toList();
 
   await tester.pumpWidget(
     MaterialApp(
       home: AttendanceDeckPage(
-        session: _session(seed: seed),
-        members: _roster,
-        families: [_nguyens, _okafor],
+        session: _session(seed: seed, members: members),
+        members: members,
+        families: roster,
         sessionRepository: sessions,
         attendanceRepository: MockAttendanceRepository(),
         eventRepository: MockEventRepository(),
@@ -681,5 +687,54 @@ void main() {
       );
       expect(highlighted.text, 'Ngu');
     });
+  });
+
+  group('every surface survives a real phone', () {
+    // Regression: a 60pt grid tile fitted a one-line name on the desktop-sized
+    // default test surface but overflowed on a phone, where "Regular Member 1"
+    // wraps to two lines; the grid's own caption row overflowed there too.
+    // Both shipped and only Firebase Test Lab caught them.
+    final longRoster = [
+      Family(
+        id: 'f-long',
+        displayName: 'Featherstonehaugh',
+        members: [
+          Member(id: 'r1', displayName: 'Regular Member 1'),
+          Member(id: 'r2', displayName: 'Regular Member 2'),
+          Member(id: 'r3', displayName: 'Bartholomew Featherstonehaugh'),
+        ],
+      ),
+    ];
+
+    for (final mode in [
+      MarkingMode.rapidEntry,
+      MarkingMode.likelyHere,
+      MarkingMode.households,
+      MarkingMode.initialsPad,
+    ]) {
+      testWidgets('${mode.name}: long names do not overflow at phone width',
+          (tester) async {
+        tester.view.physicalSize = const Size(822, 1782); // 411x891 logical
+        tester.view.devicePixelRatio = 2;
+        addTearDown(tester.view.reset);
+
+        await pumpMode(tester, mode, families: longRoster);
+        expect(tester.takeException(), isNull, reason: 'on entry');
+
+        switch (mode) {
+          case MarkingMode.rapidEntry:
+            await typeQuery(tester, const Key('rapidEntryField'), 'regular');
+          case MarkingMode.households:
+            await typeQuery(tester, const Key('householdsField'), 'feather');
+          case MarkingMode.initialsPad:
+            await tester.tap(find.byKey(const Key('initialsKey_R')));
+            await tester.pumpAndSettle();
+          case MarkingMode.likelyHere:
+          case MarkingMode.none:
+            break;
+        }
+        expect(tester.takeException(), isNull, reason: 'with results showing');
+      });
+    }
   });
 }
