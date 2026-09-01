@@ -65,16 +65,17 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true
+          # Don't use bundler-cache: it caches a resolved Gemfile.lock
+          # between runs and can serve a stale fastlane version with a
+          # different google-api-client call signature. Run `bundle install`
+          # fresh each time so the version pinning in the Gemfile is what
+          # we actually run.
+          bundler-cache: false
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Seed google-services.json from secrets
-        # The Google Services Gradle plugin requires android/app/google-services.json
-        # to exist at build time, even though the values come from the runtime
-        # Firebase config in Dart. We mount it from the GOOGLE_SERVICES_JSON
-        # secret at workflow runtime, never logging the contents.
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
@@ -121,11 +122,8 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ github.ref_name }}"
-          # Strip leading 'v' if present.
           ver="${tag#v}"
-          # Strip any pre-release suffix (e.g. -rc1, -beta2).
           ver="${ver%%-*}"
-          # Parse semver X.Y.Z
           IFS='.' read -r major minor patch <<< "$ver"
           if [ -z "$major" ] || [ -z "$minor" ] || [ -z "$patch" ]; then
             echo "::error::Could not parse semver from tag '$tag' (parsed major='$major' minor='$minor' patch='$patch')."
@@ -138,7 +136,6 @@ jobs:
       - name: Bootstrap Android project (Generates gradlew)
         run: flutter build apk --debug
         env:
-          # Use the stubbed credentials only for the bootstrap step.
           CI: 'true'
 
       - name: Build signed release AAB
@@ -190,7 +187,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: false  # release-please already wrote them
+          generate_release_notes: false
           files: |
             ${{ steps.locate.outputs.aab }}
             ${{ steps.locate.outputs.apk }}
