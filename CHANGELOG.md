@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. This change
 
 ---
 
+## [1.3.4](https://github.com/Shir0o/attd/compare/v1.3.3...v1.3.4) (2026-09-01)
+
+
+### Bug Fixes
+
+* **release:** disable bundler-cache to avoid stale Gemfile.lock resolution ([3193c39](https://github.com/Shir0o/attd/commit/3193c390ae9ba151ea6e605083d32f4ad5c6d73d))
+
 ## [1.3.3](https://github.com/Shir0o/attd/compare/v1.3.2...v1.3.3) (2026-09-01)
 
 
