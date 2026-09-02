@@ -67,7 +67,8 @@ class _SwipeableCardState extends State<SwipeableCard>
   Animation<double>? _rotateAnimation;
 
   static const double _rotationFactor = 0.05;
-  static const Duration _snapDuration = Duration(milliseconds: 700);
+  static const Duration _snapDuration = Duration(milliseconds: 220);
+  static const Duration _dismissDuration = Duration(milliseconds: 200);
 
   /// Current visible offset, whether under a finger or mid-animation.
   Offset get _currentOffset =>
@@ -218,7 +219,9 @@ class _SwipeableCardState extends State<SwipeableCard>
     ).animate(
         CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
+    _controller.duration = _dismissDuration;
     _controller.forward(from: 0.0).then((_) {
+      _controller.duration = _snapDuration;
       if (direction == 1) {
         widget.onSwipeRight?.call();
       } else {

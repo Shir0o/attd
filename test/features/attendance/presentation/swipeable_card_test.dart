@@ -145,4 +145,37 @@ void main() {
     // To verify snap back explicitly we'd need to check position,
     // but assuming no callback means logic followed 'else' path.
   });
+
+  testWidgets('SwipeableCard dismiss completes within 220ms', (
+    WidgetTester tester,
+  ) async {
+    bool swipedRight = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SwipeableCard(
+            onSwipeRight: () {
+              swipedRight = true;
+            },
+            child: Container(
+              width: 300,
+              height: 400,
+              color: Colors.blue,
+              key: const Key('card'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Swipe right to dismiss
+    await tester.drag(find.byKey(const Key('card')), const Offset(200, 0));
+    await tester.pump(); // start animation
+    expect(swipedRight, isFalse);
+
+    // Pump 210ms - should complete dismiss
+    await tester.pump(const Duration(milliseconds: 210));
+    expect(swipedRight, isTrue);
+  });
 }
