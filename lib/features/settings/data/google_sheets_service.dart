@@ -129,6 +129,9 @@ class GoogleSheetsService {
           final status = r['status'] as String? ?? 'absent';
 
           records.add({
+            'date': dateStr,
+            'event': title,
+            'member': attendeeName,
             'name': '[$dateStr] $title - $attendeeName',
             'status': status,
           });
