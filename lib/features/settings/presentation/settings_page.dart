@@ -1276,16 +1276,21 @@ function doPost(e) {
                         (record.action && record.action.toLowerCase() === 'delete');
       
       if (!isDeleted) {
-        let meetingDate = "";
-        let event = "";
-        let member = record.name; 
+        let meetingDate = record.date || "";
+        let event = record.event || "";
+        let member = record.member || "";
 
-        // Extract clean names/dates
-        const match = record.name.match(/\[(.*?)\]\s*(.*?)\s*-\s*(.*)/);
-        if (match) {
-          meetingDate = match[1].trim();
-          event = match[2].trim();
-          member = match[3].trim();
+        // Extract clean names/dates if structured fields are missing
+        if (!event || !member) {
+          const rawName = record.name || "";
+          const match = rawName.match(/^\[(.*?)\]\s*(.*?)\s+-\s+(.*)$/);
+          if (match) {
+            meetingDate = meetingDate || match[1].trim();
+            event = event || match[2].trim();
+            member = member || match[3].trim();
+          } else {
+            member = member || rawName;
+          }
         }
 
         // Generate the boolean and the numeric value for the Pivot Table

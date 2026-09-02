@@ -113,6 +113,9 @@ void main() {
       final records = payload['records'] as List<dynamic>;
       expect(records, hasLength(2));
       expect(records.first, {
+        'date': '2026-05-17',
+        'event': 'Sunday Service',
+        'member': 'Alex',
         'name': '[2026-05-17] Sunday Service - Alex',
         'status': 'present',
       });
@@ -123,6 +126,43 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('last_sheets_sync_time'), isNotNull);
+    });
+
+    test('correctly populates structured fields for hyphenated event names like check-in', () async {
+      final sessionsFile = File(p.join(tempDir.path, 'sessions.json'));
+      await sessionsFile.writeAsString(
+        jsonEncode([
+          {
+            'title': 'check-in',
+            'sessionDate': '2026-05-17T09:00:00.000',
+            'updatedAt': '2026-05-17T10:00:00.000',
+            'records': [
+              {'attendee': 'Alex Smith', 'status': 'present'},
+            ],
+          },
+        ]),
+      );
+
+      final receivedBodies = <String>[];
+      final client = MockClient((request) async {
+        receivedBodies.add(request.body);
+        return http.Response('', HttpStatus.ok);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      expect(receivedBodies, hasLength(1));
+      final payload = jsonDecode(receivedBodies.single) as Map<String, dynamic>;
+      final records = payload['records'] as List<dynamic>;
+      expect(records.single, {
+        'date': '2026-05-17',
+        'event': 'check-in',
+        'member': 'Alex Smith',
+        'name': '[2026-05-17] check-in - Alex Smith',
+        'status': 'present',
+      });
     });
 
     test('skips sessions without updatedAt or sessionDate', () async {
@@ -184,6 +224,9 @@ void main() {
 
       final payload = jsonDecode(receivedBodies.single) as Map<String, dynamic>;
       expect((payload['records'] as List).single, {
+        'date': '2026-05-17',
+        'event': 'Untitled',
+        'member': 'Unknown',
         'name': '[2026-05-17] Untitled - Unknown',
         'status': 'absent',
       });
