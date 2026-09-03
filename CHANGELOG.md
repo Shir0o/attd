@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.9](https://github.com/Shir0o/attd/compare/v1.3.8...v1.3.9) (2026-09-03)
+
+
+### Bug Fixes
+
+* **icons:** bundle Material Icons font with uses-material-design
+* **auth:** bundle ENV_SECRETS for Google Sign-In and Firebase config
+
 ## [1.3.8](https://github.com/Shir0o/attd/compare/v1.3.7...v1.3.8) (2026-09-03)
 
 
