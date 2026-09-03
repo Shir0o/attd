@@ -172,7 +172,7 @@ void main() {
               'release.yml must include a `check-existing` step for idempotent re-runs.');
     });
 
-    test('Attach step is gated by the skip_attach output', () {
+    test('Attach step is gated by the skip_attach output and provides token', () {
       final steps = buildSteps();
       final attachStep = steps.firstWhere((s) {
         final uses = s['uses'];
@@ -182,6 +182,8 @@ void main() {
       final ifCond = attachStep['if'] as String;
       expect(ifCond, contains('check-existing'));
       expect(ifCond, contains('skip_attach'));
+      final token = attachStep['with']['token'] as String;
+      expect(token, contains('secrets.RELEASE_PLEASE_TOKEN'));
     });
   });
 

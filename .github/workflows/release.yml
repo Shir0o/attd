@@ -186,6 +186,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: false
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           files: |
             ${{ steps.locate.outputs.aab }}
             ${{ steps.locate.outputs.apk }}
