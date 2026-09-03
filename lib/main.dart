@@ -38,13 +38,16 @@ Future<void> main() async {
   // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
 
-  // Initialize Firebase
-  // Android's FirebaseInitProvider may already have initialized [DEFAULT];
-  // re-initializing with mismatched Dart options throws [core/duplicate-app].
-  if (Firebase.apps.isEmpty) {
+  // Android's FirebaseInitProvider initializes [DEFAULT] natively before Dart
+  // runs (CI release builds bundle stub Dart options, which never match the
+  // native config). firebase_core then throws [core/duplicate-app]; catch it
+  // and fall back to the existing native app.
+  try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
   }
 
   FlutterError.onError = (errorDetails) {
