@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.7](https://github.com/Shir0o/attd/compare/v1.3.6...v1.3.7) (2026-09-03)
+
+
+### Bug Fixes
+
+* fall back to native Firebase app on duplicate-app ([e2cb938](https://github.com/Shir0o/attd/commit/e2cb938d36c752823c03af98ecd8bcf86c8e50e0))
+* fall back to native Firebase app on duplicate-app ([7ae1257](https://github.com/Shir0o/attd/commit/7ae125743d210914eb4c09537966ee4b3b54eb71))
+* fall back to native Firebase app on duplicate-app ([#170](https://github.com/Shir0o/attd/issues/170)) ([e2cb938](https://github.com/Shir0o/attd/commit/e2cb938d36c752823c03af98ecd8bcf86c8e50e0))
+
 ## [1.3.6](https://github.com/Shir0o/attd/compare/v1.3.5...v1.3.6) (2026-09-03)
 
 
