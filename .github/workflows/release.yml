@@ -137,10 +137,10 @@ jobs:
           CI: 'true'
 
       - name: Build signed release AAB
-        run: flutter build appbundle --release --build-number=${{ steps.vc.outputs.code }}
+        run: flutter build appbundle --release --no-tree-shake-icons --build-number=${{ steps.vc.outputs.code }}
 
       - name: Build signed release APK
-        run: flutter build apk --release --build-number=${{ steps.vc.outputs.code }}
+        run: flutter build apk --release --no-tree-shake-icons --build-number=${{ steps.vc.outputs.code }}
 
       - name: Locate built artifacts
         id: locate
