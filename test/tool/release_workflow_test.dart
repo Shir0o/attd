@@ -184,4 +184,41 @@ void main() {
       expect(ifCond, contains('skip_attach'));
     });
   });
+
+  group('release-please.yml structure', () {
+    test('release-please workflow verifies RELEASE_PLEASE_TOKEN before running',
+        () {
+      final file = File('.github/workflows/release-please.yml');
+      expect(file.existsSync(), isTrue);
+      final workflow = loadYaml(file.readAsStringSync()) as YamlMap;
+      final jobs = workflow['jobs'] as YamlMap;
+      final rpJob = jobs['release-please'] as YamlMap;
+      final steps = rpJob['steps'] as YamlList;
+
+      final verifyStep = steps.firstWhere(
+        (s) {
+          final run = (s as YamlMap)['run'];
+          return run is String && run.contains('RELEASE_PLEASE_TOKEN');
+        },
+        orElse: () => YamlMap(),
+      );
+      expect(verifyStep, isNot(YamlMap()),
+          reason:
+              'release-please.yml must verify RELEASE_PLEASE_TOKEN is set so releases trigger downstream workflows.');
+
+      final rpStep = steps.firstWhere(
+        (s) {
+          final uses = (s as YamlMap)['uses'];
+          return uses is String &&
+              uses.startsWith('googleapis/release-please-action');
+        },
+        orElse: () => YamlMap(),
+      );
+      final token = rpStep['with']['token'] as String;
+      expect(token, contains('secrets.RELEASE_PLEASE_TOKEN'));
+      expect(token, isNot(contains('secrets.GITHUB_TOKEN')),
+          reason:
+              'Using GITHUB_TOKEN suppresses downstream push events for generated tags.');
+    });
+  });
 }

@@ -54,11 +54,12 @@ titles don't match a conventional-commit prefix. Allowed prefixes:
 
 ## Prerequisites (one-time setup)
 
-The pipeline needs six GitHub secrets. None of them are committed; create
+The pipeline needs seven GitHub secrets. None of them are committed; create
 them under **Settings → Secrets and variables → Actions**:
 
 | Secret                  | Purpose                                                                 |
 | ----------------------- | ----------------------------------------------------------------------- |
+| `RELEASE_PLEASE_TOKEN`  | PAT with `repo` (or fine-grained `contents:write` & `pull-requests:write`). **Required**: Tags created using GitHub's built-in `GITHUB_TOKEN` are suppressed by GitHub Actions and will never trigger the downstream `release.yml` workflow. A PAT is required for automated deployment. |
 | `ANDROID_KEYSTORE_BASE64` | `base64` of the CI **upload** keystore. See below.                    |
 | `KEY_ALIAS`             | Alias of the upload key inside the keystore.                            |
 | `KEY_PASSWORD`          | Password for the upload key.                                            |
@@ -66,11 +67,9 @@ them under **Settings → Secrets and variables → Actions**:
 | `PLAY_SUPPLY_JSON_KEY`  | Contents of the Play Console service-account JSON (release-manager).    |
 | `GOOGLE_SERVICES_JSON`  | Contents of `android/app/google-services.json`. The Google Services Gradle plugin requires this at build time; mounted from this secret at workflow runtime, never logged. |
 
-> **Note:** `RELEASE_PLEASE_TOKEN` is **not** in the required list. release-please
-> authenticates with the workflow's own `GITHUB_TOKEN`, which works because the
-> repo's **Settings → Actions → General → Workflow permissions** is set to
-> `Allow GitHub Actions to create and approve pull requests` with
-> `Read and write permissions`. No PAT is required.
+> **Important:** `RELEASE_PLEASE_TOKEN` is mandatory for end-to-end automation. While `GITHUB_TOKEN`
+> has permission to create tags, GitHub's recursion prevention prevents tags created by `GITHUB_TOKEN`
+> from firing downstream `on: push: tags` workflows. Always keep `RELEASE_PLEASE_TOKEN` set.
 
 Play App Signing is already enabled on this app. The CI signs AABs with
 the **upload key** (the key registered on the Play Console); Google's

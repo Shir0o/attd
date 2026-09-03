@@ -21,14 +21,22 @@ jobs:
       # carry the PR title) as the conventional-commits signal. It then
       # opens or updates a release PR that bumps pubspec.yaml, regenerates
       # CHANGELOG.md, and tags a GitHub Release on merge.
+      - name: Verify RELEASE_PLEASE_TOKEN is set
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
+            echo "::error::Missing RELEASE_PLEASE_TOKEN secret. Tags created by GITHUB_TOKEN will not trigger downstream release workflows (on: push: tags). See RELEASING.md."
+            exit 1
+          fi
+
       - name: Run release-please
         uses: googleapis/release-please-action@v5
         with:
-          # RELEASE_PLEASE_TOKEN is a PAT with contents:write and
-          # pull-requests:write. GITHUB_TOKEN works for single-repo PRs
-          # but a PAT is recommended for forks and avoids the per-job
-          # permission cap. See RELEASING.md.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # RELEASE_PLEASE_TOKEN is a PAT with repo / contents:write + pull-requests:write.
+          # A personal PAT is required so that tags created on release PR merge trigger
+          # downstream GitHub Actions (e.g. release.yml).
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           # Fork PRs won't get releases; only direct pushes to main.
