@@ -1,5 +1,5 @@
 name: Integration Tests
-run-name: ${{ github.event_name == 'pull_request' && format('Integration Tests (PR #{0})', github.event.pull_request.number) || 'Integration Tests' }}
+run-name: "${{ github.event_name == 'pull_request' && format('Integration Tests (PR #{0})', github.event.pull_request.number) || 'Integration Tests' }}"
 
 on:
   schedule:
