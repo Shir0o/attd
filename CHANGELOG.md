@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8](https://github.com/Shir0o/attd/compare/v1.3.7...v1.3.8) (2026-09-03)
+
+
+### Bug Fixes
+
+* **release:** keep Material Icons font in release APKs ([#172](https://github.com/Shir0o/attd/issues/172)) ([343e3f0](https://github.com/Shir0o/attd/commit/343e3f081bd7628aea722723ead09418b2ea035d))
+
 ## [1.3.7](https://github.com/Shir0o/attd/compare/v1.3.6...v1.3.7) (2026-09-03)
 
 
