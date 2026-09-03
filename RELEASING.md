@@ -54,7 +54,7 @@ titles don't match a conventional-commit prefix. Allowed prefixes:
 
 ## Prerequisites (one-time setup)
 
-The pipeline needs seven GitHub secrets. None of them are committed; create
+The pipeline needs eight GitHub secrets. None of them are committed; create
 them under **Settings → Secrets and variables → Actions**:
 
 | Secret                  | Purpose                                                                 |
@@ -66,6 +66,7 @@ them under **Settings → Secrets and variables → Actions**:
 | `STORE_PASSWORD`        | Password for the keystore file itself.                                  |
 | `PLAY_SUPPLY_JSON_KEY`  | Contents of the Play Console service-account JSON (release-manager).    |
 | `GOOGLE_SERVICES_JSON`  | Contents of `android/app/google-services.json`. The Google Services Gradle plugin requires this at build time; mounted from this secret at workflow runtime, never logged. |
+| `ENV_SECRETS`           | Contents of `.env` (including `GOOGLE_WEB_CLIENT_ID` for Google Sign-In and Firebase keys). Bundled into the app assets at build time. |
 
 > **Important:** `RELEASE_PLEASE_TOKEN` is mandatory for end-to-end automation. While `GITHUB_TOKEN`
 > has permission to create tags, GitHub's recursion prevention prevents tags created by `GITHUB_TOKEN`

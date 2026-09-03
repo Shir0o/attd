@@ -34,10 +34,11 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           PLAY_SUPPLY_JSON_KEY: ${{ secrets.PLAY_SUPPLY_JSON_KEY }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ENV_SECRETS: ${{ secrets.ENV_SECRETS }}
         run: |
           set -euo pipefail
           missing=()
-          for var in ANDROID_KEYSTORE_BASE64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD PLAY_SUPPLY_JSON_KEY GOOGLE_SERVICES_JSON; do
+          for var in ANDROID_KEYSTORE_BASE64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD PLAY_SUPPLY_JSON_KEY GOOGLE_SERVICES_JSON ENV_SECRETS; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
@@ -83,8 +84,12 @@ jobs:
           echo "google-services.json mounted (contents not echoed)."
 
       - name: Seed .env and firebase_options.dart for asset bundling
+        env:
+          ENV_SECRETS: ${{ secrets.ENV_SECRETS }}
         run: |
-          cp .env.example .env
+          echo "$ENV_SECRETS" > .env
+          chmod 600 .env
+          echo ".env seeded from secrets."
           cat > lib/firebase_options.dart <<'DART'
           import 'package:firebase_core/firebase_core.dart';
           class DefaultFirebaseOptions {

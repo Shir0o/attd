@@ -95,6 +95,7 @@ void main() {
         'STORE_PASSWORD',
         'PLAY_SUPPLY_JSON_KEY',
         'GOOGLE_SERVICES_JSON',
+        'ENV_SECRETS',
       ]) {
         expect(run, contains(secret));
       }
