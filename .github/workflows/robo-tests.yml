@@ -64,7 +64,7 @@ jobs:
           DART
 
       - name: Build Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - id: auth
         name: Authenticate to Google Cloud
