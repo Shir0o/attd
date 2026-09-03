@@ -39,9 +39,13 @@ Future<void> main() async {
   await dotenv.load(fileName: ".env");
 
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Android's FirebaseInitProvider may already have initialized [DEFAULT];
+  // re-initializing with mismatched Dart options throws [core/duplicate-app].
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
   FlutterError.onError = (errorDetails) {
     FlutterError.presentError(errorDetails);
