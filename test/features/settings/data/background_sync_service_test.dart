@@ -232,6 +232,38 @@ void main() {
         contains('Failed: Exception: Sync failed Network error'),
       );
     });
+
+    test(
+      'attempts GoogleSignIn initialization and proceeds with driveService init',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'drive_sync_enabled': true,
+          DriveService.backgroundSyncEnabledKey: true,
+        });
+
+        when(() => mockDriveService.init()).thenAnswer((_) async {});
+        when(() => mockDriveService.currentUser).thenReturn(mockUser);
+        when(
+          () => mockDriveService.syncFiles(
+            actionTitle: any(named: 'actionTitle'),
+            tags: any(named: 'tags'),
+          ),
+        ).thenAnswer((_) async {});
+
+        final result = await performBackgroundSync(
+          driveServiceBuilder: () => mockDriveService,
+        );
+
+        expect(result, isTrue);
+        verify(() => mockDriveService.init()).called(1);
+        verify(
+          () => mockDriveService.syncFiles(
+            actionTitle: 'Background Auto-Sync',
+            tags: ['Auto-Sync'],
+          ),
+        ).called(1);
+      },
+    );
   });
 
   group('BackgroundSyncService error handling', () {
