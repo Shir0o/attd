@@ -16,7 +16,9 @@ import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/models/attendance_start_mode.dart';
 import '../../attendance/presentation/grouping_preset_picker.dart';
+import '../../attendance/presentation/fast_marking_mode_picker.dart';
 import '../../attendance/presentation/start_mode_picker.dart';
+import '../../attendance/models/marking_mode.dart';
 import '../../attendance/utils/session_preseed.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
@@ -247,9 +249,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   void _showEventMenu(BuildContext context, Event event) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
           ListTile(
             leading: const Icon(Icons.people_outline),
             title: const Text('Manage Members'),
@@ -296,6 +301,36 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   await widget.eventRepository.updateEvent(updatedEvent);
                 } catch (e) {
                   debugPrint('Error saving start mode preference: $e');
+                }
+                _refreshData();
+              }
+            },
+          ),
+          ListTile(
+            key: const Key('eventMenuFastMarkingMode'),
+            leading: const Icon(Icons.bolt_outlined),
+            title: const Text('Fast Marking Mode'),
+            subtitle: Text(
+              event.markingMode?.label ?? kDefaultMarkingMode.label,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              final picked = await showFastMarkingModePicker(
+                context,
+                initial: event.markingMode,
+              );
+              if (picked != null && picked != event.markingMode) {
+                final updatedEvent = event.copyWith(
+                  markingMode: picked,
+                  updatedAt: DateTime.now(),
+                );
+                try {
+                  await widget.eventRepository.updateEvent(updatedEvent);
+                } catch (e) {
+                  debugPrint('Error saving fast marking mode: $e');
                 }
                 _refreshData();
               }
@@ -376,7 +411,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           const SizedBox(height: 16),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Future<void> _createNewSession() async {

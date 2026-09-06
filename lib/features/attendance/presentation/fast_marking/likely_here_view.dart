@@ -54,12 +54,9 @@ class _LikelyHereViewState extends State<LikelyHereView> {
       );
     }
 
-    // Unmarked first (still in likelihood order), marked pushed to the end.
+    // Stable order (likelihood ranking), does not shuffle when marked.
     final unmarked = widget.roster.unmarked;
-    final marked = widget.roster.members
-        .where(widget.roster.isPresent)
-        .toList(growable: false);
-    final ordered = [...unmarked, ...marked];
+    final ordered = widget.roster.members;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,35 +113,78 @@ class _LikelyHereViewState extends State<LikelyHereView> {
             border: Border(top: BorderSide(color: c.hair)),
           ),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Material(
-            color: c.cardSoft,
-            borderRadius: AppRadii.compactR,
-            child: InkWell(
-              key: const Key('likelyHereSearch'),
-              borderRadius: AppRadii.compactR,
-              onTap: () => setState(() => _searching = true),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 13,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search_rounded, color: c.ink3, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Not in the grid? Search all '
-                        '${widget.roster.members.length}',
-                        style: AppTypography.geist(fontSize: 14, color: c.ink3),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: c.cardSoft,
+                  borderRadius: AppRadii.compactR,
+                  child: InkWell(
+                    key: const Key('likelyHereSearch'),
+                    borderRadius: AppRadii.compactR,
+                    onTap: () => setState(() => _searching = true),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 13,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.search_rounded, color: c.ink3, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Search all ${widget.roster.members.length}',
+                              style: AppTypography.geist(
+                                fontSize: 14,
+                                color: c.ink3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Material(
+                color: c.cardSoft,
+                borderRadius: AppRadii.compactR,
+                child: InkWell(
+                  key: const Key('likelyHereAddGuest'),
+                  borderRadius: AppRadii.compactR,
+                  onTap: widget.onAddGuest,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 13,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.person_add_alt_1_outlined,
+                          color: c.primary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Add',
+                          style: AppTypography.geist(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: c.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
