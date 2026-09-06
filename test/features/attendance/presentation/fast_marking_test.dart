@@ -375,6 +375,40 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('likelyHereChip_an')), findsOneWidget);
     });
+
+    testWidgets('marking a chip does not push it to the end or shift other chips',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere, withHistory: true);
+
+      List<String> getChipOrder() => tester
+          .widgetList<Widget>(
+            find.byWidgetPredicate(
+              (w) =>
+                  w.key is ValueKey<String> &&
+                  (w.key! as ValueKey<String>).value.startsWith(
+                        'likelyHereChip_',
+                      ),
+            ),
+          )
+          .map((w) => (w.key! as ValueKey<String>).value)
+          .toList();
+
+      final initialOrder = getChipOrder();
+      // Tap the first chip
+      await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
+      await tester.pumpAndSettle();
+
+      // The order of chips must stay identical to prevent disorienting jumps
+      expect(getChipOrder(), initialOrder);
+    });
+
+    testWidgets('direct add guest button in grid opens Add Person sheet',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+      expect(find.text('Add Person'), findsOneWidget);
+    });
   });
 
   group('households', () {
@@ -597,6 +631,29 @@ void main() {
         expect(find.text('Add Person'), findsOneWidget);
       });
     }
+
+    testWidgets('newly added attendee shows up in the Likely Here grid immediately',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      expect(find.byKey(const Key('likelyHereChip_newbie')), findsNothing);
+
+      // Tap the Add button in the bottom bar of Likely Here
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Person'), findsOneWidget);
+
+      // Enter name and submit
+      await tester.enterText(find.byType(TextField).first, 'Newbie Guest');
+      await tester.pumpAndSettle();
+
+      // Tap "Add & Continue" button
+      await tester.tap(find.text('Add & Continue'));
+      await tester.pumpAndSettle();
+
+      // Verify the new person's chip appears in the grid immediately
+      expect(find.text('Newbie Guest'), findsOneWidget);
+    });
   });
 
   group('under a confirm-mode session everyone starts present', () {

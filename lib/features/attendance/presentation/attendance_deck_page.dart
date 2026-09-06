@@ -97,6 +97,7 @@ class AttendanceDeckPage extends StatefulWidget {
 class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   late Session _currentSession;
   late int _currentIndex;
+  final List<Member> _sessionMembers = [];
   final List<Member> _remainingMembers = [];
   List<Member> _allMembers = [];
   List<Family> _allFamilies = [];
@@ -119,7 +120,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   MarkingLikelihood get _memoisedLikelihood {
     if (_likelihood == null || !identical(_likelihoodFrom, _recentSessions)) {
       _likelihoodFrom = _recentSessions;
-      _likelihood = MarkingLikelihood(widget.members, _recentSessions);
+      _likelihood = MarkingLikelihood(_sessionMembers, _recentSessions);
     }
     return _likelihood!;
   }
@@ -261,6 +262,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     debugPrint(
         'DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
+    _sessionMembers.clear();
+    _sessionMembers.addAll(widget.members);
     _remainingMembers.addAll(widget.members);
     if (_markingMode != MarkingMode.none) {
       unawaited(_primeRecentSessions());
@@ -336,7 +339,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       return widget.families!;
     }
     if (_allFamilies.isNotEmpty) {
-      final eventIds = widget.members.map((m) => m.id).toSet();
+      final eventIds = _sessionMembers.map((m) => m.id).toSet();
       final result = <Family>[];
       for (final f in _allFamilies) {
         final filtered =
@@ -350,7 +353,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       Family(
         id: '_synthetic_all',
         displayName: 'All members',
-        members: widget.members,
+        members: _sessionMembers,
       ),
     ];
   }
@@ -418,6 +421,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
     final memberIdForRecord =
         (resolved.isVisitor || resolved.id.trim().isEmpty) ? null : resolved.id;
+    if (!_sessionMembers.any((m) =>
+        (resolved.id.isNotEmpty && m.id == resolved.id) ||
+        m.displayName == resolved.displayName)) {
+      setState(() {
+        _sessionMembers.add(resolved);
+        _likelihood = null; // Recompute likelihood ordering with new member
+      });
+    }
     await _recordAttendance(
       memberIdForRecord,
       resolved.displayName,
@@ -654,7 +665,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         statusAbsent = 0,
         touched = 0,
         changed = 0;
-    for (final m in widget.members) {
+    for (final m in _sessionMembers) {
       final r = byId[m.id] ?? byName[m.displayName];
       final isTouched = _isMemberTouched(m);
       if (isTouched) touched++;
@@ -678,7 +689,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       decidedAbsent: decidedAbsent,
       statusPresent: statusPresent,
       statusAbsent: statusAbsent,
-      remaining: widget.members.length - touched,
+      remaining: _sessionMembers.length - touched,
       changed: changed,
     );
   }
@@ -739,7 +750,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Widget _buildHeader(ColorScheme colorScheme) {
     final c = context.conv;
     final t = _tally();
-    final total = widget.members.length;
+    final total = _sessionMembers.length;
 
     // Tally numbers + tail differ by surface. Confirm mode (bulk default) shows
     // the live present/absent split and a "N changed" tail; deck/manual shows
@@ -910,7 +921,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Widget _buildFastMarkingBody() {
     final roster = FastMarkingRoster(
       session: _currentSession,
-      members: widget.members,
+      members: _sessionMembers,
       families: _sessionFamilies,
       likelihood: _memoisedLikelihood,
     );

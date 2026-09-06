@@ -381,14 +381,24 @@ class MarkingSearchField extends StatelessWidget {
 /// Offered when a query matches nobody — records the typed name as a walk-in
 /// without leaving the marking flow.
 class AddGuestRow extends StatelessWidget {
-  const AddGuestRow({super.key, required this.query, required this.onTap});
+  const AddGuestRow({
+    super.key,
+    required this.query,
+    required this.onTap,
+    this.label,
+  });
 
   final String query;
   final VoidCallback onTap;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
+    final text = label ??
+        (query.trim().isEmpty
+            ? 'Add a new member or guest'
+            : 'Nobody matches "$query" — add as a guest');
     return InkWell(
       key: const Key('fastMarkingAddGuest'),
       onTap: onTap,
@@ -405,7 +415,7 @@ class AddGuestRow extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Nobody matches "$query" — add as a guest',
+                text,
                 style: AppTypography.geist(fontSize: 14, color: c.ink2),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

@@ -125,9 +125,9 @@ class _RapidEntryViewState extends State<RapidEntryView> {
               children: [
                 JustMarkedStack(entries: _justMarked, onUndo: _undo),
                 if (_justMarked.isNotEmpty) const SizedBox(height: 16),
-                if (_query.isNotEmpty && results.isEmpty)
+                if (results.isEmpty)
                   AddGuestRow(query: _query, onTap: widget.onAddGuest)
-                else if (results.isNotEmpty) ...[
+                else ...[
                   Padding(
                     padding: const EdgeInsets.only(left: 4, bottom: 8),
                     child: Text(

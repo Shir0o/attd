@@ -9,6 +9,7 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
+import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
@@ -915,5 +916,43 @@ void main() {
     // No new session was created — we navigated to the deck for the
     // existing incomplete session.
     expect(sessionRepository.createdSessions, isEmpty);
+  });
+
+  testWidgets('event three-dot menu allows changing fast marking mode',
+      (tester) async {
+    final event = todayEvent();
+
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    // Open three-dot menu
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    // Verify Fast Marking Mode tile is present
+    expect(find.byKey(const Key('eventMenuFastMarkingMode')), findsOneWidget);
+    expect(find.text('Fast Marking Mode'), findsOneWidget);
+
+    // Tap Fast Marking Mode
+    await tester.tap(find.byKey(const Key('eventMenuFastMarkingMode')));
+    await tester.pumpAndSettle();
+
+    // Verify options are displayed in the bottom sheet
+    expect(find.byKey(const Key('marking_mode_option_initialsPad')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('marking_mode_option_initialsPad')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('markingModeConfirmButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('markingModeConfirmButton')));
+    await tester.pumpAndSettle();
+
+    // Verify the event repository received updateEvent with initialsPad
+    expect(eventRepository.updatedEvents, isNotEmpty);
+    expect(
+      eventRepository.updatedEvents.last.markingMode,
+      MarkingMode.initialsPad,
+    );
   });
 }
