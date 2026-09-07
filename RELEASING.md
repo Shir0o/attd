@@ -119,6 +119,9 @@ gh secret set PLAY_SUPPLY_JSON_KEY --repo Shir0o/attd < ~/path/to/key.json
 | `bundle exec fastlane play_upload` fails to install    | Ruby/Bundler missing on the runner — the workflow installs them via `bundle install`. If your fork uses an older Ubuntu image, the system Ruby may be too old; pin `ruby-version: 3.2` in `release.yml`. |
 | Internal-track upload succeeds but AAB is wrong        | Play Console internal track allows removal — go to Release management → Internal testing, find the version, click **Discard**. Re-run the workflow with the corrected tag. |
 
+| Release body missing manual CHANGELOG edits        | release-please generates the GitHub Release body from its own changelog computation — manual edits to `CHANGELOG.md` on the release PR branch (e.g. the #146 backfill) reach `main` but not the release body. Fix with `gh release edit vX.Y.Z --notes-file <file>` after the release is cut. |
+| Publishing an older draft steals the "Latest" badge | GitHub marks "Latest" as the most recently *published* release. After publishing a backfilled draft, restore it: `gh release edit vX.Y.Z --latest` on the newest release. |
+
 ## Rolling back a release
 
 - **GitHub Release**: delete the tag (`git push --delete origin v1.3.3`
