@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import '../design/app_typography.dart';
+import '../design/widgets/conv_theme.dart';
 
 /// Centralized UI helper for displaying error feedback adhering to the
-/// Fluid Humanist design principles (tonal shifts, pill shapes, soft shadows).
+/// Convocation design principles (tonal shifts, pill shapes, soft shadows).
 class AppErrorFeedback {
   AppErrorFeedback._();
 
-  /// Creates a Fluid Humanist styled error widget to replace Flutter's default red/grey screen.
+  /// Creates a Convocation styled error widget to replace Flutter's default red/grey screen.
   static Widget buildErrorWidget(FlutterErrorDetails details) {
     return Material(
       color: Colors.transparent,
@@ -25,8 +27,7 @@ class AppErrorFeedback {
     String retryLabel = 'Retry',
     Duration duration = const Duration(seconds: 4),
   }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -35,18 +36,19 @@ class AppErrorFeedback {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(100),
         ),
-        backgroundColor: colorScheme.errorContainer,
+        backgroundColor: c.absent.withValues(alpha: 0.92),
         content: Text(
           message,
-          style: TextStyle(
-            color: colorScheme.onErrorContainer,
+          style: AppTypography.geist(
+            fontSize: 14,
             fontWeight: FontWeight.w500,
+            color: Colors.white,
           ),
         ),
         action: onRetry != null
             ? SnackBarAction(
                 label: retryLabel,
-                textColor: colorScheme.onErrorContainer,
+                textColor: Colors.white,
                 onPressed: onRetry,
               )
             : null,
@@ -65,8 +67,7 @@ class AppErrorFeedback {
     String retryLabel = 'Retry',
     String dismissLabel = 'Dismiss',
   }) async {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
 
     await showAdaptiveDialog<void>(
       context: context,
@@ -75,18 +76,20 @@ class AppErrorFeedback {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          backgroundColor: colorScheme.surface,
+          backgroundColor: c.card,
           title: Text(
             title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface,
+            style: AppTypography.fraunces(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: c.ink,
             ),
           ),
           content: Text(
             message,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+            style: AppTypography.geist(
+              fontSize: 14,
+              color: c.ink2,
             ),
           ),
           actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -96,18 +99,19 @@ class AppErrorFeedback {
                 shape: const StadiumBorder(),
               ),
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(dismissLabel),
+              child: Text(dismissLabel, style: AppTypography.geist(color: c.ink2)),
             ),
             if (onRetry != null)
               FilledButton(
                 style: FilledButton.styleFrom(
                   shape: const StadiumBorder(),
+                  backgroundColor: c.primary,
                 ),
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   onRetry();
                 },
-                child: Text(retryLabel),
+                child: Text(retryLabel, style: AppTypography.geist(color: c.onPrimary)),
               ),
           ],
         );
@@ -135,8 +139,7 @@ class AppErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final c = context.conv;
 
     return Center(
       child: Padding(
@@ -147,22 +150,23 @@ class AppErrorView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.errorContainer.withValues(alpha: 0.5),
+                color: c.absent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.error_outline_rounded,
                 size: 36,
-                color: colorScheme.error,
+                color: c.absent,
               ),
             ),
             const SizedBox(height: 16),
             if (title != null) ...[
               Text(
                 title!,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
+                style: AppTypography.fraunces(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: c.ink,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -170,8 +174,9 @@ class AppErrorView extends StatelessWidget {
             ],
             Text(
               message,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+              style: AppTypography.geist(
+                fontSize: 14,
+                color: c.ink2,
               ),
               textAlign: TextAlign.center,
             ),

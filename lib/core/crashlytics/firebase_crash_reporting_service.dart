@@ -37,6 +37,15 @@ class FirebaseCrashReportingService extends CrashReportingService {
     }
   }
 
+  static const _allowedContextKeys = {
+    'operation',
+    'route',
+    'status_code',
+    'sync_type',
+    'error_type',
+    'component',
+  };
+
   @override
   Future<void> recordError(
     dynamic exception,
@@ -48,7 +57,11 @@ class FirebaseCrashReportingService extends CrashReportingService {
     try {
       if (context != null) {
         for (final entry in context.entries) {
-          await _crashlytics.setCustomKey(entry.key, entry.value);
+          // Strict PII filter: only allow explicit non-PII operational keys
+          final key = entry.key.toLowerCase().trim();
+          if (_allowedContextKeys.contains(key)) {
+            await _crashlytics.setCustomKey(entry.key, entry.value);
+          }
         }
       }
       await _crashlytics.recordError(

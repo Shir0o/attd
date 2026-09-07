@@ -7,14 +7,17 @@ void main() {
       final inner = Exception('SocketException: Connection refused');
       final exception = SyncException(
         userMessage: 'Unable to connect to Google Drive. Please check your internet connection.',
+        recoverySuggestion: 'Check your Wi-Fi or cellular connection and retry.',
         technicalDetails: inner.toString(),
         isTransient: true,
       );
 
       expect(exception.userMessage, 'Unable to connect to Google Drive. Please check your internet connection.');
+      expect(exception.recoverySuggestion, 'Check your Wi-Fi or cellular connection and retry.');
       expect(exception.technicalDetails, contains('Connection refused'));
       expect(exception.isTransient, isTrue);
       expect(exception.toString(), contains('SyncException'));
+      expect(exception.toString(), contains('suggestion: Check your Wi-Fi'));
     });
 
     test('StorageException stores blocking failure details', () {

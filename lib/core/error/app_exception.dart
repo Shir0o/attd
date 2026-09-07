@@ -1,18 +1,22 @@
-/// Base class for all domain-specific application exceptions.
+/// Base class for all domain-specific application failures (App Failure).
 ///
 /// Encapsulates a sanitized, user-facing [userMessage] suitable for display
-/// in the UI, alongside optional [technicalDetails] and an [isTransient] indicator
-/// to inform whether the error should be surfaced as a transient notification
-/// (e.g. snackbar) or a blocking dialog/view.
+/// in the UI, an optional [recoverySuggestion], optional [technicalDetails]
+/// and an [isTransient] indicator to inform whether the error should be
+/// surfaced as a transient notification (e.g. snackbar) or a blocking dialog/view.
 abstract class AppException implements Exception {
   const AppException({
     required this.userMessage,
+    this.recoverySuggestion,
     this.technicalDetails,
     this.isTransient = false,
   });
 
-  /// User-friendly message explaining the issue and/or recovery action.
+  /// User-friendly message explaining the issue.
   final String userMessage;
+
+  /// Optional actionable suggestion for the user to resolve the failure.
+  final String? recoverySuggestion;
 
   /// Technical diagnostic information (stripped of PII) for logging and reporting.
   final String? technicalDetails;
@@ -23,10 +27,14 @@ abstract class AppException implements Exception {
 
   @override
   String toString() {
-    if (technicalDetails != null) {
-      return '$runtimeType: $userMessage (details: $technicalDetails)';
+    final buffer = StringBuffer('$runtimeType: $userMessage');
+    if (recoverySuggestion != null) {
+      buffer.write(' (suggestion: $recoverySuggestion)');
     }
-    return '$runtimeType: $userMessage';
+    if (technicalDetails != null) {
+      buffer.write(' (details: $technicalDetails)');
+    }
+    return buffer.toString();
   }
 }
 
@@ -34,6 +42,7 @@ abstract class AppException implements Exception {
 class SyncException extends AppException {
   const SyncException({
     required super.userMessage,
+    super.recoverySuggestion,
     super.technicalDetails,
     super.isTransient = true,
   });
@@ -43,6 +52,7 @@ class SyncException extends AppException {
 class StorageException extends AppException {
   const StorageException({
     required super.userMessage,
+    super.recoverySuggestion,
     super.technicalDetails,
     super.isTransient = false,
   });
@@ -52,6 +62,7 @@ class StorageException extends AppException {
 class AuthException extends AppException {
   const AuthException({
     required super.userMessage,
+    super.recoverySuggestion,
     super.technicalDetails,
     super.isTransient = true,
   });
