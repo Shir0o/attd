@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../../settings/data/drive_service.dart';
@@ -18,6 +19,7 @@ class HubPage extends StatefulWidget {
     this.driveService,
     this.localBackupService,
     this.appLockController,
+    this.crashReportingService,
     this.disableAnimations = false,
   });
 
@@ -28,6 +30,7 @@ class HubPage extends StatefulWidget {
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
   final AppLockController? appLockController;
+  final CrashReportingService? crashReportingService;
   final bool disableAnimations;
 
   @override
@@ -45,6 +48,7 @@ class _HubPageState extends State<HubPage> {
       driveService: widget.driveService,
       localBackupService: widget.localBackupService,
       appLockController: widget.appLockController,
+      crashReportingService: widget.crashReportingService,
       disableAnimations: widget.disableAnimations,
     );
   }

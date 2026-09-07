@@ -32,6 +32,12 @@ import 'firebase_options.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'dart:ui';
+import 'core/crashlytics/crash_reporting_service.dart';
+import 'core/crashlytics/firebase_crash_reporting_service.dart';
+import 'core/crashlytics/crash_reporting_consent_dialog.dart';
+import 'core/ui/app_error_feedback.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -50,11 +56,27 @@ Future<void> main() async {
     if (e.code != 'duplicate-app') rethrow;
   }
 
+  final prefs = await SharedPreferences.getInstance();
+  final crashReportingService = FirebaseCrashReportingService(prefs: prefs);
+
+  // Catch Flutter framework errors
   FlutterError.onError = (errorDetails) {
     FlutterError.presentError(errorDetails);
+    crashReportingService.recordError(
+      errorDetails.exception,
+      errorDetails.stack,
+      fatal: errorDetails.silent == false,
+    );
   };
 
-  final prefs = await SharedPreferences.getInstance();
+  // Catch asynchronous errors outside the Flutter framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    crashReportingService.recordError(error, stack, fatal: true);
+    return true;
+  };
+
+  // Replace default red/grey screen of death with Fluid Humanist error card
+  ErrorWidget.builder = AppErrorFeedback.buildErrorWidget;
 
   // Initialize the GoogleSignIn singleton exactly once before use.
   // v7 API: GoogleSignIn.instance.initialize(...) replaces the v6 constructor.
@@ -96,6 +118,7 @@ Future<void> main() async {
       themeController: themeController,
       onboardingController: onboardingController,
       appLockController: appLockController,
+      crashReportingService: crashReportingService,
       driveService: driveService,
       localBackupService: localBackupService,
       googleAuthService: googleAuthService,
@@ -122,6 +145,7 @@ class AttendanceApp extends StatefulWidget {
     this.googleAuthService,
     this.driveService,
     this.localBackupService,
+    this.crashReportingService,
     this.disableAnimations = false,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository = sessionRepository ?? LocalJsonSessionRepository(),
@@ -139,6 +163,7 @@ class AttendanceApp extends StatefulWidget {
   final GoogleAuthService? googleAuthService;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+  final CrashReportingService? crashReportingService;
   final bool disableAnimations;
 
   @override
@@ -162,6 +187,15 @@ class _AttendanceAppState extends State<AttendanceApp>
       // Restore sync session and trigger initial sync if enabled
       widget.driveService?.init();
       _quickActions.initialize(navigatorKey: _navigatorKey);
+
+      // Prompt for anonymous crash diagnostics consent on first open if needed
+      final navContext = _navigatorKey.currentContext;
+      if (navContext != null && widget.crashReportingService != null) {
+        CrashReportingConsentDialog.promptIfNeeded(
+          navContext,
+          service: widget.crashReportingService!,
+        );
+      }
     });
   }
 
@@ -245,6 +279,7 @@ class _AttendanceAppState extends State<AttendanceApp>
                 driveService: widget.driveService,
                 localBackupService: widget.localBackupService,
                 appLockController: widget.appLockController,
+                crashReportingService: widget.crashReportingService,
                 disableAnimations: widget.disableAnimations,
               );
         return MaterialApp(

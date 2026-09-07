@@ -30,6 +30,7 @@ import '../../settings/data/local_backup_service.dart';
 import 'members_page.dart';
 import 'add_event_page.dart';
 import '../../sessions/presentation/event_history_page.dart';
+import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../settings/presentation/settings_page.dart';
 
 class HubAttendanceView extends StatefulWidget {
@@ -42,6 +43,7 @@ class HubAttendanceView extends StatefulWidget {
     this.driveService,
     this.localBackupService,
     this.appLockController,
+    this.crashReportingService,
     this.disableAnimations = false,
   });
 
@@ -52,6 +54,7 @@ class HubAttendanceView extends StatefulWidget {
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
   final AppLockController? appLockController;
+  final CrashReportingService? crashReportingService;
   final bool disableAnimations;
 
   @override
@@ -443,6 +446,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           eventRepository: widget.eventRepository,
           sessionRepository: widget.sessionRepository,
           appLockController: widget.appLockController,
+          crashReportingService: widget.crashReportingService,
           disableAnimations: widget.disableAnimations,
         ),
       ),

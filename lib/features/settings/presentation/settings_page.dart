@@ -18,6 +18,7 @@ import '../../../data/session_repository.dart';
 
 import 'cloud_backup_page.dart';
 import 'manage_backup_data_page.dart';
+import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/fluid_loading_border.dart';
@@ -35,6 +36,7 @@ class SettingsPage extends StatefulWidget {
     required this.sessionRepository,
     this.appLockController,
     this.backgroundSyncService,
+    this.crashReportingService,
     this.disableAnimations = false,
   });
 
@@ -46,6 +48,7 @@ class SettingsPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final AppLockController? appLockController;
   final BackgroundSyncService? backgroundSyncService;
+  final CrashReportingService? crashReportingService;
   final bool disableAnimations;
 
 
@@ -220,11 +223,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 24),
 
                     // ── Privacy ───────────────────────────────────────────────
-                    if (widget.appLockController != null) ...[
+                    if (widget.appLockController != null || widget.crashReportingService != null) ...[
                       _SettingSection(
                         title: 'Privacy',
                         children: [
-                          _AppLockTile(controller: widget.appLockController!),
+                          if (widget.appLockController != null)
+                            _AppLockTile(controller: widget.appLockController!),
+                          if (widget.crashReportingService != null)
+                            _CrashReportingTile(service: widget.crashReportingService!),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -1578,6 +1584,31 @@ class _AppLockTileState extends State<_AppLockTile> {
         value: widget.controller.isEnabled,
         onChanged: (!_supported || _busy) ? null : _toggle,
       ),
+    );
+  }
+}
+
+class _CrashReportingTile extends StatelessWidget {
+  const _CrashReportingTile({required this.service});
+
+  final CrashReportingService service;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: service,
+      builder: (context, _) {
+        return _SettingRow(
+          icon: Icons.shield_outlined,
+          title: 'Anonymous Crash Diagnostics',
+          subtitle: 'Share anonymous crash data to help fix issues. No personal data or attendee names are collected.',
+          showChevron: false,
+          trailing: Switch(
+            value: service.isCollectionEnabled,
+            onChanged: (val) => service.setCollectionEnabled(val),
+          ),
+        );
+      },
     );
   }
 }
