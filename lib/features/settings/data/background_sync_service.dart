@@ -2,10 +2,13 @@ import 'dart:async';
 
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../../../core/logging/app_logger.dart';
+import '../../auth/config/google_oauth_config.dart';
 import 'drive_service.dart';
 
 final _log = AppLogger('BackgroundSyncService');
@@ -56,6 +59,24 @@ Future<bool> performBackgroundSync({
     if (!driveSyncEnabled || !bgSyncEnabled) {
       _log.info('Background sync skipped: disabled in preferences');
       return true;
+    }
+
+    // In the background isolate, dotenv and GoogleSignIn must be initialized
+    // so attemptLightweightAuthentication() can restore the signed-in session.
+    try {
+      if (!dotenv.isInitialized) {
+        await dotenv.load(fileName: ".env");
+      }
+    } catch (e) {
+      _log.info('Background sync dotenv load error (ignored): $e');
+    }
+
+    try {
+      await GoogleSignIn.instance.initialize(
+        serverClientId: GoogleOAuthConfig.webServerClientId,
+      );
+    } catch (e) {
+      _log.info('Background sync GoogleSignIn.initialize error (ignored): $e');
     }
 
     final driveService = driveServiceBuilder?.call() ?? DriveService();
