@@ -20,6 +20,7 @@ export '../models/roster_grouping.dart';
 typedef MemberToggle = Future<void> Function(Member member, bool isPresent);
 typedef FamilyBulkToggle = Future<void> Function(Family family, bool isPresent);
 typedef MarkAllToggle = Future<void> Function(BulkMarkChoice choice);
+typedef MemberLateToggle = Future<void> Function(Member member);
 
 /// A reusable roster list used both for in-session attendance entry and for
 /// post-session review on the summary page. Supports family grouping with
@@ -31,6 +32,7 @@ class AttendanceRosterList extends StatefulWidget {
     required this.families,
     required this.onToggle,
     this.onFamilyToggle,
+    this.onToggleLate,
     this.onMarkAll,
     this.onEdit,
     this.onRemove,
@@ -58,6 +60,11 @@ class AttendanceRosterList extends StatefulWidget {
   /// toggle. The parent is responsible for snapshotting + showing an undo
   /// snackbar — the widget only renders the UI and the modal sheet.
   final MarkAllToggle? onMarkAll;
+
+  /// Optional present-but-late toggle for post-session review. When null the
+  /// late affordance does not render at all — only the Session Summary passes
+  /// it, so the in-session deck and fast-marking surfaces stay unchanged.
+  final MemberLateToggle? onToggleLate;
   final void Function(Member member)? onEdit;
   final void Function(Member member)? onRemove;
   final RosterGrouping initialGrouping;
@@ -397,6 +404,14 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     return n;
   }
 
+  /// The late flag of [member]'s record in the current session. A member with
+  /// no record reads as not-late.
+  bool _isLate(SessionRoster roster, Member m) {
+    final record = roster.recordByMemberId[m.id] ??
+        roster.recordByVisitorName[m.displayName];
+    return record?.isLate ?? false;
+  }
+
   Widget _buildSkeleton(ConvocationColors c) {
     final disable = widget.disableAnimations;
     return Padding(
@@ -525,7 +540,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
               member: m,
               changed: _isChanged(roster, m),
               isPresent: roster.getStatus(m) == AttendanceStatus.present,
+              isLate: _isLate(roster, m),
               onToggle: (val) => widget.onToggle(m, val),
+              onToggleLate: widget.onToggleLate,
               onEdit: widget.onEdit,
               onRemove: widget.onRemove,
             ),
@@ -549,7 +566,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
             member: m,
             changed: _isChanged(roster, m),
             isPresent: roster.getStatus(m) == AttendanceStatus.present,
+            isLate: _isLate(roster, m),
             onToggle: (val) => widget.onToggle(m, val),
+            onToggleLate: widget.onToggleLate,
             onEdit: widget.onEdit,
             onRemove: widget.onRemove,
           ),
@@ -577,7 +596,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
             member: m,
             changed: _isChanged(roster, m),
             isPresent: roster.getStatus(m) == AttendanceStatus.present,
+            isLate: _isLate(roster, m),
             onToggle: (val) => widget.onToggle(m, val),
+            onToggleLate: widget.onToggleLate,
             onEdit: widget.onEdit,
             onRemove: widget.onRemove,
           ),
@@ -648,7 +669,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           member: m,
           changed: _isChanged(roster, m),
           isPresent: true,
+          isLate: _isLate(roster, m),
           onToggle: (val) => widget.onToggle(m, val),
+          onToggleLate: widget.onToggleLate,
           onEdit: widget.onEdit,
           onRemove: widget.onRemove,
         ),
@@ -670,7 +693,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           member: m,
           changed: _isChanged(roster, m),
           isPresent: false,
+          isLate: _isLate(roster, m),
           onToggle: (val) => widget.onToggle(m, val),
+          onToggleLate: widget.onToggleLate,
           onEdit: widget.onEdit,
           onRemove: widget.onRemove,
         ),
@@ -855,6 +880,8 @@ class _MemberRow extends StatelessWidget {
     required this.member,
     required this.isPresent,
     required this.onToggle,
+    this.isLate = false,
+    this.onToggleLate,
     this.onEdit,
     this.onRemove,
     this.changed = false,
@@ -863,6 +890,14 @@ class _MemberRow extends StatelessWidget {
   final Member member;
   final bool isPresent;
   final ValueChanged<bool> onToggle;
+
+  /// Present-but-late state for this row. Only rendered when [onToggleLate]
+  /// is supplied; a late attendee stays a present attendee everywhere.
+  final bool isLate;
+
+  /// Null on the in-session deck and fast-marking surfaces — the affordance
+  /// (and its spacer slot) only exists on the Session Summary roster.
+  final MemberLateToggle? onToggleLate;
   final void Function(Member)? onEdit;
   final void Function(Member)? onRemove;
 
@@ -912,12 +947,26 @@ class _MemberRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
+                Text.rich(
                   changed
-                      ? 'Changed'
+                      ? const TextSpan(text: 'Changed')
                       : member.isVisitor
-                          ? 'Visitor'
-                          : (isPresent ? 'Marked present' : 'Marked absent'),
+                          ? const TextSpan(text: 'Visitor')
+                          : !isPresent
+                              ? const TextSpan(text: 'Marked absent')
+                              : TextSpan(
+                                  text: 'Marked present',
+                                  children: [
+                                    if (isLate)
+                                      TextSpan(
+                                        text: ' · late',
+                                        style: TextStyle(
+                                          color: c.clayDeep,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                   style: AppTypography.geist(
                     fontSize: 12,
                     fontWeight: changed ? FontWeight.w500 : FontWeight.w400,
@@ -934,6 +983,45 @@ class _MemberRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
+          // Late affordance: a 32px clock dot inside a 44px tap target,
+          // between the name column and the 56×32 ConvToggle. Absent rows
+          // keep an empty 44px slot so the toggles stay in a column. Only
+          // rendered when onToggleLate is supplied (Session Summary only).
+          if (onToggleLate != null) ...[
+            if (isPresent)
+              GestureDetector(
+                key: ValueKey('memberLate_${member.id}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onToggleLate!(member),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Center(
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isLate
+                            ? Color.alphaBlend(
+                                c.clayDeep.withValues(alpha: 0.18),
+                                c.card,
+                              )
+                            : Colors.transparent,
+                      ),
+                      child: Icon(
+                        Icons.schedule_outlined,
+                        size: 18,
+                        color: isLate ? c.clayDeep : c.ink4,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              const SizedBox(width: 44),
+          ],
+          if (onToggleLate != null) const SizedBox(width: 8),
           ConvToggle(
             key: ValueKey('memberToggle_${member.id}_${member.displayName}'),
             value: isPresent,

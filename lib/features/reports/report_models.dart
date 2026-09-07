@@ -48,12 +48,17 @@ class ReportSummary {
     required this.recordCount,
     required this.present,
     required this.absent,
+    this.lateCount = 0,
   });
 
   final int sessionCount;
   final int recordCount;
   final int present;
   final int absent;
+
+  /// How many records are present-but-late. A late record still counts as a
+  /// full present — this is a footnote on [present], not a third status.
+  final int lateCount;
 
   double get attendanceRate =>
       recordCount == 0 ? 0 : present / recordCount * 100;

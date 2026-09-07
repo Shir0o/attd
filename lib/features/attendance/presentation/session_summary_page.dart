@@ -402,6 +402,59 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
+  /// Flags [member] present-but-late (or clears the flag when they are
+  /// already late) by rebuilding their record through the same snapshot path
+  /// as the present/absent toggle.
+  ///
+  /// Resolves the record the way [SessionRoster] reads it — by memberId when
+  /// the member has one, falling back to the visitor-name index — so a
+  /// present record stored without a memberId (a guest whose name matches a
+  /// roster member, or legacy/Drive-restored data) is still flipped. Without
+  /// the fallback the dot would be a silent no-op for exactly the rows that
+  /// show it.
+  Future<void> _toggleLate(Member member) async {
+    final hasId = !member.isVisitor && member.id.trim().isNotEmpty;
+
+    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
+
+    // Resolve the record the way SessionRoster reads it: by memberId when a
+    // member-keyed record exists, else the visitor-name index. A present
+    // record stored without a memberId (a guest whose name matches a roster
+    // member, or legacy/Drive-restored data) is still flipped — without this
+    // fallback the dot would be a silent no-op for exactly those rows.
+    SessionRecord? target;
+    var targetIndex = -1;
+    for (var i = 0; i < updatedRecords.length; i++) {
+      final r = updatedRecords[i];
+      final byId = hasId && r.memberId == member.id;
+      final byName = r.memberId == null && r.attendee == member.displayName;
+      if (byId || byName) {
+        target = r;
+        targetIndex = i;
+        if (byId) break; // member-keyed record wins over a name match
+      }
+    }
+    if (target == null || targetIndex < 0) return;
+
+    updatedRecords[targetIndex] = target.copyWith(
+      isLate: !target.isLate,
+      recordedAt: DateTime.now(),
+      recordedBy: 'User',
+    );
+
+    final updatedSession = _currentSession.copyWith(
+      records: updatedRecords,
+      updatedAt: DateTime.now(),
+    );
+    setState(() => _currentSession = updatedSession);
+    try {
+      await widget.sessionRepository
+          .saveSnapshot(updatedSession, actor: 'User');
+    } catch (e) {
+      debugPrint('Error toggling late flag: $e');
+    }
+  }
+
   Future<void> _editMemberName(Member member) async {
     final isVisitor = member.isVisitor;
     final controller = TextEditingController(text: member.displayName);
@@ -612,7 +665,9 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           _addAttendee(name, isPresent, isGuest, existingMember);
         },
         availableMembers: _allMembers,
-        families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
+        families: _allFamilies.isNotEmpty
+            ? _allFamilies
+            : (widget.families ?? const []),
       ),
     );
   }
@@ -627,10 +682,16 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     int presentCount = 0;
     int absentCount = 0;
+    int lateCount = 0;
     for (final member in allDisplayMembers) {
       final status = roster.getStatus(member);
       if (status == AttendanceStatus.present) {
         presentCount++;
+        if (roster.recordByMemberId[member.id]?.isLate ??
+            roster.recordByVisitorName[member.displayName]?.isLate ??
+            false) {
+          lateCount++;
+        }
       } else {
         absentCount++;
       }
@@ -693,6 +754,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                   _StatsCard(
                     presentCount: presentCount,
                     absentCount: absentCount,
+                    lateCount: lateCount,
                   ),
                   if (_currentEvent != null) ...[
                     const SizedBox(height: 12),
@@ -743,6 +805,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 onToggle: _toggleAttendance,
                 onFamilyToggle: _toggleFamilyAttendance,
                 onMarkAll: _markAllAttendance,
+                onToggleLate: _toggleLate,
                 onEdit: _editMemberName,
                 onRemove: _removeMemberFromSession,
                 initialGrouping: RosterGrouping.byStatus,
@@ -758,10 +821,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 }
 
 class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.presentCount, required this.absentCount});
+  const _StatsCard({
+    required this.presentCount,
+    required this.absentCount,
+    this.lateCount = 0,
+  });
 
   final int presentCount;
   final int absentCount;
+
+  /// How many present records carry the late flag. A footnote on the Present
+  /// numeral — never changes a count, and renders nothing when 0.
+  final int lateCount;
 
   @override
   Widget build(BuildContext context) {
@@ -780,6 +851,7 @@ class _StatsCard extends StatelessWidget {
               value: '$presentCount',
               sub: total == 0 ? 'No records' : 'of $total expected · $percent%',
               color: c.present,
+              lateCount: lateCount,
             ),
           ),
           Container(
@@ -808,12 +880,17 @@ class _SummaryHeroColumn extends StatelessWidget {
     required this.value,
     required this.sub,
     required this.color,
+    this.lateCount = 0,
   });
 
   final String label;
   final String value;
   final String sub;
   final Color color;
+
+  /// When > 0 the Present hero gains a quiet clay "N LATE" capsule beneath
+  /// its sub-line. Absent hero always passes 0.
+  final int lateCount;
 
   @override
   Widget build(BuildContext context) {
@@ -835,6 +912,28 @@ class _SummaryHeroColumn extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        if (lateCount > 0) ...[
+          const SizedBox(height: 6),
+          Container(
+            key: const ValueKey('lateCapsule'),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color:
+                  Color.alphaBlend(c.clayDeep.withValues(alpha: 0.18), c.card),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.schedule_outlined, size: 12, color: c.clayDeep),
+                Text(
+                  ('$lateCount late').toUpperCase(),
+                  style: AppTypography.eyebrow(color: c.clayDeep),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

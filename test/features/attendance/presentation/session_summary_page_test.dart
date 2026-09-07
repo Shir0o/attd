@@ -1599,6 +1599,392 @@ void main() {
       expect(find.byType(EventTrendPage), findsOneWidget);
     },
   );
+
+  testWidgets('SessionSummaryPage late affordance flags a present member late',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // No late capsule while nobody is late.
+    expect(find.text('1 LATE'), findsNothing);
+
+    // Tap the late affordance on Alice's row.
+    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
+    await tester.pumpAndSettle();
+
+    // Persisted record now carries the flag.
+    final updated = await mockRepo.findSessionById('s1');
+    expect(updated?.records.single.isLate, isTrue);
+    expect(updated?.records.single.status, AttendanceStatus.present);
+
+    // Row subtitle gains the word "late".
+    expect(find.text('Marked present · late'), findsOneWidget);
+
+    // The Present hero capsule appears with the correct count and the
+    // Present numeral is unchanged by flagging.
+    expect(find.text('1 LATE'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+
+    // Tapping again clears the flag.
+    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
+    await tester.pumpAndSettle();
+    final cleared = await mockRepo.findSessionById('s1');
+    expect(cleared?.records.single.isLate, isFalse);
+    expect(find.text('1 LATE'), findsNothing);
+    expect(find.text('Marked present · late'), findsNothing);
+  });
+
+  testWidgets(
+      'SessionSummaryPage late toggle flips a record with no memberId',
+      (WidgetTester tester) async {
+    // A present record stored without a memberId (legacy/Drive-restored or
+    // guest data) resolves through the visitor-name index on read — the
+    // write path must mirror it or the dot is a silent no-op.
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: null,
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The affordance lights up via the visitor-name index.
+    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
+    expect(find.text('Marked present · late'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
+    await tester.pumpAndSettle();
+
+    // The name-keyed record was actually flipped.
+    final updated = await mockRepo.findSessionById('s1');
+    expect(updated?.records.single.isLate, isTrue);
+    expect(find.text('1 LATE'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage absent rows have no late affordance',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final member2 = Member(id: '2', displayName: 'Bob');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+        SessionRecord(
+          memberId: '2',
+          attendee: 'Bob',
+          status: AttendanceStatus.absent,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1, member2],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('memberLate_2')), findsNothing);
+  });
+
+  testWidgets(
+      'SessionSummaryPage flipping a late member to absent drops the flag',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+          isLate: true,
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Flip Alice to absent via her toggle.
+    await tester.tap(
+      find.byKey(const ValueKey('memberToggle_1_Alice')),
+    );
+    await tester.pumpAndSettle();
+
+    final absentRecord =
+        (await mockRepo.findSessionById('s1'))?.records.single;
+    expect(absentRecord?.status, AttendanceStatus.absent);
+    expect(absentRecord?.isLate, isFalse);
+
+    // Flip back to present: she comes back not-late.
+    await tester.tap(
+      find.byKey(const ValueKey('memberToggle_1_Alice')),
+    );
+    await tester.pumpAndSettle();
+    final restored = (await mockRepo.findSessionById('s1'))?.records.single;
+    expect(restored?.status, AttendanceStatus.present);
+    expect(restored?.isLate, isFalse);
+  });
+
+  testWidgets(
+      'SessionSummaryPage mark-everyone-present clears existing late flags',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final member2 = Member(id: '2', displayName: 'Bob');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+          isLate: true,
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1, member2],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('markEveryonePresent')));
+    await tester.pumpAndSettle();
+
+    final records = (await mockRepo.findSessionById('s1'))?.records ?? [];
+    expect(
+        records,
+        everyElement(
+          predicate<SessionRecord>((r) => r.isLate == false),
+        ));
+    expect(find.text('1 LATE'), findsNothing);
+  });
+
+  testWidgets(
+      'SessionSummaryPage late capsule counts multiple late members',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final members = [
+      Member(id: '1', displayName: 'Alice'),
+      Member(id: '2', displayName: 'Bob'),
+      Member(id: '3', displayName: 'Carol'),
+    ];
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        for (final m in members)
+          SessionRecord(
+            memberId: m.id,
+            attendee: m.displayName,
+            status: AttendanceStatus.present,
+            recordedAt: DateTime.now(),
+            recordedBy: 'User',
+          ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: members,
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('memberLate_2')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 LATE'), findsOneWidget);
+    // The Present numeral still counts every present attendee.
+    expect(find.text('3'), findsOneWidget);
+  });
+
+  testWidgets('SessionSummaryPage late affordance present under both groupings',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final member2 = Member(id: '2', displayName: 'Bob');
+
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+        SessionRecord(
+          memberId: '2',
+          attendee: 'Bob',
+          status: AttendanceStatus.absent,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1, member2],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // By-status (initial grouping of the summary roster).
+    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
+
+    // Switch to by-family.
+    await tester.tap(find.text('By family'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
+  });
+
 }
 
 class _ThrowingSessionRepository implements SessionRepository {

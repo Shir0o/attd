@@ -118,6 +118,7 @@ void main() {
         'member': 'Alex',
         'name': '[2026-05-17] Sunday Service - Alex',
         'status': 'present',
+        'late': false,
       });
       expect(
         records.map((record) => record['name']),
@@ -126,6 +127,54 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('last_sheets_sync_time'), isNotNull);
+    });
+
+    test('sheets payload carries the late flag per record', () async {
+      final sessionsFile = File(p.join(tempDir.path, 'sessions.json'));
+      await sessionsFile.writeAsString(
+        jsonEncode([
+          {
+            'title': 'Sunday Service',
+            'sessionDate': '2026-05-17T09:00:00.000',
+            'updatedAt': '2026-05-17T10:00:00.000',
+            'records': [
+              {
+                'attendee': 'Late Larry',
+                'status': 'present',
+                'isLate': true,
+              },
+              {
+                'attendee': 'On Time Ollie',
+                'status': 'present',
+                'isLate': false,
+              },
+              {
+                'attendee': 'Legacy Lena',
+                'status': 'present',
+              },
+            ],
+          },
+        ]),
+      );
+
+      final receivedBodies = <String>[];
+      final client = MockClient((request) async {
+        receivedBodies.add(request.body);
+        return http.Response('', HttpStatus.ok);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      expect(receivedBodies, hasLength(1));
+      final payload = jsonDecode(receivedBodies.single) as Map<String, dynamic>;
+      final records = payload['records'] as List<dynamic>;
+      expect(records, hasLength(3));
+      expect(records[0]['late'], true);
+      expect(records[1]['late'], false);
+      // A record saved before the lateness feature syncs as not-late.
+      expect(records[2]['late'], false);
     });
 
     test('correctly populates structured fields for hyphenated event names like check-in', () async {
@@ -162,6 +211,7 @@ void main() {
         'member': 'Alex Smith',
         'name': '[2026-05-17] check-in - Alex Smith',
         'status': 'present',
+        'late': false,
       });
     });
 
@@ -229,6 +279,7 @@ void main() {
         'member': 'Unknown',
         'name': '[2026-05-17] Untitled - Unknown',
         'status': 'absent',
+        'late': false,
       });
     });
 
