@@ -39,8 +39,12 @@ void main() {
       expect(appfile, contains('fastlane/play-supply-credentials.json'));
     });
 
-    test('skips metadata, images, and screenshots (we only need the AAB)', () {
-      expect(fastfile, contains('skip_upload_metadata: true'));
+    test('uploads text metadata and changelogs, skips images/screenshots', () {
+      // ADR 0002: release notes are prefilled from the changelog, so text
+      // metadata and changelogs are synchronized; only media is skipped.
+      expect(fastfile, contains('metadata_path: "fastlane/metadata/android"'));
+      expect(fastfile, contains('skip_upload_metadata: false'));
+      expect(fastfile, contains('skip_upload_changelogs: false'));
       expect(fastfile, contains('skip_upload_images: true'));
       expect(fastfile, contains('skip_upload_screenshots: true'));
     });

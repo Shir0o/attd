@@ -113,6 +113,7 @@ class ReportExportService {
   ReportSummary _summarize(List<Session> sessions) {
     var present = 0;
     var absent = 0;
+    var late = 0;
     var records = 0;
 
     for (final session in sessions) {
@@ -121,6 +122,7 @@ class ReportExportService {
         switch (record.status) {
           case AttendanceStatus.present:
             present++;
+            if (record.isLate) late++;
             break;
           case AttendanceStatus.absent:
             absent++;
@@ -134,19 +136,21 @@ class ReportExportService {
       recordCount: records,
       present: present,
       absent: absent,
+      lateCount: late,
     );
   }
 
   Future<Uint8List> _renderCsv(List<Session> sessions) async {
     final buffer = StringBuffer()
-      ..writeln('Session Date,Title,Attendee,Status');
+      ..writeln('Session Date,Title,Attendee,Status,Late');
     for (final session in sessions) {
       for (final record in session.records) {
         buffer.writeln(
           '${session.sessionDate.toIso8601String()},'
           '"${_escape(session.title)}",'
           '"${_escape(record.attendee)}",'
-          '${record.status.name}',
+          '${record.status.name},'
+          '${record.isLate}',
         );
       }
     }
@@ -162,13 +166,15 @@ class ReportExportService {
       'Generated at: ${_clock().toIso8601String()}',
       'Sessions: ${summary.sessionCount}, records: ${summary.recordCount}',
       'Present: ${summary.present}, Absent: ${summary.absent}',
+      if (summary.lateCount > 0) 'Late: ${summary.lateCount}',
       '---',
     ];
 
     for (final session in sessions) {
       lines.add('${session.title} (${session.sessionDate.toIso8601String()})');
       for (final record in session.records) {
-        lines.add('  - ${record.attendee}: ${record.status.name}');
+        final lateMark = record.isLate ? ' (late)' : '';
+        lines.add('  - ${record.attendee}: ${record.status.name}$lateMark');
       }
     }
 
@@ -230,6 +236,23 @@ class ReportExportService {
     return buffer.toBytes();
   }
 
+  /// The summary lines drawn onto the image report. Hoisted behind a public
+  /// method so tests can assert the rendered text without decoding PNG bytes.
+  List<String> imageSummaryLines(
+    List<Session> sessions,
+    ReportSummary summary,
+  ) {
+    return [
+      'Attendance snapshot',
+      'Sessions: ${summary.sessionCount}',
+      'Records: ${summary.recordCount}',
+      'Present: ${summary.present}',
+      'Absent: ${summary.absent}',
+      if (summary.lateCount > 0) 'Late: ${summary.lateCount}',
+      'First session: ${sessions.isNotEmpty ? sessions.first.title : 'N/A'}',
+    ];
+  }
+
   Future<Uint8List> _renderImage(
     List<Session> sessions,
     ReportSummary summary,
@@ -243,15 +266,7 @@ class ReportExportService {
     );
     canvas.drawPaint(ui.Paint()..color = const ui.Color(0xFFF3F4F6));
 
-    final lines = <String>[
-      'Attendance snapshot',
-      'Sessions: ${summary.sessionCount}',
-      'Records: ${summary.recordCount}',
-      'Present: ${summary.present}',
-      'Absent: ${summary.absent}',
-      'First session: ${sessions.isNotEmpty ? sessions.first.title : 'N/A'}',
-    ];
-
+    final lines = imageSummaryLines(sessions, summary);
     double dy = 32;
     for (final line in lines) {
       final paragraph = _buildParagraph(line, 20);

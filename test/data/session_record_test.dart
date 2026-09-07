@@ -70,5 +70,59 @@ void main() {
       expect(fromJson.status, AttendanceStatus.absent);
       expect(fromJson.memberId, 'm1');
     });
+
+    test('late flag survives a serialize/deserialize round trip', () {
+      final lateRecord = SessionRecord(
+        memberId: 'm2',
+        attendee: 'Jane Late',
+        status: AttendanceStatus.present,
+        recordedAt: now,
+        recordedBy: 'User',
+        isLate: true,
+      );
+
+      final json = lateRecord.toJson();
+      expect(json['isLate'], true);
+
+      final fromJson = SessionRecord.fromJson(json);
+      expect(fromJson.isLate, isTrue);
+    });
+
+    test('json without a lateness key reads back as not-late', () {
+      // A session saved before the lateness feature existed carries no
+      // `isLate` key at all — it must load as nobody-was-late.
+      final legacyJson = {
+        'memberId': 'm1',
+        'attendee': 'John Doe',
+        'status': 'present',
+        'recordedAt': now.toIso8601String(),
+        'recordedBy': 'Admin',
+      };
+      final fromJson = SessionRecord.fromJson(legacyJson);
+      expect(fromJson.isLate, isFalse);
+    });
+
+    test('a record constructed absent-and-late serializes as not-late', () {
+      // The present-only invariant is enforced in the model: an absent record
+      // can never carry the late flag.
+      final absentLate = SessionRecord(
+        memberId: 'm1',
+        attendee: 'John Doe',
+        status: AttendanceStatus.absent,
+        recordedAt: now,
+        recordedBy: 'Admin',
+        isLate: true,
+      );
+      expect(absentLate.isLate, isFalse);
+      expect(absentLate.toJson()['isLate'], false);
+    });
+
+    test('copyWith flipping status to absent drops the late flag', () {
+      final lateRecord = record.copyWith(isLate: true);
+      expect(lateRecord.isLate, isTrue);
+
+      final flipped = lateRecord.copyWith(status: AttendanceStatus.absent);
+      expect(flipped.isLate, isFalse);
+    });
   });
 }

@@ -7,7 +7,8 @@ class SessionRecord {
     required this.status,
     required this.recordedAt,
     required this.recordedBy,
-  });
+    bool isLate = false,
+  }) : isLate = isLate && status == AttendanceStatus.present;
 
   final String? memberId;
   final String attendee;
@@ -15,12 +16,18 @@ class SessionRecord {
   final DateTime recordedAt;
   final String recordedBy;
 
+  /// Present-but-late flag. Only meaningful when [status] is present: an
+  /// absent record coerces this to false at construction (see the initializer
+  /// above), so no call site can persist a late flag on an absent record.
+  final bool isLate;
+
   SessionRecord copyWith({
     String? memberId,
     String? attendee,
     AttendanceStatus? status,
     DateTime? recordedAt,
     String? recordedBy,
+    bool? isLate,
   }) {
     return SessionRecord(
       memberId: memberId ?? this.memberId,
@@ -28,6 +35,7 @@ class SessionRecord {
       status: status ?? this.status,
       recordedAt: recordedAt ?? this.recordedAt,
       recordedBy: recordedBy ?? this.recordedBy,
+      isLate: isLate ?? this.isLate,
     );
   }
 
@@ -41,6 +49,7 @@ class SessionRecord {
       ),
       recordedAt: DateTime.parse(json['recordedAt'] as String),
       recordedBy: json['recordedBy'] as String,
+      isLate: json['isLate'] as bool? ?? false,
     );
   }
 
@@ -51,6 +60,7 @@ class SessionRecord {
       'status': status.name,
       'recordedAt': recordedAt.toIso8601String(),
       'recordedBy': recordedBy,
+      'isLate': isLate,
     };
   }
 }

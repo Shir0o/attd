@@ -59,6 +59,7 @@ The prototype's primitives map to Flutter widgets under `lib/core/design/widgets
 * `ConvSectionLabel` — eyebrow row with leading 3×12 bar in semantic tone.
 * `ConvFab` — 60×60 squircle with primary glow.
 * `ConvCard` / `ConvCardSoft` — 24px / 22px radius surfaces.
+* **Late affordance** — 32px clock dot (`Icons.schedule_outlined`) centred in a 44px tap target on the Session Summary roster row, between the name column and the 56×32 `ConvToggle`. Off state: no background, glyph in `ink4`. On state: `clayDeep` glyph on a `clayDeep`-at-18% wash over `card`. Absent rows render an empty 44px spacer in the same slot so toggles stay in a column; a late attendee is a present attendee, so the row background stays the present tint. The row subtitle reads "Marked present · late" with the "· late" run in `clayDeep` at weight 500 — the icon is never the only carrier of meaning. The Session Summary Present hero gains a matching capsule ("N LATE", uppercase eyebrow, clock glyph, `clayDeep` on 18% wash) beneath its sub-line when N > 0; it changes no numeral. Tonal shifts only, per the no-line rule.
 
 ## 5. Elevation
 

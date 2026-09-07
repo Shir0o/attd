@@ -127,6 +127,7 @@ class GoogleSheetsService {
           // as per SessionRecord.toJson and its usage in the deck/summary pages.
           final attendeeName = r['attendee'] as String? ?? 'Unknown';
           final status = r['status'] as String? ?? 'absent';
+          final isLate = r['isLate'] as bool? ?? false;
 
           records.add({
             'date': dateStr,
@@ -134,6 +135,7 @@ class GoogleSheetsService {
             'member': attendeeName,
             'name': '[$dateStr] $title - $attendeeName',
             'status': status,
+            'late': isLate,
           });
 
         }

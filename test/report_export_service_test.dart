@@ -321,5 +321,162 @@ void main() {
       expect(asString, contains('/Type /Page'));
       expect(asString, contains('Attendance summary report'));
     });
+
+    test('CSV carries a Late column with explicit values', () async {
+      final lateSession = Session(
+        id: '3',
+        title: 'Late Standup',
+        sessionDate: DateTime(2024, 1, 11),
+        records: [
+          SessionRecord(
+            memberId: 'm4',
+            attendee: 'Late Larry',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'test',
+            isLate: true,
+          ),
+          SessionRecord(
+            memberId: 'm5',
+            attendee: 'On Time Ollie',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'test',
+          ),
+          SessionRecord(
+            memberId: 'm6',
+            attendee: 'Absent Ada',
+            status: AttendanceStatus.absent,
+            recordedAt: now,
+            recordedBy: 'test',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'test',
+      );
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository([lateSession]),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+        sheetsClient: fakeSheetsClient,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.csv,
+        ),
+      );
+
+      final content = await File(result.filePath).readAsString();
+      final lines = content.trim().split('\n');
+      // Documented position: Late is the last column, beside Status.
+      expect(lines.first, 'Session Date,Title,Attendee,Status,Late');
+      // Every row carries an explicit value — no blanks.
+      expect(lines[1], contains('present,true'));
+      expect(lines[2], contains('present,false'));
+      expect(lines[3], contains('absent,false'));
+      // The Status column itself is untouched.
+      expect(lines[1], isNot(contains('present (late)')));
+      // Summary counts a late record as late and present.
+      expect(result.summary.lateCount, 1);
+      expect(result.summary.present, 2);
+    });
+
+    test('PDF summary and record lines carry lateness', () async {
+      final lateSession = Session(
+        id: '4',
+        title: 'PDF Session',
+        sessionDate: DateTime(2024, 1, 11),
+        records: [
+          SessionRecord(
+            memberId: 'm1',
+            attendee: 'Late Larry',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'test',
+            isLate: true,
+          ),
+          SessionRecord(
+            memberId: 'm2',
+            attendee: 'On Time Ollie',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'test',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'test',
+      );
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository([lateSession]),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+        sheetsClient: fakeSheetsClient,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.pdf,
+        ),
+      );
+
+      final asString =
+          String.fromCharCodes(await File(result.filePath).readAsBytes());
+      // Summary line states the late count.
+      expect(asString, contains('Late: 1'));
+      // The PDF writer escapes parens in content streams.
+      expect(asString, contains(r'Late Larry: present \(late\)'));
+      expect(asString, contains('On Time Ollie: present'));
+    });
+
+    test('image summary carries the late count', () async {
+      final lateSession = Session(
+        id: '5',
+        title: 'Image Session',
+        sessionDate: DateTime(2024, 1, 11),
+        records: [
+          SessionRecord(
+            memberId: 'm1',
+            attendee: 'Late Larry',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'test',
+            isLate: true,
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'test',
+      );
+      final service = ReportExportService(
+        sessionRepository: _FakeSessionRepository([lateSession]),
+        directoryProvider: () async => tempDir,
+        clock: () => now,
+        sheetsClient: fakeSheetsClient,
+      );
+
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(2024, 1, 1),
+          endDate: DateTime(2024, 1, 12),
+          format: ReportFormat.image,
+        ),
+      );
+
+      expect(result.summary.lateCount, 1);
+      expect(result.summary.present, 1);
+      // The line the image renderer draws carries the late count.
+      expect(
+        service.imageSummaryLines([lateSession], result.summary),
+        contains('Late: 1'),
+      );
+      expect(result.filePath.endsWith('.png'), isTrue);
+    });
   });
 }

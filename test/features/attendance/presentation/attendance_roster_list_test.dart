@@ -43,6 +43,7 @@ Future<void> pumpRoster(
   required List<ToggleCall> toggleLog,
   List<FamilyToggleCall>? familyLog,
   RosterGrouping grouping = RosterGrouping.byFamily,
+  Future<void> Function(Member member)? onToggleLate,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -61,6 +62,7 @@ Future<void> pumpRoster(
                 ? null
                 : (f, p) async =>
                     familyLog.add((familyId: f.id, present: p)),
+            onToggleLate: onToggleLate,
           ),
         ),
       ),
@@ -399,4 +401,126 @@ void main() {
     await tester.pumpAndSettle();
     expect(markedAll, isEmpty);
   });
+  testWidgets('late affordance hidden when onToggleLate not supplied',
+      (tester) async {
+    final now = DateTime(2025, 1, 1);
+    final session = Session(
+      id: 's',
+      title: 't',
+      sessionDate: now,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'User',
+      records: [
+        SessionRecord(
+          memberId: alice.id,
+          attendee: alice.displayName,
+          status: AttendanceStatus.present,
+          recordedAt: now,
+          recordedBy: 'User',
+        ),
+      ],
+    );
+    final log = <ToggleCall>[];
+    await pumpRoster(
+      tester,
+      session: session,
+      families: [smiths],
+      toggleLog: log,
+    );
+    // No late affordance when the callback is absent — this omission is what
+    // keeps the deck and fast-marking surfaces out of scope.
+    expect(
+      find.byKey(const ValueKey('memberLate_a')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('late affordance renders only on present rows when enabled',
+      (tester) async {
+    final now = DateTime(2025, 1, 1);
+    final session = Session(
+      id: 's',
+      title: 't',
+      sessionDate: now,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'User',
+      records: [
+        SessionRecord(
+          memberId: alice.id,
+          attendee: alice.displayName,
+          status: AttendanceStatus.present,
+          recordedAt: now,
+          recordedBy: 'User',
+        ),
+        SessionRecord(
+          memberId: bob.id,
+          attendee: bob.displayName,
+          status: AttendanceStatus.absent,
+          recordedAt: now,
+          recordedBy: 'User',
+        ),
+      ],
+    );
+    final lateToggles = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 800,
+            child: AttendanceRosterList(
+              session: session,
+              families: [smiths],
+              disableAnimations: true,
+              onToggle: (m, p) async {},
+              onToggleLate: (m) async => lateToggles.add(m.id),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // Present row: affordance exists. Absent row renders no affordance.
+    expect(find.byKey(const ValueKey('memberLate_a')), findsOneWidget);
+    expect(find.byKey(const ValueKey('memberLate_b')), findsNothing);
+
+    // Tapping it flags the member late.
+    await tester.tap(find.byKey(const ValueKey('memberLate_a')));
+    await tester.pumpAndSettle();
+    expect(lateToggles, ['a']);
+  });
+
+  testWidgets('late row subtitle says late', (tester) async {
+    final now = DateTime(2025, 1, 1);
+    final session = Session(
+      id: 's',
+      title: 't',
+      sessionDate: now,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'User',
+      records: [
+        SessionRecord(
+          memberId: alice.id,
+          attendee: alice.displayName,
+          status: AttendanceStatus.present,
+          recordedAt: now,
+          recordedBy: 'User',
+          isLate: true,
+        ),
+      ],
+    );
+    await pumpRoster(
+      tester,
+      session: session,
+      families: [smiths],
+      toggleLog: <ToggleCall>[],
+      onToggleLate: (m) async {},
+    );
+    // The word "late" rides the row subtitle, so meaning is never only an
+    // icon.
+    expect(find.text('Marked present · late'), findsOneWidget);
+  });
 }
+
