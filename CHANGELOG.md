@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.0](https://github.com/Shir0o/attd/compare/v1.3.9...v1.4.0) (2026-09-07)
+
+
+### Features
+
+* **attendance:** add present-but-late flag on session summary ([#180](https://github.com/Shir0o/attd/issues/180)) ([7c06fff](https://github.com/Shir0o/attd/commit/7c06fffb2e2c4fe431f6ac6084e7719d48370b7f))
+* **attendance:** stabilize likely grid, direct guest addition, and event menu mode picker ([#175](https://github.com/Shir0o/attd/issues/175)) ([bec17cb](https://github.com/Shir0o/attd/commit/bec17cbdac357ff4ea7b05bdf180e7b894b05b10))
+* **ci:** prefill Play Store release notes from changelog and standardize pipeline ([887123d](https://github.com/Shir0o/attd/commit/887123dac043b42758b966aefdb11c8bddd0b075))
+* implement tiered error handling and privacy-first crash reporting ([#178](https://github.com/Shir0o/attd/issues/178)) ([a839f8c](https://github.com/Shir0o/attd/commit/a839f8cd904c506cacb8d4dcd720bc7be2a694e2))
+
+
+### Bug Fixes
+
+* **sync:** initialize dotenv and GoogleSignIn in background sync isolate ([#176](https://github.com/Shir0o/attd/issues/176)) ([dd7a775](https://github.com/Shir0o/attd/commit/dd7a77546d61fb9e64c377ef296f14dd63fca8b0))
+
 ## [1.3.9](https://github.com/Shir0o/attd/compare/v1.3.8...v1.3.9) (2026-09-03)
 
 
