@@ -7,6 +7,7 @@ import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/background_sync_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/settings_page.dart';
+import 'package:attendance_tracker/core/crashlytics/crash_reporting_service.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
@@ -951,6 +952,40 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Sync paused because app was closed.'), findsOneWidget);
+  });
+
+  testWidgets('Crash reporting toggle in Privacy section updates CrashReportingService', (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    final crashService = LocalCrashReportingService(prefs: prefs);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: FakeDriveService(),
+          localBackupService: FakeLocalBackupService(),
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          sessionRepository: MockSessionRepository(),
+          crashReportingService: crashService,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Anonymous Crash Diagnostics'), findsOneWidget);
+    expect(crashService.isCollectionEnabled, isFalse);
+
+    // Tap toggle switch
+    final textFinder = find.text('Anonymous Crash Diagnostics');
+    expect(textFinder, findsOneWidget);
+    final switchFinder = find.byType(Switch);
+    expect(switchFinder, findsOneWidget);
+
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    expect(crashService.isCollectionEnabled, isTrue);
   });
 }
 
