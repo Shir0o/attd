@@ -236,6 +236,19 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         .map((m) => m.id)
         .toSet();
 
+    // Active member names (display + canonical, case-insensitive) for
+    // unlinked-mark detection: a name-keyed mark whose attendee matches no
+    // active member has lost its person.
+    final activeMemberNames = <String>{};
+    for (final family in _families) {
+      if (family.deletedAt != null) continue;
+      for (final member in family.members) {
+        if (member.deletedAt != null) continue;
+        activeMemberNames.add(member.displayName.toLowerCase());
+        activeMemberNames.add(member.canonicalName.toLowerCase());
+      }
+    }
+
     // Map Members
     final seenMemberIds = <String>{};
     for (final family in _families) {
@@ -301,6 +314,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       for (final record in session.records) {
         final isSessionDeleted = session.deletedAt != null;
         final isMemberDeleted = record.memberId != null && !activeMemberIds.contains(record.memberId);
+        final isUnlinked = record.memberId == null && !activeMemberNames.contains(record.attendee.trim().toLowerCase());
         final compositeKey = '${session.title.trim().toLowerCase()}|$sessionDateStr|${record.attendee.trim().toLowerCase()}';
 
         String? flag;
@@ -311,6 +325,9 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         } else if (isMemberDeleted) {
           flag = 'orphan';
           note = 'This attendance mark references member ID ${record.memberId}, who has been deleted or is missing from the roster.';
+        } else if (isUnlinked) {
+          flag = 'unlinked';
+          note = 'This attendance mark has no member link and its attendee name "${record.attendee}" matches no active member.';
         } else if (seenAttendanceKeys.containsKey(compositeKey)) {
           flag = 'duplicate';
           note = 'Duplicate attendance entry detected: matches event "${session.title}", date "$sessionDateStr", and attendant "${record.attendee}".';
@@ -474,6 +491,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     final c = context.conv;
     final hiddenCount = _allRecords.where((r) => r.flag == 'hidden').length;
     final orphanCount = _allRecords.where((r) => r.flag == 'orphan').length;
+    final unlinkedCount = _allRecords.where((r) => r.flag == 'unlinked').length;
     final duplicateCount = _allRecords.where((r) => r.flag == 'duplicate').length;
     final duplicateRecords = _allRecords.where((r) => r.flag == 'duplicate').toList();
 
@@ -602,8 +620,40 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                         ],
                       ),
                     ],
+                    if (unlinkedCount > 0) ...[
+                      if (duplicateCount > 0 || hiddenCount > 0 || orphanCount > 0) const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: c.primary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.person_off_outlined, color: c.primary, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$unlinkedCount Unlinked attendance marks',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                ),
+                                Text(
+                                  'Name matches no active member',
+                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (orphanCount > 0) ...[
-                      if (duplicateCount > 0 || hiddenCount > 0) const SizedBox(height: 10),
+                      if (duplicateCount > 0 || hiddenCount > 0 || unlinkedCount > 0) const SizedBox(height: 10),
                       Row(
                         children: [
                           Container(
@@ -716,7 +766,40 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   }
 
   Future<void> _handleDeleteRecord(DbRecord r) async {
-    if (r.table == 'members') {
+    if (r.table == 'attendance') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          final c = context.conv;
+          return AlertDialog(
+            backgroundColor: c.card,
+            title: Row(
+              children: [
+                Icon(Icons.delete_outline, color: c.absent),
+                const SizedBox(width: 12),
+                Text('Delete attendance mark?', style: TextStyle(color: c.ink)),
+              ],
+            ),
+            content: Text(
+              'This permanently removes the attendance mark for "${r.fields['attendee']}" from "${r.fields['formatted_date'] ?? r.fields['date']}". This cannot be undone.',
+              style: TextStyle(color: c.ink3, fontSize: 13.5, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel', style: TextStyle(color: c.ink2)),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(backgroundColor: c.absent),
+                child: const Text('Delete'),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed != true) return;
+    } else if (r.table == 'members') {
       final linkedSessions = _memberUsageMap[r.id] ?? [];
       if (linkedSessions.isNotEmpty) {
         final confirmed = await showDialog<bool>(
@@ -1327,6 +1410,7 @@ class _RecordRow extends StatelessWidget {
     final isOrphan = record.flag == 'orphan';
     final isHidden = record.flag == 'hidden';
     final isDuplicate = record.flag == 'duplicate';
+    final isUnlinked = record.flag == 'unlinked';
     final isFlagged = record.flag != null;
 
     Color iconColor = c.ink3;
@@ -1355,6 +1439,12 @@ class _RecordRow extends StatelessWidget {
       badgeText = 'DUPLICATE';
       badgeFg = amber;
       badgeBg = amber.withValues(alpha: 0.15);
+    } else if (isUnlinked) {
+      iconColor = c.primary;
+      labelColor = c.primary;
+      badgeText = 'UNLINKED';
+      badgeFg = c.primary;
+      badgeBg = c.primary.withValues(alpha: 0.15);
     }
 
     IconData icon;
@@ -1604,7 +1694,7 @@ class _RecordRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (isFlagged) ...[
+                      if (isFlagged || record.table == 'attendance') ...[
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextButton.icon(

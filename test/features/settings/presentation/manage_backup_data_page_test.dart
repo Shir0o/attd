@@ -392,7 +392,169 @@ void main() {
     await tester.tap(deleteBtn);
     await tester.pumpAndSettle();
 
+    // Confirm dialog appears before deletion
+    expect(find.text('Delete attendance mark?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
     // Verify the record is deleted from session repository (it should have saved a session without the record)
+    expect(sessions.sessions.single.records, isEmpty);
+  });
+
+  testWidgets('shows delete button and deletes a healthy (unflagged) attendance mark', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final member = Member(
+      id: 'member-1234',
+      displayName: 'Alice Member',
+      updatedAt: now,
+    );
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Alpha Family',
+        members: [member],
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-1',
+        title: 'Choir Event',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+    ]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-1',
+        title: 'Sunday Session',
+        eventId: 'event-1',
+        sessionDate: now,
+        records: [
+          SessionRecord(
+            memberId: member.id,
+            attendee: member.displayName,
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Healthy mark: no issue badge, and the bulk cleanup button is absent
+    expect(find.text('mark · present'), findsOneWidget);
+    expect(find.text('ORPHANED'), findsNothing);
+    expect(find.byKey(const ValueKey('cleanup_flagged_records_button')), findsNothing);
+
+    // Scroll the mark into view and expand it
+    await tester.ensureVisible(find.text('mark · present'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('mark · present'));
+    await tester.pumpAndSettle();
+
+    // Scroll the delete button into view and tap it
+    await tester.ensureVisible(find.text('Delete record'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete record'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete attendance mark?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(sessions.sessions.single.records, isEmpty);
+  });
+
+  testWidgets('flags unlinked attendance marks and includes them in dry run cleanup', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final member = Member(
+      id: 'member-1234',
+      displayName: 'Alice Member',
+      updatedAt: now,
+    );
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Alpha Family',
+        members: [member],
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-1',
+        title: 'Choir Event',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+    ]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-1',
+        title: 'Sunday Session',
+        eventId: 'event-1',
+        sessionDate: now,
+        records: [
+          // Name-keyed mark whose attendee matches no active member
+          SessionRecord(
+            memberId: null,
+            attendee: 'Ghost Person',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Unlinked badge shown
+    expect(find.text('UNLINKED'), findsOneWidget);
+
+    // Dry run sheet includes the unlinked category
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Dry Run & Validation'), findsOneWidget);
+    expect(find.textContaining('1 Unlinked attendance marks'), findsOneWidget);
+
+    // Cleanup removes the unlinked mark
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.pumpAndSettle();
+
     expect(sessions.sessions.single.records, isEmpty);
   });
 
