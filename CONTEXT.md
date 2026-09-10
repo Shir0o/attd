@@ -23,3 +23,15 @@ _Avoid_: Hard error, fatal exception
 **Crash Reporting Consent**:
 The explicit user permission prompt (defaulting to off) requested upon first app launch or toggled in Settings allowing diagnostic telemetry collection without PII.
 _Avoid_: Tracking opt-in, telemetry flag
+
+**Attendance Mark**:
+A single attendance record: a person, a status (present/absent/late), a recorded-at timestamp, and the actor who recorded it. Stored inside a Session; links to a person by stable member ID with a denormalized name snapshot.
+_Avoid_: Attendance entry, attendance row
+
+**Orphaned Mark**:
+An attendance mark whose member-ID link references a member that no longer exists (deleted or missing from the roster). Flagged in the storage inspector and cleanable in bulk.
+_Avoid_: Dangling record, broken reference
+
+**Unlinked Mark**:
+An attendance mark with no member-ID link (memberId is null) whose attendee name matches no active member. Distinct from an Orphaned Mark: the link is absent rather than dangling. Flagged in the storage inspector and cleanable in bulk.
+_Avoid_: Attendance without a person, nameless record
