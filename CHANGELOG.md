@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/Shir0o/attd/compare/v1.4.0...v1.5.0) (2026-09-10)
+
+
+### Features
+
+* delete attendance marks from storage inspector and flag unlinked marks ([#182](https://github.com/Shir0o/attd/issues/182)) ([923776e](https://github.com/Shir0o/attd/commit/923776e411f0b562b5ec0f43d5368919925892cf))
+
 ## [1.4.0](https://github.com/Shir0o/attd/compare/v1.3.9...v1.4.0) (2026-09-07)
 
 
