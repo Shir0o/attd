@@ -35,3 +35,7 @@ _Avoid_: Dangling record, broken reference
 **Unlinked Mark**:
 An attendance mark with no member-ID link (memberId is null) whose attendee name matches no active member. Distinct from an Orphaned Mark: the link is absent rather than dangling. Flagged in the storage inspector and cleanable in bulk.
 _Avoid_: Attendance without a person, nameless record
+
+**Attendee Surname**:
+The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent.
+_Avoid_: Family name fallback, attendee tail

@@ -208,6 +208,16 @@ void main() {
       expect(find.byKey(const Key('fastMarkingResult_sam')), findsNothing);
     });
 
+    testWidgets('subtitle displays attendee last name for members without family',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.rapidEntry);
+      await typeQuery(tester, const Key('rapidEntryField'), 'sam');
+
+      expect(find.byKey(const Key('fastMarkingResult_sam')), findsOneWidget);
+      // Sam Okafor is an auto-singleton so familyName is null; subtitle should show 'Okafor'
+      expect(find.text('Okafor'), findsOneWidget);
+    });
+
     testWidgets('tapping a result marks that person present', (tester) async {
       final h = await pumpMode(tester, MarkingMode.rapidEntry);
       await typeQuery(tester, const Key('rapidEntryField'), 'duc');
@@ -400,6 +410,15 @@ void main() {
 
       // The order of chips must stay identical to prevent disorienting jumps
       expect(getChipOrder(), initialOrder);
+    });
+
+    testWidgets('unranked chips display attendee uppercase last name instead of NEW',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      // Roster without history: Sam Okafor and Nguyen family members
+      expect(find.text('OKAFOR'), findsOneWidget);
+      expect(find.text('NGUYEN'), findsNWidgets(3));
+      expect(find.text('NEW'), findsNothing);
     });
 
     testWidgets('direct add guest button in grid opens Add Person sheet',
