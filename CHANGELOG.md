@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/Shir0o/attd/compare/v1.5.0...v1.6.0) (2026-09-12)
+
+
+### Features
+
+* **attendance:** display attendee last name in fast marking surfaces ([#184](https://github.com/Shir0o/attd/issues/184)) ([3ce5685](https://github.com/Shir0o/attd/commit/3ce5685ca910e706c18e8c5683869ba0cc23b86e))
+
 ## [1.5.0](https://github.com/Shir0o/attd/compare/v1.4.0...v1.5.0) (2026-09-10)
 
 
