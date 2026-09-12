@@ -1,6 +1,6 @@
 name: attendance_tracker
 description: A simple, privacy-focused attendance tracking application.
-version: 1.5.0
+version: 1.6.0
 environment:
   sdk: '>=3.5.0 <4.0.0'
 dependencies:
