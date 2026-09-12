@@ -82,4 +82,24 @@ void main() {
       expect(roster.displayMembersMap.containsKey('m2'), true);
     });
   });
+
+  group('memberLastName', () {
+    test('extracts the last token of multi-token names', () {
+      expect(memberLastName('John Doe'), 'Doe');
+      expect(memberLastName('Mary Jane Watson'), 'Watson');
+    });
+
+    test('returns the single name when only one token exists', () {
+      expect(memberLastName('Cher'), 'Cher');
+    });
+
+    test('handles leading, trailing, and multiple spaces', () {
+      expect(memberLastName('  Alice   Wonderland  '), 'Wonderland');
+    });
+
+    test('returns empty string for blank names', () {
+      expect(memberLastName(''), '');
+      expect(memberLastName('   '), '');
+    });
+  });
 }

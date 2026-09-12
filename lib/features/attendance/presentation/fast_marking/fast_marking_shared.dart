@@ -428,11 +428,14 @@ class AddGuestRow extends StatelessWidget {
   }
 }
 
-/// One-line context under a name: the household, plus how often the person has
-/// turned up lately when there is enough history for it to mean anything.
-String memberSubtitle(String? familyName, double? rate) {
+/// One-line context under a name: the household or attendee last name, plus how often
+/// the person has turned up lately when there is enough history for it to mean anything.
+String memberSubtitle(String? familyName, double? rate, {String? lastName}) {
+  final fallback = (lastName != null && lastName.trim().isNotEmpty)
+      ? lastName.trim()
+      : 'Loner';
   final household =
-      (familyName == null || familyName.trim().isEmpty) ? 'Loner' : familyName;
+      (familyName == null || familyName.trim().isEmpty) ? fallback : familyName;
   if (rate == null) return household;
   return '$household · ${(rate * 100).round()}% recently';
 }

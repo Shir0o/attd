@@ -7,6 +7,7 @@ import '../../../../core/design/app_radii.dart';
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../models/member.dart';
+import '../../utils/session_roster_utils.dart';
 import 'fast_marking_model.dart';
 import 'rapid_entry_view.dart';
 
@@ -259,8 +260,12 @@ class _LikelyChip extends StatelessWidget {
                 )
               else
                 Text(
-                  rate == null ? 'NEW' : '${(rate! * 100).round()}%',
+                  rate == null
+                      ? memberLastName(member.displayName).toUpperCase()
+                      : '${(rate! * 100).round()}%',
                   style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
             ],
           ),

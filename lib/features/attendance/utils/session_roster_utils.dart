@@ -123,6 +123,17 @@ int? matchRank(String haystack, String query) {
   return 2;
 }
 
+/// The last whitespace-separated token of [displayName], or the whole name if
+/// single-token. Returns an empty string for blank input.
+String memberLastName(String displayName) {
+  final parts = displayName
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return '';
+  return parts.last;
+}
+
 /// The first-name and surname initials of [displayName].
 ///
 /// The surname is the last whitespace-separated token; a one-word name yields

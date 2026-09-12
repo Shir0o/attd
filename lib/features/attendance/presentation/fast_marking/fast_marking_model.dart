@@ -97,8 +97,11 @@ class FastMarkingRoster {
   /// Recent attendance rate, or `null` without enough history to rank.
   double? rateFor(Member member) => _rateById[member.id];
 
-  String subtitleFor(Member member) =>
-      memberSubtitle(familyNameFor(member), rateFor(member));
+  String subtitleFor(Member member) => memberSubtitle(
+        familyNameFor(member),
+        rateFor(member),
+        lastName: memberLastName(member.displayName),
+      );
 
   /// How many of [family] are currently marked present.
   int presentCountIn(Family family) =>
