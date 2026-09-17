@@ -1985,6 +1985,89 @@ void main() {
     expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
   });
 
+  testWidgets('SessionSummaryPage adding an excluded member restores them from excludedMemberIds and updates version', (
+    WidgetTester tester,
+  ) async {
+    final mockRepo = MockSessionRepository();
+    final mockAttendanceRepo = MockAttendanceRepository();
+    final mockEventRepo = MockEventRepository();
+
+    final member1 = Member(id: '1', displayName: 'Alice');
+    final family = Family(
+      id: 'f1',
+      displayName: 'Family',
+      members: [member1],
+    );
+    mockAttendanceRepo.setFamilies([family]);
+
+    final event = Event(
+      id: 'e1',
+      title: 'Test Session',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Weekly',
+      memberIds: const ['1'],
+      createdAt: DateTime.now(),
+    );
+    mockEventRepo.seed(event);
+
+    final session = Session(
+      id: 's1',
+      eventId: 'e1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: const [],
+      excludedMemberIds: const ['1'],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [member1],
+          sessionRepository: mockRepo,
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+          event: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Member 1 is excluded, so roster shows 0 Total
+    expect(find.text('0 Total'), findsOneWidget);
+    expect(find.text('Alice'), findsNothing);
+
+    // Tap "Add attendee" button
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+
+    // Type Alice and pick existing member
+    await tester.enterText(
+      find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')),
+      'Alice',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Alice').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add Existing'));
+    await tester.pumpAndSettle();
+
+    // Alice should now be visible and unexcluded
+    expect(find.text('Alice'), findsOneWidget);
+    expect(find.text('1 Total'), findsOneWidget);
+    expect(find.text('Alice marked present'), findsOneWidget);
+
+    final updatedSession = await mockRepo.findSessionById('s1');
+    expect(updatedSession?.excludedMemberIds, isNot(contains('1')));
+    expect(updatedSession?.records.any((r) => r.memberId == '1'), isTrue);
+  });
 }
 
 class _ThrowingSessionRepository implements SessionRepository {
