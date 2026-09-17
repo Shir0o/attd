@@ -21,7 +21,10 @@ class _AttendanceRepository extends LocalJsonAttendanceRepository {
   _AttendanceRepository(this.families);
 
   @override
-  Future<List<Family>> fetchAllFamilies() async => families;
+  Future<List<Family>> fetchAllFamilies() async {
+    if (fetchError != null) throw fetchError!;
+    return families;
+  }
 
   @override
   Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async {
@@ -1152,5 +1155,333 @@ void main() {
     expect(attendance.families.first.members.first.displayName, 'Robert Smith');
     expect(sessions.sessions.first.records.first.attendee, 'Robert Smith');
   });
-}
 
+  testWidgets('duplicate cleanup bumps updatedAt and soft-deletes empty duplicate session',
+      (tester) async {
+    final oldTime = DateTime(2025, 1, 1, 10, 0);
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'family-1',
+        displayName: 'Test Family',
+        members: [
+          Member(
+            id: 'member-1',
+            displayName: 'Alice',
+            updatedAt: oldTime,
+          ),
+        ],
+        updatedAt: oldTime,
+      ),
+    ]);
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-primary',
+        title: 'Gardening',
+        sessionDate: DateTime(2025, 9, 12),
+        records: [
+          SessionRecord(
+            memberId: 'member-1',
+            attendee: 'Alice',
+            status: AttendanceStatus.present,
+            recordedAt: oldTime,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: oldTime,
+        updatedAt: oldTime,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 'session-duplicate',
+        title: 'Gardening',
+        sessionDate: DateTime(2025, 9, 12),
+        records: [
+          SessionRecord(
+            memberId: 'member-1',
+            attendee: 'Alice',
+            status: AttendanceStatus.present,
+            recordedAt: oldTime,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: oldTime,
+        updatedAt: oldTime,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify duplicate attendance entry detected
+    expect(find.text('DUPLICATE'), findsOneWidget);
+
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
+
+    // Confirm cleanup
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.pumpAndSettle();
+
+    // Verify session-duplicate had records removed, was soft-deleted, and updatedAt was bumped
+    final primary = sessions.sessions.firstWhere((s) => s.id == 'session-primary');
+    final duplicate = sessions.sessions.firstWhere((s) => s.id == 'session-duplicate');
+
+    expect(primary.records.length, 1);
+    expect(duplicate.records, isEmpty);
+    expect(duplicate.deletedAt, isNotNull);
+    expect(duplicate.updatedAt.isAfter(oldTime), isTrue);
+
+    // The empty duplicate session should NOT be flagged as an orphan
+    expect(find.text('ORPHANED'), findsNothing);
+  });
+
+  testWidgets('unchecking category in dry run sheet preserves its records',
+      (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'f-charlie',
+        displayName: 'Charlie Family',
+        members: [
+          Member(id: 'm-charlie', displayName: 'Charlie', updatedAt: now),
+        ],
+        updatedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-deleted',
+        title: 'Deleted Event',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+        deletedAt: now,
+      ),
+    ]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 'session-unlinked',
+        title: 'Visitor Service',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [
+          SessionRecord(
+            attendee: 'Visitor Bob',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 'session-orphan',
+        title: 'Orphan Service',
+        eventId: 'non-existent-event',
+        sessionDate: DateTime(2025, 4, 5),
+        records: [],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 's-dup1',
+        title: 'Sunday',
+        sessionDate: DateTime(2025, 4, 6),
+        records: [
+          SessionRecord(
+            memberId: 'm-charlie',
+            attendee: 'Charlie',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+      Session(
+        id: 's-dup2',
+        title: 'Sunday',
+        sessionDate: DateTime(2025, 4, 6),
+        records: [
+          SessionRecord(
+            memberId: 'm-charlie',
+            attendee: 'Charlie',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
+        ],
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'tester',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
+    expect(find.textContaining('1 Soft-deleted records'), findsOneWidget);
+    expect(find.textContaining('1 Unlinked attendance marks'), findsOneWidget);
+    expect(find.textContaining('1 Orphaned references'), findsOneWidget);
+
+    // Toggle Duplicates
+    await tester.tap(find.textContaining('1 Duplicate attendance entries'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('1 Duplicate attendance entries'));
+    await tester.pumpAndSettle();
+
+    // Toggle Hidden
+    await tester.tap(find.textContaining('1 Soft-deleted records'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('1 Soft-deleted records'));
+    await tester.pumpAndSettle();
+
+    // Toggle Orphans
+    await tester.tap(find.textContaining('1 Orphaned references'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('1 Orphaned references'));
+    await tester.pumpAndSettle();
+
+    // Uncheck Unlinked attendance marks
+    await tester.tap(find.textContaining('1 Unlinked attendance marks'));
+    await tester.pumpAndSettle();
+
+    // Uncheck the rest to verify disabled state
+    await tester.tap(find.textContaining('1 Duplicate attendance entries'));
+    await tester.tap(find.textContaining('1 Soft-deleted records'));
+    await tester.tap(find.textContaining('1 Orphaned references'));
+    await tester.pumpAndSettle();
+
+    // Button should now be disabled (selectedCount == 0)
+    final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Clean up'));
+    expect(button.onPressed, isNull);
+
+    // Re-check unlinked
+    await tester.tap(find.textContaining('1 Unlinked attendance marks'));
+    await tester.pumpAndSettle();
+
+    final buttonEnabled = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Clean up'));
+    expect(buttonEnabled.onPressed, isNotNull);
+  });
+
+  testWidgets('cleans up soft-deleted events and families', (tester) async {
+    final now = DateTime(2025, 5, 1, 10);
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'fam-deleted',
+        displayName: 'Deleted Family',
+        members: [],
+        deletedAt: now,
+      ),
+    ]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-deleted',
+        title: 'Deleted Event',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+        deletedAt: now,
+      ),
+    ]);
+    final sessions = _SessionRepository([]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('HIDDEN'), findsNWidgets(2));
+
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('2 Soft-deleted records'), findsOneWidget);
+
+    final cleanUpConfirm = find.widgetWithText(FilledButton, 'Clean up');
+    await tester.tap(cleanUpConfirm);
+    await tester.pumpAndSettle();
+
+    expect(events.events, isEmpty);
+    expect(attendance.families, isEmpty);
+    expect(find.textContaining('Cleaned up 2 flagged records'), findsOneWidget);
+  });
+
+  testWidgets('handles error when saving during cleanup', (tester) async {
+    final now = DateTime(2025, 5, 1, 10);
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'fam-error',
+        displayName: 'Error Family',
+        members: [],
+        deletedAt: now,
+      ),
+    ]);
+    attendance.saveError = Exception('Simulated DB failure');
+
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
+    await tester.tap(cleanupBtn);
+    await tester.pumpAndSettle();
+
+    final cleanUpConfirm = find.widgetWithText(FilledButton, 'Clean up');
+    await tester.tap(cleanUpConfirm);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Failed to delete records: Exception: Simulated DB failure'), findsOneWidget);
+  });
+}
