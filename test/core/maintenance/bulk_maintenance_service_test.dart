@@ -245,5 +245,17 @@ void main() {
       final s1 = sessionRepo.sessions.firstWhere((s) => s.id == 's-1');
       expect(s1.records.first.attendee, 'Bobby Smith');
     });
+
+    test('BulkDryRunResult totalOperations computes correctly', () {
+      const result = BulkDryRunResult(
+        sessionsAffected: 2,
+        marksUpdated: 5,
+        collisionsPruned: 1,
+        rosterMembersUpdated: 2,
+        rosterMembersRemoved: 1,
+        affectedSessionTitles: ['Session A', 'Session B'],
+      );
+      expect(result.totalOperations, 5 + 1 + 2 + 1);
+    });
   });
 }
