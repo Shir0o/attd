@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/Shir0o/attd/compare/v1.6.0...v1.6.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **attendance:** unexclude member on add and show confirmation feedback in session summary ([#191](https://github.com/Shir0o/attd/issues/191)) ([5f48a3d](https://github.com/Shir0o/attd/commit/5f48a3da02810393badc6b4d788d1e9b6ca938f9))
+
 ## [1.6.0](https://github.com/Shir0o/attd/compare/v1.5.0...v1.6.0) (2026-09-12)
 
 
