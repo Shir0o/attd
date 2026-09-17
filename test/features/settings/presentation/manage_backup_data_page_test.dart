@@ -962,5 +962,195 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('opens bulk update & merge modal and runs dry-run preview', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'f-1',
+        displayName: 'Smith Family',
+        members: [
+          Member(id: 'm-bob', displayName: 'Bob Smith', updatedAt: now),
+        ],
+      ),
+      Family(
+        id: 'f-2',
+        displayName: 'Doe Family',
+        members: [
+          Member(id: 'm-robert', displayName: 'Robert Smith', updatedAt: now),
+        ],
+      ),
+    ]);
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 's-1',
+        title: 'Sunday Service',
+        sessionDate: DateTime(2025, 4, 6),
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'Admin',
+        records: [
+          SessionRecord(
+            memberId: 'm-bob',
+            attendee: 'Bob Smith',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'Admin',
+          ),
+        ],
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap Bulk Rename & Merge button in AppBar
+    final bulkBtn = find.byKey(const ValueKey('bulk_merge_names_button'));
+    expect(bulkBtn, findsOneWidget);
+    await tester.tap(bulkBtn);
+    await tester.pumpAndSettle();
+
+    // Verify modal is open
+    expect(find.text('Bulk Update & Merge'), findsOneWidget);
+    expect(find.text('Static history safe · Dry-run verified'), findsOneWidget);
+
+    // Enter source and target names
+    await tester.enterText(find.byKey(const ValueKey('bulk_source_name_input')), 'Bob Smith');
+    await tester.enterText(find.byKey(const ValueKey('bulk_target_name_input')), 'Robert Smith');
+    await tester.pumpAndSettle();
+
+    // Run Dry Run
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+
+    // Check dry run preview card
+    expect(find.byKey(const ValueKey('bulk_dry_run_results_card')), findsOneWidget);
+    expect(find.text('Past sessions affected:'), findsOneWidget);
+    expect(find.text('Historical marks updated:'), findsOneWidget);
+    expect(find.text('Roster members removed:'), findsOneWidget);
+
+    // Confirm & Apply
+    await tester.ensureVisible(find.byKey(const ValueKey('bulk_execute_button')));
+    await tester.tap(find.byKey(const ValueKey('bulk_execute_button')));
+    await tester.pumpAndSettle();
+
+    // Verify merge applied
+    expect(attendance.families.first.members.isEmpty, isTrue);
+    expect(sessions.sessions.first.records.first.attendee, 'Robert Smith');
+  });
+
+  testWidgets('bulk modal validates empty and identical inputs and supports rename mode', (tester) async {
+    final now = DateTime(2025, 4, 5, 10);
+    final attendance = _AttendanceRepository([
+      Family(
+        id: 'f-1',
+        displayName: 'Smith Family',
+        members: [
+          Member(id: 'm-bob', displayName: 'Bob Smith', updatedAt: now),
+        ],
+      ),
+    ]);
+    final events = _EventRepository([]);
+    final sessions = _SessionRepository([
+      Session(
+        id: 's-1',
+        title: 'Sunday Service',
+        sessionDate: DateTime(2025, 4, 6),
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'Admin',
+        records: [
+          SessionRecord(
+            memberId: 'm-bob',
+            attendee: 'Bob Smith',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'Admin',
+          ),
+        ],
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Open modal
+    await tester.tap(find.byKey(const ValueKey('bulk_merge_names_button')));
+    await tester.pumpAndSettle();
+
+    // 1. Dry run with empty inputs in merge mode -> shows error
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please select both source and target names.'), findsOneWidget);
+
+    // 2. Identical names in merge mode -> shows error
+    await tester.enterText(find.byKey(const ValueKey('bulk_source_name_input')), 'Bob Smith');
+    await tester.enterText(find.byKey(const ValueKey('bulk_target_name_input')), 'Bob Smith');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Source and target names cannot be identical.'), findsOneWidget);
+
+    // 3. Switch to Rename mode tab
+    await tester.tap(find.byKey(const ValueKey('bulk_mode_rename_tab')));
+    await tester.pumpAndSettle();
+
+    // Empty new name in rename mode -> shows error
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please provide an old name and a new name.'), findsOneWidget);
+
+    // Identical name in rename mode -> shows error
+    await tester.enterText(find.byKey(const ValueKey('bulk_rename_new_name_input')), 'Bob Smith');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Old name and new name cannot be identical.'), findsOneWidget);
+
+    // Valid rename
+    await tester.enterText(find.byKey(const ValueKey('bulk_rename_new_name_input')), 'Robert Smith');
+    await tester.pumpAndSettle();
+
+    // Toggle update roster checkbox
+    await tester.tap(find.byKey(const ValueKey('bulk_update_roster_checkbox')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bulk_update_roster_checkbox')));
+    await tester.pumpAndSettle();
+
+    // Calculate dry run
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('bulk_dry_run_results_card')), findsOneWidget);
+    expect(find.text('Roster members renamed:'), findsOneWidget);
+
+    // Execute rename
+    await tester.ensureVisible(find.byKey(const ValueKey('bulk_execute_button')));
+    await tester.tap(find.byKey(const ValueKey('bulk_execute_button')));
+    await tester.pumpAndSettle();
+
+    // Verify rename executed
+    expect(attendance.families.first.members.first.displayName, 'Robert Smith');
+    expect(sessions.sessions.first.records.first.attendee, 'Robert Smith');
+  });
 }
 

@@ -158,6 +158,7 @@ class _FamilyListPageState extends State<FamilyListPage> {
           final memberToFamilies = <String, List<String>>{};
           for (final f in realFamilies) {
             for (final m in f.members) {
+              if (m.deletedAt != null) continue;
               memberToFamilies.putIfAbsent(m.displayName, () => []).add(f.displayName);
             }
           }
