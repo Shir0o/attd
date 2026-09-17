@@ -218,6 +218,15 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       resolved = Member(id: '', displayName: name, isVisitor: true);
     }
     await _toggleAttendance(resolved, isPresent);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${resolved.displayName} marked ${isPresent ? "present" : "absent"}',
+          ),
+        ),
+      );
+    }
   }
 
   // The page renders immediately from the session passed in by the caller.
@@ -263,8 +272,14 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
             r.attendee == member.displayName));
     updatedRecords.add(newRecord);
 
+    final updatedExcluded = List<String>.from(_currentSession.excludedMemberIds);
+    if (memberIdForRecord != null) {
+      updatedExcluded.remove(memberIdForRecord);
+    }
+
     final updatedSession = _currentSession.copyWith(
       records: updatedRecords,
+      excludedMemberIds: updatedExcluded,
       updatedAt: DateTime.now(),
     );
 
@@ -273,8 +288,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     });
 
     try {
-      await widget.sessionRepository
+      final saved = await widget.sessionRepository
           .saveSnapshot(updatedSession, actor: 'User');
+      if (mounted) {
+        setState(() {
+          _currentSession = saved;
+        });
+      }
     } catch (e) {
       debugPrint('Error updating session record: $e');
     }
