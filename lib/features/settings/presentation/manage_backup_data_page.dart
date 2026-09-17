@@ -17,6 +17,7 @@ import '../../../data/session.dart';
 import '../../../data/session_record.dart';
 import '../../../data/local_session_repository.dart';
 import '../../../data/session_repository.dart';
+import '../../../core/maintenance/bulk_maintenance_service.dart';
 
 final _log = AppLogger('ManageBackup');
 
@@ -765,6 +766,23 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     );
   }
 
+  void _showBulkMergeDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return _BulkMaintenanceModal(
+          attendanceRepository: widget.attendanceRepository,
+          sessionRepository: widget.sessionRepository,
+          onComplete: () async {
+            await _loadData();
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _handleDeleteRecord(DbRecord r) async {
     if (r.table == 'attendance') {
       final confirmed = await showDialog<bool>(
@@ -948,6 +966,15 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         ),
         title: const ConvEyebrow('Backup data'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            key: const ValueKey('bulk_merge_names_button'),
+            tooltip: 'Bulk Rename & Merge',
+            icon: Icon(Icons.merge_type_rounded, color: c.ink),
+            onPressed: _showBulkMergeDialog,
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading
           ? _buildSkeleton(context)
@@ -1730,3 +1757,683 @@ class _RecordRow extends StatelessWidget {
     );
   }
 }
+
+enum _BulkMode { merge, rename }
+
+class _BulkMaintenanceModal extends StatefulWidget {
+  const _BulkMaintenanceModal({
+    required this.attendanceRepository,
+    required this.sessionRepository,
+    required this.onComplete,
+  });
+
+  final AttendanceRepository attendanceRepository;
+  final SessionRepository sessionRepository;
+  final Future<void> Function() onComplete;
+
+  @override
+  State<_BulkMaintenanceModal> createState() => _BulkMaintenanceModalState();
+}
+
+class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
+  _BulkMode _mode = _BulkMode.merge;
+  bool _isLoading = true;
+  bool _isExecuting = false;
+
+  List<Member> _rosterMembers = [];
+  List<String> _attendeeNames = [];
+
+  String? _selectedSourceMemberId;
+  String _sourceName = '';
+  String? _selectedTargetMemberId;
+  String _targetName = '';
+  String _renameNewName = '';
+  bool _updateRoster = true;
+
+  BulkDryRunResult? _dryRunResult;
+  String? _dryRunError;
+
+  late final BulkMaintenanceService _service;
+
+  @override
+  void initState() {
+    super.initState();
+    _service = BulkMaintenanceService(
+      attendanceRepository: widget.attendanceRepository,
+      sessionRepository: widget.sessionRepository,
+    );
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    try {
+      final attRepo = widget.attendanceRepository;
+      final families = attRepo is LocalJsonAttendanceRepository
+          ? await attRepo.fetchAllFamilies()
+          : await attRepo.fetchFamilies();
+
+      final members = families
+          .expand((f) => f.members)
+          .where((m) => m.deletedAt == null)
+          .toList()
+        ..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+
+      final sesRepo = widget.sessionRepository;
+      final sessions = sesRepo is LocalJsonSessionRepository
+          ? await sesRepo.fetchAllSessions()
+          : await sesRepo.loadSessions();
+
+      final attendees = <String>{};
+      for (final s in sessions) {
+        for (final r in s.records) {
+          final trimmed = r.attendee.trim();
+          if (trimmed.isNotEmpty) attendees.add(trimmed);
+        }
+      }
+      for (final m in members) {
+        attendees.add(m.displayName.trim());
+      }
+      final sortedAttendees = attendees.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+      if (mounted) {
+        setState(() {
+          _rosterMembers = members;
+          _attendeeNames = sortedAttendees;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _runDryRun() async {
+    setState(() {
+      _dryRunResult = null;
+      _dryRunError = null;
+    });
+
+    if (_mode == _BulkMode.merge) {
+      if (_sourceName.trim().isEmpty || _targetName.trim().isEmpty) {
+        setState(() => _dryRunError = 'Please select both source and target names.');
+        return;
+      }
+      if (_sourceName.trim().toLowerCase() == _targetName.trim().toLowerCase()) {
+        setState(() => _dryRunError = 'Source and target names cannot be identical.');
+        return;
+      }
+
+      try {
+        final result = await _service.simulateMerge(
+          sourceIdentifier: _selectedSourceMemberId,
+          sourceName: _sourceName.trim(),
+          targetMemberId: _selectedTargetMemberId,
+          targetName: _targetName.trim(),
+          updateRoster: _updateRoster,
+        );
+        if (mounted) setState(() => _dryRunResult = result);
+      } catch (e) {
+        if (mounted) setState(() => _dryRunError = 'Dry run simulation failed: $e');
+      }
+    } else {
+      if (_sourceName.trim().isEmpty || _renameNewName.trim().isEmpty) {
+        setState(() => _dryRunError = 'Please provide an old name and a new name.');
+        return;
+      }
+      if (_sourceName.trim().toLowerCase() == _renameNewName.trim().toLowerCase()) {
+        setState(() => _dryRunError = 'Old name and new name cannot be identical.');
+        return;
+      }
+
+      try {
+        final result = await _service.simulateRename(
+          oldName: _sourceName.trim(),
+          newName: _renameNewName.trim(),
+          memberId: _selectedSourceMemberId,
+          updateRoster: _updateRoster,
+        );
+        if (mounted) setState(() => _dryRunResult = result);
+      } catch (e) {
+        if (mounted) setState(() => _dryRunError = 'Dry run simulation failed: $e');
+      }
+    }
+  }
+
+  Future<void> _execute() async {
+    setState(() => _isExecuting = true);
+    try {
+      if (_mode == _BulkMode.merge) {
+        await _service.executeMerge(
+          sourceIdentifier: _selectedSourceMemberId,
+          sourceName: _sourceName.trim(),
+          targetMemberId: _selectedTargetMemberId,
+          targetName: _targetName.trim(),
+          updateRoster: _updateRoster,
+        );
+      } else {
+        await _service.executeRename(
+          oldName: _sourceName.trim(),
+          newName: _renameNewName.trim(),
+          memberId: _selectedSourceMemberId,
+          updateRoster: _updateRoster,
+        );
+      }
+
+      await widget.onComplete();
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _mode == _BulkMode.merge
+                  ? 'Successfully merged "$_sourceName" into "$_targetName"'
+                  : 'Successfully renamed "$_sourceName" to "$_renameNewName"',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isExecuting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Operation failed: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(26),
+            topRight: Radius.circular(26),
+          ),
+        ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        18,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: _isLoading
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: c.hair,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: c.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(Icons.merge_type_rounded, color: c.primary, size: 22),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bulk Update & Merge',
+                              style: AppTypography.fraunces(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
+                                color: c.ink,
+                              ),
+                            ),
+                            Text(
+                              'Static history safe · Dry-run verified',
+                              style: TextStyle(fontSize: 12, color: c.ink3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Mode Selector Tabs
+                  Container(
+                    decoration: BoxDecoration(
+                      color: c.cardSoft,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            key: const ValueKey('bulk_mode_merge_tab'),
+                            onTap: () {
+                              setState(() {
+                                _mode = _BulkMode.merge;
+                                _dryRunResult = null;
+                                _dryRunError = null;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _mode == _BulkMode.merge ? c.card : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Merge Two Names',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _mode == _BulkMode.merge
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: _mode == _BulkMode.merge ? c.ink : c.ink3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            key: const ValueKey('bulk_mode_rename_tab'),
+                            onTap: () {
+                              setState(() {
+                                _mode = _BulkMode.rename;
+                                _dryRunResult = null;
+                                _dryRunError = null;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _mode == _BulkMode.rename ? c.card : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Rename Name',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _mode == _BulkMode.rename
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: _mode == _BulkMode.rename ? c.ink : c.ink3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Source Name Input
+                  Text(
+                    _mode == _BulkMode.merge ? 'Source Person (to be merged):' : 'Current Name:',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                  ),
+                  const SizedBox(height: 6),
+                  Autocomplete<String>(
+                    optionsBuilder: (textEditingValue) {
+                      if (textEditingValue.text.isEmpty) return _attendeeNames;
+                      return _attendeeNames.where((n) => n
+                          .toLowerCase()
+                          .contains(textEditingValue.text.toLowerCase()));
+                    },
+                    onSelected: (val) {
+                      final match = _rosterMembers.cast<Member?>().firstWhere(
+                            (m) => m?.displayName.toLowerCase() == val.toLowerCase(),
+                            orElse: () => null,
+                          );
+                      setState(() {
+                        _sourceName = val;
+                        _selectedSourceMemberId = match?.id;
+                        _dryRunResult = null;
+                      });
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                      return TextField(
+                        key: const ValueKey('bulk_source_name_input'),
+                        controller: controller,
+                        focusNode: focusNode,
+                        style: TextStyle(color: c.ink, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Bob Smith',
+                          hintStyle: TextStyle(color: c.ink3),
+                          filled: true,
+                          fillColor: c.cardSoft,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                        onChanged: (val) {
+                          final match = _rosterMembers.cast<Member?>().firstWhere(
+                                (m) => m?.displayName.toLowerCase() == val.trim().toLowerCase(),
+                                orElse: () => null,
+                              );
+                          setState(() {
+                            _sourceName = val;
+                            _selectedSourceMemberId = match?.id;
+                            _dryRunResult = null;
+                          });
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  if (_mode == _BulkMode.merge) ...[
+                    // Target Name Input
+                    Text(
+                      'Target Person (to keep):',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                    ),
+                    const SizedBox(height: 6),
+                    Autocomplete<String>(
+                      optionsBuilder: (textEditingValue) {
+                        if (textEditingValue.text.isEmpty) return _attendeeNames;
+                        return _attendeeNames.where((n) => n
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()));
+                      },
+                      onSelected: (val) {
+                        final match = _rosterMembers.cast<Member?>().firstWhere(
+                              (m) => m?.displayName.toLowerCase() == val.toLowerCase(),
+                              orElse: () => null,
+                            );
+                        setState(() {
+                          _targetName = val;
+                          _selectedTargetMemberId = match?.id;
+                          _dryRunResult = null;
+                        });
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          key: const ValueKey('bulk_target_name_input'),
+                          controller: controller,
+                          focusNode: focusNode,
+                          style: TextStyle(color: c.ink, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Robert Smith',
+                            hintStyle: TextStyle(color: c.ink3),
+                            filled: true,
+                            fillColor: c.cardSoft,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
+                          onChanged: (val) {
+                            final match = _rosterMembers.cast<Member?>().firstWhere(
+                                  (m) => m?.displayName.toLowerCase() == val.trim().toLowerCase(),
+                                  orElse: () => null,
+                                );
+                            setState(() {
+                              _targetName = val;
+                              _selectedTargetMemberId = match?.id;
+                              _dryRunResult = null;
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ] else ...[
+                    // Rename Target Input
+                    Text(
+                      'New Display Name:',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      key: const ValueKey('bulk_rename_new_name_input'),
+                      style: TextStyle(color: c.ink, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Robert Smith',
+                        hintStyle: TextStyle(color: c.ink3),
+                        filled: true,
+                        fillColor: c.cardSoft,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      onChanged: (val) {
+                        _renameNewName = val;
+                        _dryRunResult = null;
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  // Option to also apply to active roster
+                  InkWell(
+                    key: const ValueKey('bulk_update_roster_checkbox'),
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () {
+                      setState(() {
+                        _updateRoster = !_updateRoster;
+                        _dryRunResult = null;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: _updateRoster,
+                              activeColor: c.primary,
+                              onChanged: (val) {
+                                setState(() {
+                                  _updateRoster = val ?? true;
+                                  _dryRunResult = null;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _mode == _BulkMode.merge
+                                  ? 'Also remove source member from roster'
+                                  : 'Also rename matching roster member',
+                              style: TextStyle(fontSize: 13, color: c.ink),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Dry Run Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('bulk_dry_run_button'),
+                      onPressed: _runDryRun,
+                      icon: const Icon(Icons.analytics_outlined, size: 18),
+                      label: const Text('Calculate Dry Run'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: c.primary,
+                        side: BorderSide(color: c.primary.withValues(alpha: 0.4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+
+                  if (_dryRunError != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: c.absent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _dryRunError!,
+                        style: TextStyle(color: c.absent, fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+
+                  if (_dryRunResult != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      key: const ValueKey('bulk_dry_run_results_card'),
+                      decoration: BoxDecoration(
+                        color: c.cardSoft,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, color: c.primary, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Dry-Run Validation Preview',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildDryRunRow('Past sessions affected:', '${_dryRunResult!.sessionsAffected}'),
+                          _buildDryRunRow('Historical marks updated:', '${_dryRunResult!.marksUpdated}'),
+                          if (_dryRunResult!.collisionsPruned > 0)
+                            _buildDryRunRow(
+                              'Intra-session collisions pruned:',
+                              '${_dryRunResult!.collisionsPruned}',
+                              highlightColor: const Color(0xFFD97706),
+                            ),
+                          if (_dryRunResult!.rosterMembersRemoved > 0)
+                            _buildDryRunRow('Roster members removed:', '${_dryRunResult!.rosterMembersRemoved}'),
+                          if (_dryRunResult!.rosterMembersUpdated > 0)
+                            _buildDryRunRow('Roster members renamed:', '${_dryRunResult!.rosterMembersUpdated}'),
+
+                          if (_dryRunResult!.affectedSessionTitles.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              'Sample Sessions Affected:',
+                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: c.ink3),
+                            ),
+                            const SizedBox(height: 4),
+                            ...(_dryRunResult!.affectedSessionTitles.take(3).map((title) {
+                              return Text(
+                                '• $title',
+                                style: TextStyle(fontSize: 11.5, color: c.ink2),
+                              );
+                            })),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        key: const ValueKey('bulk_execute_button'),
+                        onPressed: _isExecuting ? null : _execute,
+                        icon: _isExecuting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.done_all, size: 18),
+                        label: Text(
+                          _isExecuting
+                              ? 'Applying...'
+                              : 'Confirm & Apply (${_dryRunResult!.totalOperations} changes)',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: c.primary,
+                          foregroundColor: c.onPrimary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+      ),
+    );
+  }
+
+  Widget _buildDryRunRow(String label, String value, {Color? highlightColor}) {
+    final c = context.conv;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12.5, color: c.ink2)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: highlightColor ?? c.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

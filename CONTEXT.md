@@ -39,3 +39,20 @@ _Avoid_: Attendance without a person, nameless record
 **Attendee Surname**:
 The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent.
 _Avoid_: Family name fallback, attendee tail
+
+**Static History Snapshot**:
+The invariant that historical SessionRecords preserve the exact attendee name and member ID captured at recording time. Routine roster edits (such as renaming or deleting a member) do not automatically mutate past attendance sessions.
+_Avoid_: Dynamic name resolution, historical cascade
+
+**Bulk Name Merge**:
+An intentional, explicit administrative operation that consolidates two attendee names or members across both the roster and past attendance records, with automatic collision resolution when both names co-occur in the same historical session.
+_Avoid_: Silent name replace, cascade delete
+
+**Dry-Run Validation**:
+A read-only simulation executed prior to any bulk mutation or duplicate cleanup that calculates and displays the exact count of roster members altered, past session marks rewritten, and collision marks pruned.
+_Avoid_: Unverified cleanup, blind migration
+
+**Duplicate Pruning**:
+The idempotent removal of redundant attendance marks (matching event title, session date, and attendee name) or duplicate member profiles across families, retaining exactly one canonical record.
+_Avoid_: Mass wipe, duplicate purge
+
