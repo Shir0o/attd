@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0](https://github.com/Shir0o/attd/compare/v1.6.1...v1.7.0) (2026-09-18)
+
+
+### Features
+
+* **maintenance:** bulk update and merge names with dry-run and static history ([#193](https://github.com/Shir0o/attd/issues/193)) ([6f594f7](https://github.com/Shir0o/attd/commit/6f594f71c63d90bbaacfce2b8da296880d681243))
+
+
+### Bug Fixes
+
+* persist duplicate record cleanup and exclude soft-deleted sessions from exports ([#195](https://github.com/Shir0o/attd/issues/195)) ([ebbaafa](https://github.com/Shir0o/attd/commit/ebbaafaa3ac7c749cbfcb10389cc38467b61aa66))
+
 ## [1.6.1](https://github.com/Shir0o/attd/compare/v1.6.0...v1.6.1) (2026-09-17)
 
 
