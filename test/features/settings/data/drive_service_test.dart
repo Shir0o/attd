@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -75,6 +76,71 @@ void main() {
       expect(stats.newSessions, 1);
       expect(stats.hasChanges, isTrue);
       expect(stats.toTags(), ['+1 Sessions']);
+    });
+
+    test('Scenario: Soft-deleted remote items are not resurrected when purged locally', () {
+      final stats = SyncStats();
+      final local = [
+        {'id': 'session_active', 'title': 'Active Local'},
+      ];
+      final remote = [
+        {'id': 'session_active', 'title': 'Active Local'},
+        {
+          'id': 'session_deleted',
+          'title': 'Deleted on Remote',
+          'deletedAt': '2026-06-25T01:52:16.892',
+        },
+      ];
+
+      final result = driveService.testMergeJsonLists(
+        local,
+        remote,
+        'sessions.json',
+        stats: stats,
+      );
+
+      expect(result.length, 1);
+      expect(result.first['id'], 'session_active');
+      expect(stats.newSessions, 0);
+      expect(stats.hasChanges, isFalse);
+    });
+
+    test('Scenario: Soft-deleted remote members are not resurrected when purged locally', () {
+      final stats = SyncStats();
+      final local = [
+        {
+          'id': 'family_1',
+          'displayName': 'Smith',
+          'members': [
+            {'id': 'member_1', 'displayName': 'Alice'},
+          ],
+        },
+      ];
+      final remote = [
+        {
+          'id': 'family_1',
+          'displayName': 'Smith',
+          'members': [
+            {'id': 'member_1', 'displayName': 'Alice'},
+            {
+              'id': 'member_deleted',
+              'displayName': 'Ghost',
+              'deletedAt': '2026-06-25T01:52:16.892',
+            },
+          ],
+        },
+      ];
+
+      final result = driveService.testMergeJsonLists(
+        local,
+        remote,
+        'families.json',
+        stats: stats,
+      );
+
+      final members = result.first['members'] as List;
+      expect(members.map((m) => m['id']), ['member_1']);
+      expect(stats.newMembers, 0);
     });
 
     test('Scenario: Legacy family member merge updates member stats', () {
@@ -713,6 +779,29 @@ void main() {
 
         verify(() => mockAppLockController.setExternalAuthInProgress(true)).called(1);
         verify(() => mockAppLockController.setExternalAuthInProgress(false)).called(1);
+      });
+    });
+
+    group('isAuthExpiredError', () {
+      test('identifies DetailedApiRequestError status 401', () {
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(401, 'Unauthorized')), isTrue);
+      });
+
+      test('identifies DetailedApiRequestError messages', () {
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(403, 'Invalid credentials')), isTrue);
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(403, 'Bearer token expired')), isTrue);
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(403, 'invalid token provided')), isTrue);
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(403, 'Token expired at 12:00')), isTrue);
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(403, 'auth_token_expired')), isTrue);
+        expect(isAuthExpiredError(drive.DetailedApiRequestError(403, 'quota exceeded')), isFalse);
+      });
+
+      test('identifies string-based 401 errors', () {
+        expect(isAuthExpiredError(Exception('401 Invalid credentials')), isTrue);
+        expect(isAuthExpiredError(Exception('401 Bearer error')), isTrue);
+        expect(isAuthExpiredError(Exception('401 Unauthorized')), isTrue);
+        expect(isAuthExpiredError(Exception('401 not found')), isFalse);
+        expect(isAuthExpiredError(Exception('500 server error')), isFalse);
       });
     });
   });

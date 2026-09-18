@@ -127,6 +127,9 @@ class LocalBackupService {
       final timeFormat = DateFormat('HH:mm:ss');
 
       for (final s in sessionsJson) {
+        if (s is! Map) continue;
+        if (s['deletedAt'] != null) continue;
+
         final date = DateTime.parse(s['sessionDate']);
         final dateStr = dateFormat.format(date);
         final title = _escapeCsv(s['title']);

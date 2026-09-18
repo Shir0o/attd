@@ -349,5 +349,51 @@ void main() {
 
       expect(requestCount, 0);
     });
+
+    test('ignores soft-deleted sessions during Google Sheets sync', () async {
+      await File(p.join(tempDir.path, 'sessions.json')).writeAsString(
+        jsonEncode([
+          {
+            'id': '9ea23756-5b3b-44a8-a4ce-9ef690422b86',
+            'title': 'YA Meeting',
+            'sessionDate': '2026-05-17T18:00:00.000',
+            'updatedAt': '2026-06-25T01:52:16.892',
+            'deletedAt': '2026-06-25T01:52:16.892',
+            'records': [
+              {'attendee': 'Alex', 'status': 'present'},
+              {'attendee': 'Jordan', 'status': 'present'},
+            ],
+          },
+          {
+            'id': 'active-session-1',
+            'title': 'Sunday Service',
+            'sessionDate': '2026-05-18T10:00:00.000',
+            'updatedAt': '2026-05-18T11:00:00.000',
+            'records': [
+              {'attendee': 'Sam', 'status': 'present'},
+            ],
+          },
+        ]),
+      );
+
+      http.Request? capturedRequest;
+      final client = MockClient((request) async {
+        capturedRequest = request;
+        return http.Response('{"status":"ok"}', HttpStatus.ok);
+      });
+
+      await GoogleSheetsService(client: client).syncAttendance(
+        'https://script.google.test/sync',
+      );
+
+      expect(capturedRequest, isNotNull);
+      final body = jsonDecode(capturedRequest!.body) as Map<String, dynamic>;
+      final records = body['records'] as List<dynamic>;
+      expect(records, hasLength(1));
+      expect(records.first['member'], 'Sam');
+      expect(records.first['event'], 'Sunday Service');
+      // YA Meeting records must NOT be present
+      expect(records.any((r) => r['event'] == 'YA Meeting'), isFalse);
+    });
   });
 }

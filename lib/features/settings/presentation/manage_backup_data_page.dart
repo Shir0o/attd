@@ -353,6 +353,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
             'date': sessionDateStr,
             'formatted_date': sessionDateFormatted,
             'recordedAt': DateFormat('yyyy-MM-dd HH:mm:ss').format(record.recordedAt),
+            'recordedAtMs': '${record.recordedAt.millisecondsSinceEpoch}',
             'recordedBy': record.recordedBy,
           },
         ));
@@ -393,7 +394,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
             final members = f.members;
             if (members.any((m) => m.id == r.id)) {
               final newMembers = members.where((m) => m.id != r.id).toList();
-              updatedFamilies[i] = f.copyWith(members: newMembers);
+              updatedFamilies[i] = f.copyWith(
+                members: newMembers,
+                updatedAt: DateTime.now(),
+              );
               familiesChanged = true;
             }
           }
@@ -402,6 +406,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           final memberId = r.fields['member_id'] == '—' ? null : r.fields['member_id'];
           final attendeeName = r.fields['attendee'];
           final recordedAtStr = r.fields['recordedAt'];
+          final recordedAtMs = r.fields['recordedAtMs'];
 
           final sessionIndex = updatedSessions.indexWhere((s) => s.id == sessionId);
           if (sessionIndex != -1) {
@@ -410,15 +415,32 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
             final records = <SessionRecord>[];
             for (final rec in s.records) {
               final recRecordedAtStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(rec.recordedAt);
-              final isMatch = (memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName) &&
-                  (recordedAtStr == null || recordedAtStr == '—' || recRecordedAtStr == recordedAtStr);
+              final recRecordedAtMs = rec.recordedAt.millisecondsSinceEpoch.toString();
+              final isTimeMatch = (recordedAtMs != null && recordedAtMs != '—')
+                  ? recRecordedAtMs == recordedAtMs
+                  : (recordedAtStr == null || recordedAtStr == '—' || recRecordedAtStr == recordedAtStr);
+              final isMatch = (memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName) && isTimeMatch;
               if (isMatch && !removedTarget) {
                 removedTarget = true;
               } else {
                 records.add(rec);
               }
             }
-            updatedSessions[sessionIndex] = s.copyWith(records: records);
+            final now = DateTime.now();
+            if (records.isEmpty) {
+              // If cleaning duplicate records leaves the session empty (e.g. duplicate session),
+              // soft-delete the session so it doesn't become an orphan and propagates deletion to Drive.
+              updatedSessions[sessionIndex] = s.copyWith(
+                records: records,
+                deletedAt: now,
+                updatedAt: now,
+              );
+            } else {
+              updatedSessions[sessionIndex] = s.copyWith(
+                records: records,
+                updatedAt: now,
+              );
+            }
             sessionsChanged = true;
           }
         }
@@ -481,286 +503,376 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     }
   }
 
-  void _cleanupAllFlagged() {
-    final flagged = _allRecords.where((r) => r.flag != null).toSet();
-    if (flagged.isNotEmpty) {
-      _deleteRecords(flagged);
-    }
-  }
-
   void _showCleanupConfirmation(int issueTotal) {
     final c = context.conv;
-    final hiddenCount = _allRecords.where((r) => r.flag == 'hidden').length;
-    final orphanCount = _allRecords.where((r) => r.flag == 'orphan').length;
-    final unlinkedCount = _allRecords.where((r) => r.flag == 'unlinked').length;
-    final duplicateCount = _allRecords.where((r) => r.flag == 'duplicate').length;
+    final hiddenRecords = _allRecords.where((r) => r.flag == 'hidden').toList();
+    final orphanRecords = _allRecords.where((r) => r.flag == 'orphan').toList();
+    final unlinkedRecords = _allRecords.where((r) => r.flag == 'unlinked').toList();
     final duplicateRecords = _allRecords.where((r) => r.flag == 'duplicate').toList();
+
+    bool includeDuplicates = duplicateRecords.isNotEmpty;
+    bool includeHidden = hiddenRecords.isNotEmpty;
+    bool includeUnlinked = unlinkedRecords.isNotEmpty;
+    bool includeOrphans = orphanRecords.isNotEmpty;
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: c.card,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(26),
-              topRight: Radius.circular(26),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 18, 24, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: c.hair,
-                  borderRadius: BorderRadius.circular(999),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final selectedCount = (includeDuplicates ? duplicateRecords.length : 0) +
+                (includeHidden ? hiddenRecords.length : 0) +
+                (includeUnlinked ? unlinkedRecords.length : 0) +
+                (includeOrphans ? orphanRecords.length : 0);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: c.card,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(26),
+                  topRight: Radius.circular(26),
                 ),
               ),
-              const SizedBox(height: 18),
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: c.absent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(Icons.cleaning_services, color: c.absent, size: 24),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Clean up $issueTotal records?',
-                style: AppTypography.fraunces(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w500,
-                  color: c.ink,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Dry Run & Validation summary of $issueTotal flagged record(s) ready for cleanup.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: c.ink3,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  color: c.cardSoft,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 30),
+              child: SingleChildScrollView(
                 child: Column(
-                  children: [
-                    if (duplicateCount > 0)
-                      Row(
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD97706).withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.copy, color: Color(0xFFD97706), size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$duplicateCount Duplicate attendance entries',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                ),
-                                Text(
-                                  'Matching event + date + attendant',
-                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    if (hiddenCount > 0) ...[
-                      if (duplicateCount > 0) const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: c.clayDeep.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.visibility_off_outlined, color: c.clayDeep, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$hiddenCount Soft-deleted records',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                ),
-                                Text(
-                                  'Hidden in main database',
-                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (unlinkedCount > 0) ...[
-                      if (duplicateCount > 0 || hiddenCount > 0 || orphanCount > 0) const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: c.primary.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.person_off_outlined, color: c.primary, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$unlinkedCount Unlinked attendance marks',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                ),
-                                Text(
-                                  'Name matches no active member',
-                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (orphanCount > 0) ...[
-                      if (duplicateCount > 0 || hiddenCount > 0 || unlinkedCount > 0) const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: c.absent.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(Icons.link_off, color: c.absent, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$orphanCount Orphaned references',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                ),
-                                Text(
-                                  'Unlinked member or event IDs',
-                                  style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (duplicateRecords.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Duplicates Preview:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.ink),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 100),
-                  decoration: BoxDecoration(
-                    color: c.cardSoft,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: duplicateRecords.length,
-                    itemBuilder: (context, index) {
-                      final r = duplicateRecords[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          '• ${r.meta}',
-                          style: TextStyle(fontSize: 11, color: c.ink2),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-              const SizedBox(height: 22),
-              Row(
+                  mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: c.ink,
-                        side: BorderSide(color: c.hair),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Cancel'),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: c.hair,
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _cleanupAllFlagged();
-                      },
-                      icon: const Icon(Icons.delete, size: 16),
-                      label: const Text('Clean up'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: c.absent,
-                        foregroundColor: c.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                  const SizedBox(height: 18),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: c.absent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(Icons.cleaning_services, color: c.absent, size: 24),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Clean up $selectedCount records?',
+                    style: AppTypography.fraunces(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w500,
+                      color: c.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Dry Run & Validation summary of $selectedCount flagged record(s) ready for cleanup.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: c.ink3,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: c.cardSoft,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      children: [
+                        if (duplicateRecords.isNotEmpty)
+                          InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                includeDuplicates = !includeDuplicates;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD97706).withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.copy, color: Color(0xFFD97706), size: 18),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${duplicateRecords.length} Duplicate attendance entries',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                        ),
+                                        Text(
+                                          'Matching event + date + attendant',
+                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IgnorePointer(
+                                    child: Checkbox(
+                                      value: includeDuplicates,
+                                      activeColor: const Color(0xFFD97706),
+                                      onChanged: (_) {},
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (hiddenRecords.isNotEmpty) ...[
+                          if (duplicateRecords.isNotEmpty) const SizedBox(height: 8),
+                          InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                includeHidden = !includeHidden;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: c.clayDeep.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(Icons.visibility_off_outlined, color: c.clayDeep, size: 18),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${hiddenRecords.length} Soft-deleted records',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                        ),
+                                        Text(
+                                          'Hidden in main database',
+                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IgnorePointer(
+                                    child: Checkbox(
+                                      value: includeHidden,
+                                      activeColor: c.clayDeep,
+                                      onChanged: (_) {},
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (unlinkedRecords.isNotEmpty) ...[
+                          if (duplicateRecords.isNotEmpty || hiddenRecords.isNotEmpty) const SizedBox(height: 8),
+                          InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                includeUnlinked = !includeUnlinked;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: c.primary.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(Icons.person_off_outlined, color: c.primary, size: 18),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${unlinkedRecords.length} Unlinked attendance marks',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                        ),
+                                        Text(
+                                          'Name matches no active member',
+                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IgnorePointer(
+                                    child: Checkbox(
+                                      value: includeUnlinked,
+                                      activeColor: c.primary,
+                                      onChanged: (_) {},
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (orphanRecords.isNotEmpty) ...[
+                          if (duplicateRecords.isNotEmpty || hiddenRecords.isNotEmpty || unlinkedRecords.isNotEmpty) const SizedBox(height: 8),
+                          InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                includeOrphans = !includeOrphans;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: c.absent.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(Icons.link_off, color: c.absent, size: 18),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${orphanRecords.length} Orphaned references',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                        ),
+                                        Text(
+                                          'Unlinked member or event IDs',
+                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IgnorePointer(
+                                    child: Checkbox(
+                                      value: includeOrphans,
+                                      activeColor: c.absent,
+                                      onChanged: (_) {},
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (includeDuplicates && duplicateRecords.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Duplicates Preview:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.ink),
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 100),
+                      decoration: BoxDecoration(
+                        color: c.cardSoft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: duplicateRecords.length,
+                        itemBuilder: (context, index) {
+                          final r = duplicateRecords[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Text(
+                              '• ${r.meta}',
+                              style: TextStyle(fontSize: 11, color: c.ink2),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: c.ink,
+                            side: BorderSide(color: c.hair),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: selectedCount == 0
+                              ? null
+                              : () {
+                                  Navigator.pop(context);
+                                  final toDelete = <DbRecord>{
+                                    if (includeDuplicates) ...duplicateRecords,
+                                    if (includeHidden) ...hiddenRecords,
+                                    if (includeUnlinked) ...unlinkedRecords,
+                                    if (includeOrphans) ...orphanRecords,
+                                  };
+                                  if (toDelete.isNotEmpty) {
+                                    _deleteRecords(toDelete);
+                                  }
+                                },
+                          icon: const Icon(Icons.delete, size: 16),
+                          label: const Text('Clean up'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: c.absent,
+                            foregroundColor: c.onPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          );
+          },
         );
       },
     );

@@ -158,4 +158,46 @@ void main() {
 
     expect(sharedText, 'Localized CSV export');
   });
+
+  test('exportData ignores soft-deleted sessions', () async {
+    final sessions = [
+      {
+        'id': '9ea23756-5b3b-44a8-a4ce-9ef690422b86',
+        'title': 'YA Meeting',
+        'sessionDate': '2026-05-17T18:00:00.000',
+        'deletedAt': '2026-06-25T01:52:16.892',
+        'records': [
+          {
+            'attendee': 'Alex',
+            'status': 'present',
+            'recordedAt': '2026-05-17T18:15:00.000',
+          },
+        ],
+      },
+      {
+        'id': 'session-active',
+        'title': 'Sunday Service',
+        'sessionDate': '2026-05-18T10:00:00.000',
+        'records': [
+          {
+            'attendee': 'Sam',
+            'status': 'present',
+            'recordedAt': '2026-05-18T10:15:00.000',
+          },
+        ],
+      },
+    ];
+
+    await File(
+      p.join(tempDir.path, 'sessions.json'),
+    ).writeAsString(jsonEncode(sessions));
+
+    await service().exportData();
+
+    final csv = await File(sharedFiles.single.path).readAsString();
+    expect(csv, contains('Sunday Service'));
+    expect(csv, contains('Sam'));
+    expect(csv, isNot(contains('YA Meeting')));
+    expect(csv, isNot(contains('Alex')));
+  });
 }

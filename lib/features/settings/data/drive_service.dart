@@ -1166,6 +1166,11 @@ class DriveService extends ChangeNotifier {
         if (item is Map && item.containsKey('id')) {
           final id = item['id'] as String;
           if (!merged.containsKey(id)) {
+            if (isRemote && item['deletedAt'] != null) {
+              // Remote item is soft-deleted and missing locally (purged or pruned);
+              // do not resurrect it.
+              continue;
+            }
             merged[id] = item;
             if (isRemote && stats != null) {
               if (fileName == 'sessions.json') stats.newSessions++;

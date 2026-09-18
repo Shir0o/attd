@@ -105,6 +105,9 @@ class GoogleSheetsService {
     final List<Map<String, dynamic>> records = [];
 
     for (final s in sessionsJson) {
+      if (s is! Map) continue;
+      if (s['deletedAt'] != null) continue;
+
       final updatedAtStr = s['updatedAt'];
       if (updatedAtStr == null) continue;
       
