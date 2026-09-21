@@ -12,6 +12,7 @@ import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../sessions/presentation/consistent_members_page.dart';
 import '../../sessions/presentation/event_trend_page.dart';
+import '../../settings/data/cisa_sync_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
@@ -33,6 +34,7 @@ class SessionSummaryPage extends StatefulWidget {
     this.eventRepository,
     this.event,
     this.driveService,
+    this.cisaSyncService,
     this.disableAnimations = false,
   });
 
@@ -44,6 +46,7 @@ class SessionSummaryPage extends StatefulWidget {
   final EventRepository? eventRepository;
   final Event? event;
   final DriveService? driveService;
+  final CisaSyncService? cisaSyncService;
   final bool disableAnimations;
 
   @override
@@ -52,6 +55,8 @@ class SessionSummaryPage extends StatefulWidget {
 
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
+  late final CisaSyncService _cisaSyncService;
+  bool _isSyncingCisa = false;
   List<Member> _allMembers = [];
   List<Family> _allFamilies = [];
   Event? _currentEvent;
@@ -63,6 +68,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     super.initState();
     _currentSession = widget.session;
     _currentEvent = widget.event;
+    _cisaSyncService = widget.cisaSyncService ?? CisaSyncService();
     debugPrint(
         'DEBUG: SessionSummaryPage.initState: session=${_currentSession.id}, title=${_currentSession.title}');
     _refreshLatest();
@@ -74,7 +80,41 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   void dispose() {
     _membersSubscription?.cancel();
     _eventsSubscription?.cancel();
+    if (widget.cisaSyncService == null) {
+      _cisaSyncService.close();
+    }
     super.dispose();
+  }
+
+  Future<void> _syncToCisa() async {
+    if (_isSyncingCisa) return;
+    setState(() => _isSyncingCisa = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final result = await _cisaSyncService.syncSession(
+        session: _currentSession,
+        event: _currentEvent,
+      );
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      if (result.success) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Synced to CISA Gathering successfully!'),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Failed to sync to CISA.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingCisa = false);
+      }
+    }
   }
 
   void _subscribeToMembers() {
@@ -728,6 +768,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           onPressed: () => Navigator.of(context).pop(_currentSession),
         ),
         actions: [
+          IconButton(
+            key: const ValueKey('sync_cisa_button'),
+            tooltip: 'Sync to CISA Gathering',
+            onPressed: _isSyncingCisa ? null : _syncToCisa,
+            icon: _isSyncingCisa
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.primary,
+                    ),
+                  )
+                : const Icon(Icons.cloud_upload_outlined),
+            color: colorScheme.primary,
+          ),
           IconButton(
             tooltip: 'View data policy',
             onPressed: _showHistoryInfo,
