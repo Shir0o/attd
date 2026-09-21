@@ -15,10 +15,25 @@ import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
+import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:intl/intl.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class MockDriveApi extends Mock implements drive.DriveApi {}
+class MockFilesResource extends Mock implements drive.FilesResource {}
+class MockPermissionsResource extends Mock implements drive.PermissionsResource {}
+
+class FakeDriveService extends Fake implements DriveService {
+  FakeDriveService({this.fakeDriveApi});
+  final drive.DriveApi? fakeDriveApi;
+
+  @override
+  drive.DriveApi? get driveApi => fakeDriveApi;
+}
 
 class FakeAttendanceRepository extends AttendanceRepository {
   List<Family> families = [];
@@ -185,7 +200,7 @@ void main() {
     eventRepository.dispose();
   });
 
-  Future<void> pumpView(WidgetTester tester) async {
+  Future<void> pumpView(WidgetTester tester, {DriveService? driveService}) async {
     await tester.pumpWidget(
       MaterialApp(
         home: HubAttendanceView(
@@ -193,6 +208,7 @@ void main() {
           sessionRepository: sessionRepository,
           eventRepository: eventRepository,
           attendanceRepository: attendanceRepository,
+          driveService: driveService,
           disableAnimations: true,
         ),
       ),
@@ -1002,5 +1018,47 @@ void main() {
     expect(find.text('Share Event'), findsOneWidget);
     expect(find.text('Edit Event'), findsOneWidget);
     expect(find.text('Delete Event'), findsOneWidget);
+
+    // Tap Share Event when drive is not signed in shows SnackBar
+    await tester.tap(find.text('Share Event'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Please sign in to Google Drive in Settings to share events.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('owner event menu opens ShareEventSheet when drive is signed in',
+      (tester) async {
+    final mockDriveApi = MockDriveApi();
+    final mockFiles = MockFilesResource();
+    final mockPermissions = MockPermissionsResource();
+    when(() => mockDriveApi.files).thenReturn(mockFiles);
+    when(() => mockDriveApi.permissions).thenReturn(mockPermissions);
+    when(() => mockFiles.list(q: any(named: 'q'), $fields: any(named: r'$fields')))
+        .thenAnswer((_) async => drive.FileList(files: []));
+
+    final fakeDrive = FakeDriveService(fakeDriveApi: mockDriveApi);
+
+    final event = todayEvent().copyWith(
+      isShared: false,
+      isReadOnly: false,
+    );
+
+    await pumpView(tester, driveService: fakeDrive);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    // Open three-dot menu
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    // Tap Share Event
+    await tester.tap(find.text('Share Event'));
+    await tester.pumpAndSettle();
+
+    // Verify ShareEventSheet is displayed
+    expect(find.text('Share this event'), findsOneWidget);
+    expect(find.byKey(const Key('shareEventSwitch')), findsOneWidget);
   });
 }

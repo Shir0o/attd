@@ -124,5 +124,95 @@ void main() {
 
       verify(() => mockSharingService.inviteCollaborator('folder-123', 'new@gmail.com')).called(1);
     });
+
+    testWidgets('revoking a collaborator calls revokeCollaborator and updates event', (tester) async {
+      final sharedEvent = testEvent.copyWith(
+        isShared: true,
+        sharedFolderId: 'folder-123',
+        collaborators: ['collab@gmail.com'],
+      );
+
+      when(() => mockSharingService.listCollaborators('folder-123')).thenAnswer(
+        (_) async => [
+          drive.Permission(id: 'p1', role: 'writer', type: 'user', emailAddress: 'collab@gmail.com', displayName: 'Collab User')
+        ],
+      );
+      when(() => mockSharingService.revokeCollaborator('folder-123', 'p1')).thenAnswer((_) async {});
+      when(() => mockEventRepo.updateEvent(any())).thenAnswer((_) async {});
+
+      await tester.pumpWidget(createWidget(event: sharedEvent));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('revoke_p1')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('revoke_p1')));
+      await tester.pumpAndSettle();
+
+      verify(() => mockSharingService.revokeCollaborator('folder-123', 'p1')).called(1);
+      verify(() => mockEventRepo.updateEvent(any(that: predicate<Event>((e) => !e.collaborators.contains('collab@gmail.com'))))).called(1);
+    });
+
+    testWidgets('toggling switch off disables sharing and calls unshareEvent', (tester) async {
+      final sharedEvent = testEvent.copyWith(
+        isShared: true,
+        sharedFolderId: 'folder-123',
+        collaborators: ['collab@gmail.com'],
+      );
+
+      when(() => mockSharingService.unshareEvent('folder-123')).thenAnswer((_) async {});
+      when(() => mockEventRepo.updateEvent(any())).thenAnswer((_) async {});
+
+      await tester.pumpWidget(createWidget(event: sharedEvent));
+      await tester.pumpAndSettle();
+
+      // Tap switch to turn off
+      await tester.tap(find.byKey(const Key('shareEventSwitch')));
+      await tester.pumpAndSettle();
+
+      verify(() => mockSharingService.unshareEvent('folder-123')).called(1);
+      verify(() => mockEventRepo.updateEvent(any(that: predicate<Event>((e) => !e.isShared)))).called(1);
+    });
+
+    testWidgets('shows error snackbar when inviting collaborator fails', (tester) async {
+      final sharedEvent = testEvent.copyWith(
+        isShared: true,
+        sharedFolderId: 'folder-123',
+      );
+
+      when(() => mockSharingService.inviteCollaborator('folder-123', 'bad@gmail.com'))
+          .thenThrow(Exception('API error'));
+
+      await tester.pumpWidget(createWidget(event: sharedEvent));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('addCollaboratorEmailInput')), 'bad@gmail.com');
+      await tester.tap(find.byKey(const Key('inviteCollaboratorBtn')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to invite collaborator'), findsOneWidget);
+    });
+
+    testWidgets('shows error snackbar when revoking collaborator fails', (tester) async {
+      final sharedEvent = testEvent.copyWith(
+        isShared: true,
+        sharedFolderId: 'folder-123',
+        collaborators: ['collab@gmail.com'],
+      );
+
+      when(() => mockSharingService.listCollaborators('folder-123')).thenAnswer(
+        (_) async => [
+          drive.Permission(id: 'p1', role: 'writer', type: 'user', emailAddress: 'collab@gmail.com')
+        ],
+      );
+      when(() => mockSharingService.revokeCollaborator('folder-123', 'p1'))
+          .thenThrow(Exception('Revoke network error'));
+
+      await tester.pumpWidget(createWidget(event: sharedEvent));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('revoke_p1')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to revoke collaborator'), findsOneWidget);
+    });
   });
 }

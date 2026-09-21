@@ -25,6 +25,7 @@ class FakeDriveFile extends Fake implements drive.File {}
 class FakePermission extends Fake implements drive.Permission {}
 class FakeEvent extends Fake implements Event {}
 class FakeMember extends Fake implements Member {}
+class FakeSession extends Fake implements Session {}
 
 void main() {
   setUpAll(() {
@@ -32,6 +33,7 @@ void main() {
     registerFallbackValue(FakePermission());
     registerFallbackValue(FakeEvent());
     registerFallbackValue(FakeMember());
+    registerFallbackValue(FakeSession());
   });
 
   group('EventSharingService - Shared Slice Generation', () {
@@ -375,7 +377,18 @@ void main() {
       final rosterContent = jsonEncode([
         {'id': 'm1', 'displayName': 'Camper Bob'}
       ]);
-      final sessionsContent = jsonEncode([]);
+      final sessionsContent = jsonEncode([
+        {
+          'id': 'sess-shared-1',
+          'title': 'Shared Camp',
+          'eventId': 'ev-shared',
+          'sessionDate': '2026-09-21T00:00:00.000Z',
+          'createdAt': '2026-09-21T00:00:00.000Z',
+          'updatedAt': '2026-09-21T00:00:00.000Z',
+          'createdBy': 'owner',
+          'records': [],
+        }
+      ]);
 
       drive.Media mediaOf(String text) {
         final bytes = utf8.encode(text);
@@ -407,6 +420,22 @@ void main() {
         Family(id: 'fam-new', displayName: 'Shared Camp Roster', members: [inv.positionalArguments[1] as Member])
       );
       when(() => mockSessionRepo.loadSessions()).thenAnswer((_) async => []);
+      when(() => mockSessionRepo.findSessionById('sess-shared-1')).thenAnswer((_) async => null);
+      when(() => mockSessionRepo.createSession(
+        title: any(named: 'title'),
+        eventId: any(named: 'eventId'),
+        sessionDate: any(named: 'sessionDate'),
+        actor: any(named: 'actor'),
+        records: any(named: 'records'),
+      )).thenAnswer((_) async => Session(
+        id: 'sess-shared-1',
+        title: 'Shared Camp',
+        sessionDate: DateTime.utc(2026, 9, 21),
+        records: const [],
+        createdAt: DateTime.utc(2026, 9, 21),
+        updatedAt: DateTime.utc(2026, 9, 21),
+        createdBy: 'owner',
+      ));
 
       await service.discoverAndIngestSharedEvents(
         eventRepo: mockEventRepo,
@@ -419,6 +448,272 @@ void main() {
           e.id == 'ev-shared' && e.isShared == true && e.isReadOnly == true && e.sharedFolderId == 'shared-f-1'
         ))
       )).called(1);
+    });
+
+    test('unshareEvent trashes the shared event folder', () async {
+      when(() => mockFiles.update(any(), any())).thenAnswer((_) async => drive.File());
+
+      await service.unshareEvent('folder-123');
+
+      verify(() => mockFiles.update(
+        any(that: predicate<drive.File>((f) => f.trashed == true)),
+        'folder-123',
+      )).called(1);
+    });
+
+    test('uploadSharedSlice creates new files when they do not exist', () async {
+      when(() => mockFiles.list(
+        q: any(named: 'q'),
+        $fields: any(named: r'$fields'),
+      )).thenAnswer((_) async => drive.FileList(files: []));
+
+      when(() => mockFiles.create(
+        any(),
+        uploadMedia: any(named: 'uploadMedia'),
+      )).thenAnswer((_) async => drive.File()..id = 'new-f');
+
+      const slice = SharedSlice(
+        sharedEventJson: '{"id":"e1"}',
+        sharedRosterJson: '[]',
+        sharedSessionsJson: '[]',
+      );
+
+      await service.uploadSharedSlice('folder-123', slice);
+
+      verify(() => mockFiles.create(
+        any(that: predicate<drive.File>((f) => f.name == 'shared_event.json' && f.parents?.contains('folder-123') == true)),
+        uploadMedia: any(named: 'uploadMedia'),
+      )).called(1);
+      verify(() => mockFiles.create(
+        any(that: predicate<drive.File>((f) => f.name == 'shared_roster.json' && f.parents?.contains('folder-123') == true)),
+        uploadMedia: any(named: 'uploadMedia'),
+      )).called(1);
+      verify(() => mockFiles.create(
+        any(that: predicate<drive.File>((f) => f.name == 'shared_sessions.json' && f.parents?.contains('folder-123') == true)),
+        uploadMedia: any(named: 'uploadMedia'),
+      )).called(1);
+    });
+
+    test('uploadSharedSlice updates files when they already exist', () async {
+      when(() => mockFiles.list(
+        q: any(named: 'q'),
+        $fields: any(named: r'$fields'),
+      )).thenAnswer((_) async => drive.FileList(files: [drive.File()..id = 'existing-file-id']));
+
+      when(() => mockFiles.update(
+        any(),
+        any(),
+        uploadMedia: any(named: 'uploadMedia'),
+      )).thenAnswer((_) async => drive.File()..id = 'existing-file-id');
+
+      const slice = SharedSlice(
+        sharedEventJson: '{"id":"e1"}',
+        sharedRosterJson: '[]',
+        sharedSessionsJson: '[]',
+      );
+
+      await service.uploadSharedSlice('folder-123', slice);
+
+      verify(() => mockFiles.update(
+        any(),
+        'existing-file-id',
+        uploadMedia: any(named: 'uploadMedia'),
+      )).called(3);
+    });
+
+    test('syncSharedEvent merges local and remote sessions and uploads back', () async {
+      final mockAttendanceRepo = MockAttendanceRepository();
+      final mockSessionRepo = MockSessionRepository();
+
+      when(() => mockFiles.list(
+        q: any(named: 'q'),
+        $fields: any(named: r'$fields'),
+      )).thenAnswer((invocation) async {
+        final q = invocation.namedArguments[#q] as String;
+        if (q.contains("name = 'shared_event.json'")) {
+          return drive.FileList(files: [drive.File()..id = 'fe-1']);
+        }
+        if (q.contains("name = 'shared_roster.json'")) {
+          return drive.FileList(files: [drive.File()..id = 'fr-1']);
+        }
+        if (q.contains("name = 'shared_sessions.json'")) {
+          return drive.FileList(files: [drive.File()..id = 'fs-1']);
+        }
+        return drive.FileList(files: [drive.File()..id = 'existing-f']);
+      });
+
+      drive.Media mediaOf(String text) {
+        final bytes = utf8.encode(text);
+        return drive.Media(Stream.value(bytes), bytes.length);
+      }
+
+      when(() => mockFiles.get('fe-1', downloadOptions: drive.DownloadOptions.fullMedia))
+          .thenAnswer((_) async => mediaOf('{"id":"ev-sync"}'));
+      when(() => mockFiles.get('fr-1', downloadOptions: drive.DownloadOptions.fullMedia))
+          .thenAnswer((_) async => mediaOf('[]'));
+      when(() => mockFiles.get('fs-1', downloadOptions: drive.DownloadOptions.fullMedia))
+          .thenAnswer((_) async => mediaOf('[{"id":"sess-1","title":"Youth","sessionDate":"2026-09-21T00:00:00.000Z","createdAt":"2026-09-21T00:00:00.000Z","updatedAt":"2026-09-21T00:00:00.000Z","createdBy":"user","records":[]}]'));
+
+      when(() => mockSessionRepo.loadSessions()).thenAnswer((_) async => []);
+      when(() => mockSessionRepo.findSessionById('sess-1')).thenAnswer((_) async => null);
+      when(() => mockSessionRepo.createSession(
+        title: any(named: 'title'),
+        eventId: any(named: 'eventId'),
+        sessionDate: any(named: 'sessionDate'),
+        actor: any(named: 'actor'),
+        records: any(named: 'records'),
+      )).thenAnswer((_) async => Session(
+        id: 'sess-1',
+        title: 'Youth',
+        sessionDate: DateTime.utc(2026, 9, 21),
+        records: const [],
+        createdAt: DateTime.utc(2026, 9, 21),
+        updatedAt: DateTime.utc(2026, 9, 21),
+        createdBy: 'sync',
+      ));
+
+      when(() => mockAttendanceRepo.fetchFamilies()).thenAnswer((_) async => []);
+      when(() => mockFiles.update(any(), any(), uploadMedia: any(named: 'uploadMedia')))
+          .thenAnswer((_) async => drive.File());
+
+      final event = Event(
+        id: 'ev-sync',
+        title: 'Youth',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.utc(2026, 9, 21),
+        isShared: true,
+        sharedFolderId: 'folder-sync',
+      );
+
+      await service.syncSharedEvent(
+        event: event,
+        attendanceRepo: mockAttendanceRepo,
+        sessionRepo: mockSessionRepo,
+      );
+
+      verify(() => mockSessionRepo.createSession(
+        title: 'Youth',
+        eventId: any(named: 'eventId'),
+        sessionDate: any(named: 'sessionDate'),
+        actor: any(named: 'actor'),
+        records: any(named: 'records'),
+      )).called(1);
+    });
+
+    test('listCollaborators returns permissions from Drive API', () async {
+      when(() => mockPermissions.list(
+        'folder-1',
+        $fields: any(named: r'$fields'),
+      )).thenAnswer((_) async => drive.PermissionList(permissions: [
+        drive.Permission(id: 'p1', emailAddress: 'a@example.com'),
+      ]));
+
+      final result = await service.listCollaborators('folder-1');
+      expect(result.length, 1);
+      expect(result.first.id, 'p1');
+    });
+
+    test('discoverSharedEventFolders returns shared folders', () async {
+      when(() => mockFiles.list(
+        q: any(named: 'q'),
+        $fields: any(named: r'$fields'),
+      )).thenAnswer((_) async => drive.FileList(files: [
+        drive.File()..id = 'f-shared'..name = 'shared-event',
+      ]));
+
+      final result = await service.discoverSharedEventFolders();
+      expect(result.length, 1);
+      expect(result.first.id, 'f-shared');
+    });
+
+    test('Drive operations throw StateError when driveApi is null', () async {
+      final uninitService = EventSharingService(driveApiProvider: () => null);
+      final event = Event(
+        id: 'ev-test',
+        title: 'Test',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.utc(2026, 9, 21),
+      );
+
+      expect(() => uninitService.createSharedEventFolder(event), throwsStateError);
+      expect(() => uninitService.inviteCollaborator('f', 'e'), throwsStateError);
+      expect(() => uninitService.revokeCollaborator('f', 'p'), throwsStateError);
+      expect(() => uninitService.listCollaborators('f'), throwsStateError);
+      expect(() => uninitService.unshareEvent('f'), throwsStateError);
+      expect(() => uninitService.uploadSharedSlice('f', const SharedSlice(sharedEventJson: '', sharedRosterJson: '', sharedSessionsJson: '')), throwsStateError);
+      expect(() => uninitService.discoverSharedEventFolders(), throwsStateError);
+      expect(() => uninitService.downloadSharedSlice('f'), throwsStateError);
+    });
+
+    test('syncSharedEvent saves snapshot when session already exists locally', () async {
+      final mockAttendanceRepo = MockAttendanceRepository();
+      final mockSessionRepo = MockSessionRepository();
+
+      when(() => mockFiles.list(
+        q: any(named: 'q'),
+        $fields: any(named: r'$fields'),
+      )).thenAnswer((invocation) async {
+        final q = invocation.namedArguments[#q] as String;
+        if (q.contains("name = 'shared_event.json'")) {
+          return drive.FileList(files: [drive.File()..id = 'fe-1']);
+        }
+        if (q.contains("name = 'shared_roster.json'")) {
+          return drive.FileList(files: [drive.File()..id = 'fr-1']);
+        }
+        if (q.contains("name = 'shared_sessions.json'")) {
+          return drive.FileList(files: [drive.File()..id = 'fs-1']);
+        }
+        return drive.FileList(files: [drive.File()..id = 'existing-f']);
+      });
+
+      drive.Media mediaOf(String text) {
+        final bytes = utf8.encode(text);
+        return drive.Media(Stream.value(bytes), bytes.length);
+      }
+
+      when(() => mockFiles.get('fe-1', downloadOptions: drive.DownloadOptions.fullMedia))
+          .thenAnswer((_) async => mediaOf('{"id":"ev-sync","title":"Youth"}'));
+      when(() => mockFiles.get('fr-1', downloadOptions: drive.DownloadOptions.fullMedia))
+          .thenAnswer((_) async => mediaOf('[]'));
+      when(() => mockFiles.get('fs-1', downloadOptions: drive.DownloadOptions.fullMedia))
+          .thenAnswer((_) async => mediaOf('[{"id":"sess-1","title":"Youth","sessionDate":"2026-09-21T00:00:00.000Z","createdAt":"2026-09-21T00:00:00.000Z","updatedAt":"2026-09-21T00:00:00.000Z","createdBy":"user","records":[]}]'));
+
+      final existingSession = Session(
+        id: 'sess-1',
+        title: 'Youth',
+        sessionDate: DateTime.utc(2026, 9, 21),
+        records: const [],
+        createdAt: DateTime.utc(2026, 9, 21),
+        updatedAt: DateTime.utc(2026, 9, 21),
+        createdBy: 'user',
+      );
+
+      when(() => mockSessionRepo.loadSessions()).thenAnswer((_) async => [existingSession]);
+      when(() => mockSessionRepo.findSessionById('sess-1')).thenAnswer((_) async => existingSession);
+      when(() => mockSessionRepo.saveSnapshot(any(), actor: any(named: 'actor'))).thenAnswer((_) async => existingSession);
+      when(() => mockAttendanceRepo.fetchFamilies()).thenAnswer((_) async => []);
+      when(() => mockFiles.update(any(), any(), uploadMedia: any(named: 'uploadMedia')))
+          .thenAnswer((_) async => drive.File());
+
+      final event = Event(
+        id: 'ev-sync',
+        title: 'Youth',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime.utc(2026, 9, 21),
+        isShared: true,
+        sharedFolderId: 'folder-sync',
+      );
+
+      await service.syncSharedEvent(
+        event: event,
+        attendanceRepo: mockAttendanceRepo,
+        sessionRepo: mockSessionRepo,
+      );
+
+      verify(() => mockSessionRepo.saveSnapshot(any(), actor: 'Sync')).called(1);
     });
   });
 }

@@ -445,6 +445,7 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
                                 ),
                               ),
                               ConvIconButton(
+                                key: Key('revoke_${perm.id}'),
                                 icon: Icons.remove_circle_outline,
                                 color: c.absent,
                                 onPressed: _isActionLoading
