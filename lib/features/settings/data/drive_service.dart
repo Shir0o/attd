@@ -253,6 +253,7 @@ class DriveService extends ChangeNotifier {
   bool get isBackgroundSyncWifiOnly => _isBackgroundSyncWifiOnly;
   DateTime? get lastBackgroundSyncTime => _lastBackgroundSyncTime;
   String? get lastBackgroundSyncStatus => _lastBackgroundSyncStatus;
+  drive.DriveApi? get driveApi => _driveApi;
 
   @override
   void dispose() {

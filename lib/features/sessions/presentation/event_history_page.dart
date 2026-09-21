@@ -258,17 +258,22 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
                               return Dismissible(
                                 key: ValueKey('dismiss_session_${session.id}'),
-                                direction: DismissDirection.endToStart,
+                                direction: widget.event.isReadOnly
+                                    ? DismissDirection.none
+                                    : DismissDirection.endToStart,
                                 background: Container(color: Colors.transparent), // Required by Flutter if secondaryBackground is set
-                                secondaryBackground: _buildSwipeBackground(
-                                  context,
-                                  'Delete Session',
-                                  colorScheme.error,
-                                  Icons.delete_outline,
-                                  false,
-                                ),
+                                secondaryBackground: widget.event.isReadOnly
+                                    ? null
+                                    : _buildSwipeBackground(
+                                        context,
+                                        'Delete Session',
+                                        colorScheme.error,
+                                        Icons.delete_outline,
+                                        false,
+                                      ),
                                 confirmDismiss: (direction) async {
-                                  if (direction == DismissDirection.endToStart) {
+                                  if (!widget.event.isReadOnly &&
+                                      direction == DismissDirection.endToStart) {
                                     await _deleteSession(session);
                                   }
                                   return false;
