@@ -571,5 +571,30 @@ void _registerUncoveredPathTests() {
 
       expect(sessions.deletedIds, contains('created-2'));
     });
+
+    testWidgets('read-only event disables Dismissible swipe deletion', (
+      WidgetTester tester,
+    ) async {
+      final readOnlyEvent = event.copyWith(isReadOnly: true);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EventHistoryPage(
+            event: readOnlyEvent,
+            sessionRepository: sessions,
+            attendanceRepository: attendance,
+            eventRepository: MockEventRepository(),
+            disableAnimations: true,
+          ),
+        ),
+      );
+      sessions.emit([sampleSession()]);
+      await tester.pump(const Duration(milliseconds: 800));
+      await tester.pumpAndSettle();
+
+      final dismissibleFinder = find.byType(Dismissible);
+      expect(dismissibleFinder, findsOneWidget);
+      final dismissible = tester.widget<Dismissible>(dismissibleFinder);
+      expect(dismissible.direction, DismissDirection.none);
+    });
   });
 }

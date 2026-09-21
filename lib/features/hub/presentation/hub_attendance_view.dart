@@ -33,6 +33,8 @@ import '../../sessions/presentation/event_history_page.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
+import '../data/event_sharing_service.dart';
+import 'share_event_sheet.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -115,7 +117,28 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     });
   }
 
+  EventSharingService? get _eventSharingService {
+    final drive = widget.driveService;
+    if (drive == null || drive.driveApi == null) return null;
+    return EventSharingService(
+      driveApiProvider: () => drive.driveApi,
+    );
+  }
+
   Future<void> _refreshData() async {
+    try {
+      final sharing = _eventSharingService;
+      if (sharing != null) {
+        await sharing.discoverAndIngestSharedEvents(
+          eventRepo: widget.eventRepository,
+          attendanceRepo: widget.attendanceRepository,
+          sessionRepo: widget.sessionRepository,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error syncing shared events: $e');
+    }
+
     final families = await widget.attendanceRepository.fetchFamilies();
     final sessions = await widget.sessionRepository.loadSessions();
     if (mounted) {
@@ -259,160 +282,191 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-          ListTile(
-            leading: const Icon(Icons.people_outline),
-            title: const Text('Manage Members'),
-            onTap: () async {
-              Navigator.pop(context);
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MembersPage(
-                    event: event,
-                    attendanceRepository: widget.attendanceRepository,
-                    eventRepository: widget.eventRepository,
-                    disableAnimations: widget.disableAnimations,
-                  ),
-                ),
-              );
-              _refreshData();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.tune),
-            title: const Text('Attendance Mode'),
-            subtitle: Text(
-              event.defaultAttendanceStartMode?.label ?? 'Not set',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            if (!event.isReadOnly) ...[
+              ListTile(
+                leading: const Icon(Icons.people_outline),
+                title: const Text('Manage Members'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MembersPage(
+                        event: event,
+                        attendanceRepository: widget.attendanceRepository,
+                        eventRepository: widget.eventRepository,
+                        disableAnimations: widget.disableAnimations,
+                      ),
+                    ),
+                  );
+                  _refreshData();
+                },
               ),
-            ),
-            onTap: () async {
-              Navigator.pop(context);
-              final pickedMode = await showStartModePicker(
-                context,
-                initial: event.defaultAttendanceStartMode,
-                title: 'Attendance Mode',
-                confirmLabel: 'Save',
-              );
-              if (pickedMode != null &&
-                  pickedMode != event.defaultAttendanceStartMode) {
-                final updatedEvent = event.copyWith(
-                  defaultAttendanceStartMode: pickedMode,
-                  updatedAt: DateTime.now(),
-                );
-                try {
-                  await widget.eventRepository.updateEvent(updatedEvent);
-                } catch (e) {
-                  debugPrint('Error saving start mode preference: $e');
-                }
-                _refreshData();
-              }
-            },
-          ),
-          ListTile(
-            key: const Key('eventMenuFastMarkingMode'),
-            leading: const Icon(Icons.bolt_outlined),
-            title: const Text('Fast Marking Mode'),
-            subtitle: Text(
-              event.markingMode?.label ?? kDefaultMarkingMode.label,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            onTap: () async {
-              Navigator.pop(context);
-              final picked = await showFastMarkingModePicker(
-                context,
-                initial: event.markingMode,
-              );
-              if (picked != null && picked != event.markingMode) {
-                final updatedEvent = event.copyWith(
-                  markingMode: picked,
-                  updatedAt: DateTime.now(),
-                );
-                try {
-                  await widget.eventRepository.updateEvent(updatedEvent);
-                } catch (e) {
-                  debugPrint('Error saving fast marking mode: $e');
-                }
-                _refreshData();
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text('View History'),
-            onTap: () async {
-              Navigator.pop(context);
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EventHistoryPage(
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: const Text('Share Event'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final sharing = _eventSharingService;
+                  if (sharing == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please sign in to Google Drive in Settings to share events.'),
+                      ),
+                    );
+                    return;
+                  }
+                  await ShareEventSheet.show(
+                    context,
                     event: event,
-                    sessionRepository: widget.sessionRepository,
-                    attendanceRepository: widget.attendanceRepository,
-                    eventRepository: widget.eventRepository,
-                    driveService: widget.driveService,
-                    disableAnimations: widget.disableAnimations,
-                  ),
-                ),
-              );
-              _refreshData();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Edit Event'),
-            onTap: () async {
-              Navigator.pop(context);
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddEventPage(
+                    eventSharingService: sharing,
                     eventRepository: widget.eventRepository,
                     attendanceRepository: widget.attendanceRepository,
                     sessionRepository: widget.sessionRepository,
-                    eventToEdit: event,
-                    disableAnimations: widget.disableAnimations,
+                  );
+                  _refreshData();
+                },
+              ),
+            ],
+            if (!event.isReadOnly) ...[
+              ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Attendance Mode'),
+                subtitle: Text(
+                  event.defaultAttendanceStartMode?.label ?? 'Not set',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-              );
-              _refreshData();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline, color: Colors.red),
-            title:
-                const Text('Delete Event', style: TextStyle(color: Colors.red)),
-            onTap: () async {
-              final confirmed = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Delete Event'),
-                  content:
-                      Text('Are you sure you want to delete "${event.title}"?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Delete',
-                          style: TextStyle(color: Colors.red)),
-                    ),
-                  ],
+                onTap: () async {
+                  Navigator.pop(context);
+                  final pickedMode = await showStartModePicker(
+                    context,
+                    initial: event.defaultAttendanceStartMode,
+                    title: 'Attendance Mode',
+                    confirmLabel: 'Save',
+                  );
+                  if (pickedMode != null &&
+                      pickedMode != event.defaultAttendanceStartMode) {
+                    final updatedEvent = event.copyWith(
+                      defaultAttendanceStartMode: pickedMode,
+                      updatedAt: DateTime.now(),
+                    );
+                    try {
+                      await widget.eventRepository.updateEvent(updatedEvent);
+                    } catch (e) {
+                      debugPrint('Error saving start mode preference: $e');
+                    }
+                    _refreshData();
+                  }
+                },
+              ),
+              ListTile(
+                key: const Key('eventMenuFastMarkingMode'),
+                leading: const Icon(Icons.bolt_outlined),
+                title: const Text('Fast Marking Mode'),
+                subtitle: Text(
+                  event.markingMode?.label ?? kDefaultMarkingMode.label,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              );
+                onTap: () async {
+                  Navigator.pop(context);
+                  final picked = await showFastMarkingModePicker(
+                    context,
+                    initial: event.markingMode,
+                  );
+                  if (picked != null && picked != event.markingMode) {
+                    final updatedEvent = event.copyWith(
+                      markingMode: picked,
+                      updatedAt: DateTime.now(),
+                    );
+                    try {
+                      await widget.eventRepository.updateEvent(updatedEvent);
+                    } catch (e) {
+                      debugPrint('Error saving fast marking mode: $e');
+                    }
+                    _refreshData();
+                  }
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('View History'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EventHistoryPage(
+                      event: event,
+                      sessionRepository: widget.sessionRepository,
+                      attendanceRepository: widget.attendanceRepository,
+                      eventRepository: widget.eventRepository,
+                      driveService: widget.driveService,
+                      disableAnimations: widget.disableAnimations,
+                    ),
+                  ),
+                );
+                _refreshData();
+              },
+            ),
+            if (!event.isReadOnly) ...[
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit Event'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddEventPage(
+                        eventRepository: widget.eventRepository,
+                        attendanceRepository: widget.attendanceRepository,
+                        sessionRepository: widget.sessionRepository,
+                        eventToEdit: event,
+                        disableAnimations: widget.disableAnimations,
+                      ),
+                    ),
+                  );
+                  _refreshData();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title:
+                    const Text('Delete Event', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Delete Event'),
+                      content:
+                          Text('Are you sure you want to delete "${event.title}"?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Delete',
+                              style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
 
-              if (confirmed == true) {
-                await widget.eventRepository.deleteEvent(event.id);
-                if (mounted) Navigator.pop(context);
-              }
-            },
-          ),
-          const SizedBox(height: 16),
+                  if (confirmed == true) {
+                    await widget.eventRepository.deleteEvent(event.id);
+                    if (mounted) Navigator.pop(context);
+                  }
+                },
+              ),
+            ],
+            const SizedBox(height: 16),
         ],
       ),
     ),
@@ -1246,6 +1300,17 @@ class _HeroEventCardState extends State<_HeroEventCard>
                           controller: _pulseController,
                           animate: widget.isToday && !widget.disableAnimations,
                         ),
+                        if (widget.event.isShared) ...[
+                          const SizedBox(width: 8),
+                          const ConvPill(
+                            label: 'SHARED',
+                            fontSize: 11,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         ConvIconButton(
                           icon: Icons.more_vert,
@@ -1554,15 +1619,32 @@ class _EventRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  event.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.geist(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: c.ink,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        event.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.geist(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink,
+                        ),
+                      ),
+                    ),
+                    if (event.isShared) ...[
+                      const SizedBox(width: 6),
+                      const ConvPill(
+                        label: 'SHARED',
+                        fontSize: 10,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -1660,15 +1742,32 @@ class _TodayRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    event.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.geist(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: c.ink,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          event.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.geist(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: c.ink,
+                          ),
+                        ),
+                      ),
+                      if (event.isShared) ...[
+                        const SizedBox(width: 6),
+                        const ConvPill(
+                          label: 'SHARED',
+                          fontSize: 10,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Row(

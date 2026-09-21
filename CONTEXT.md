@@ -56,3 +56,18 @@ _Avoid_: Unverified cleanup, blind migration
 The idempotent removal of redundant attendance marks (matching event title, session date, and attendee name) or duplicate member profiles across families, retaining exactly one canonical record.
 _Avoid_: Mass wipe, duplicate purge
 
+**Shared Event**:
+An event whose roster and attendance marking sessions are scoped and published to a shared cloud folder, granting another Google user permission to co-record attendance.
+_Avoid_: Co-worker event, team event
+
+**Shared Slice**:
+The isolated data payload containing only the specific event definitions, linked member profiles, and session marks required for a Shared Event, strictly excluding unshared events and private notes.
+_Avoid_: Database export, partial backup
+
+**Share Collaborator**:
+A Google account authorized to view a Shared Event and record attendance marks within its sessions.
+_Avoid_: Co-worker, sub-user, assistant taker
+
+**Guest Mark**:
+An attendance mark recorded for an attendee not found on the Shared Event's roster, preserving the attendee name snapshot with a null member ID for the session without mutating the owner's master roster.
+_Avoid_: Walk-in, temporary member, unlisted attendee

@@ -955,4 +955,52 @@ void main() {
       MarkingMode.initialsPad,
     );
   });
+
+  testWidgets('shared event displays SHARED pill badge and read-only event hides destructive menu items',
+      (tester) async {
+    final event = todayEvent().copyWith(
+      isShared: true,
+      isReadOnly: true,
+    );
+
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    // Verify SHARED pill is displayed
+    expect(find.text('SHARED'), findsOneWidget);
+
+    // Open three-dot menu
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    // Verify read-only menu restrictions
+    expect(find.text('Manage Members'), findsNothing);
+    expect(find.text('Edit Event'), findsNothing);
+    expect(find.text('Delete Event'), findsNothing);
+    expect(find.text('Share Event'), findsNothing);
+    expect(find.text('View History'), findsOneWidget);
+  });
+
+  testWidgets('owner event menu displays Share Event, Edit, and Delete options',
+      (tester) async {
+    final event = todayEvent().copyWith(
+      isShared: false,
+      isReadOnly: false,
+    );
+
+    await pumpView(tester);
+    eventRepository.emit([event]);
+    await tester.pumpAndSettle();
+
+    // Open three-dot menu
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    // Verify owner menu options
+    expect(find.text('Manage Members'), findsOneWidget);
+    expect(find.text('Share Event'), findsOneWidget);
+    expect(find.text('Edit Event'), findsOneWidget);
+    expect(find.text('Delete Event'), findsOneWidget);
+  });
 }

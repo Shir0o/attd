@@ -136,6 +136,46 @@ void main() {
       expect(changed.frequency, 'Weekly');
       expect(changed.deletedAt, isNull);
     });
+
+    test('supports sharing properties (isShared, sharedFolderId, collaborators, isReadOnly)', () {
+      final sharedEvent = Event(
+        id: 'shared-1',
+        title: 'Shared Event',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+        isShared: true,
+        sharedFolderId: 'folder-123',
+        collaborators: ['collab@example.com'],
+        isReadOnly: true,
+      );
+
+      expect(sharedEvent.isShared, isTrue);
+      expect(sharedEvent.sharedFolderId, 'folder-123');
+      expect(sharedEvent.collaborators, ['collab@example.com']);
+      expect(sharedEvent.isReadOnly, isTrue);
+
+      final json = sharedEvent.toJson();
+      expect(json['isShared'], isTrue);
+      expect(json['sharedFolderId'], 'folder-123');
+      expect(json['collaborators'], ['collab@example.com']);
+      expect(json['isReadOnly'], isTrue);
+
+      final parsed = Event.fromJson(json);
+      expect(parsed.isShared, isTrue);
+      expect(parsed.sharedFolderId, 'folder-123');
+      expect(parsed.collaborators, ['collab@example.com']);
+      expect(parsed.isReadOnly, isTrue);
+
+      final updated = sharedEvent.copyWith(
+        isShared: false,
+        collaborators: [],
+        isReadOnly: false,
+      );
+      expect(updated.isShared, isFalse);
+      expect(updated.collaborators, isEmpty);
+      expect(updated.isReadOnly, isFalse);
+    });
   });
 
   group('Event markingMode', () {
