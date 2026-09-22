@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/Shir0o/attd/compare/v1.7.0...v1.8.0) (2026-09-21)
+
+
+### Features
+
+* **cisa:** add CISA Gathering sync client and settings ([#188](https://github.com/Shir0o/attd/issues/188)) ([#200](https://github.com/Shir0o/attd/issues/200)) ([4a25101](https://github.com/Shir0o/attd/commit/4a25101e37743a7810778de3a3174b92be206d4b))
+* scoped Google Drive subfolder sharing for attendance collaboration ([#189](https://github.com/Shir0o/attd/issues/189)) ([#198](https://github.com/Shir0o/attd/issues/198)) ([67c1926](https://github.com/Shir0o/attd/commit/67c1926be96794319c955c0184dd66567c1e9e67))
+
 ## [1.7.0](https://github.com/Shir0o/attd/compare/v1.6.1...v1.7.0) (2026-09-18)
 
 
