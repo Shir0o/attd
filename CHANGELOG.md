@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/Shir0o/attd/compare/v1.8.0...v1.9.0) (2026-09-22)
+
+
+### Features
+
+* **insights:** one configurable per-event Insights page ([#202](https://github.com/Shir0o/attd/issues/202)) ([9bb1f2a](https://github.com/Shir0o/attd/commit/9bb1f2ac1104a47fca33ab422b79de1f79bf58d1))
+
 ## [1.8.0](https://github.com/Shir0o/attd/compare/v1.7.0...v1.8.0) (2026-09-21)
 
 
