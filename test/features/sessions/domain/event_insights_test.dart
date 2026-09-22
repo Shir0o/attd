@@ -749,4 +749,72 @@ void main() {
       expect(insights.isImproving, isTrue);
     });
   });
+
+  group('exclusions and legacy links', () {
+    test('a session that excluded someone counts against them nowhere', () {
+      // Excluded is not absent. Regulars must agree with the member table
+      // about the same person — the defect class ADR 0006 exists to prevent.
+      // Bob is excluded from two of eight sessions and attends every session
+      // he was eligible for. Counting an exclusion as an absence would read
+      // 6/8 = 75% and drop him below the 80% bar.
+      final sessions = [
+        for (var i = 0; i < 8; i++)
+          _session(
+            i,
+            [
+              _mark('m1', 'Alice Okonkwo'),
+              if (i > 1) _mark('m2', 'Bob Castellanos'),
+            ],
+            excludedMemberIds: i < 2 ? ['m2'] : const [],
+          ),
+      ];
+
+      final insights = EventInsights.from(
+        event: _event(),
+        sessions: sessions,
+        members: _roster,
+      );
+
+      final bob =
+          insights.memberTable.firstWhere((m) => m.member.id == 'm2');
+      expect(bob.attended, 6);
+      expect(bob.eligible, 6);
+      expect(bob.ratePercent, 100);
+      expect(insights.regulars.map((r) => r.member.id), contains('m2'));
+    });
+
+    test('a roster member recorded without a member id is not a guest', () {
+      // Pre-identifier marks link by name. Treating them as guests would
+      // inflate guests and first-timers under the legacy fallback.
+      final insights = EventInsights.from(
+        event: _event(),
+        sessions: [
+          _session(0, [_mark(null, 'Alice Okonkwo')]),
+        ],
+        members: _roster,
+      );
+
+      expect(insights.guestMarkCount, 0);
+      expect(insights.points.single.present, 1);
+      expect(insights.firstTimers.single.name, 'Alice Okonkwo');
+      expect(insights.firstTimers.single.isGuest, isFalse);
+      expect(insights.firstSeenFor('m1'), _week(0));
+    });
+
+    test('counts everyone in the room for median session size', () {
+      // A headcount is a headcount: ADR 0006 scopes guest exclusion to rates.
+      final insights = EventInsights.from(
+        event: _event(),
+        sessions: [
+          _session(0, [
+            _mark('m1', 'Alice Okonkwo'),
+            _mark(null, 'Walk-in Wendy'),
+          ]),
+        ],
+        members: _roster,
+      );
+
+      expect(insights.medianPresentCount, 2);
+    });
+  });
 }

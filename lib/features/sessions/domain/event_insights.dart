@@ -67,7 +67,15 @@ class MemberAttendance {
   final int currentStreak;
 
   /// Present/absent per session over the regulars window, oldest first.
-  final List<bool> recentHits;
+  /// `null` where the session excluded this member — an exclusion is neither
+  /// an attendance nor an absence, so it must not count against them.
+  final List<bool?> recentHits;
+
+  /// Sessions in the window this member was actually eligible for.
+  int get recentEligible => recentHits.whereType<bool>().length;
+
+  /// Attendances within the window.
+  int get recentAttended => recentHits.where((h) => h == true).length;
 
   double get rate => eligible == 0 ? 0 : attended / eligible;
 
@@ -154,13 +162,13 @@ class EventInsights {
     required List<Session> sessions,
     required List<Member> members,
     List<Family> families = const [],
-    InsightsConfig? config,
   }) {
-    final cfg = config ?? event.insightsConfig ?? const InsightsConfig();
+    final cfg = event.resolvedInsightsConfig;
 
     final roster = _rosterFor(event, members);
     final rosterById = {for (final m in roster) m.id: m};
-    final rosterNames = {for (final m in roster) m.displayName};
+    final rosterByName = {for (final m in roster) m.displayName: m};
+    final rosterNames = rosterByName.keys.toSet();
 
     final familyByMember = <String, String>{};
     for (final f in families) {
@@ -174,17 +182,15 @@ class EventInsights {
     // First seen spans the event's whole history, not the range: someone who
     // has attended for a year is not a first timer because the window moved.
     final firstSeen = <String, DateTime>{};
-    final guestNames = <String>{};
     for (final s in relevant) {
       for (final r in s.records) {
         if (r.status != AttendanceStatus.present) continue;
-        final key = _identityOf(r, rosterNames);
+        final key = _identityOf(r, rosterByName);
         if (key == null) continue;
         final existing = firstSeen[key];
         if (existing == null || s.sessionDate.isBefore(existing)) {
           firstSeen[key] = s.sessionDate;
         }
-        if (_isGuestMark(r, rosterNames)) guestNames.add(r.attendee);
       }
     }
 
@@ -246,7 +252,7 @@ class EventInsights {
           guests++;
           guestMarks++;
         }
-        final key = _identityOf(r, rosterNames);
+        final key = _identityOf(r, rosterByName);
         if (key != null) seenSoFar.add(key);
       }
 
@@ -288,7 +294,7 @@ class EventInsights {
           attended: attended[m.id] ?? 0,
           eligible: eligible[m.id] ?? 0,
           currentStreak: streak,
-          recentHits: [for (final v in recent) v ?? false],
+          recentHits: List<bool?>.from(recent),
         ),
       );
     }
@@ -373,13 +379,18 @@ class EventInsights {
     return !rosterNames.contains(r.attendee);
   }
 
-  /// A stable key for "who this mark is about": the member id when linked,
-  /// otherwise the attendee name.
-  static String? _identityOf(SessionRecord r, Set<String> rosterNames) {
+  /// A stable key for "who this mark is about".
+  ///
+  /// The member id when the mark carries one; otherwise the id of the roster
+  /// member whose name it matches, so a mark recorded before events carried
+  /// identifiers is still that person rather than a stranger; only a name
+  /// matching nobody keys by itself.
+  static String? _identityOf(
+      SessionRecord r, Map<String, Member> rosterByName) {
     final mid = r.memberId;
     if (mid != null && mid.trim().isNotEmpty) return mid;
     if (r.attendee.trim().isEmpty) return null;
-    return r.attendee;
+    return rosterByName[r.attendee]?.id ?? r.attendee;
   }
 
   static List<LapsedAttendee> _lapsed({
@@ -475,9 +486,11 @@ class EventInsights {
     return points.reduce((a, b) => a.rate <= b.rate ? a : b);
   }
 
+  /// The median number of people in the room, guests included: ADR 0006
+  /// scopes the guest exclusion to rates, and a headcount is not a rate.
   int? get medianPresentCount {
     if (points.isEmpty) return null;
-    final counts = points.map((p) => p.present).toList()..sort();
+    final counts = points.map((p) => p.present + p.guestCount).toList()..sort();
     final mid = counts.length ~/ 2;
     if (counts.length.isOdd) return counts[mid];
     return ((counts[mid - 1] + counts[mid]) / 2).round();
@@ -498,8 +511,8 @@ class EventInsights {
     final window = config.resolvedRegularWindow;
     return memberTable.where((m) {
       if (m.recentHits.length < window) return false;
-      final hits = m.recentHits.where((h) => h).length;
-      return hits / m.recentHits.length >= threshold;
+      if (m.recentEligible == 0) return false;
+      return m.recentAttended / m.recentEligible >= threshold;
     }).toList();
   }
 

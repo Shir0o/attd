@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/design/app_radii.dart';
-import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/app_colors.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
@@ -48,24 +46,18 @@ class InsightsPage extends StatefulWidget {
 class _InsightsPageState extends State<InsightsPage> {
   late Event _event;
   late EventInsights _insights;
-  bool _loading = true;
+
+  /// Sort order for the per-member table.
+  bool _sortByRate = true;
+
+  /// Whether the member table is showing everyone or just the top rows.
+  bool _showAllMembers = false;
 
   @override
   void initState() {
     super.initState();
     _event = widget.event;
     _recompute();
-    _finishLoad();
-  }
-
-  Future<void> _finishLoad() async {
-    // One computation, so one load to wait on — the old screens each paid for
-    // their own fixed-duration skeleton.
-    if (!widget.disableAnimations) {
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-    }
-    if (!mounted) return;
-    setState(() => _loading = false);
   }
 
   void _recompute() {
@@ -147,14 +139,6 @@ class _InsightsPageState extends State<InsightsPage> {
         ),
       ],
     );
-
-    if (_loading) {
-      return Scaffold(
-        backgroundColor: c.bg,
-        appBar: appBar,
-        body: _Skeleton(disableAnimations: widget.disableAnimations),
-      );
-    }
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -254,7 +238,17 @@ class _InsightsPageState extends State<InsightsPage> {
         case InsightsSection.lapsed:
           addWide(_LapsedSection(insights: _insights, c: c));
         case InsightsSection.memberTable:
-          addWide(_MemberTableSection(insights: _insights, c: c));
+          addWide(
+            _MemberTableSection(
+              insights: _insights,
+              c: c,
+              sortByRate: _sortByRate,
+              showAll: _showAllMembers,
+              onToggleSort: () => setState(() => _sortByRate = !_sortByRate),
+              onToggleShowAll: () =>
+                  setState(() => _showAllMembers = !_showAllMembers),
+            ),
+          );
         case InsightsSection.firstTimers:
           addWide(_FirstTimersSection(insights: _insights, c: c));
         case InsightsSection.growth:
@@ -534,12 +528,14 @@ class _SectionCard extends StatelessWidget {
     required this.children,
     required this.c,
     this.accent,
+    this.trailing,
   });
 
   final String title;
   final List<Widget> children;
   final ConvocationColors c;
   final Color? accent;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -560,6 +556,7 @@ class _SectionCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(child: ConvEyebrow(title)),
+              if (trailing != null) trailing!,
             ],
           ),
           const SizedBox(height: 4),
@@ -608,7 +605,7 @@ class _RegularsSection extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${r.recentHits.where((h) => h).length}/${r.recentHits.length}',
+                    '${r.recentAttended}/${r.recentEligible}',
                     style: TextStyle(fontSize: 12, color: c.ink2),
                   ),
                 ],
@@ -691,20 +688,64 @@ class _LapsedSection extends StatelessWidget {
 }
 
 class _MemberTableSection extends StatelessWidget {
-  const _MemberTableSection({required this.insights, required this.c});
+  const _MemberTableSection({
+    required this.insights,
+    required this.c,
+    required this.sortByRate,
+    required this.showAll,
+    required this.onToggleSort,
+    required this.onToggleShowAll,
+  });
 
   final EventInsights insights;
   final ConvocationColors c;
+  final bool sortByRate;
+  final bool showAll;
+  final VoidCallback onToggleSort;
+  final VoidCallback onToggleShowAll;
+
+  static const _collapsedRows = 12;
 
   @override
   Widget build(BuildContext context) {
     final lapsedIds = insights.lapsed.map((l) => l.member.id).toSet();
-    final rows = insights.memberTable;
+    final newIds = insights.firstTimers
+        .where((f) => !f.isGuest)
+        .map((f) => f.name)
+        .toSet();
+
+    final rows = [...insights.memberTable];
+    if (!sortByRate) {
+      rows.sort(
+        (a, b) => a.member.displayName.toLowerCase().compareTo(
+              b.member.displayName.toLowerCase(),
+            ),
+      );
+    }
+    final shown = showAll ? rows : rows.take(_collapsedRows).toList();
+    final hidden = rows.length - shown.length;
+
     return _SectionCard(
       title: 'Every attendee · ${rows.length}',
       c: c,
+      trailing: TextButton(
+        onPressed: onToggleSort,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: const Size(0, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(
+          sortByRate ? 'Rate' : 'Name',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: c.primary,
+          ),
+        ),
+      ),
       children: [
-        for (final m in rows.take(12))
+        for (final m in shown)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 7),
             child: Row(
@@ -718,14 +759,10 @@ class _MemberTableSection extends StatelessWidget {
                   ),
                 ),
                 if (lapsedIds.contains(m.member.id)) ...[
-                  ConvPill(
-                    label: 'Lapsed',
-                    fontSize: 10,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                  ),
+                  const _TinyPill(label: 'Lapsed', tone: ConvTone.absent),
+                  const SizedBox(width: 8),
+                ] else if (newIds.contains(m.member.displayName)) ...[
+                  const _TinyPill(label: 'New', tone: ConvTone.present),
                   const SizedBox(width: 8),
                 ],
                 Text(
@@ -748,7 +785,43 @@ class _MemberTableSection extends StatelessWidget {
               ],
             ),
           ),
+        if (hidden > 0 || showAll)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: OutlinedButton(
+              onPressed: onToggleShowAll,
+              child: Text(
+                showAll ? 'Show fewer' : 'Show all ${rows.length}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// Inline status marker on a member row.
+class _TinyPill extends StatelessWidget {
+  const _TinyPill({required this.label, required this.tone});
+
+  final String label;
+  final ConvTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final color = tone == ConvTone.absent ? c.absent : c.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(color.withValues(alpha: 0.16), c.card),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: AppTypography.eyebrow(color: color),
+      ),
     );
   }
 }
@@ -950,37 +1023,6 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Skeleton extends StatelessWidget {
-  const _Skeleton({required this.disableAnimations});
-
-  final bool disableAnimations;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
-      children: [
-        AppShimmer(
-          width: 160,
-          height: 34,
-          borderRadius: AppRadii.compactR,
-          disableAnimations: disableAnimations,
-        ),
-        const SizedBox(height: 18),
-        for (var i = 0; i < 4; i++) ...[
-          AppShimmer(
-            width: double.infinity,
-            height: i == 0 ? 190 : 96,
-            borderRadius: AppRadii.softR,
-            disableAnimations: disableAnimations,
-          ),
-          const SizedBox(height: 12),
-        ],
-      ],
     );
   }
 }

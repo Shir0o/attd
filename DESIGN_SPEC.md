@@ -19,7 +19,7 @@ All values are sRGB approximations of the OKLCH tokens in `attd/project/app.css`
 | `clayDeep` | `#B47744` | `#DBA572` | Review / medium-confidence cues |
 
 ### Surface ladder
-`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the present/absent vertical rule on the Session Summary hero).
+`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the rule between paired stat tiles on Insights).
 
 ### Ink ladder
 `ink` (primary text), `ink2` (body), `ink3` (captions / eyebrow), `ink4` (faint / decorative).
@@ -79,7 +79,6 @@ Most surfaces are flat — depth comes from tonal layering (e.g. `card` on `bg2`
 
 These don't exist in the prototype HTML — they're invented from Play-Store promo frames in `attd/project/marketing.jsx`:
 
-* **Consistent members** — members at ≥80% across the last 8 sessions. Hero gradient card + ranked list with 8-segment attendance ribbons. Reachable from Session Summary.
-* **Insights** — one per-event page: attendance-rate chart with a single range control (12 wk / 6 mo / Year) governing every section, best/lowest/average, Regulars, Lapsed Attendees, guests, lateness, growth, per-member table, first-timers, streaks and median size. Sections are configurable per event and a section without enough data says how many more sessions it needs. Reached from the Hub event card sliver and the event menu. Replaces the separate Trends and Regulars screens.
+* **Insights** — one per-event page: attendance-rate chart with a single range control (12 wk / 6 mo / Year) governing every section (labelled by session count, since a monthly event has no twelve weeks of history), best/lowest/average, Regulars (members clearing a configurable share of a configurable window, 80% of 8 by default), guests, lateness, growth, per-member table, first-timers, streaks and median size. Sections are configurable per event and a section without enough data says how many more sessions it needs. Reached from the Hub event card sliver and the event menu. Replaces the separate Trends and Regulars screens.
 
-Both rely on data already available from `SessionRepository` and `AttendanceRepository`; no schema changes.
+Every figure is derived on read from data already in `SessionRepository` and `AttendanceRepository`. The only stored addition is the per-event Insights Configuration on `Event` (ADR 0007); no statistic is ever persisted.

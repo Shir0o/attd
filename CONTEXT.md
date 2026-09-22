@@ -73,7 +73,7 @@ An attendance mark recorded for an attendee not found on the Shared Event's rost
 _Avoid_: Walk-in, temporary member, unlisted attendee
 
 **Insights**:
-The per-event analytics surface presenting attendance trends, people views, and attendance-quality metrics as a single configurable stack of sections. Reached from the Event History app bar and the Hub event menu; scoped to one event at a time.
+The per-event analytics surface presenting attendance trends, people views, and attendance-quality metrics as a single configurable stack of sections. Reached from the Hub event card and the Hub event menu; scoped to one event at a time.
 _Avoid_: Stats, analytics dashboard, reports
 
 **Attendance Rate**:

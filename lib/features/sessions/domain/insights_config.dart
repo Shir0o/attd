@@ -12,10 +12,13 @@ library;
 /// One range governs every section: a chart covering a year above a Regulars
 /// list silently meaning "last 8" is two answers to what looks like one
 /// question.
+/// Labels count sessions, not calendar time: an event that meets monthly has
+/// no twelve *weeks* of history, and ADR 0007 turns on exactly that weekly vs
+/// monthly distinction.
 enum InsightsRange {
-  twelveWeeks(12, '12 wk'),
-  sixMonths(26, '6 mo'),
-  year(52, 'Year');
+  twelveWeeks(12, 'Last 12'),
+  sixMonths(26, 'Last 26'),
+  year(52, 'Last 52');
 
   const InsightsRange(this.sessionCount, this.label);
 

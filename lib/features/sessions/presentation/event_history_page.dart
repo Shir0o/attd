@@ -51,7 +51,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
   Future<void> _init() async {
     final startTime = DateTime.now();
-    
+
     try {
       // Parallelize member loading and initial session load
       await Future.wait([
@@ -223,8 +223,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(16),
                             itemCount: eventSessions.length,
-                            separatorBuilder:
-                                (context, index) => const SizedBox(height: 12),
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final session = eventSessions[index];
                               final dateStr = DateFormat('MMM d, yyyy').format(
@@ -234,19 +234,23 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                   '${DateFormat('EEEE').format(session.sessionDate)} • ${widget.event.time.format(context)}';
 
                               // Filter members to only those assigned to this event
-                              final filteredMembers = widget.event.memberIds.isNotEmpty
+                              final filteredMembers = widget
+                                      .event.memberIds.isNotEmpty
                                   ? _members
-                                      .where((m) => widget.event.memberIds.contains(m.id))
+                                      .where((m) =>
+                                          widget.event.memberIds.contains(m.id))
                                       .toList()
                                   : _members;
 
                               // Consistency fix: use the shared SessionRoster logic
-                              final roster = SessionRoster(session, filteredMembers);
+                              final roster =
+                                  SessionRoster(session, filteredMembers);
 
                               int totalPresent = 0;
                               int totalAbsent = 0;
 
-                              for (final member in roster.displayMembersMap.values) {
+                              for (final member
+                                  in roster.displayMembersMap.values) {
                                 final status = roster.getStatus(member);
 
                                 if (status == AttendanceStatus.present) {
@@ -261,7 +265,9 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                 direction: widget.event.isReadOnly
                                     ? DismissDirection.none
                                     : DismissDirection.endToStart,
-                                background: Container(color: Colors.transparent), // Required by Flutter if secondaryBackground is set
+                                background: Container(
+                                    color: Colors
+                                        .transparent), // Required by Flutter if secondaryBackground is set
                                 secondaryBackground: widget.event.isReadOnly
                                     ? null
                                     : _buildSwipeBackground(
@@ -273,7 +279,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                       ),
                                 confirmDismiss: (direction) async {
                                   if (!widget.event.isReadOnly &&
-                                      direction == DismissDirection.endToStart) {
+                                      direction ==
+                                          DismissDirection.endToStart) {
                                     await _deleteSession(session);
                                   }
                                   return false;
@@ -283,7 +290,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                   color: colorScheme.secondaryContainer
                                       .withOpacity(0.4),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                    borderRadius: BorderRadius.circular(
+                                        AppTheme.radiusMd),
                                     side: BorderSide(
                                       color: colorScheme.surfaceContainerHighest
                                           .withOpacity(0.5),
@@ -295,18 +303,19 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
                                           builder: (_) => SessionSummaryPage(
-                                                session: session,
-                                                members: filteredMembers,
-                                                sessionRepository:
-                                                    widget.sessionRepository,
-                                                attendanceRepository:
-                                                    widget.attendanceRepository,
-                                                eventRepository:
-                                                    widget.eventRepository,
-                                                event: widget.event,
-                                                driveService: widget.driveService,
-                                                disableAnimations: widget.disableAnimations,
-                                              ),
+                                            session: session,
+                                            members: filteredMembers,
+                                            sessionRepository:
+                                                widget.sessionRepository,
+                                            attendanceRepository:
+                                                widget.attendanceRepository,
+                                            eventRepository:
+                                                widget.eventRepository,
+                                            event: widget.event,
+                                            driveService: widget.driveService,
+                                            disableAnimations:
+                                                widget.disableAnimations,
+                                          ),
                                         ),
                                       );
                                     },
@@ -329,11 +338,14 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                       dateStr,
                                                       style: TextStyle(
                                                         fontSize: 22,
-                                                        fontWeight: FontWeight.w500,
-                                                        color: colorScheme.onSurface,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: colorScheme
+                                                            .onSurface,
                                                       ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                     Text(
                                                       dayTimeStr,
@@ -343,7 +355,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                             .onSurfaceVariant,
                                                       ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ],
                                                 ),
@@ -351,8 +364,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                               const SizedBox(width: 8),
                                               Icon(
                                                 Icons.chevron_right,
-                                                color:
-                                                    colorScheme.onSurfaceVariant,
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
                                               ),
                                             ],
                                           ),
@@ -372,9 +385,10 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                                                 width: 1,
                                                 margin:
                                                     const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                    ),
-                                                color: colorScheme.outlineVariant,
+                                                  horizontal: 16,
+                                                ),
+                                                color:
+                                                    colorScheme.outlineVariant,
                                               ),
                                               Expanded(
                                                 child: _buildStatusBadge(
@@ -406,7 +420,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
         onPressed: () => _showMakeUpDatePicker(context),
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
         child: const Icon(Icons.add, size: 24),
       ),
     );
@@ -488,29 +503,29 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
       // 2. Filter members for this event
       final sessionMembers = widget.event.memberIds.isNotEmpty
-          ? _members.where((m) => widget.event.memberIds.contains(m.id)).toList()
+          ? _members
+              .where((m) => widget.event.memberIds.contains(m.id))
+              .toList()
           : _members;
 
       // 3. Navigate to AttendanceDeckPage
       final resultSession = await Navigator.of(context).push<Session>(
         MaterialPageRoute(
-          builder:
-              (_) => AttendanceDeckPage(
-                session: session,
-                members: sessionMembers,
-                sessionRepository: widget.sessionRepository,
-                attendanceRepository: widget.attendanceRepository,
-                eventRepository: widget.eventRepository,
-                event: widget.event,
-                disableAnimations: widget.disableAnimations,
-                markingMode: widget.event.markingMode,
-              ),
+          builder: (_) => AttendanceDeckPage(
+            session: session,
+            members: sessionMembers,
+            sessionRepository: widget.sessionRepository,
+            attendanceRepository: widget.attendanceRepository,
+            eventRepository: widget.eventRepository,
+            event: widget.event,
+            disableAnimations: widget.disableAnimations,
+            markingMode: widget.event.markingMode,
+          ),
         ),
       );
 
       // Cleanup if empty after returning (consistency with Hub logic)
-      final finalSession =
-          resultSession ??
+      final finalSession = resultSession ??
           await widget.sessionRepository.findSessionById(session.id);
 
       if (finalSession != null && finalSession.records.isEmpty) {

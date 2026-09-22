@@ -52,6 +52,7 @@ class _CustomizeSheetState extends State<_CustomizeSheet> {
   late int _regularThreshold;
   late int _regularWindow;
   late int _lapsedMisses;
+  late int _lapsedMinPrior;
 
   @override
   void initState() {
@@ -60,6 +61,7 @@ class _CustomizeSheetState extends State<_CustomizeSheet> {
     _regularThreshold = widget.config.resolvedRegularThresholdPercent;
     _regularWindow = widget.config.resolvedRegularWindow;
     _lapsedMisses = widget.config.resolvedLapsedConsecutiveMisses;
+    _lapsedMinPrior = widget.config.resolvedLapsedMinimumPriorSessions;
   }
 
   void _save() {
@@ -69,6 +71,7 @@ class _CustomizeSheetState extends State<_CustomizeSheet> {
         regularThresholdPercent: _regularThreshold,
         regularWindow: _regularWindow,
         lapsedConsecutiveMisses: _lapsedMisses,
+        lapsedMinimumPriorSessions: _lapsedMinPrior,
       ),
     );
   }
@@ -160,6 +163,25 @@ class _CustomizeSheetState extends State<_CustomizeSheet> {
                   ? null
                   : () => setState(() => _lapsedMisses += 1),
               c: c,
+            ),
+            const SizedBox(height: 10),
+            _Stepper(
+              label: _lapsedMinPrior == 1
+                  ? 'Judged on 1 prior session'
+                  : 'Judged on $_lapsedMinPrior prior sessions',
+              onLess: ro || _lapsedMinPrior <= 2
+                  ? null
+                  : () => setState(() => _lapsedMinPrior -= 1),
+              onMore: ro || _lapsedMinPrior >= 12
+                  ? null
+                  : () => setState(() => _lapsedMinPrior += 1),
+              c: c,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Below this much history the section says so instead of naming '
+              'anyone.',
+              style: TextStyle(fontSize: 12, color: c.ink2),
             ),
             const SizedBox(height: 26),
             ConvEyebrow('Sections'),
