@@ -238,7 +238,9 @@ void main() {
     // Verify we are at the summary page (it shows the session title)
     await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
-    expect(find.text('PRESENT'), findsOneWidget);
+    // The summary no longer carries a Present/Absent hero: it opens on the
+    // roster (issue 196).
+    expect(find.text('PRESENT'), findsNothing);
   });
 
   testWidgets('AttendanceDeckPage swipes left to mark absent', (
@@ -289,7 +291,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1000));
     await tester.pumpAndSettle();
     expect(find.text('Test Session'), findsOneWidget);
-    expect(find.text('PRESENT'), findsOneWidget);
+    // The summary no longer carries a Present/Absent hero: it opens on the
+    // roster (issue 196).
+    expect(find.text('PRESENT'), findsNothing);
   });
 
   testWidgets('swipe advances to the next card before the save completes', (
@@ -796,7 +800,9 @@ void main() {
     // Since Charlie is also preseeded, marking Bob should finish the session and navigate to Summary
     // (Session title 'Test' is visible on Summary page)
     expect(find.text('Test'), findsOneWidget);
-    expect(find.text('PRESENT'), findsOneWidget);
+    // The summary no longer carries a Present/Absent hero: it opens on the
+    // roster (issue 196).
+    expect(find.text('PRESENT'), findsNothing);
     
     // Verify Bob is marked present, and Alice and Charlie retain their preseeded status
     final saved = fakeRepo.savedSessions.last;

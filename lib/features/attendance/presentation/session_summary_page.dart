@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
@@ -10,8 +9,6 @@ import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
-import '../../sessions/presentation/consistent_members_page.dart';
-import '../../sessions/presentation/event_trend_page.dart';
 import '../../settings/data/cisa_sync_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../models/attendance_status.dart';
@@ -740,23 +737,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     final roster = SessionRoster(_currentSession, _displayMembers);
     final allDisplayMembers = roster.sortedMembers;
 
-    int presentCount = 0;
-    int absentCount = 0;
-    int lateCount = 0;
-    for (final member in allDisplayMembers) {
-      final status = roster.getStatus(member);
-      if (status == AttendanceStatus.present) {
-        presentCount++;
-        if (roster.recordByMemberId[member.id]?.isLate ??
-            roster.recordByVisitorName[member.displayName]?.isLate ??
-            false) {
-          lateCount++;
-        }
-      } else {
-        absentCount++;
-      }
-    }
-
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -827,23 +807,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _StatsCard(
-                    presentCount: presentCount,
-                    absentCount: absentCount,
-                    lateCount: lateCount,
-                  ),
-                  if (_currentEvent != null) ...[
-                    const SizedBox(height: 12),
-                    _ConsistentTrendStrip(
-                      event: _currentEvent!,
-                      members: _allMembers,
-                      families: _allFamilies,
-                      sessionRepository: widget.sessionRepository,
-                      attendanceRepository: widget.attendanceRepository,
-                      eventRepository: widget.eventRepository,
-                    ),
-                  ],
-                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -885,226 +848,11 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 onEdit: _editMemberName,
                 onRemove: _removeMemberFromSession,
                 initialGrouping: RosterGrouping.byStatus,
-                showStats: false,
                 disableAnimations: widget.disableAnimations,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({
-    required this.presentCount,
-    required this.absentCount,
-    this.lateCount = 0,
-  });
-
-  final int presentCount;
-  final int absentCount;
-
-  /// How many present records carry the late flag. A footnote on the Present
-  /// numeral — never changes a count, and renders nothing when 0.
-  final int lateCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    final total = presentCount + absentCount;
-    final percent = total == 0 ? 0 : ((presentCount / total) * 100).round();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _SummaryHeroColumn(
-              label: 'Present',
-              value: '$presentCount',
-              sub: total == 0 ? 'No records' : 'of $total expected · $percent%',
-              color: c.present,
-              lateCount: lateCount,
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 64,
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            color: c.hair,
-          ),
-          Expanded(
-            child: _SummaryHeroColumn(
-              label: 'Absent',
-              value: '$absentCount',
-              sub: total == 0 ? 'No records' : '$absentCount of $total',
-              color: c.absent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryHeroColumn extends StatelessWidget {
-  const _SummaryHeroColumn({
-    required this.label,
-    required this.value,
-    required this.sub,
-    required this.color,
-    this.lateCount = 0,
-  });
-
-  final String label;
-  final String value;
-  final String sub;
-  final Color color;
-
-  /// When > 0 the Present hero gains a quiet clay "N LATE" capsule beneath
-  /// its sub-line. Absent hero always passes 0.
-  final int lateCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ConvEyebrow(label, color: color),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: AppTypography.displayNumber(fontSize: 56, color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          sub,
-          style: TextStyle(fontSize: 12, color: c.ink3),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        if (lateCount > 0) ...[
-          const SizedBox(height: 6),
-          Container(
-            key: const ValueKey('lateCapsule'),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color:
-                  Color.alphaBlend(c.clayDeep.withValues(alpha: 0.18), c.card),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.schedule_outlined, size: 12, color: c.clayDeep),
-                Text(
-                  ('$lateCount late').toUpperCase(),
-                  style: AppTypography.eyebrow(color: c.clayDeep),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// "Consistent · 8 wk" + "See trends" pair, replacing the old kebab menu
-/// approach. Reaches the two new sessions screens.
-class _ConsistentTrendStrip extends StatelessWidget {
-  const _ConsistentTrendStrip({
-    required this.event,
-    required this.members,
-    required this.families,
-    required this.sessionRepository,
-    this.attendanceRepository,
-    this.eventRepository,
-  });
-
-  final Event event;
-  final List<Member> members;
-  final List<Family> families;
-  final SessionRepository sessionRepository;
-  final AttendanceRepository? attendanceRepository;
-  final EventRepository? eventRepository;
-
-  Future<List<Session>> _loadSessions() => sessionRepository.loadSessions();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: ConvCardSoft(
-              onTap: () async {
-                final sessions = await _loadSessions();
-                if (!context.mounted) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ConsistentMembersPage(
-                      event: event,
-                      sessions: sessions,
-                      members: members,
-                      families: families,
-                    ),
-                  ),
-                );
-              },
-              child: Row(
-                children: [
-                  Icon(Icons.workspace_premium_outlined,
-                      size: 18, color: c.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ConvEyebrow('Regulars · 8 wk'),
-                  ),
-                  Icon(Icons.chevron_right, color: c.ink3, size: 18),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ConvCardSoft(
-              onTap: () async {
-                final sessions = await _loadSessions();
-                if (!context.mounted) return;
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => EventTrendPage(
-                      event: event,
-                      sessions: sessions,
-                      members: members,
-                      families: families,
-                      sessionRepository: sessionRepository,
-                      attendanceRepository: attendanceRepository,
-                      eventRepository: eventRepository,
-                    ),
-                  ),
-                );
-              },
-              child: Row(
-                children: [
-                  Icon(Icons.show_chart, size: 18, color: c.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ConvEyebrow('Trends · 12 wk'),
-                  ),
-                  Icon(Icons.chevron_right, color: c.ink3, size: 18),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

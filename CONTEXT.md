@@ -71,3 +71,27 @@ _Avoid_: Co-worker, sub-user, assistant taker
 **Guest Mark**:
 An attendance mark recorded for an attendee not found on the Shared Event's roster, preserving the attendee name snapshot with a null member ID for the session without mutating the owner's master roster.
 _Avoid_: Walk-in, temporary member, unlisted attendee
+
+**Insights**:
+The per-event analytics surface presenting attendance trends, people views, and attendance-quality metrics as a single configurable stack of sections. Reached from the Event History app bar and the Hub event menu; scoped to one event at a time.
+_Avoid_: Stats, analytics dashboard, reports
+
+**Attendance Rate**:
+Present marks divided by the count of roster members expected at a session. Guests are excluded from the denominator, because a Guest Mark can never be absent and would only ever push the rate upward. A late mark counts as a full present and never moves this number.
+_Avoid_: Turnout percentage, show rate
+
+**Regular**:
+A member meeting an event's configured consistency threshold across the most recent window of sessions (default: attended at least 80% of the last 8). The threshold and window are per-event Insights Configuration, not global constants.
+_Avoid_: Consistent member, faithful attendee, core member
+
+**Lapsed Attendee**:
+A member who qualified as a Regular across the prior window and has since missed a configured number of consecutive sessions (default 3). Requires a minimum of prior sessions (default 4) before any verdict is rendered; below that the section reports insufficient data rather than a false negative. The inverse of a Regular, and distinct from a member who was never consistent.
+_Avoid_: At-risk member, inactive member, dropout, watchlist
+
+**First Seen**:
+The date of the earliest non-deleted session of an event carrying a mark for a person. Derived on read, never stored. Only as old as the recorded data, so a person who attended before the app was adopted reads as newly seen at their next mark.
+_Avoid_: Join date, member since, signup date
+
+**Insights Configuration**:
+The per-event presets governing what Insights computes and shows — viewing range, Regular threshold and window, Lapsed rule, and section visibility — stored on the Event beside the existing roster grouping and marking mode presets. A preset, not derived data. Read-only on a Shared Event the user does not own.
+_Avoid_: Stats settings, dashboard preferences

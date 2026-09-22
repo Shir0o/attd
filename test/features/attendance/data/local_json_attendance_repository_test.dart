@@ -29,14 +29,14 @@ void main() {
         Family(
           id: 'f1',
           displayName: 'Alpha',
-          labels: const LabelAssignments(manualLabels: {watchlistLabel}),
+          labels: const LabelAssignments(manualLabels: {'follow-up'}),
           members: [
             Member(
               id: 'm1',
               displayName: 'Avery',
               canonicalName: 'Avery A',
               mergedIntoMemberId: 'm2',
-              labels: LabelAssignments(autoLabels: {watchlistLabel}),
+              labels: LabelAssignments(autoLabels: {'follow-up'}),
             ),
             Member(id: 'm2', displayName: 'Avery A'),
           ],
@@ -46,11 +46,11 @@ void main() {
       await repo.saveFamilies(families);
       final loaded = await repo.fetchFamilies();
 
-      expect(loaded.single.labels.manualLabels, contains(watchlistLabel));
+      expect(loaded.single.labels.manualLabels, contains('follow-up'));
       expect(loaded.single.members.first.mergedIntoMemberId, 'm2');
       expect(
         loaded.single.members.first.labels.autoLabels,
-        contains(watchlistLabel),
+        contains('follow-up'),
       );
     });
 

@@ -967,7 +967,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       disableAnimations: widget.disableAnimations,
       // The session tally now lives in the deck-style header above, so the
       // roster needn't repeat the Present/Absent/Total stat chips.
-      showStats: false,
       confirmMode: _confirmMode,
       smartStart: widget.startMode == AttendanceStartMode.perMemberDefault,
       baselineStatus: _confirmMode ? _baselineStatus : null,
