@@ -776,6 +776,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
       children.add(
         _HeroEventCard(
+          insights: _insightsFor(currentHero),
+          onInsightsTap: () => _openInsights(currentHero),
           event: currentHero,
           isToday: true,
           status: _statusFor(currentHero),
@@ -1243,6 +1245,8 @@ class _HeroEventCard extends StatefulWidget {
     required this.lastStat,
     required this.onTap,
     required this.onMenuTap,
+    this.insights,
+    this.onInsightsTap,
     this.disableAnimations = false,
   });
 
@@ -1253,6 +1257,8 @@ class _HeroEventCard extends StatefulWidget {
   final ({int present, int total})? lastStat;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
+  final EventInsights? insights;
+  final VoidCallback? onInsightsTap;
   final bool disableAnimations;
 
   @override
@@ -1446,6 +1452,12 @@ class _HeroEventCardState extends State<_HeroEventCard>
                         ),
                       ],
                     ),
+                    if (widget.insights != null &&
+                        widget.onInsightsTap != null)
+                      _InsightsSliver(
+                        insights: widget.insights!,
+                        onTap: widget.onInsightsTap!,
+                      ),
                   ],
                 ),
               ),
