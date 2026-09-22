@@ -19,7 +19,7 @@ All values are sRGB approximations of the OKLCH tokens in `attd/project/app.css`
 | `clayDeep` | `#B47744` | `#DBA572` | Review / medium-confidence cues |
 
 ### Surface ladder
-`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the present/absent vertical rule on the Session Summary hero).
+`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the rule between paired stat tiles on Insights).
 
 ### Ink ladder
 `ink` (primary text), `ink2` (body), `ink3` (captions / eyebrow), `ink4` (faint / decorative).
@@ -59,7 +59,7 @@ The prototype's primitives map to Flutter widgets under `lib/core/design/widgets
 * `ConvSectionLabel` — eyebrow row with leading 3×12 bar in semantic tone.
 * `ConvFab` — 60×60 squircle with primary glow.
 * `ConvCard` / `ConvCardSoft` — 24px / 22px radius surfaces.
-* **Late affordance** — 32px clock dot (`Icons.schedule_outlined`) centred in a 44px tap target on the Session Summary roster row, between the name column and the 56×32 `ConvToggle`. Off state: no background, glyph in `ink4`. On state: `clayDeep` glyph on a `clayDeep`-at-18% wash over `card`. Absent rows render an empty 44px spacer in the same slot so toggles stay in a column; a late attendee is a present attendee, so the row background stays the present tint. The row subtitle reads "Marked present · late" with the "· late" run in `clayDeep` at weight 500 — the icon is never the only carrier of meaning. The Session Summary Present hero gains a matching capsule ("N LATE", uppercase eyebrow, clock glyph, `clayDeep` on 18% wash) beneath its sub-line when N > 0; it changes no numeral. Tonal shifts only, per the no-line rule.
+* **Late affordance** — 32px clock dot (`Icons.schedule_outlined`) centred in a 44px tap target on the Session Summary roster row, between the name column and the 56×32 `ConvToggle`. Off state: no background, glyph in `ink4`. On state: `clayDeep` glyph on a `clayDeep`-at-18% wash over `card`. Absent rows render an empty 44px spacer in the same slot so toggles stay in a column; a late attendee is a present attendee, so the row background stays the present tint. The row subtitle reads "Marked present · late" with the "· late" run in `clayDeep` at weight 500 — the icon is never the only carrier of meaning, and since the Session Summary hero was removed the subtitle is the only carrier. A late mark is always a full present and never moves a count; lateness is reported on Insights as its own rate. Tonal shifts only, per the no-line rule.
 
 ## 5. Elevation
 
@@ -79,7 +79,6 @@ Most surfaces are flat — depth comes from tonal layering (e.g. `card` on `bg2`
 
 These don't exist in the prototype HTML — they're invented from Play-Store promo frames in `attd/project/marketing.jsx`:
 
-* **Consistent members** — members at ≥80% across the last 8 sessions. Hero gradient card + ranked list with 8-segment attendance ribbons. Reachable from Session Summary.
-* **Trends** — 12-week sparkline of present-rate, present/absent split with trend arrow, regulars strip. Reachable from Session Summary.
+* **Insights** — one per-event page: attendance-rate chart with a single range control (12 wk / 6 mo / Year) governing every section (labelled by session count, since a monthly event has no twelve weeks of history), best/lowest/average, Regulars (members clearing a configurable share of a configurable window, 80% of 8 by default), guests, lateness, growth, per-member table, first-timers, streaks and median size. Sections are configurable per event and a section without enough data says how many more sessions it needs. Reached from the Hub event card sliver and the event menu. Replaces the separate Trends and Regulars screens.
 
-Both rely on data already available from `SessionRepository` and `AttendanceRepository`; no schema changes.
+Every figure is derived on read from data already in `SessionRepository` and `AttendanceRepository`. The only stored addition is the per-event Insights Configuration on `Event` (ADR 0007); no statistic is ever persisted.

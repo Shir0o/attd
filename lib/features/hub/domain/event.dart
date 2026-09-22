@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../attendance/models/attendance_start_mode.dart';
 import '../../attendance/models/marking_mode.dart';
 import '../../attendance/models/roster_grouping.dart';
+import '../../sessions/domain/insights_config.dart';
 
 class Event {
   final String id;
@@ -11,7 +12,7 @@ class Event {
   final String frequency; // 'One-time', 'Weekly', 'Bi-weekly', 'Monthly'
   final DateTime? oneTimeDate; // For 'One-time' events
   final List<String>
-  repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
+      repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final List<String> memberIds; // Members associated with this event
   final AttendanceStartMode? defaultAttendanceStartMode;
 
@@ -25,6 +26,12 @@ class Event {
   /// falls back to [kDefaultMarkingMode] rather than prompting, so existing
   /// events pick up the default without an extra step.
   final MarkingMode? markingMode;
+
+  /// Per-event Insights presets: viewing range, Regular and Lapsed thresholds,
+  /// and which sections show. `null` means nothing has been chosen and the
+  /// defaults apply, exactly as for [markingMode]. See ADR 0007.
+  final InsightsConfig? insightsConfig;
+
   final bool isShared;
   final String? sharedFolderId;
   final List<String> collaborators;
@@ -44,6 +51,7 @@ class Event {
     this.defaultAttendanceStartMode,
     this.rosterGrouping,
     this.markingMode,
+    this.insightsConfig,
     this.isShared = false,
     this.sharedFolderId,
     this.collaborators = const [],
@@ -51,12 +59,17 @@ class Event {
     required this.createdAt,
     DateTime? updatedAt,
     this.deletedAt,
-  }) : title = title.trim(),
-       updatedAt = updatedAt ?? createdAt;
+  })  : title = title.trim(),
+        updatedAt = updatedAt ?? createdAt;
 
   /// The fast marking mode this event actually uses, applying the default when
   /// none has been chosen.
   MarkingMode get resolvedMarkingMode => markingMode ?? kDefaultMarkingMode;
+
+  /// The Insights presets this event actually uses, applying defaults when
+  /// nothing has been chosen.
+  InsightsConfig get resolvedInsightsConfig =>
+      insightsConfig ?? const InsightsConfig();
 
   Map<String, dynamic> toJson() {
     return {
@@ -71,6 +84,7 @@ class Event {
         'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
       if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
       if (markingMode != null) 'markingMode': markingMode!.name,
+      if (insightsConfig != null) ...insightsConfig!.toJson(),
       if (isShared) 'isShared': isShared,
       if (sharedFolderId != null) 'sharedFolderId': sharedFolderId,
       if (collaborators.isNotEmpty) 'collaborators': collaborators,
@@ -92,6 +106,7 @@ class Event {
     AttendanceStartMode? defaultAttendanceStartMode,
     RosterGrouping? rosterGrouping,
     MarkingMode? markingMode,
+    InsightsConfig? insightsConfig,
     bool? isShared,
     String? sharedFolderId,
     List<String>? collaborators,
@@ -113,6 +128,7 @@ class Event {
           defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
       rosterGrouping: rosterGrouping ?? this.rosterGrouping,
       markingMode: markingMode ?? this.markingMode,
+      insightsConfig: insightsConfig ?? this.insightsConfig,
       isShared: isShared ?? this.isShared,
       sharedFolderId: sharedFolderId ?? this.sharedFolderId,
       collaborators: collaborators ?? this.collaborators,
@@ -155,6 +171,7 @@ class Event {
         }
       }
     }
+    final insights = InsightsConfig.fromJson(json);
     return Event(
       id: json['id'] as String,
       title: (json['title'] as String).trim(),
@@ -166,23 +183,21 @@ class Event {
       oneTimeDate: json['oneTimeDate'] != null
           ? DateTime.parse(json['oneTimeDate'] as String)
           : null,
-      repeatingDays:
-          (json['repeatingDays'] as List<dynamic>?)
+      repeatingDays: (json['repeatingDays'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      memberIds:
-          (json['memberIds'] as List<dynamic>?)
+      memberIds: (json['memberIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
       defaultAttendanceStartMode: startMode,
       rosterGrouping: grouping,
       markingMode: mode,
+      insightsConfig: insights.isEmpty ? null : insights,
       isShared: json['isShared'] as bool? ?? false,
       sharedFolderId: json['sharedFolderId'] as String?,
-      collaborators:
-          (json['collaborators'] as List<dynamic>?)
+      collaborators: (json['collaborators'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],

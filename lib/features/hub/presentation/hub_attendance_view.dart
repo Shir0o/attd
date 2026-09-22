@@ -29,7 +29,9 @@ import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import 'members_page.dart';
 import 'add_event_page.dart';
+import '../../sessions/domain/event_insights.dart';
 import '../../sessions/presentation/event_history_page.dart';
+import '../../sessions/presentation/insights_page.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
@@ -98,6 +100,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         setState(() {
           _events = events;
           _sessions = sessions;
+          _insightsCache.clear();
         });
 
         // Mandatory skeleton duration (800ms)
@@ -146,6 +149,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         _families = families;
         _members = families.expand((f) => f.members).toList();
         _sessions = sessions;
+        _insightsCache.clear();
       });
       debugPrint(
           'DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
@@ -180,6 +184,45 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final isToday = event.repeatingDays
         .any((d) => d.toLowerCase() == dayName.toLowerCase());
     return isToday;
+  }
+
+  /// Insights per event, memoised for one build pass.
+  ///
+  /// The computation walks every session against the roster, so recomputing it
+  /// inside the list builder would repeat that work per card on every rebuild.
+  /// Cleared whenever the underlying data changes.
+  final Map<String, EventInsights> _insightsCache = {};
+
+  /// Insights for one event, from the single shared computation — the Hub
+  /// sliver and the Insights page must never derive the rate separately.
+  EventInsights _insightsFor(Event event) {
+    return _insightsCache.putIfAbsent(
+      event.id,
+      () => EventInsights.from(
+        event: event,
+        sessions: _sessions,
+        members: _members,
+        families: _families,
+      ),
+    );
+  }
+
+  Future<void> _openInsights(Event event) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InsightsPage(
+          event: event,
+          sessions: _sessions,
+          members: _members,
+          families: _families,
+          eventRepository: widget.eventRepository,
+          sessionRepository: widget.sessionRepository,
+          disableAnimations: widget.disableAnimations,
+        ),
+      ),
+    );
+    _refreshData();
   }
 
   List<Session> _sessionsForEvent(Event event) => _sessions.where((s) {
@@ -392,6 +435,14 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 },
               ),
             ],
+            ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: const Text('View Insights'),
+              onTap: () async {
+                Navigator.pop(context);
+                await _openInsights(event);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.history),
               title: const Text('View History'),
@@ -725,6 +776,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
       children.add(
         _HeroEventCard(
+          insights: _insightsFor(currentHero),
+          onInsightsTap: () => _openInsights(currentHero),
           event: currentHero,
           isToday: true,
           status: _statusFor(currentHero),
@@ -768,6 +821,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 expected: event.memberIds.length,
                 onTap: () => _handleEventTap(event),
                 onMenuTap: () => _showEventMenu(context, event),
+                insights: _insightsFor(event),
+                onInsightsTap: () => _openInsights(event),
               ),
             ),
           );
@@ -806,6 +861,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               status: _statusFor(event),
               onTap: () => _handleEventTap(event),
               onMenuTap: () => _showEventMenu(context, event),
+              insights: _insightsFor(event),
+              onInsightsTap: () => _openInsights(event),
             ),
           ),
         );
@@ -1188,6 +1245,8 @@ class _HeroEventCard extends StatefulWidget {
     required this.lastStat,
     required this.onTap,
     required this.onMenuTap,
+    this.insights,
+    this.onInsightsTap,
     this.disableAnimations = false,
   });
 
@@ -1198,6 +1257,8 @@ class _HeroEventCard extends StatefulWidget {
   final ({int present, int total})? lastStat;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
+  final EventInsights? insights;
+  final VoidCallback? onInsightsTap;
   final bool disableAnimations;
 
   @override
@@ -1391,6 +1452,12 @@ class _HeroEventCardState extends State<_HeroEventCard>
                         ),
                       ],
                     ),
+                    if (widget.insights != null &&
+                        widget.onInsightsTap != null)
+                      _InsightsSliver(
+                        insights: widget.insights!,
+                        onTap: widget.onInsightsTap!,
+                      ),
                   ],
                 ),
               ),
@@ -1572,6 +1639,84 @@ class _HeroAction extends StatelessWidget {
   }
 }
 
+/// Compact Insights strip under a Hub event card: the event's attendance rate
+/// and how many people have lapsed.
+///
+/// Fed by the same [EventInsights] the Insights page renders, never a separate
+/// calculation, so the Hub and the page cannot disagree about the rate.
+class _InsightsSliver extends StatelessWidget {
+  const _InsightsSliver({required this.insights, required this.onTap});
+
+  final EventInsights insights;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final rate = insights.averageRatePercent;
+    if (rate == null) return const SizedBox.shrink();
+
+    final lapsed = insights.lapsed.length;
+    final points = insights.points;
+    final spark =
+        points.length <= 6 ? points : points.sublist(points.length - 6);
+
+    return Semantics(
+      button: true,
+      label: 'View insights: $rate percent over '
+          '${points.length} sessions, $lapsed lapsed',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(
+            children: [
+              SizedBox(
+                height: 16,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (var i = 0; i < spark.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 2),
+                      Container(
+                        width: 4,
+                        height: (4 + 12 * spark[i].rate).clamp(4, 16).toDouble(),
+                        decoration: BoxDecoration(
+                          color: c.primary.withValues(
+                            alpha: i == spark.length - 1 ? 1 : 0.35,
+                          ),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  lapsed == 0
+                      ? '$rate% over ${points.length} sessions'
+                      : '$rate% over ${points.length} sessions · $lapsed lapsed',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.geist(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: c.primary,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 16, color: c.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Compact "Upcoming" row — date numeral, name, time, and status chip.
 class _EventRow extends StatelessWidget {
   const _EventRow({
@@ -1580,6 +1725,8 @@ class _EventRow extends StatelessWidget {
     required this.status,
     required this.onTap,
     required this.onMenuTap,
+    this.insights,
+    this.onInsightsTap,
   });
 
   final Event event;
@@ -1587,6 +1734,8 @@ class _EventRow extends StatelessWidget {
   final _EventStatus status;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
+  final EventInsights? insights;
+  final VoidCallback? onInsightsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1596,10 +1745,15 @@ class _EventRow extends StatelessWidget {
         isToday ? 'TODAY' : DateFormat('EEE').format(date).toUpperCase();
     final dateNum = DateFormat('d').format(date);
 
+    final ins = insights;
+    final onIns = onInsightsTap;
     return ConvCardSoft(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
         children: [
           SizedBox(
             width: 44,
@@ -1676,6 +1830,10 @@ class _EventRow extends StatelessWidget {
             onPressed: onMenuTap,
           ),
         ],
+          ),
+          if (ins != null && onIns != null)
+            _InsightsSliver(insights: ins, onTap: onIns),
+        ],
       ),
     );
   }
@@ -1690,6 +1848,8 @@ class _TodayRow extends StatelessWidget {
     required this.expected,
     required this.onTap,
     required this.onMenuTap,
+    this.insights,
+    this.onInsightsTap,
   });
 
   final Event event;
@@ -1697,6 +1857,8 @@ class _TodayRow extends StatelessWidget {
   final int expected;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
+  final EventInsights? insights;
+  final VoidCallback? onInsightsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1715,7 +1877,10 @@ class _TodayRow extends StatelessWidget {
       child: ConvCardSoft(
         onTap: onTap,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
           children: [
             SizedBox(
               width: 52,
@@ -1800,6 +1965,10 @@ class _TodayRow extends StatelessWidget {
               color: c.ink4,
               onPressed: onMenuTap,
             ),
+          ],
+            ),
+            if (insights != null && onInsightsTap != null)
+              _InsightsSliver(insights: insights!, onTap: onInsightsTap!),
           ],
         ),
       ),

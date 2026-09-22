@@ -40,7 +40,6 @@ class AttendanceRosterList extends StatefulWidget {
     this.showGroupingToggle = true,
     this.showGroupingPreset = false,
     this.showSearch = true,
-    this.showStats = true,
     this.disableAnimations = false,
     this.confirmMode = false,
     this.smartStart = false,
@@ -75,11 +74,6 @@ class AttendanceRosterList extends StatefulWidget {
   /// event's preset). Used by the in-session marking list.
   final bool showGroupingPreset;
   final bool showSearch;
-
-  /// Show the Present/Absent/Total stat strip above the search input. Callers
-  /// that already render their own summary stats (e.g. session summary page)
-  /// pass `false` to avoid duplication.
-  final bool showStats;
 
   /// When true, skips the 800ms skeleton frame and disables shimmer animation.
   /// Set by widget tests to keep `pumpAndSettle` from hanging on the
@@ -141,9 +135,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   }
 
   SessionRoster _buildRoster() {
-    final allMembers = widget.families
-        .expand((f) => f.members)
-        .toList(growable: false);
+    final allMembers =
+        widget.families.expand((f) => f.members).toList(growable: false);
     return SessionRoster(widget.session, allMembers);
   }
 
@@ -182,9 +175,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     final c = context.conv;
     final roster = _buildRoster();
 
-    final familyMemberIds = widget.families
-        .expand((f) => f.members.map((m) => m.id))
-        .toSet();
+    final familyMemberIds =
+        widget.families.expand((f) => f.members.map((m) => m.id)).toSet();
     final visitors = <Member>[];
     for (final entry in roster.displayMembersMap.entries) {
       if (!familyMemberIds.contains(entry.key)) {
@@ -197,16 +189,11 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       return _buildSkeleton(c);
     }
 
-    // Stat counts: every displayed person (family members + visitors).
-    final displayedMembers = roster.displayMembersMap.values.toList();
+    // Present headcount across everyone displayed, for the confirm CTA.
     var presentCount = 0;
-    var absentCount = 0;
-    for (final m in displayedMembers) {
-      final s = roster.getStatus(m);
-      if (s == AttendanceStatus.present) presentCount++;
-      if (s == AttendanceStatus.absent) absentCount++;
+    for (final m in roster.displayMembersMap.values) {
+      if (roster.getStatus(m) == AttendanceStatus.present) presentCount++;
     }
-    final totalCount = displayedMembers.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,36 +207,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                 _ConfirmBanner(smartStart: widget.smartStart),
                 const SizedBox(height: 12),
               ],
-              if (widget.showStats)
-                Row(
-                  children: [
-                    Expanded(
-                      child: ConvStatChip(
-                        label: 'Present',
-                        value: '$presentCount',
-                        tone: ConvTone.present,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ConvStatChip(
-                        label: 'Absent',
-                        value: '$absentCount',
-                        tone: ConvTone.absent,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ConvStatChip(
-                        label: 'Total',
-                        value: '$totalCount',
-                        tone: ConvTone.neutral,
-                      ),
-                    ),
-                  ],
-                ),
               if (widget.showSearch) ...[
-                if (widget.showStats) const SizedBox(height: 12),
                 _SearchField(
                   controller: _searchController,
                   query: _query,
@@ -286,14 +244,14 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                         key: const Key('rosterMarkAllPresent'),
                         label: 'All present',
                         leading: const Icon(Icons.done_all_rounded),
-                        onTap: () =>
-                            widget.onMarkAll!(BulkMarkChoice.present),
+                        onTap: () => widget.onMarkAll!(BulkMarkChoice.present),
                       ),
                   ],
                 ),
               ]
               // Live grouping toggle + bulk sheet (e.g. session summary).
-              else if (widget.showGroupingToggle || widget.onMarkAll != null) ...[
+              else if (widget.showGroupingToggle ||
+                  widget.onMarkAll != null) ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -310,9 +268,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                             icon: Icons.checklist,
                           ),
                         ],
-                        selectedIndex: _grouping == RosterGrouping.byFamily
-                            ? 0
-                            : 1,
+                        selectedIndex:
+                            _grouping == RosterGrouping.byFamily ? 0 : 1,
                         onChanged: (i) => setState(() {
                           _grouping = i == 0
                               ? RosterGrouping.byFamily
@@ -419,24 +376,6 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (widget.showStats) ...[
-            Row(
-              children: [
-                for (var i = 0; i < 3; i++) ...[
-                  if (i > 0) const SizedBox(width: 10),
-                  Expanded(
-                    child: AppShimmer(
-                      width: double.infinity,
-                      height: 64,
-                      borderRadius: AppRadii.compactR,
-                      disableAnimations: disable,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
           if (widget.showSearch) ...[
             AppShimmer(
               width: double.infinity,
@@ -502,7 +441,9 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       for (final m in family.members) {
         final displayed = roster.displayMembersMap[m.id];
         if (displayed == null) continue; // excluded
-        if (!seen.add(displayed.id)) continue; // already shown under another family
+        if (!seen.add(displayed.id)) {
+          continue; // already shown under another family
+        }
         if (familyMatch || _matchesQuery(displayed.displayName)) {
           filteredMembers.add(displayed);
         }
@@ -576,9 +517,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       }
     }
 
-    final visitorMatches = visitors
-        .where((v) => _matchesQuery(v.displayName))
-        .toList();
+    final visitorMatches =
+        visitors.where((v) => _matchesQuery(v.displayName)).toList();
     if (visitorMatches.isNotEmpty) {
       children.add(
         const Padding(
@@ -642,9 +582,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     allDisplayed.addAll(visitors);
     allDisplayed.sort((a, b) => a.displayName.compareTo(b.displayName));
 
-    final filtered = allDisplayed
-        .where((m) => _matchesQuery(m.displayName))
-        .toList();
+    final filtered =
+        allDisplayed.where((m) => _matchesQuery(m.displayName)).toList();
     final present = filtered
         .where((m) => roster.getStatus(m) == AttendanceStatus.present)
         .toList();
@@ -723,9 +662,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Text(
-          _query.isEmpty
-              ? 'No members to show.'
-              : 'No matches for "$_query".',
+          _query.isEmpty ? 'No members to show.' : 'No matches for "$_query".',
           style: AppTypography.geist(fontSize: 14, color: c.ink2),
         ),
       ),

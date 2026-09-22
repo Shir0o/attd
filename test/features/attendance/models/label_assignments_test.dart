@@ -5,14 +5,14 @@ void main() {
   test('combines automatic and manual labels', () {
     const assignments = LabelAssignments(
       autoLabels: {'new'},
-      manualLabels: {watchlistLabel},
+      manualLabels: {'follow-up'},
     );
 
-    expect(assignments.all, {'new', watchlistLabel});
+    expect(assignments.all, {'new', 'follow-up'});
     expect(assignments.hasLabel('new'), isTrue);
-    expect(assignments.hasLabel(watchlistLabel), isTrue);
+    expect(assignments.hasLabel('follow-up'), isTrue);
     expect(assignments.hasLabel('missing'), isFalse);
-    expect(assignments.isManual(watchlistLabel), isTrue);
+    expect(assignments.isManual('follow-up'), isTrue);
     expect(assignments.isManual('new'), isFalse);
   });
 
@@ -31,12 +31,12 @@ void main() {
   test('serializes automatic and manual labels separately', () {
     const assignments = LabelAssignments(
       autoLabels: {'new'},
-      manualLabels: {watchlistLabel},
+      manualLabels: {'follow-up'},
     );
 
     expect(assignments.toJson(), {
       'autoLabels': ['new'],
-      'manualLabels': [watchlistLabel],
+      'manualLabels': ['follow-up'],
     });
   });
 }

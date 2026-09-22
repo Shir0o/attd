@@ -16,14 +16,12 @@ void main() {
       final updated = request.copyWith(
         format: ReportFormat.pdf,
         syncToGoogleSheets: true,
-        includeWatchlist: false,
       );
 
       expect(updated.startDate, request.startDate);
       expect(updated.endDate, request.endDate);
       expect(updated.format, ReportFormat.pdf);
       expect(updated.syncToGoogleSheets, isTrue);
-      expect(updated.includeWatchlist, isFalse);
       expect(updated.selectedEventTitles, ['Sunday']);
     });
 
@@ -33,7 +31,6 @@ void main() {
         endDate: DateTime(2026, 5, 17),
         format: ReportFormat.image,
         syncToGoogleSheets: true,
-        includeWatchlist: false,
         selectedEventTitles: const ['Sunday'],
       );
 
@@ -43,7 +40,6 @@ void main() {
       expect(updated.endDate, request.endDate);
       expect(updated.format, request.format);
       expect(updated.syncToGoogleSheets, request.syncToGoogleSheets);
-      expect(updated.includeWatchlist, request.includeWatchlist);
       expect(updated.selectedEventTitles, request.selectedEventTitles);
     });
 

@@ -12,8 +12,6 @@ import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
-import 'package:attendance_tracker/features/sessions/presentation/consistent_members_page.dart';
-import 'package:attendance_tracker/features/sessions/presentation/event_trend_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -267,9 +265,9 @@ void main() {
     // Bob is absent (in absent list)
     expect(find.text('Bob'), findsOneWidget);
 
-    // Verify stats: 1 Present, 1 Absent. 
-    // The number '1' can appear multiple times (stats card + list headers possibly)
-    expect(find.text('1'), findsAtLeastNWidgets(2)); 
+    // Issue 196: no Present/Absent hero here any more — the roster is the
+    // screen. Counts live on Insights.
+    expect(find.text('PRESENT'), findsNothing);
     
     // Check that we have switches in the list
     expect(find.byType(ConvToggle), findsNWidgets(2));
@@ -1585,18 +1583,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap Regulars card
-      await tester.tap(find.text('REGULARS · 8 WK'));
-      await tester.pumpAndSettle();
-      expect(find.byType(ConsistentMembersPage), findsOneWidget);
-      // Pop back
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      // Tap Trends card
-      await tester.tap(find.text('TRENDS · 12 WK'));
-      await tester.pumpAndSettle();
-      expect(find.byType(EventTrendPage), findsOneWidget);
+      // Issue 196: the summary no longer carries the Regulars/Trends strip or
+      // the Present/Absent hero. Insights is reached from the Hub instead.
+      expect(find.text('REGULARS · 8 WK'), findsNothing);
+      expect(find.text('TRENDS · 12 WK'), findsNothing);
+      expect(find.text('PRESENT'), findsNothing);
+      expect(find.text('ABSENT'), findsNothing);
     },
   );
 
@@ -1638,8 +1630,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // No late capsule while nobody is late.
-    expect(find.text('1 LATE'), findsNothing);
 
     // Tap the late affordance on Alice's row.
     await tester.tap(find.byKey(const ValueKey('memberLate_1')));
@@ -1653,17 +1643,12 @@ void main() {
     // Row subtitle gains the word "late".
     expect(find.text('Marked present · late'), findsOneWidget);
 
-    // The Present hero capsule appears with the correct count and the
-    // Present numeral is unchanged by flagging.
-    expect(find.text('1 LATE'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
 
     // Tapping again clears the flag.
     await tester.tap(find.byKey(const ValueKey('memberLate_1')));
     await tester.pumpAndSettle();
     final cleared = await mockRepo.findSessionById('s1');
     expect(cleared?.records.single.isLate, isFalse);
-    expect(find.text('1 LATE'), findsNothing);
     expect(find.text('Marked present · late'), findsNothing);
   });
 
@@ -1717,7 +1702,6 @@ void main() {
     // The name-keyed record was actually flipped.
     final updated = await mockRepo.findSessionById('s1');
     expect(updated?.records.single.isLate, isTrue);
-    expect(find.text('1 LATE'), findsOneWidget);
   });
 
   testWidgets('SessionSummaryPage absent rows have no late affordance',
@@ -1927,9 +1911,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('memberLate_2')));
     await tester.pumpAndSettle();
 
-    expect(find.text('2 LATE'), findsOneWidget);
-    // The Present numeral still counts every present attendee.
-    expect(find.text('3'), findsOneWidget);
+    // Both rows carry the late subtitle; flagging never changes a status.
+    expect(find.text('Marked present · late'), findsNWidgets(2));
   });
 
   testWidgets('SessionSummaryPage late affordance present under both groupings',

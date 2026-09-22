@@ -13,10 +13,22 @@ class ReportExportPage extends StatefulWidget {
     super.key,
     required this.sessionRepository,
     this.exportService,
+    this.initialEventTitles,
+    this.initialRange,
   });
 
   final SessionRepository sessionRepository;
   final ReportExportService? exportService;
+
+  /// Event titles to pre-select. Insights hands its own event through so the
+  /// export opens on what you were just looking at.
+  ///
+  /// Note the report request matches events by title, not by id: renamed or
+  /// duplicate-titled events will not round-trip cleanly here.
+  final Set<String>? initialEventTitles;
+
+  /// Date range to pre-select, normally the span of the Insights range.
+  final DateTimeRange? initialRange;
 
   @override
   State<ReportExportPage> createState() => _ReportExportPageState();
@@ -39,10 +51,14 @@ class _ReportExportPageState extends State<ReportExportPage> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _range = DateTimeRange(
-      start: now.subtract(const Duration(days: 30)),
-      end: now,
-    );
+    _range = widget.initialRange ??
+        DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+    if (widget.initialEventTitles != null) {
+      _selectedEventTitles.addAll(widget.initialEventTitles!);
+    }
     _exportService = widget.exportService ??
         ReportExportService(sessionRepository: widget.sessionRepository);
     _syncSheets = _exportService.supportsGoogleSheets;

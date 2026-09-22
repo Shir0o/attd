@@ -196,7 +196,9 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(find.text('Test Event'), findsOneWidget);
-    expect(find.text('PRESENT', skipOffstage: false), findsWidgets);
+    // No Present/Absent hero on the summary any more (issue 196) — the title
+    // above is what identifies the screen.
+    expect(find.text('PRESENT', skipOffstage: false), findsNothing);
   });
 
   testWidgets('AttendanceDeckPage undo logic works', (tester) async {
