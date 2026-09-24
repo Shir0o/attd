@@ -29,12 +29,12 @@ A single attendance record: a person, a status (present/absent/late), a recorded
 _Avoid_: Attendance entry, attendance row
 
 **Orphaned Mark**:
-An attendance mark whose member-ID link references a member that no longer exists (deleted or missing from the roster). Flagged in the storage inspector and cleanable in bulk.
+An attendance mark whose member-ID link references a member that no longer exists (deleted or missing from the roster). Flagged in the storage inspector, but it is attendance history, so bulk cleanup removes it only when explicitly opted in.
 _Avoid_: Dangling record, broken reference
 
-**Unlinked Mark**:
-An attendance mark with no member-ID link (memberId is null) whose attendee name matches no active member. Distinct from an Orphaned Mark: the link is absent rather than dangling. Flagged in the storage inspector and cleanable in bulk.
-_Avoid_: Attendance without a person, nameless record
+**Tombstone**:
+A soft-deleted record (`deletedAt` and `updatedAt` set) kept so that Drive sync propagates the deletion instead of re-adding the record from the cloud copy. Storage-inspector cleanup writes tombstones rather than removing records; data maintenance prunes tombstones after 90 days. Tombstones are not cleanup issues.
+_Avoid_: Hard delete, purge
 
 **Attendee Surname**:
 The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent.
@@ -69,8 +69,8 @@ A Google account authorized to view a Shared Event and record attendance marks w
 _Avoid_: Co-worker, sub-user, assistant taker
 
 **Guest Mark**:
-An attendance mark recorded for an attendee not found on the Shared Event's roster, preserving the attendee name snapshot with a null member ID for the session without mutating the owner's master roster.
-_Avoid_: Walk-in, temporary member, unlisted attendee
+An attendance mark recorded for an attendee not found on the Shared Event's roster, preserving the attendee name snapshot with a null member ID for the session without mutating the owner's master roster. Legitimate attendance: never flagged by the storage inspector.
+_Avoid_: Walk-in, temporary member, unlisted attendee, unlinked mark
 
 **Insights**:
 The per-event analytics surface presenting attendance trends, people views, and attendance-quality metrics as a single configurable stack of sections. Reached from the Hub event card and the Hub event menu; scoped to one event at a time.

@@ -167,6 +167,9 @@ void main() {
   testWidgets('renders backup data, filters search, and saves deletions', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1200, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final now = DateTime(2025, 4, 5, 10);
     // Member is soft-deleted (has deletedAt), making it flagged as 'hidden'
     final member = Member(
@@ -246,9 +249,14 @@ void main() {
     await tester.tap(find.text('Only issues'));
     await tester.pumpAndSettle();
 
-    // Choir Event is healthy, so it should be filtered out
+    // Choir Event is healthy and Alice is soft-deleted (not an issue), so
+    // both are filtered out; the orphaned session remains.
     expect(find.text('Choir Event'), findsNothing);
-    expect(find.text('Alice Member'), findsOneWidget);
+    expect(find.text('Alice Member'), findsNothing);
+    expect(find.text('Sunday Session'), findsOneWidget);
+
+    await tester.tap(find.text('Only issues'));
+    await tester.pumpAndSettle();
 
     // Expand Alice Member card
     await tester.tap(find.text('Alice Member'));
@@ -256,7 +264,7 @@ void main() {
 
     // Scroll delete button into view
     final memberDelete = find.byKey(const ValueKey('delete_btn_member-1234'));
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.ensureVisible(memberDelete);
     await tester.pumpAndSettle();
     await tester.tap(memberDelete);
     await tester.pumpAndSettle();
@@ -271,12 +279,18 @@ void main() {
     await tester.tap(cleanupBtn);
     await tester.pumpAndSettle();
 
+    // The now-empty family is selected; the orphaned session and mark carry
+    // attendance history, so they are opt-in only.
+    expect(find.text('Clean up 1 records?'), findsOneWidget);
+    await tester.tap(find.textContaining('2 Orphaned attendance history'));
+    await tester.pumpAndSettle();
     expect(find.text('Clean up 3 records?'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
     await tester.pumpAndSettle();
 
-    // Verify deletion succeeded
-    expect(sessions.sessions, isEmpty);
+    // Deletions are tombstones so the Drive merge keeps them deleted
+    expect(sessions.sessions.single.deletedAt, isNotNull);
+    expect(attendance.families.single.deletedAt, isNotNull);
   });
 
   testWidgets('logs and recovers when fetchFamilies throws on load',
@@ -485,7 +499,7 @@ void main() {
     expect(sessions.sessions.single.records, isEmpty);
   });
 
-  testWidgets('flags unlinked attendance marks and includes them in dry run cleanup', (tester) async {
+  testWidgets('does not flag guest marks (no member link, name off roster)', (tester) async {
     final now = DateTime(2025, 4, 5, 10);
     final member = Member(
       id: 'member-1234',
@@ -516,7 +530,7 @@ void main() {
         eventId: 'event-1',
         sessionDate: now,
         records: [
-          // Name-keyed mark whose attendee matches no active member
+          // Guest mark: no member link, attendee not on the roster
           SessionRecord(
             memberId: null,
             attendee: 'Ghost Person',
@@ -543,22 +557,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Unlinked badge shown
-    expect(find.text('UNLINKED'), findsOneWidget);
-
-    // Dry run sheet includes the unlinked category
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Dry Run & Validation'), findsOneWidget);
-    expect(find.textContaining('1 Unlinked attendance marks'), findsOneWidget);
-
-    // Cleanup removes the unlinked mark
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
-    await tester.pumpAndSettle();
-
-    expect(sessions.sessions.single.records, isEmpty);
+    // Guest marks are legitimate attendance, so nothing is flagged
+    expect(find.text('UNLINKED'), findsNothing);
+    expect(find.byKey(const ValueKey('cleanup_flagged_records_button')), findsNothing);
+    expect(sessions.sessions.single.records, hasLength(1));
   });
 
   testWidgets('handles duplicate member entries across families without duplicate key exception', (tester) async {
@@ -704,7 +706,8 @@ void main() {
 
     expect(find.textContaining('Dry Run & Validation'), findsOneWidget);
     expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
-    expect(find.textContaining('Duplicates Preview:'), findsOneWidget);
+    // Preview lists the exact record that will be removed
+    expect(find.textContaining('• '), findsOneWidget);
 
     // Cancel modal first to test cancel action
     await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
@@ -772,10 +775,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Filter issues only to find Linked Member
-    await tester.tap(find.text('Only issues'));
-    await tester.pumpAndSettle();
-
     expect(find.text('Linked Member'), findsOneWidget);
 
     // Expand member card
@@ -783,9 +782,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Tap delete record
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.ensureVisible(find.byKey(const ValueKey('delete_btn_member-linked')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete record'));
+    await tester.tap(find.byKey(const ValueKey('delete_btn_member-linked')));
     await tester.pumpAndSettle();
 
     // Historical data alert dialog should be shown
@@ -853,7 +852,7 @@ void main() {
     expect(find.text('No records match'), findsNothing);
   });
 
-  testWidgets('shows dry run validation breakdown with all issue types (duplicate, hidden, orphan)', (tester) async {
+  testWidgets('dry run breakdown lists duplicate and orphan issues but not soft-deleted records', (tester) async {
     final now = DateTime(2025, 4, 5, 10);
     final later = DateTime(2025, 4, 5, 10, 5);
 
@@ -956,10 +955,10 @@ void main() {
     await tester.tap(cleanupBtn);
     await tester.pumpAndSettle();
 
-    // Verify all 3 issue breakdown sections are displayed
     expect(find.textContaining('Duplicate attendance entries'), findsOneWidget);
-    expect(find.textContaining('Soft-deleted records'), findsOneWidget);
     expect(find.textContaining('Orphaned references'), findsOneWidget);
+    // Soft-deleted records are pruned by data maintenance, not by cleanup
+    expect(find.textContaining('Soft-deleted records'), findsNothing);
 
     // Clean up
     await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
@@ -1284,6 +1283,14 @@ void main() {
             recordedAt: now,
             recordedBy: 'tester',
           ),
+          // Mark of a member who no longer exists: orphaned history
+          SessionRecord(
+            memberId: 'm-gone',
+            attendee: 'Gone Gail',
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'tester',
+          ),
         ],
         createdAt: now,
         updatedAt: now,
@@ -1352,51 +1359,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
-    expect(find.textContaining('1 Soft-deleted records'), findsOneWidget);
-    expect(find.textContaining('1 Unlinked attendance marks'), findsOneWidget);
     expect(find.textContaining('1 Orphaned references'), findsOneWidget);
+    expect(find.textContaining('1 Orphaned attendance history'), findsOneWidget);
+    expect(find.textContaining('Soft-deleted records'), findsNothing);
+    expect(find.textContaining('Unlinked'), findsNothing);
+    // Orphaned history is unchecked by default
+    expect(find.text('Clean up 2 records?'), findsOneWidget);
 
-    // Toggle Duplicates
+    // Uncheck the defaults to verify disabled state
     await tester.tap(find.textContaining('1 Duplicate attendance entries'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('1 Duplicate attendance entries'));
-    await tester.pumpAndSettle();
-
-    // Toggle Hidden
-    await tester.tap(find.textContaining('1 Soft-deleted records'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('1 Soft-deleted records'));
-    await tester.pumpAndSettle();
-
-    // Toggle Orphans
-    await tester.tap(find.textContaining('1 Orphaned references'));
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('1 Orphaned references'));
     await tester.pumpAndSettle();
 
-    // Uncheck Unlinked attendance marks
-    await tester.tap(find.textContaining('1 Unlinked attendance marks'));
-    await tester.pumpAndSettle();
-
-    // Uncheck the rest to verify disabled state
-    await tester.tap(find.textContaining('1 Duplicate attendance entries'));
-    await tester.tap(find.textContaining('1 Soft-deleted records'));
-    await tester.tap(find.textContaining('1 Orphaned references'));
-    await tester.pumpAndSettle();
-
-    // Button should now be disabled (selectedCount == 0)
     final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Clean up'));
     expect(button.onPressed, isNull);
 
-    // Re-check unlinked
-    await tester.tap(find.textContaining('1 Unlinked attendance marks'));
+    // Opt in to orphaned history; its preview lists the mark
+    await tester.tap(find.textContaining('1 Orphaned attendance history'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('• Visitor Service · Gone Gail'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
     await tester.pumpAndSettle();
 
-    final buttonEnabled = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Clean up'));
-    expect(buttonEnabled.onPressed, isNotNull);
+    // Only the opted-in mark is gone; guest mark, duplicate, orphan session kept
+    final visitor = sessions.sessions.firstWhere((s) => s.id == 'session-unlinked');
+    expect(visitor.records.map((r) => r.attendee), ['Visitor Bob']);
+    expect(sessions.sessions.firstWhere((s) => s.id == 'session-orphan').deletedAt, isNull);
+    expect(sessions.sessions.firstWhere((s) => s.id == 's-dup2').records, hasLength(1));
   });
 
-  testWidgets('cleans up soft-deleted events and families', (tester) async {
+  testWidgets('soft-deleted records are not issues but can be purged individually', (tester) async {
     final now = DateTime(2025, 5, 1, 10);
     final attendance = _AttendanceRepository([
       Family(
@@ -1431,20 +1424,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('HIDDEN'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('cleanup_flagged_records_button')), findsNothing);
 
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
+    // An already soft-deleted record is purged outright when deleted
+    await tester.tap(find.text('Deleted Event'));
     await tester.pumpAndSettle();
-
-    expect(find.textContaining('2 Soft-deleted records'), findsOneWidget);
-
-    final cleanUpConfirm = find.widgetWithText(FilledButton, 'Clean up');
-    await tester.tap(cleanUpConfirm);
+    await tester.ensureVisible(find.byKey(const ValueKey('delete_btn_event-deleted')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete_btn_event-deleted')));
     await tester.pumpAndSettle();
 
     expect(events.events, isEmpty);
-    expect(attendance.families, isEmpty);
-    expect(find.textContaining('Cleaned up 2 flagged records'), findsOneWidget);
+    expect(attendance.families, hasLength(1));
   });
 
   testWidgets('handles error when saving during cleanup', (tester) async {
@@ -1454,7 +1445,7 @@ void main() {
         id: 'fam-error',
         displayName: 'Error Family',
         members: [],
-        deletedAt: now,
+        updatedAt: now,
       ),
     ]);
     attendance.saveError = Exception('Simulated DB failure');
