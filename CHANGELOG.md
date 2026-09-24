@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/Shir0o/attd/compare/v1.9.0...v1.9.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* ensure guest and duplicate attendee removal cleans session records ([#206](https://github.com/Shir0o/attd/issues/206)) ([db65bc2](https://github.com/Shir0o/attd/commit/db65bc24964b08141b4b4cd193597c0940695a33))
+
 ## [1.9.0](https://github.com/Shir0o/attd/compare/v1.8.0...v1.9.0) (2026-09-22)
 
 
