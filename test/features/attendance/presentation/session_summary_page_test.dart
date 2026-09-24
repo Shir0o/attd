@@ -2051,6 +2051,120 @@ void main() {
     expect(updatedSession?.excludedMemberIds, isNot(contains('1')));
     expect(updatedSession?.records.any((r) => r.memberId == '1'), isTrue);
   });
+
+  testWidgets(
+      'SessionSummaryPage removing a guest visitor removes record by attendee name',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final session = Session(
+      id: 's_guest',
+      title: 'YP Meeting',
+      sessionDate: DateTime(2026, 3, 1),
+      records: [
+        SessionRecord(
+          memberId: null,
+          attendee: 'Zoe Alvarez',
+          status: AttendanceStatus.absent,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: const [],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zoe Alvarez'), findsOneWidget);
+    expect(find.text('Sunday, March 1, 2026'), findsOneWidget);
+
+    // Swipe left to remove guest
+    await tester.drag(find.text('Zoe Alvarez'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remove from Report'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Remove'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zoe Alvarez'), findsNothing);
+    final updatedSession = await mockRepo.findSessionById('s_guest');
+    expect(
+      updatedSession?.records.any((r) => r.attendee == 'Zoe Alvarez'),
+      isFalse,
+    );
+  });
+
+  testWidgets(
+      'SessionSummaryPage removing a duplicate guest when an orphaned member record exists cleans up both',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    // Simulate: an orphaned record with old memberId from a deleted member,
+    // plus a visitor record with null memberId.
+    final session = Session(
+      id: 's_dup',
+      title: 'YP Meeting',
+      sessionDate: DateTime(2026, 3, 1),
+      records: [
+        SessionRecord(
+          memberId: 'old_zoe_id',
+          attendee: 'Zoe Alvarez',
+          status: AttendanceStatus.absent,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+        SessionRecord(
+          memberId: null,
+          attendee: 'Zoe Alvarez',
+          status: AttendanceStatus.absent,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+        ),
+      ],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: const [],
+          sessionRepository: mockRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Swipe left to remove the visible Zoe Alvarez
+    await tester.drag(find.text('Zoe Alvarez').first, const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remove from Report'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Remove'));
+    await tester.pumpAndSettle();
+
+    // After removal, all Zoe Alvarez records are removed
+    final updatedSession = await mockRepo.findSessionById('s_dup');
+    expect(
+      updatedSession?.records.any((r) => r.attendee == 'Zoe Alvarez'),
+      isFalse,
+    );
+  });
 }
 
 class _ThrowingSessionRepository implements SessionRepository {

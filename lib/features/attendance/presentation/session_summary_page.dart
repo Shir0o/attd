@@ -606,17 +606,22 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     if (confirmed != true) return;
 
+    final isSyntheticVisitor =
+        member.isVisitor || member.id.startsWith('visitor_');
+
     final updatedRecords = _currentSession.records.where((r) {
-      if (member.isVisitor) {
-        return r.memberId != null || r.attendee != member.displayName;
+      if (isSyntheticVisitor) {
+        return r.attendee != member.displayName;
       } else {
-        return r.memberId != member.id;
+        return r.memberId != member.id && r.attendee != member.displayName;
       }
     }).toList();
 
     List<String> updatedExcluded =
         List<String>.from(_currentSession.excludedMemberIds);
-    if (!member.isVisitor && !updatedExcluded.contains(member.id)) {
+    if (!isSyntheticVisitor &&
+        member.id.isNotEmpty &&
+        !updatedExcluded.contains(member.id)) {
       updatedExcluded.add(member.id);
     }
 
@@ -804,6 +809,14 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                     _currentSession.title.trim(),
                     style: theme.textTheme.displaySmall?.copyWith(
                       color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    DateFormat('EEEE, MMMM d, yyyy')
+                        .format(_currentSession.sessionDate),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 16),
