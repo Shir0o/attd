@@ -36,11 +36,15 @@ class DbRecord {
   final String table; // 'events', 'sessions', 'members', 'families', 'photos', 'attendance'
   final String title;
   final String meta;
-  final String? flag; // 'hidden' | 'orphan' | null
+  final String? flag; // 'hidden' | 'orphan' | 'duplicate' | null
   final String? note;
   final Map<String, String> fields;
 
   String get uniqueKey => '${table}_$id';
+
+  /// Soft-deleted records are already gone from the app and are pruned by
+  /// data maintenance, so only the other flags count as cleanup issues.
+  bool get isIssue => flag != null && flag != 'hidden';
 }
 
 class ManageBackupDataPage extends StatefulWidget {
@@ -237,19 +241,6 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         .map((m) => m.id)
         .toSet();
 
-    // Active member names (display + canonical, case-insensitive) for
-    // unlinked-mark detection: a name-keyed mark whose attendee matches no
-    // active member has lost its person.
-    final activeMemberNames = <String>{};
-    for (final family in _families) {
-      if (family.deletedAt != null) continue;
-      for (final member in family.members) {
-        if (member.deletedAt != null) continue;
-        activeMemberNames.add(member.displayName.toLowerCase());
-        activeMemberNames.add(member.canonicalName.toLowerCase());
-      }
-    }
-
     // Map Members
     final seenMemberIds = <String>{};
     for (final family in _families) {
@@ -315,7 +306,6 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       for (final record in session.records) {
         final isSessionDeleted = session.deletedAt != null;
         final isMemberDeleted = record.memberId != null && !activeMemberIds.contains(record.memberId);
-        final isUnlinked = record.memberId == null && !activeMemberNames.contains(record.attendee.trim().toLowerCase());
         final compositeKey = '${session.title.trim().toLowerCase()}|$sessionDateStr|${record.attendee.trim().toLowerCase()}';
 
         String? flag;
@@ -326,9 +316,6 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         } else if (isMemberDeleted) {
           flag = 'orphan';
           note = 'This attendance mark references member ID ${record.memberId}, who has been deleted or is missing from the roster.';
-        } else if (isUnlinked) {
-          flag = 'unlinked';
-          note = 'This attendance mark has no member link and its attendee name "${record.attendee}" matches no active member.';
         } else if (seenAttendanceKeys.containsKey(compositeKey)) {
           flag = 'duplicate';
           note = 'Duplicate attendance entry detected: matches event "${session.title}", date "$sessionDateStr", and attendant "${record.attendee}".';
@@ -377,15 +364,35 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       bool sessionsChanged = false;
       bool familiesChanged = false;
 
+      // Live records become tombstones (deletedAt + updatedAt) so the Drive
+      // merge propagates the deletion; a hard removal would be re-added from
+      // the cloud copy on the next sync. Records that are already tombstones
+      // are purged outright.
+      final now = DateTime.now();
       for (final r in recordsToDelete) {
         if (r.table == 'events') {
-          updatedEvents.removeWhere((e) => e.id == r.id);
+          final i = updatedEvents.indexWhere((e) => e.id == r.id);
+          if (i != -1 && updatedEvents[i].deletedAt == null) {
+            updatedEvents[i] = updatedEvents[i].copyWith(deletedAt: now, updatedAt: now);
+          } else {
+            updatedEvents.removeWhere((e) => e.id == r.id);
+          }
           eventsChanged = true;
         } else if (r.table == 'sessions') {
-          updatedSessions.removeWhere((s) => s.id == r.id);
+          final i = updatedSessions.indexWhere((s) => s.id == r.id);
+          if (i != -1 && updatedSessions[i].deletedAt == null) {
+            updatedSessions[i] = updatedSessions[i].copyWith(deletedAt: now, updatedAt: now);
+          } else {
+            updatedSessions.removeWhere((s) => s.id == r.id);
+          }
           sessionsChanged = true;
         } else if (r.table == 'families') {
-          updatedFamilies.removeWhere((f) => f.id == r.id);
+          final i = updatedFamilies.indexWhere((f) => f.id == r.id);
+          if (i != -1 && updatedFamilies[i].deletedAt == null) {
+            updatedFamilies[i] = updatedFamilies[i].copyWith(deletedAt: now, updatedAt: now);
+          } else {
+            updatedFamilies.removeWhere((f) => f.id == r.id);
+          }
           familiesChanged = true;
         } else if (r.table == 'members') {
           // Remove member from any family
@@ -426,7 +433,6 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 records.add(rec);
               }
             }
-            final now = DateTime.now();
             if (records.isEmpty) {
               // If cleaning duplicate records leaves the session empty (e.g. duplicate session),
               // soft-delete the session so it doesn't become an orphan and propagates deletion to Drive.
@@ -503,17 +509,20 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     }
   }
 
+  bool _carriesAttendance(DbRecord r) =>
+      r.table == 'attendance' || (r.table == 'sessions' && r.fields['records'] != '0');
+
   void _showCleanupConfirmation(int issueTotal) {
     final c = context.conv;
-    final hiddenRecords = _allRecords.where((r) => r.flag == 'hidden').toList();
-    final orphanRecords = _allRecords.where((r) => r.flag == 'orphan').toList();
-    final unlinkedRecords = _allRecords.where((r) => r.flag == 'unlinked').toList();
     final duplicateRecords = _allRecords.where((r) => r.flag == 'duplicate').toList();
+    final orphanRecords = _allRecords.where((r) => r.flag == 'orphan').toList();
+    // Orphans that still carry attendance are history, not junk: opt-in only.
+    final orphanHistoryRecords = orphanRecords.where(_carriesAttendance).toList();
+    final orphanEmptyRecords = orphanRecords.where((r) => !_carriesAttendance(r)).toList();
 
     bool includeDuplicates = duplicateRecords.isNotEmpty;
-    bool includeHidden = hiddenRecords.isNotEmpty;
-    bool includeUnlinked = unlinkedRecords.isNotEmpty;
-    bool includeOrphans = orphanRecords.isNotEmpty;
+    bool includeOrphanEmpty = orphanEmptyRecords.isNotEmpty;
+    bool includeOrphanHistory = false;
 
     showModalBottomSheet(
       context: context,
@@ -523,9 +532,95 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final selectedCount = (includeDuplicates ? duplicateRecords.length : 0) +
-                (includeHidden ? hiddenRecords.length : 0) +
-                (includeUnlinked ? unlinkedRecords.length : 0) +
-                (includeOrphans ? orphanRecords.length : 0);
+                (includeOrphanEmpty ? orphanEmptyRecords.length : 0) +
+                (includeOrphanHistory ? orphanHistoryRecords.length : 0);
+
+            Widget category({
+              required List<DbRecord> records,
+              required bool included,
+              required VoidCallback onToggle,
+              required IconData icon,
+              required Color color,
+              required String title,
+              required String subtitle,
+            }) {
+              if (records.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InkWell(
+                      onTap: () => setModalState(onToggle),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(icon, color: color, size: 18),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${records.length} $title',
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
+                                  ),
+                                  Text(
+                                    subtitle,
+                                    style: TextStyle(fontSize: 11.5, color: c.ink3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IgnorePointer(
+                              child: Checkbox(
+                                value: included,
+                                activeColor: color,
+                                onChanged: (_) {},
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (included)
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 140),
+                        margin: const EdgeInsets.only(top: 6, left: 44),
+                        decoration: BoxDecoration(
+                          color: c.card,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: records.length,
+                          itemBuilder: (context, index) {
+                            final r = records[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                '• ${r.table == 'attendance' ? r.meta : '${r.title} · ${r.meta}'}',
+                                style: TextStyle(fontSize: 11, color: c.ink2),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }
 
             return Container(
               decoration: BoxDecoration(
@@ -586,240 +681,36 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                     padding: const EdgeInsets.all(14),
                     child: Column(
                       children: [
-                        if (duplicateRecords.isNotEmpty)
-                          InkWell(
-                            onTap: () {
-                              setModalState(() {
-                                includeDuplicates = !includeDuplicates;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD97706).withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.copy, color: Color(0xFFD97706), size: 18),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${duplicateRecords.length} Duplicate attendance entries',
-                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                        ),
-                                        Text(
-                                          'Matching event + date + attendant',
-                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IgnorePointer(
-                                    child: Checkbox(
-                                      value: includeDuplicates,
-                                      activeColor: const Color(0xFFD97706),
-                                      onChanged: (_) {},
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        if (hiddenRecords.isNotEmpty) ...[
-                          if (duplicateRecords.isNotEmpty) const SizedBox(height: 8),
-                          InkWell(
-                            onTap: () {
-                              setModalState(() {
-                                includeHidden = !includeHidden;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: c.clayDeep.withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(Icons.visibility_off_outlined, color: c.clayDeep, size: 18),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${hiddenRecords.length} Soft-deleted records',
-                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                        ),
-                                        Text(
-                                          'Hidden in main database',
-                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IgnorePointer(
-                                    child: Checkbox(
-                                      value: includeHidden,
-                                      activeColor: c.clayDeep,
-                                      onChanged: (_) {},
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (unlinkedRecords.isNotEmpty) ...[
-                          if (duplicateRecords.isNotEmpty || hiddenRecords.isNotEmpty) const SizedBox(height: 8),
-                          InkWell(
-                            onTap: () {
-                              setModalState(() {
-                                includeUnlinked = !includeUnlinked;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: c.primary.withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(Icons.person_off_outlined, color: c.primary, size: 18),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${unlinkedRecords.length} Unlinked attendance marks',
-                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                        ),
-                                        Text(
-                                          'Name matches no active member',
-                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IgnorePointer(
-                                    child: Checkbox(
-                                      value: includeUnlinked,
-                                      activeColor: c.primary,
-                                      onChanged: (_) {},
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                        if (orphanRecords.isNotEmpty) ...[
-                          if (duplicateRecords.isNotEmpty || hiddenRecords.isNotEmpty || unlinkedRecords.isNotEmpty) const SizedBox(height: 8),
-                          InkWell(
-                            onTap: () {
-                              setModalState(() {
-                                includeOrphans = !includeOrphans;
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: c.absent.withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(Icons.link_off, color: c.absent, size: 18),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${orphanRecords.length} Orphaned references',
-                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                        ),
-                                        Text(
-                                          'Unlinked member or event IDs',
-                                          style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IgnorePointer(
-                                    child: Checkbox(
-                                      value: includeOrphans,
-                                      activeColor: c.absent,
-                                      onChanged: (_) {},
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                        category(
+                          records: duplicateRecords,
+                          included: includeDuplicates,
+                          onToggle: () => includeDuplicates = !includeDuplicates,
+                          icon: Icons.copy,
+                          color: const Color(0xFFD97706),
+                          title: 'Duplicate attendance entries',
+                          subtitle: 'Matching event + date + attendant',
+                        ),
+                        category(
+                          records: orphanEmptyRecords,
+                          included: includeOrphanEmpty,
+                          onToggle: () => includeOrphanEmpty = !includeOrphanEmpty,
+                          icon: Icons.link_off,
+                          color: c.absent,
+                          title: 'Orphaned references',
+                          subtitle: 'Empty sessions or families, no attendance',
+                        ),
+                        category(
+                          records: orphanHistoryRecords,
+                          included: includeOrphanHistory,
+                          onToggle: () => includeOrphanHistory = !includeOrphanHistory,
+                          icon: Icons.history,
+                          color: c.clayDeep,
+                          title: 'Orphaned attendance history',
+                          subtitle: 'Past marks of deleted members or events',
+                        ),
                       ],
                     ),
                   ),
-                  if (includeDuplicates && duplicateRecords.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Duplicates Preview:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.ink),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 100),
-                      decoration: BoxDecoration(
-                        color: c.cardSoft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(10),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: duplicateRecords.length,
-                        itemBuilder: (context, index) {
-                          final r = duplicateRecords[index];
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text(
-                              '• ${r.meta}',
-                              style: TextStyle(fontSize: 11, color: c.ink2),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 22),
                   Row(
                     children: [
@@ -846,9 +737,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                   Navigator.pop(context);
                                   final toDelete = <DbRecord>{
                                     if (includeDuplicates) ...duplicateRecords,
-                                    if (includeHidden) ...hiddenRecords,
-                                    if (includeUnlinked) ...unlinkedRecords,
-                                    if (includeOrphans) ...orphanRecords,
+                                    if (includeOrphanEmpty) ...orphanEmptyRecords,
+                                    if (includeOrphanHistory) ...orphanHistoryRecords,
                                   };
                                   if (toDelete.isNotEmpty) {
                                     _deleteRecords(toDelete);
@@ -1055,13 +945,13 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     }
     counts['photos'] = 0;
 
-    final issueTotal = live.where((r) => r.flag != null).length;
+    final issueTotal = live.where((r) => r.isIssue).length;
 
     // Filter results
     final ql = _searchQuery.trim().toLowerCase();
     final results = live.where((r) {
       if (_selectedTable != 'all' && r.table != _selectedTable) return false;
-      if (_issuesOnly && r.flag == null) return false;
+      if (_issuesOnly && !r.isIssue) return false;
       if (ql.isEmpty) return true;
       final hay = [r.id, r.table, r.title, r.meta, r.flag ?? '', ...r.fields.values].join(' ').toLowerCase();
       return hay.contains(ql);
@@ -1549,7 +1439,6 @@ class _RecordRow extends StatelessWidget {
     final isOrphan = record.flag == 'orphan';
     final isHidden = record.flag == 'hidden';
     final isDuplicate = record.flag == 'duplicate';
-    final isUnlinked = record.flag == 'unlinked';
     final isFlagged = record.flag != null;
 
     Color iconColor = c.ink3;
@@ -1578,12 +1467,6 @@ class _RecordRow extends StatelessWidget {
       badgeText = 'DUPLICATE';
       badgeFg = amber;
       badgeBg = amber.withValues(alpha: 0.15);
-    } else if (isUnlinked) {
-      iconColor = c.primary;
-      labelColor = c.primary;
-      badgeText = 'UNLINKED';
-      badgeFg = c.primary;
-      badgeBg = c.primary.withValues(alpha: 0.15);
     }
 
     IconData icon;
