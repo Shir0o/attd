@@ -8,6 +8,7 @@ import '../../../core/design/widgets/conv_primitives.dart';
 import '../../../core/design/widgets/conv_theme.dart';
 import '../../../core/logging/app_logger.dart';
 import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../hub/data/event_repository.dart';
@@ -18,8 +19,14 @@ import '../../../data/session_record.dart';
 import '../../../data/local_session_repository.dart';
 import '../../../data/session_repository.dart';
 import '../../../core/maintenance/bulk_maintenance_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'inspector_context.dart';
 
 final _log = AppLogger('ManageBackup');
+
+/// Suggestions the user marked "Not an issue" (DbRecord.uniqueKey values).
+/// Device-local: dismissing never changes synced data.
+const _dismissedPrefsKey = 'inspector_dismissed_suggestions';
 
 class DbRecord {
   DbRecord({
@@ -79,6 +86,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   bool _issuesOnly = false;
   String _searchQuery = '';
   String? _openRecordId;
+  final Set<String> _dismissed = {};
 
   @override
   void initState() {
@@ -134,17 +142,8 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         }
       }
 
-      _memberUsageMap.clear();
-      for (final session in sessions) {
-        if (session.deletedAt != null) continue;
-        for (final record in session.records) {
-          if (record.memberId != null) {
-            _memberUsageMap
-                .putIfAbsent(record.memberId!, () => [])
-                .add((title: session.title, date: session.sessionDate));
-          }
-        }
-      }
+      final prefs = await SharedPreferences.getInstance();
+      final dismissed = prefs.getStringList(_dismissedPrefsKey) ?? const <String>[];
 
       // Minimum loading duration for visual consistency
       final elapsed = DateTime.now().difference(startTime);
@@ -155,10 +154,10 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
 
       if (mounted) {
         setState(() {
-          _families = families;
-          _events = events;
-          _sessions = sessions;
-          _rebuildDbRecords();
+          _dismissed
+            ..clear()
+            ..addAll(dismissed);
+          _applyData(families, events, sessions);
           _isLoading = false;
         });
       }
@@ -168,6 +167,24 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _applyData(List<Family> families, List<Event> events, List<Session> sessions) {
+    _families = families;
+    _events = events;
+    _sessions = sessions;
+    _memberUsageMap.clear();
+    for (final session in sessions) {
+      if (session.deletedAt != null) continue;
+      for (final record in session.records) {
+        if (record.memberId != null) {
+          _memberUsageMap
+              .putIfAbsent(record.memberId!, () => [])
+              .add((title: session.title, date: session.sessionDate));
+        }
+      }
+    }
+    _rebuildDbRecords();
   }
 
   void _rebuildDbRecords() {
@@ -350,422 +367,245 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     _allRecords = records;
   }
 
-  Future<void> _deleteRecords(Set<DbRecord> recordsToDelete) async {
-    setState(() => _isLoading = true);
+  bool _needsReview(DbRecord r) => r.isIssue && !_dismissed.contains(r.uniqueKey);
 
-    try {
-      final List<Event> updatedEvents = List<Event>.from(_events);
-      final List<Session> updatedSessions = List<Session>.from(_sessions);
-      final List<Family> updatedFamilies = _families.map((f) {
-        return f.copyWith(members: List<Member>.from(f.members));
-      }).toList();
-
-      bool eventsChanged = false;
-      bool sessionsChanged = false;
-      bool familiesChanged = false;
-
-      // Live records become tombstones (deletedAt + updatedAt) so the Drive
-      // merge propagates the deletion; a hard removal would be re-added from
-      // the cloud copy on the next sync. Records that are already tombstones
-      // are purged outright.
-      final now = DateTime.now();
-      for (final r in recordsToDelete) {
-        if (r.table == 'events') {
-          final i = updatedEvents.indexWhere((e) => e.id == r.id);
-          if (i != -1 && updatedEvents[i].deletedAt == null) {
-            updatedEvents[i] = updatedEvents[i].copyWith(deletedAt: now, updatedAt: now);
-          } else {
-            updatedEvents.removeWhere((e) => e.id == r.id);
-          }
-          eventsChanged = true;
-        } else if (r.table == 'sessions') {
-          final i = updatedSessions.indexWhere((s) => s.id == r.id);
-          if (i != -1 && updatedSessions[i].deletedAt == null) {
-            updatedSessions[i] = updatedSessions[i].copyWith(deletedAt: now, updatedAt: now);
-          } else {
-            updatedSessions.removeWhere((s) => s.id == r.id);
-          }
-          sessionsChanged = true;
-        } else if (r.table == 'families') {
-          final i = updatedFamilies.indexWhere((f) => f.id == r.id);
-          if (i != -1 && updatedFamilies[i].deletedAt == null) {
-            updatedFamilies[i] = updatedFamilies[i].copyWith(deletedAt: now, updatedAt: now);
-          } else {
-            updatedFamilies.removeWhere((f) => f.id == r.id);
-          }
-          familiesChanged = true;
-        } else if (r.table == 'members') {
-          // Remove member from any family
-          for (int i = 0; i < updatedFamilies.length; i++) {
-            final f = updatedFamilies[i];
-            final members = f.members;
-            if (members.any((m) => m.id == r.id)) {
-              final newMembers = members.where((m) => m.id != r.id).toList();
-              updatedFamilies[i] = f.copyWith(
-                members: newMembers,
-                updatedAt: DateTime.now(),
-              );
-              familiesChanged = true;
-            }
-          }
-        } else if (r.table == 'attendance') {
-          final sessionId = r.fields['session_id'];
-          final memberId = r.fields['member_id'] == '—' ? null : r.fields['member_id'];
-          final attendeeName = r.fields['attendee'];
-          final recordedAtStr = r.fields['recordedAt'];
-          final recordedAtMs = r.fields['recordedAtMs'];
-
-          final sessionIndex = updatedSessions.indexWhere((s) => s.id == sessionId);
-          if (sessionIndex != -1) {
-            final s = updatedSessions[sessionIndex];
-            bool removedTarget = false;
-            final records = <SessionRecord>[];
-            for (final rec in s.records) {
-              final recRecordedAtStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(rec.recordedAt);
-              final recRecordedAtMs = rec.recordedAt.millisecondsSinceEpoch.toString();
-              final isTimeMatch = (recordedAtMs != null && recordedAtMs != '—')
-                  ? recRecordedAtMs == recordedAtMs
-                  : (recordedAtStr == null || recordedAtStr == '—' || recRecordedAtStr == recordedAtStr);
-              final isMatch = (memberId != null ? rec.memberId == memberId : rec.attendee == attendeeName) && isTimeMatch;
-              if (isMatch && !removedTarget) {
-                removedTarget = true;
-              } else {
-                records.add(rec);
-              }
-            }
-            if (records.isEmpty) {
-              // If cleaning duplicate records leaves the session empty (e.g. duplicate session),
-              // soft-delete the session so it doesn't become an orphan and propagates deletion to Drive.
-              updatedSessions[sessionIndex] = s.copyWith(
-                records: records,
-                deletedAt: now,
-                updatedAt: now,
-              );
-            } else {
-              updatedSessions[sessionIndex] = s.copyWith(
-                records: records,
-                updatedAt: now,
-              );
-            }
-            sessionsChanged = true;
-          }
-        }
+  Future<void> _setDismissed(DbRecord r, bool dismissed) async {
+    setState(() {
+      if (dismissed) {
+        _dismissed.add(r.uniqueKey);
+      } else {
+        _dismissed.remove(r.uniqueKey);
       }
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_dismissedPrefsKey, _dismissed.toList());
+  }
 
-      // Save changes back to repositories
-      final List<Future<void>> saveFutures = [];
-
-      if (eventsChanged) {
-        final evRepo = widget.eventRepository;
-        if (evRepo is LocalJsonEventRepository) {
-          saveFutures.add(evRepo.saveEvents(updatedEvents));
-        } else {
-          try {
-            saveFutures.add((evRepo as dynamic).saveEvents(updatedEvents));
-          } catch (_) {}
-        }
+  Future<void> _save(_Draft d) async {
+    final saves = <Future<void>>[];
+    if (d.touchedEvents.isNotEmpty) {
+      final evRepo = widget.eventRepository;
+      if (evRepo is LocalJsonEventRepository) {
+        saves.add(evRepo.saveEvents(d.events));
+      } else {
+        saves.add((evRepo as dynamic).saveEvents(d.events));
       }
-
-      if (sessionsChanged) {
-        final sesRepo = widget.sessionRepository;
-        if (sesRepo is LocalJsonSessionRepository) {
-          saveFutures.add(sesRepo.saveSessions(updatedSessions));
-        } else {
-          try {
-            saveFutures.add((sesRepo as dynamic).saveSessions(updatedSessions));
-          } catch (_) {}
-        }
+    }
+    if (d.touchedSessions.isNotEmpty) {
+      final sesRepo = widget.sessionRepository;
+      if (sesRepo is LocalJsonSessionRepository) {
+        saves.add(sesRepo.saveSessions(d.sessions));
+      } else {
+        saves.add((sesRepo as dynamic).saveSessions(d.sessions));
       }
-
-      if (familiesChanged) {
-        saveFutures.add(widget.attendanceRepository.saveFamilies(updatedFamilies));
-      }
-
-      await Future.wait(saveFutures);
-
-      // Reload data
-      await _loadData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              recordsToDelete.length == 1
-                  ? 'Record deleted'
-                  : 'Cleaned up ${recordsToDelete.length} flagged records',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e, st) {
-      _log.error('Failed to delete records', e, st);
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete records: $e')),
-        );
-      }
+    }
+    if (d.touchedFamilies.isNotEmpty) {
+      saves.add(widget.attendanceRepository.saveFamilies(d.families));
+    }
+    await Future.wait(saves);
+    if (mounted) {
+      setState(() => _applyData(d.families, d.events, d.sessions));
     }
   }
 
-  bool _carriesAttendance(DbRecord r) =>
-      r.table == 'attendance' || (r.table == 'sessions' && r.fields['records'] != '0');
+  /// Applies [edit] to working copies of the data, saves what it touched, and
+  /// offers Undo. Edits bump updatedAt (and deletions leave tombstones) so the
+  /// change wins the next Drive merge instead of being re-added from the cloud.
+  Future<void> _mutate(String message, void Function(_Draft d) edit) async {
+    final before = _Draft(_events, _sessions, _families);
+    final after = _Draft(_events, _sessions, _families);
+    try {
+      edit(after);
+      await _save(after);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(label: 'Undo', onPressed: () => _undo(before, after)),
+        ));
+    } catch (e, st) {
+      _log.error('Failed to update records', e, st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update records: $e')),
+      );
+    }
+  }
 
-  void _showCleanupConfirmation(int issueTotal) {
-    final c = context.conv;
-    final duplicateRecords = _allRecords.where((r) => r.flag == 'duplicate').toList();
-    final orphanRecords = _allRecords.where((r) => r.flag == 'orphan').toList();
-    // Orphans that still carry attendance are history, not junk: opt-in only.
-    final orphanHistoryRecords = orphanRecords.where(_carriesAttendance).toList();
-    final orphanEmptyRecords = orphanRecords.where((r) => !_carriesAttendance(r)).toList();
+  /// Puts back the entities [after] touched as they were in [before], with a
+  /// fresh updatedAt so the restore also wins the next Drive merge.
+  Future<void> _undo(_Draft before, _Draft after) async {
+    final now = DateTime.now();
+    final d = _Draft(_events, _sessions, _families);
+    for (final id in after.touchedEvents) {
+      final prev = before.events.where((e) => e.id == id).firstOrNull;
+      prev == null ? d.removeEvent(id) : d.putEvent(prev.copyWith(updatedAt: now));
+    }
+    for (final id in after.touchedSessions) {
+      final prev = before.sessions.where((s) => s.id == id).firstOrNull;
+      prev == null ? d.removeSession(id) : d.putSession(prev.copyWith(updatedAt: now));
+    }
+    for (final id in after.touchedFamilies) {
+      final prev = before.families.where((f) => f.id == id).firstOrNull;
+      prev == null ? d.removeFamily(id) : d.putFamily(prev.copyWith(updatedAt: now));
+    }
+    try {
+      await _save(d);
+    } catch (e, st) {
+      _log.error('Failed to undo', e, st);
+    }
+  }
 
-    bool includeDuplicates = duplicateRecords.isNotEmpty;
-    bool includeOrphanEmpty = orphanEmptyRecords.isNotEmpty;
-    bool includeOrphanHistory = false;
+  Future<void> _delete(DbRecord r) {
+    final now = DateTime.now();
+    return _mutate(r.table == 'attendance' ? 'Mark deleted' : 'Deleted ${r.title}', (d) {
+      switch (r.table) {
+        case 'events':
+          final e = d.events.firstWhere((e) => e.id == r.id);
+          e.deletedAt == null ? d.putEvent(e.copyWith(deletedAt: now, updatedAt: now)) : d.removeEvent(e.id);
+        case 'sessions':
+          final s = d.sessions.firstWhere((s) => s.id == r.id);
+          s.deletedAt == null ? d.putSession(s.copyWith(deletedAt: now, updatedAt: now)) : d.removeSession(s.id);
+        case 'families':
+          final f = d.families.firstWhere((f) => f.id == r.id);
+          f.deletedAt == null ? d.putFamily(f.copyWith(deletedAt: now, updatedAt: now)) : d.removeFamily(f.id);
+        case 'members':
+          for (final f in d.families.where((f) => f.members.any((m) => m.id == r.id)).toList()) {
+            d.putFamily(f.copyWith(
+              members: f.members.where((m) => m.id != r.id).toList(),
+              updatedAt: now,
+            ));
+          }
+        case 'attendance':
+          final s = d.sessions.firstWhere((s) => s.id == r.fields['session_id']);
+          final i = _markIndex(s, r);
+          if (i != -1) {
+            d.putSession(s.copyWith(records: [...s.records]..removeAt(i), updatedAt: now));
+          }
+      }
+    });
+  }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final selectedCount = (includeDuplicates ? duplicateRecords.length : 0) +
-                (includeOrphanEmpty ? orphanEmptyRecords.length : 0) +
-                (includeOrphanHistory ? orphanHistoryRecords.length : 0);
+  Future<void> _restore(DbRecord r) {
+    final now = DateTime.now();
+    return _mutate('Restored ${r.title}', (d) {
+      switch (r.table) {
+        case 'events':
+          final e = d.events.firstWhere((e) => e.id == r.id);
+          d.putEvent(e.copyWith(clearDeletedAt: true, updatedAt: now));
+        case 'sessions':
+          final s = d.sessions.firstWhere((s) => s.id == r.id);
+          d.putSession(s.copyWith(clearDeletedAt: true, updatedAt: now));
+        case 'families':
+          final f = d.families.firstWhere((f) => f.id == r.id);
+          d.putFamily(f.copyWith(clearDeletedAt: true, updatedAt: now));
+        case 'members':
+          final f = d.families.firstWhere((f) => f.members.any((m) => m.id == r.id));
+          d.putFamily(f.copyWith(
+            clearDeletedAt: true,
+            updatedAt: now,
+            members: [
+              for (final m in f.members)
+                m.id == r.id ? m.copyWith(clearDeletedAt: true, updatedAt: now) : m,
+            ],
+          ));
+      }
+    });
+  }
 
-            Widget category({
-              required List<DbRecord> records,
-              required bool included,
-              required VoidCallback onToggle,
-              required IconData icon,
-              required Color color,
-              required String title,
-              required String subtitle,
-            }) {
-              if (records.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: () => setModalState(onToggle),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(icon, color: color, size: 18),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${records.length} $title',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.ink),
-                                  ),
-                                  Text(
-                                    subtitle,
-                                    style: TextStyle(fontSize: 11.5, color: c.ink3),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IgnorePointer(
-                              child: Checkbox(
-                                value: included,
-                                activeColor: color,
-                                onChanged: (_) {},
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (included)
-                      Container(
-                        constraints: const BoxConstraints(maxHeight: 140),
-                        margin: const EdgeInsets.only(top: 6, left: 44),
-                        decoration: BoxDecoration(
-                          color: c.card,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.all(10),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: records.length,
-                          itemBuilder: (context, index) {
-                            final r = records[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Text(
-                                '• ${r.table == 'attendance' ? r.meta : '${r.title} · ${r.meta}'}',
-                                style: TextStyle(fontSize: 11, color: c.ink2),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }
+  Future<void> _editMark(DbRecord r, String message, SessionRecord Function(SessionRecord mark) change) {
+    return _mutate(message, (d) {
+      final s = d.sessions.firstWhere((s) => s.id == r.fields['session_id']);
+      final i = _markIndex(s, r);
+      if (i == -1) return;
+      d.putSession(s.copyWith(
+        records: [...s.records]..[i] = change(s.records[i]),
+        updatedAt: DateTime.now(),
+      ));
+    });
+  }
 
-            return Container(
-              decoration: BoxDecoration(
-                color: c.card,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(26),
-                  topRight: Radius.circular(26),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 30),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.hair,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: c.absent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(Icons.cleaning_services, color: c.absent, size: 24),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Clean up $selectedCount records?',
-                    style: AppTypography.fraunces(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w500,
-                      color: c.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Dry Run & Validation summary of $selectedCount flagged record(s) ready for cleanup.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      color: c.ink3,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: c.cardSoft,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      children: [
-                        category(
-                          records: duplicateRecords,
-                          included: includeDuplicates,
-                          onToggle: () => includeDuplicates = !includeDuplicates,
-                          icon: Icons.copy,
-                          color: const Color(0xFFD97706),
-                          title: 'Duplicate attendance entries',
-                          subtitle: 'Matching event + date + attendant',
-                        ),
-                        category(
-                          records: orphanEmptyRecords,
-                          included: includeOrphanEmpty,
-                          onToggle: () => includeOrphanEmpty = !includeOrphanEmpty,
-                          icon: Icons.link_off,
-                          color: c.absent,
-                          title: 'Orphaned references',
-                          subtitle: 'Empty sessions or families, no attendance',
-                        ),
-                        category(
-                          records: orphanHistoryRecords,
-                          included: includeOrphanHistory,
-                          onToggle: () => includeOrphanHistory = !includeOrphanHistory,
-                          icon: Icons.history,
-                          color: c.clayDeep,
-                          title: 'Orphaned attendance history',
-                          subtitle: 'Past marks of deleted members or events',
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: c.ink,
-                            side: BorderSide(color: c.hair),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: selectedCount == 0
-                              ? null
-                              : () {
-                                  Navigator.pop(context);
-                                  final toDelete = <DbRecord>{
-                                    if (includeDuplicates) ...duplicateRecords,
-                                    if (includeOrphanEmpty) ...orphanEmptyRecords,
-                                    if (includeOrphanHistory) ...orphanHistoryRecords,
-                                  };
-                                  if (toDelete.isNotEmpty) {
-                                    _deleteRecords(toDelete);
-                                  }
-                                },
-                          icon: const Icon(Icons.delete, size: 16),
-                          label: const Text('Clean up'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: c.absent,
-                            foregroundColor: c.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-          },
-        );
-      },
+  int _markIndex(Session s, DbRecord r) => InspectorIndex.markIndex(
+        s,
+        memberId: r.fields['member_id'] == '—' ? null : r.fields['member_id'],
+        attendee: r.fields['attendee']!,
+        recordedAtMs: int.parse(r.fields['recordedAtMs']!),
+      );
+
+  Widget? _detailsFor(DbRecord r, InspectorIndex index) {
+    if (r.table == 'sessions') {
+      final s = index.session(r.id);
+      return s == null ? null : SessionContext(session: s, index: index);
+    }
+    if (r.table != 'attendance') return null;
+    final s = index.session(r.fields['session_id']);
+    if (s == null) return null;
+    final i = _markIndex(s, r);
+    if (i == -1) return null;
+    return MarkContext(
+      recordKey: r.id,
+      session: s,
+      mark: s.records[i],
+      index: index,
+      onStatus: (status) => _editMark(
+        r,
+        'Marked ${status.label.toLowerCase()}',
+        (m) => m.copyWith(status: status),
+      ),
+      onLink: (member) => _editMark(
+        r,
+        'Linked to ${member.displayName}',
+        (m) => m.copyWith(memberId: member.id, attendee: member.displayName),
+      ),
+      onGuest: () => _editMark(
+        r,
+        'Kept as guest',
+        (m) => SessionRecord(
+          attendee: m.attendee,
+          status: m.status,
+          recordedAt: m.recordedAt,
+          recordedBy: m.recordedBy,
+          isLate: m.isLate,
+        ),
+      ),
     );
+  }
+
+  List<Widget> _actionsFor(DbRecord r) {
+    final c = context.conv;
+    final hidden = r.flag == 'hidden';
+    Widget action(String key, IconData icon, String label, VoidCallback onPressed, {bool destructive = false}) {
+      final color = destructive ? c.absent : c.ink;
+      return TextButton.icon(
+        key: ValueKey(key),
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16, color: color),
+        label: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+        style: TextButton.styleFrom(
+          backgroundColor: destructive ? c.absent.withValues(alpha: 0.12) : c.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        ),
+      );
+    }
+
+    return [
+      if (_needsReview(r))
+        action('dismiss_btn_${r.id}', Icons.check, 'Not an issue', () => _setDismissed(r, true)),
+      if (r.isIssue && !_needsReview(r))
+        action('undismiss_btn_${r.id}', Icons.flag_outlined, 'Review again', () => _setDismissed(r, false)),
+      if (hidden && r.table != 'attendance')
+        action('restore_btn_${r.id}', Icons.restore, 'Restore', () => _restore(r)),
+      action(
+        'delete_btn_${r.id}',
+        Icons.delete_outline,
+        hidden && r.table != 'attendance' ? 'Delete permanently' : 'Delete record',
+        () => _handleDeleteRecord(r),
+        destructive: true,
+      ),
+    ];
   }
 
   void _showBulkMergeDialog() {
@@ -786,7 +626,11 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   }
 
   Future<void> _handleDeleteRecord(DbRecord r) async {
-    if (r.table == 'attendance') {
+    if (r.table != 'members') {
+      final what = r.table == 'attendance'
+          ? 'the attendance mark for "${r.fields['attendee']}" from "${r.fields['formatted_date'] ?? r.fields['date']}"'
+          : '"${r.title}"';
+      final permanent = r.flag == 'hidden' && r.table != 'attendance';
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) {
@@ -797,11 +641,16 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
               children: [
                 Icon(Icons.delete_outline, color: c.absent),
                 const SizedBox(width: 12),
-                Text('Delete attendance mark?', style: TextStyle(color: c.ink)),
+                Text(
+                  r.table == 'attendance' ? 'Delete attendance mark?' : 'Delete record?',
+                  style: TextStyle(color: c.ink),
+                ),
               ],
             ),
             content: Text(
-              'This permanently removes the attendance mark for "${r.fields['attendee']}" from "${r.fields['formatted_date'] ?? r.fields['date']}". This cannot be undone.',
+              permanent
+                  ? 'This permanently removes $what, which is already deleted in the app.'
+                  : 'This deletes $what. You can undo it right after.',
               style: TextStyle(color: c.ink3, fontSize: 13.5, height: 1.5),
             ),
             actions: [
@@ -928,7 +777,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       }
     }
 
-    await _deleteRecords({r});
+    await _delete(r);
   }
 
   @override
@@ -945,13 +794,14 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     }
     counts['photos'] = 0;
 
-    final issueTotal = live.where((r) => r.isIssue).length;
+    final issueTotal = live.where(_needsReview).length;
+    final inspectorIndex = InspectorIndex(events: _events, sessions: _sessions, families: _families);
 
     // Filter results
     final ql = _searchQuery.trim().toLowerCase();
     final results = live.where((r) {
       if (_selectedTable != 'all' && r.table != _selectedTable) return false;
-      if (_issuesOnly && !r.isIssue) return false;
+      if (_issuesOnly && !_needsReview(r)) return false;
       if (ql.isEmpty) return true;
       final hay = [r.id, r.table, r.title, r.meta, r.flag ?? '', ...r.fields.values].join(' ').toLowerCase();
       return hay.contains(ql);
@@ -1103,7 +953,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                   style: TextStyle(color: c.ink3),
                                 ),
                                 TextSpan(
-                                  text: '$issueTotal flagged',
+                                  text: '$issueTotal to review',
                                   style: TextStyle(
                                     color: c.absent,
                                     fontWeight: FontWeight.w500,
@@ -1176,7 +1026,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                           22,
                           0,
                           22,
-                          issueTotal > 0 ? 120 : 32,
+                          32,
                         ),
                         children: [
                           results.isEmpty
@@ -1235,57 +1085,13 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                                           ),
                                         );
                                       },
-                                      onDelete: () => _handleDeleteRecord(r),
+                                      details: _openRecordId == key ? _detailsFor(r, inspectorIndex) : null,
+                                      actions: _openRecordId == key ? _actionsFor(r) : const [],
                                     );
                                   }).toList(),
                                 ),
                         ],
                       ),
-                      if (issueTotal > 0)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(22, 14, 22, 26),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [
-                                  c.bg,
-                                  c.bg,
-                                  c.bg.withValues(alpha: 0.0),
-                                ],
-                                stops: const [0.0, 0.62, 1.0],
-                              ),
-                            ),
-                            child: TextButton.icon(
-                              key: const ValueKey('cleanup_flagged_records_button'),
-                              onPressed: () => _showCleanupConfirmation(issueTotal),
-                              icon: Icon(Icons.cleaning_services, color: c.absent),
-                              label: Text(
-                                'Clean up $issueTotal flagged records',
-                                style: TextStyle(
-                                  color: c.absent,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                backgroundColor: c.absent.withValues(alpha: 0.12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  side: BorderSide(
-                                    color: c.absent.withValues(alpha: 0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 15),
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -1422,15 +1228,21 @@ class _RecordRow extends StatelessWidget {
     required this.record,
     required this.isExpanded,
     required this.onTap,
-    required this.onDelete,
     required this.onCopy,
+    this.details,
+    this.actions = const [],
   });
 
   final DbRecord record;
   final bool isExpanded;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
   final VoidCallback onCopy;
+
+  /// Context that explains the record (session, duplicates, link candidates).
+  final Widget? details;
+
+  /// Record actions (dismiss, restore, delete), shown beside Copy ID.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -1698,49 +1510,29 @@ class _RecordRow extends StatelessWidget {
                       }).toList(),
                     ),
                   ),
+                  if (details != null) ...[
+                    details!,
+                    const SizedBox(height: 4),
+                  ],
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: onCopy,
-                          icon: const Icon(Icons.copy, size: 16),
-                          label: const Text('Copy ID'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: c.ink,
-                            side: BorderSide(color: c.hair),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                      OutlinedButton.icon(
+                        onPressed: onCopy,
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: const Text('Copy ID'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: c.ink,
+                          side: BorderSide(color: c.hair),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                         ),
                       ),
-                      if (isFlagged || record.table == 'attendance') ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextButton.icon(
-                            key: ValueKey('delete_btn_${record.id}'),
-                            onPressed: onDelete,
-                            icon: Icon(Icons.delete_outline, size: 16, color: c.absent),
-                            label: Text(
-                              'Delete record',
-                              style: TextStyle(color: c.absent, fontWeight: FontWeight.w600),
-                            ),
-                            style: TextButton.styleFrom(
-                              backgroundColor: c.absent.withValues(alpha: 0.12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color: c.absent.withValues(alpha: 0.26),
-                                  width: 1.5,
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ...actions,
                     ],
                   ),
                 ],
@@ -1750,6 +1542,57 @@ class _RecordRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Working copies of the inspector's data for one edit, recording which
+/// entities the edit touched so only those files are saved (and undone).
+class _Draft {
+  _Draft(List<Event> events, List<Session> sessions, List<Family> families)
+      : events = List.of(events),
+        sessions = List.of(sessions),
+        families = List.of(families);
+
+  final List<Event> events;
+  final List<Session> sessions;
+  final List<Family> families;
+  final touchedEvents = <String>{};
+  final touchedSessions = <String>{};
+  final touchedFamilies = <String>{};
+
+  static void _put<T>(List<T> list, T item, bool Function(T) same) {
+    final i = list.indexWhere(same);
+    i == -1 ? list.add(item) : list[i] = item;
+  }
+
+  void putEvent(Event e) {
+    _put(events, e, (x) => x.id == e.id);
+    touchedEvents.add(e.id);
+  }
+
+  void removeEvent(String id) {
+    events.removeWhere((e) => e.id == id);
+    touchedEvents.add(id);
+  }
+
+  void putSession(Session s) {
+    _put(sessions, s, (x) => x.id == s.id);
+    touchedSessions.add(s.id);
+  }
+
+  void removeSession(String id) {
+    sessions.removeWhere((s) => s.id == id);
+    touchedSessions.add(id);
+  }
+
+  void putFamily(Family f) {
+    _put(families, f, (x) => x.id == f.id);
+    touchedFamilies.add(f.id);
+  }
+
+  void removeFamily(String id) {
+    families.removeWhere((f) => f.id == id);
+    touchedFamilies.add(id);
   }
 }
 

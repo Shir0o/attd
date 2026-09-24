@@ -29,12 +29,16 @@ A single attendance record: a person, a status (present/absent/late), a recorded
 _Avoid_: Attendance entry, attendance row
 
 **Orphaned Mark**:
-An attendance mark whose member-ID link references a member that no longer exists (deleted or missing from the roster). Flagged in the storage inspector, but it is attendance history, so bulk cleanup removes it only when explicitly opted in.
+An attendance mark whose member-ID link references a member that no longer exists (deleted or missing from the roster). Flagged as a Review Suggestion; it is attendance history, so the user links it to a live member, keeps it as a Guest Mark, or deletes it.
 _Avoid_: Dangling record, broken reference
 
 **Tombstone**:
-A soft-deleted record (`deletedAt` and `updatedAt` set) kept so that Drive sync propagates the deletion instead of re-adding the record from the cloud copy. Storage-inspector cleanup writes tombstones rather than removing records; data maintenance prunes tombstones after 90 days. Tombstones are not cleanup issues.
+A soft-deleted record (`deletedAt` and `updatedAt` set) kept so that Drive sync propagates the deletion instead of re-adding the record from the cloud copy. Storage-inspector deletions write tombstones rather than removing records; data maintenance prunes tombstones after 90 days. Tombstones are not Review Suggestions.
 _Avoid_: Hard delete, purge
+
+**Review Suggestion**:
+A storage-inspector flag (duplicate, orphaned, empty) shown with the context needed to judge it: the mark's session, other sessions for the same event and date, same-name live members. Never acted on automatically; the user edits, deletes, or dismisses it ("Not an issue", remembered on that device).
+_Avoid_: Bulk cleanup, auto-clean, flagged record
 
 **Attendee Surname**:
 The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent.
