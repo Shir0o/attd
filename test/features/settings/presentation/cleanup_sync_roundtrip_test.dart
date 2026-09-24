@@ -1,11 +1,8 @@
-import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
-import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
-import 'package:attendance_tracker/features/hub/data/local_event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/manage_backup_data_page.dart';
@@ -13,43 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'inspector_test_fakes.dart';
 
 class _MockGoogleSignIn extends Mock implements GoogleSignIn {}
-
-class _Families extends LocalJsonAttendanceRepository {
-  _Families(this.families);
-  List<Family> families;
-  @override
-  Future<List<Family>> fetchAllFamilies() async => families;
-  @override
-  Future<List<Family>> fetchFamilies() async => families;
-  @override
-  Future<void> saveFamilies(List<Family> families) async => this.families = families;
-  @override
-  Future<void> refresh() async {}
-}
-
-class _Events extends LocalJsonEventRepository {
-  _Events(this.events);
-  List<Event> events;
-  @override
-  Future<List<Event>> fetchAllEvents() async => events;
-  @override
-  Future<void> saveEvents(List<Event> events) async => this.events = events;
-  @override
-  Future<void> refresh() async {}
-}
-
-class _Sessions extends LocalJsonSessionRepository {
-  _Sessions(this.sessions);
-  List<Session> sessions;
-  @override
-  Future<List<Session>> fetchAllSessions() async => sessions;
-  @override
-  Future<void> saveSessions(List<Session> sessions) async => this.sessions = sessions;
-  @override
-  Future<void> refresh() async {}
-}
 
 final _t = DateTime(2025, 4, 5, 10);
 final _day = DateTime(2025, 4, 5);
@@ -76,20 +41,21 @@ Session _session(String id, String title, String? eventId, List<SessionRecord> r
       deletedAt: deletedAt,
     );
 
-Finder get _cleanupButton => find.byKey(const ValueKey('cleanup_flagged_records_button'));
-
 String _issueLabel(WidgetTester tester) {
-  if (_cleanupButton.evaluate().isEmpty) return 'no cleanup button (0 flagged)';
-  final text = find.descendant(of: _cleanupButton, matching: find.byType(Text));
-  return (tester.widget<Text>(text.first)).data!;
+  for (var n = 1; n <= 20; n++) {
+    if (find.textContaining('$n to review').evaluate().isNotEmpty) return '$n to review';
+  }
+  return 'nothing to review';
 }
 
 void main() {
-  testWidgets('cleanup survives a Drive sync round-trip', (tester) async {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('deletions in the inspector survive a Drive sync round-trip', (tester) async {
     tester.view.physicalSize = const Size(1200, 3000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    final families = _Families([
+    final families = InspectorFamilies([
       Family(id: 'f-1', displayName: 'Alpha', updatedAt: _t, members: [
         Member(id: 'm-1', displayName: 'Ann Alpha', updatedAt: _t),
         Member(id: 'm-hidden', displayName: 'Hid Den', updatedAt: _t, deletedAt: _t),
@@ -97,11 +63,11 @@ void main() {
       Family(id: 'f-empty', displayName: 'Empty', updatedAt: _t, members: const []),
       Family(id: 'f-deleted', displayName: 'Gone', updatedAt: _t, deletedAt: _t, members: const []),
     ]);
-    final events = _Events([
+    final events = InspectorEvents([
       Event(id: 'e-1', title: 'Weekly', time: const TimeOfDay(hour: 10, minute: 0), frequency: 'Weekly', createdAt: _t),
       Event(id: 'e-hidden', title: 'Old', time: const TimeOfDay(hour: 9, minute: 0), frequency: 'Weekly', createdAt: _t, deletedAt: _t),
     ]);
-    final sessions = _Sessions([
+    final sessions = InspectorSessions([
       _session('s-1', 'Weekly', 'e-1', [
         _mark('m-1', 'Ann Alpha', 0),
         _mark(null, 'Nobody Known', 1), // unlinked
@@ -135,16 +101,22 @@ void main() {
 
     await pumpPage();
     // Guest marks and soft-deleted records are not issues.
-    expect(_issueLabel(tester), 'Clean up 5 flagged records');
+    expect(_issueLabel(tester), '5 to review');
 
-    await tester.tap(_cleanupButton);
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
-    await tester.pumpAndSettle();
-    // Orphaned attendance history is opt-in, so it survives a default cleanup.
+    Future<void> deleteRow(String title, String id) async {
+      await tester.tap(find.text(title));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('delete_btn_$id')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+      await tester.pumpAndSettle();
+    }
+
+    await deleteRow('Empty', 'f-empty');
+    await deleteRow('Lost', 's-orphan');
     final afterCleanup = _issueLabel(tester);
-    expect(afterCleanup, 'Clean up 2 flagged records');
-    expect(sessions.sessions.firstWhere((s) => s.id == 's-empty').deletedAt, isNotNull);
+    expect(afterCleanup, '3 to review');
+    expect(sessions.sessions.firstWhere((s) => s.id == 's-orphan').deletedAt, isNotNull);
     expect(families.families.firstWhere((f) => f.id == 'f-empty').deletedAt, isNotNull);
 
     // Simulate the sync: merge local with the Drive copy using the real engine.
@@ -167,7 +139,7 @@ void main() {
 
     await pumpPage();
     expect(_issueLabel(tester), afterCleanup, reason: 'sync must not bring cleaned records back');
-    expect(sessions.sessions.firstWhere((s) => s.id == 's-empty').deletedAt, isNotNull);
+    expect(sessions.sessions.firstWhere((s) => s.id == 's-orphan').deletedAt, isNotNull);
     expect(families.families.firstWhere((f) => f.id == 'f-empty').deletedAt, isNotNull);
   });
 }

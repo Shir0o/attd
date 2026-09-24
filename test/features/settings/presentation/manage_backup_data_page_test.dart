@@ -11,6 +11,7 @@ import 'package:attendance_tracker/features/hub/data/local_event_repository.dart
 import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _AttendanceRepository extends LocalJsonAttendanceRepository {
   List<Family> families;
@@ -164,6 +165,8 @@ class _SessionRepository extends LocalJsonSessionRepository {
 Widget _wrap(Widget child) => MaterialApp(home: child);
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('renders backup data, filters search, and saves deletions', (
     tester,
   ) async {
@@ -274,18 +277,21 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    // Clean up remaining issues via bulk button
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
+    // The orphaned session explains itself before it is deleted
+    await tester.tap(find.text('Sunday Session'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Event missing'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('delete_btn_session-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
 
-    // The now-empty family is selected; the orphaned session and mark carry
-    // attendance history, so they are opt-in only.
-    expect(find.text('Clean up 1 records?'), findsOneWidget);
-    await tester.tap(find.textContaining('2 Orphaned attendance history'));
+    // The now-empty family is deleted from its own row
+    await tester.tap(find.text('Alpha Family'));
     await tester.pumpAndSettle();
-    expect(find.text('Clean up 3 records?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.tap(find.byKey(const ValueKey('delete_btn_family-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
 
     // Deletions are tombstones so the Drive merge keeps them deleted
@@ -338,6 +344,9 @@ void main() {
   });
 
   testWidgets('deletes individual attendance record', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final now = DateTime(2025, 4, 5, 10);
     final member = Member(
       id: 'member-1234',
@@ -478,7 +487,7 @@ void main() {
     // Healthy mark: no issue badge, and the bulk cleanup button is absent
     expect(find.text('mark · present'), findsOneWidget);
     expect(find.text('ORPHANED'), findsNothing);
-    expect(find.byKey(const ValueKey('cleanup_flagged_records_button')), findsNothing);
+    expect(find.textContaining('to review'), findsNothing);
 
     // Scroll the mark into view and expand it
     await tester.ensureVisible(find.text('mark · present'));
@@ -559,7 +568,7 @@ void main() {
 
     // Guest marks are legitimate attendance, so nothing is flagged
     expect(find.text('UNLINKED'), findsNothing);
-    expect(find.byKey(const ValueKey('cleanup_flagged_records_button')), findsNothing);
+    expect(find.textContaining('to review'), findsNothing);
     expect(sessions.sessions.single.records, hasLength(1));
   });
 
@@ -605,7 +614,10 @@ void main() {
     expect(find.text('Duplicate Member'), findsOneWidget);
   });
 
-  testWidgets('displays date, enables date search, flags duplicate attendance entries, and shows dry run validation', (tester) async {
+  testWidgets('displays date, enables date search, flags duplicate attendance entries, and removes one from its row', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final now = DateTime(2025, 4, 5, 10);
     final later = DateTime(2025, 4, 5, 10, 5);
 
@@ -699,24 +711,18 @@ void main() {
     // 2. Verify Duplicate Flagging
     expect(find.text('DUPLICATE'), findsOneWidget);
 
-    // 3. Verify Dry Run Validation Sheet
-    final cleanupButton = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupButton);
+    // 3. Remove the duplicate from its own row, after seeing its context
+    await tester.tap(find.text('DUPLICATE'));
     await tester.pumpAndSettle();
-
-    expect(find.textContaining('Dry Run & Validation'), findsOneWidget);
-    expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
-    // Preview lists the exact record that will be removed
-    expect(find.textContaining('• '), findsOneWidget);
-
-    // Cancel modal first to test cancel action
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+    expect(find.textContaining('Also recorded in 1 other session'), findsOneWidget);
+    final dupDelete = find.byWidgetPredicate(
+      (w) => w.key is ValueKey<String> && (w.key as ValueKey<String>).value.startsWith('delete_btn_session-2_'),
+    );
+    await tester.ensureVisible(dupDelete);
     await tester.pumpAndSettle();
-
-    // Re-open cleanup modal and execute cleanup
-    await tester.tap(cleanupButton);
+    await tester.tap(dupDelete);
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
 
     // Verify duplicate attendance record was safely removed while primary was kept
@@ -852,7 +858,7 @@ void main() {
     expect(find.text('No records match'), findsNothing);
   });
 
-  testWidgets('dry run breakdown lists duplicate and orphan issues but not soft-deleted records', (tester) async {
+  testWidgets('flags duplicate and orphan records for review but not soft-deleted ones', (tester) async {
     final now = DateTime(2025, 4, 5, 10);
     final later = DateTime(2025, 4, 5, 10, 5);
 
@@ -950,19 +956,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Open dry run cleanup sheet
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Duplicate attendance entries'), findsOneWidget);
-    expect(find.textContaining('Orphaned references'), findsOneWidget);
-    // Soft-deleted records are pruned by data maintenance, not by cleanup
-    expect(find.textContaining('Soft-deleted records'), findsNothing);
-
-    // Clean up
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
-    await tester.pumpAndSettle();
+    expect(find.text('DUPLICATE'), findsOneWidget);
+    expect(find.text('ORPHANED'), findsOneWidget);
+    expect(find.text('HIDDEN'), findsOneWidget);
+    // Soft-deleted records are shown but not counted for review
+    expect(find.textContaining('2 to review'), findsOneWidget);
   });
 
   testWidgets('opens bulk update & merge modal and runs dry-run preview', (tester) async {
@@ -1155,240 +1153,6 @@ void main() {
     expect(sessions.sessions.first.records.first.attendee, 'Robert Smith');
   });
 
-  testWidgets('duplicate cleanup bumps updatedAt and soft-deletes empty duplicate session',
-      (tester) async {
-    final oldTime = DateTime(2025, 1, 1, 10, 0);
-    final attendance = _AttendanceRepository([
-      Family(
-        id: 'family-1',
-        displayName: 'Test Family',
-        members: [
-          Member(
-            id: 'member-1',
-            displayName: 'Alice',
-            updatedAt: oldTime,
-          ),
-        ],
-        updatedAt: oldTime,
-      ),
-    ]);
-    final events = _EventRepository([]);
-    final sessions = _SessionRepository([
-      Session(
-        id: 'session-primary',
-        title: 'Gardening',
-        sessionDate: DateTime(2025, 9, 12),
-        records: [
-          SessionRecord(
-            memberId: 'member-1',
-            attendee: 'Alice',
-            status: AttendanceStatus.present,
-            recordedAt: oldTime,
-            recordedBy: 'tester',
-          ),
-        ],
-        createdAt: oldTime,
-        updatedAt: oldTime,
-        createdBy: 'tester',
-      ),
-      Session(
-        id: 'session-duplicate',
-        title: 'Gardening',
-        sessionDate: DateTime(2025, 9, 12),
-        records: [
-          SessionRecord(
-            memberId: 'member-1',
-            attendee: 'Alice',
-            status: AttendanceStatus.present,
-            recordedAt: oldTime,
-            recordedBy: 'tester',
-          ),
-        ],
-        createdAt: oldTime,
-        updatedAt: oldTime,
-        createdBy: 'tester',
-      ),
-    ]);
-
-    await tester.pumpWidget(
-      _wrap(
-        ManageBackupDataPage(
-          attendanceRepository: attendance,
-          eventRepository: events,
-          sessionRepository: sessions,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Verify duplicate attendance entry detected
-    expect(find.text('DUPLICATE'), findsOneWidget);
-
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
-
-    // Confirm cleanup
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
-    await tester.pumpAndSettle();
-
-    // Verify session-duplicate had records removed, was soft-deleted, and updatedAt was bumped
-    final primary = sessions.sessions.firstWhere((s) => s.id == 'session-primary');
-    final duplicate = sessions.sessions.firstWhere((s) => s.id == 'session-duplicate');
-
-    expect(primary.records.length, 1);
-    expect(duplicate.records, isEmpty);
-    expect(duplicate.deletedAt, isNotNull);
-    expect(duplicate.updatedAt.isAfter(oldTime), isTrue);
-
-    // The empty duplicate session should NOT be flagged as an orphan
-    expect(find.text('ORPHANED'), findsNothing);
-  });
-
-  testWidgets('unchecking category in dry run sheet preserves its records',
-      (tester) async {
-    final now = DateTime(2025, 4, 5, 10);
-    final attendance = _AttendanceRepository([
-      Family(
-        id: 'f-charlie',
-        displayName: 'Charlie Family',
-        members: [
-          Member(id: 'm-charlie', displayName: 'Charlie', updatedAt: now),
-        ],
-        updatedAt: now,
-      ),
-    ]);
-    final events = _EventRepository([
-      Event(
-        id: 'event-deleted',
-        title: 'Deleted Event',
-        time: const TimeOfDay(hour: 9, minute: 0),
-        frequency: 'Weekly',
-        createdAt: now,
-        deletedAt: now,
-      ),
-    ]);
-    final sessions = _SessionRepository([
-      Session(
-        id: 'session-unlinked',
-        title: 'Visitor Service',
-        sessionDate: DateTime(2025, 4, 5),
-        records: [
-          SessionRecord(
-            attendee: 'Visitor Bob',
-            status: AttendanceStatus.present,
-            recordedAt: now,
-            recordedBy: 'tester',
-          ),
-          // Mark of a member who no longer exists: orphaned history
-          SessionRecord(
-            memberId: 'm-gone',
-            attendee: 'Gone Gail',
-            status: AttendanceStatus.present,
-            recordedAt: now,
-            recordedBy: 'tester',
-          ),
-        ],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'tester',
-      ),
-      Session(
-        id: 'session-orphan',
-        title: 'Orphan Service',
-        eventId: 'non-existent-event',
-        sessionDate: DateTime(2025, 4, 5),
-        records: [],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'tester',
-      ),
-      Session(
-        id: 's-dup1',
-        title: 'Sunday',
-        sessionDate: DateTime(2025, 4, 6),
-        records: [
-          SessionRecord(
-            memberId: 'm-charlie',
-            attendee: 'Charlie',
-            status: AttendanceStatus.present,
-            recordedAt: now,
-            recordedBy: 'tester',
-          ),
-        ],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'tester',
-      ),
-      Session(
-        id: 's-dup2',
-        title: 'Sunday',
-        sessionDate: DateTime(2025, 4, 6),
-        records: [
-          SessionRecord(
-            memberId: 'm-charlie',
-            attendee: 'Charlie',
-            status: AttendanceStatus.present,
-            recordedAt: now,
-            recordedBy: 'tester',
-          ),
-        ],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'tester',
-      ),
-    ]);
-
-    await tester.pumpWidget(
-      _wrap(
-        ManageBackupDataPage(
-          attendanceRepository: attendance,
-          eventRepository: events,
-          sessionRepository: sessions,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('1 Duplicate attendance entries'), findsOneWidget);
-    expect(find.textContaining('1 Orphaned references'), findsOneWidget);
-    expect(find.textContaining('1 Orphaned attendance history'), findsOneWidget);
-    expect(find.textContaining('Soft-deleted records'), findsNothing);
-    expect(find.textContaining('Unlinked'), findsNothing);
-    // Orphaned history is unchecked by default
-    expect(find.text('Clean up 2 records?'), findsOneWidget);
-
-    // Uncheck the defaults to verify disabled state
-    await tester.tap(find.textContaining('1 Duplicate attendance entries'));
-    await tester.tap(find.textContaining('1 Orphaned references'));
-    await tester.pumpAndSettle();
-
-    final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Clean up'));
-    expect(button.onPressed, isNull);
-
-    // Opt in to orphaned history; its preview lists the mark
-    await tester.tap(find.textContaining('1 Orphaned attendance history'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('• Visitor Service · Gone Gail'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(FilledButton, 'Clean up'));
-    await tester.pumpAndSettle();
-
-    // Only the opted-in mark is gone; guest mark, duplicate, orphan session kept
-    final visitor = sessions.sessions.firstWhere((s) => s.id == 'session-unlinked');
-    expect(visitor.records.map((r) => r.attendee), ['Visitor Bob']);
-    expect(sessions.sessions.firstWhere((s) => s.id == 'session-orphan').deletedAt, isNull);
-    expect(sessions.sessions.firstWhere((s) => s.id == 's-dup2').records, hasLength(1));
-  });
-
   testWidgets('soft-deleted records are not issues but can be purged individually', (tester) async {
     final now = DateTime(2025, 5, 1, 10);
     final attendance = _AttendanceRepository([
@@ -1424,7 +1188,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('HIDDEN'), findsNWidgets(2));
-    expect(find.byKey(const ValueKey('cleanup_flagged_records_button')), findsNothing);
+    expect(find.textContaining('to review'), findsNothing);
 
     // An already soft-deleted record is purged outright when deleted
     await tester.tap(find.text('Deleted Event'));
@@ -1433,12 +1197,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('delete_btn_event-deleted')));
     await tester.pumpAndSettle();
+    expect(find.textContaining('permanently removes'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
 
     expect(events.events, isEmpty);
     expect(attendance.families, hasLength(1));
   });
 
-  testWidgets('handles error when saving during cleanup', (tester) async {
+  testWidgets('reports an error when saving a deletion fails', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final now = DateTime(2025, 5, 1, 10);
     final attendance = _AttendanceRepository([
       Family(
@@ -1465,14 +1235,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final cleanupBtn = find.byKey(const ValueKey('cleanup_flagged_records_button'));
-    await tester.tap(cleanupBtn);
+    await tester.tap(find.text('Error Family'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('delete_btn_fam-error')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
 
-    final cleanUpConfirm = find.widgetWithText(FilledButton, 'Clean up');
-    await tester.tap(cleanUpConfirm);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Failed to delete records: Exception: Simulated DB failure'), findsOneWidget);
+    expect(find.textContaining('Failed to update records: Exception: Simulated DB failure'), findsOneWidget);
   });
 }
