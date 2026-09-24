@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.0](https://github.com/Shir0o/attd/compare/v1.9.1...v1.10.0) (2026-09-24)
+
+
+### Features
+
+* **backup:** replace bulk clean-up with in-context review suggestions ([#209](https://github.com/Shir0o/attd/issues/209)) ([c46b5de](https://github.com/Shir0o/attd/commit/c46b5de83e9c47320e3fc3e9fb4ae0ba8a42ac9b))
+
+
+### Bug Fixes
+
+* **backup:** make storage-inspector cleanup survive sync and stop deleting guest marks ([#208](https://github.com/Shir0o/attd/issues/208)) ([bd090b9](https://github.com/Shir0o/attd/commit/bd090b947c398e7f0097093b879c8a136f0febe5))
+
 ## [1.9.1](https://github.com/Shir0o/attd/compare/v1.9.0...v1.9.1) (2026-09-24)
 
 
