@@ -306,4 +306,20 @@ void main() {
     expect(find.text('Event deleted: Weekly'), findsOneWidget);
     expect(find.text('1 other session on this date'), findsOneWidget);
   });
+
+  testWidgets('deleting a live member tombstones it, and Undo brings it back', (tester) async {
+    final h = _Harness(sessions: const []);
+    await h.pump(tester);
+
+    await tester.tap(find.text('Ann Alpha'));
+    await tester.pumpAndSettle();
+    await _tapKey(tester, 'delete_btn_m-ann');
+    Member ann() => h.families.families.single.members.firstWhere((m) => m.id == 'm-ann');
+    expect(ann().deletedAt, isNotNull, reason: 'members are tombstoned like every other record');
+    expect(ann().updatedAt.isAfter(_t), isTrue);
+
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Undo'));
+    await tester.pumpAndSettle();
+    expect(ann().deletedAt, isNull);
+  });
 }

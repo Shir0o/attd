@@ -474,7 +474,13 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         case 'members':
           for (final f in d.families.where((f) => f.members.any((m) => m.id == r.id)).toList()) {
             d.putFamily(f.copyWith(
-              members: f.members.where((m) => m.id != r.id).toList(),
+              members: [
+                for (final m in f.members)
+                  if (m.id != r.id)
+                    m
+                  else if (m.deletedAt == null)
+                    m.copyWith(deletedAt: now, updatedAt: now),
+              ],
               updatedAt: now,
             ));
           }
