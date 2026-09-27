@@ -18,6 +18,7 @@ import '../../hub/data/event_repository.dart';
 import '../../../data/session_repository.dart';
 
 import 'cloud_backup_page.dart';
+import 'cisa_sync_settings_page.dart';
 import 'manage_backup_data_page.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/design/app_shimmer.dart';
@@ -588,34 +589,34 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Google Sheets ───────────────────────────────────────────
+                    // ── Integrations ───────────────────────────────────────────
                     _SettingSection(
-                      title: 'Google Sheets Integration',
+                      title: 'Integrations',
                       children: [
                         _GoogleSheetsSection(
                           isSavingUrl: _isSavingUrl,
                           sheetsUrlController: _sheetsUrlController,
                           onSave: _saveGoogleSheetsUrl,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── CISA Campus Tracker ─────────────────────────────────────
-                    _SettingSection(
-                      title: 'CISA Campus Tracker',
-                      children: [
-                        _CisaSection(
-                          isSaving: _isSavingCisa,
-                          urlController: _cisaUrlController,
-                          tokenController: _cisaTokenController,
-                          obscureToken: _obscureCisaToken,
-                          onToggleObscureToken: () {
-                            setState(() {
-                              _obscureCisaToken = !_obscureCisaToken;
-                            });
+                        _SettingRow(
+                          key: const ValueKey('cisa_campus_tracker_tile'),
+                          icon: Icons.sync_alt,
+                          title: 'CISA Campus Tracker',
+                          subtitle: 'Configure attendance sync to CISA Campus Work Tracker',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CisaSyncSettingsPage(
+                                  cisaSyncService: _cisaSyncService,
+                                ),
+                              ),
+                            );
+                            final prefs = await SharedPreferences.getInstance();
+                            _cisaUrlController.text =
+                                prefs.getString(CisaSyncService.keyCisaSyncUrl) ?? '';
+                            _cisaTokenController.text =
+                                prefs.getString(CisaSyncService.keyCisaSyncToken) ?? '';
                           },
-                          onChanged: (_) => _saveCisaSettings(),
                         ),
                       ],
                     ),
