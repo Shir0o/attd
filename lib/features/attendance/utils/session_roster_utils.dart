@@ -123,15 +123,28 @@ int? matchRank(String haystack, String query) {
   return 2;
 }
 
-/// The last whitespace-separated token of [displayName], or the whole name if
-/// single-token. Returns an empty string for blank input.
-String memberLastName(String displayName) {
-  final parts = displayName
+List<String> _tokenizeName(String displayName) {
+  return displayName
       .split(RegExp(r'\s+'))
       .where((p) => p.isNotEmpty)
       .toList();
+}
+
+/// The last whitespace-separated token of [displayName], or the whole name if
+/// single-token. Returns an empty string for blank input.
+String memberLastName(String displayName) {
+  final parts = _tokenizeName(displayName);
   if (parts.isEmpty) return '';
   return parts.last;
+}
+
+/// All whitespace-separated tokens except the last of [displayName], or the
+/// whole name if single-token. Returns an empty string for blank input.
+String memberGivenName(String displayName) {
+  final parts = _tokenizeName(displayName);
+  if (parts.isEmpty) return '';
+  if (parts.length == 1) return parts.first;
+  return parts.sublist(0, parts.length - 1).join(' ');
 }
 
 /// The first-name and surname initials of [displayName].
@@ -139,10 +152,7 @@ String memberLastName(String displayName) {
 /// The surname is the last whitespace-separated token; a one-word name yields
 /// that word's letter for both. A blank name yields empty initials.
 ({String first, String last}) nameInitials(String displayName) {
-  final parts = displayName
-      .split(RegExp(r'\s+'))
-      .where((p) => p.isNotEmpty)
-      .toList();
+  final parts = _tokenizeName(displayName);
   if (parts.isEmpty) return (first: '', last: '');
   return (
     first: parts.first[0].toUpperCase(),

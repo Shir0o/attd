@@ -210,6 +210,14 @@ class _LikelyChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
+    final isUnranked = !isPresent && rate == null;
+    final attendeeSurname = memberLastName(member.displayName);
+    final hasDistinctSurname =
+        isUnranked && attendeeSurname.isNotEmpty && attendeeSurname != member.displayName.trim();
+
+    final titleText =
+        hasDistinctSurname ? memberGivenName(member.displayName) : member.displayName;
+
     return Material(
       color: isPresent ? c.present : c.card,
       borderRadius: AppRadii.compactR,
@@ -231,7 +239,7 @@ class _LikelyChip extends StatelessWidget {
               // ellipsize rather than push the meta line out of the tile.
               Flexible(
                 child: Text(
-                  member.displayName,
+                  titleText,
                   style: AppTypography.geist(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w500,
@@ -242,8 +250,8 @@ class _LikelyChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 2),
-              if (isPresent)
+              if (isPresent) ...[
+                const SizedBox(height: 2),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -257,16 +265,24 @@ class _LikelyChip extends StatelessWidget {
                       ),
                     ),
                   ],
-                )
-              else
+                ),
+              ] else if (rate != null) ...[
+                const SizedBox(height: 2),
                 Text(
-                  rate == null
-                      ? memberLastName(member.displayName).toUpperCase()
-                      : '${(rate! * 100).round()}%',
+                  '${(rate! * 100).round()}%',
                   style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+              ] else if (hasDistinctSurname) ...[
+                const SizedBox(height: 2),
+                Text(
+                  attendeeSurname.toUpperCase(),
+                  style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),

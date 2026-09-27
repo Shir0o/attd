@@ -412,13 +412,41 @@ void main() {
       expect(getChipOrder(), initialOrder);
     });
 
-    testWidgets('unranked chips display attendee uppercase last name instead of NEW',
+    testWidgets('unranked chips display attendee uppercase last name instead of NEW, and only given name in title',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
       // Roster without history: Sam Okafor and Nguyen family members
       expect(find.text('OKAFOR'), findsOneWidget);
       expect(find.text('NGUYEN'), findsNWidgets(3));
       expect(find.text('NEW'), findsNothing);
+
+      // Given names shown in first row without duplicating the surname
+      expect(find.text('Sam'), findsOneWidget);
+      expect(find.text('An'), findsOneWidget);
+      expect(find.text('Duc'), findsOneWidget);
+      expect(find.text('Bao'), findsOneWidget);
+      expect(find.text('Sam Okafor'), findsNothing);
+      expect(find.text('An Nguyen'), findsNothing);
+    });
+
+    testWidgets('unranked chips for single-name member display full name and no duplicate surname subtitle',
+        (tester) async {
+      final singleMember = Member(id: 'cher', displayName: 'Cher');
+      await pumpMode(
+        tester,
+        MarkingMode.likelyHere,
+        families: [
+          Family(
+            id: 'f-cher',
+            displayName: 'Cher',
+            isAutoSingleton: true,
+            members: [singleMember],
+          ),
+        ],
+      );
+
+      expect(find.text('Cher'), findsOneWidget);
+      expect(find.text('CHER'), findsNothing);
     });
 
     testWidgets('direct add guest button in grid opens Add Person sheet',

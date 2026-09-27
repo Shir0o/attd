@@ -41,7 +41,7 @@ A storage-inspector flag (duplicate, orphaned, empty) shown with the context nee
 _Avoid_: Bulk cleanup, auto-clean, flagged record
 
 **Attendee Surname**:
-The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent.
+The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent. On Likely Here chips where the Attendee Surname is displayed as the subtitle, the primary title displays only the attendee's given name(s) to avoid duplicate surname display; single-token names display their full name in the title and omit the surname subtitle.
 _Avoid_: Family name fallback, attendee tail
 
 **Static History Snapshot**:
