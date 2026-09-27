@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/Shir0o/attd/compare/v1.10.0...v1.10.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* **attendance:** omit duplicate surname in likely marking chip title ([#211](https://github.com/Shir0o/attd/issues/211)) ([74d0406](https://github.com/Shir0o/attd/commit/74d0406fb89a802101342d825b4c17e21335733c))
+
 ## [1.10.0](https://github.com/Shir0o/attd/compare/v1.9.1...v1.10.0) (2026-09-24)
 
 
