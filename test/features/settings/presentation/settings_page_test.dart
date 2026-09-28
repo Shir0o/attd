@@ -599,8 +599,10 @@ void main() {
     await tester.dragUntilVisible(
       find.text('Manage Backup Data'),
       find.byType(ListView),
-      const Offset(0, -400),
+      const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Manage Backup Data'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Manage Backup Data'));
     await tester.pumpAndSettle();
 
@@ -615,8 +617,10 @@ void main() {
     await tester.dragUntilVisible(
       find.text('Advanced Reporting'),
       find.byType(ListView),
-      const Offset(0, -400),
+      const Offset(0, -200),
     );
+    await tester.ensureVisible(find.text('Advanced Reporting'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Advanced Reporting'));
     await tester.pumpAndSettle();
 
