@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/Shir0o/attd/compare/v1.10.1...v1.11.0) (2026-09-28)
+
+
+### Features
+
+* **settings:** move CISA tracker config into dedicated subpage ([#213](https://github.com/Shir0o/attd/issues/213)) ([#214](https://github.com/Shir0o/attd/issues/214)) ([e9a6d30](https://github.com/Shir0o/attd/commit/e9a6d301246338ce8c83a10c9149d379c023957b))
+
 ## [1.10.1](https://github.com/Shir0o/attd/compare/v1.10.0...v1.10.1) (2026-09-27)
 
 
