@@ -138,13 +138,19 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('CISA CAMPUS TRACKER'),
+      find.byKey(const ValueKey('cisa_campus_tracker_tile')),
       find.byType(ListView),
       const Offset(0, -400),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CISA CAMPUS TRACKER'), findsOneWidget);
+    expect(find.byKey(const ValueKey('cisa_campus_tracker_tile')), findsOneWidget);
+    expect(find.text('CISA Campus Tracker'), findsOneWidget);
+
+    // Tap into subpage
+    await tester.tap(find.byKey(const ValueKey('cisa_campus_tracker_tile')));
+    await tester.pumpAndSettle();
+
     expect(find.byKey(const ValueKey('cisa_sync_url_field')), findsOneWidget);
     expect(find.byKey(const ValueKey('cisa_sync_token_field')), findsOneWidget);
 

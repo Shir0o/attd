@@ -18,6 +18,7 @@ import '../../hub/data/event_repository.dart';
 import '../../../data/session_repository.dart';
 
 import 'cloud_backup_page.dart';
+import 'cisa_sync_settings_page.dart';
 import 'manage_backup_data_page.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/design/app_shimmer.dart';
@@ -64,8 +65,6 @@ class _SettingsPageState extends State<SettingsPage> {
   final _cisaUrlController = TextEditingController();
   final _cisaTokenController = TextEditingController();
   bool _isSavingUrl = false;
-  bool _isSavingCisa = false;
-  bool _obscureCisaToken = true;
   bool _isInitialLoading = true;
   bool _isOperating = false;
   bool _dataModified = false;
@@ -119,15 +118,6 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _isSavingUrl = false);
   }
 
-  Future<void> _saveCisaSettings() async {
-    setState(() => _isSavingCisa = true);
-    await _cisaSyncService.saveConfig(
-      cisaSyncUrl: _cisaUrlController.text,
-      cisaSyncToken: _cisaTokenController.text,
-    );
-    if (!mounted) return;
-    setState(() => _isSavingCisa = false);
-  }
 
   @override
   void dispose() {
@@ -588,34 +578,34 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Google Sheets ───────────────────────────────────────────
+                    // ── Integrations ───────────────────────────────────────────
                     _SettingSection(
-                      title: 'Google Sheets Integration',
+                      title: 'Integrations',
                       children: [
                         _GoogleSheetsSection(
                           isSavingUrl: _isSavingUrl,
                           sheetsUrlController: _sheetsUrlController,
                           onSave: _saveGoogleSheetsUrl,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── CISA Campus Tracker ─────────────────────────────────────
-                    _SettingSection(
-                      title: 'CISA Campus Tracker',
-                      children: [
-                        _CisaSection(
-                          isSaving: _isSavingCisa,
-                          urlController: _cisaUrlController,
-                          tokenController: _cisaTokenController,
-                          obscureToken: _obscureCisaToken,
-                          onToggleObscureToken: () {
-                            setState(() {
-                              _obscureCisaToken = !_obscureCisaToken;
-                            });
+                        _SettingRow(
+                          key: const ValueKey('cisa_campus_tracker_tile'),
+                          icon: Icons.sync_alt,
+                          title: 'CISA Campus Tracker',
+                          subtitle: 'Configure attendance sync to CISA Campus Work Tracker',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CisaSyncSettingsPage(
+                                  cisaSyncService: _cisaSyncService,
+                                ),
+                              ),
+                            );
+                            final prefs = await SharedPreferences.getInstance();
+                            _cisaUrlController.text =
+                                prefs.getString(CisaSyncService.keyCisaSyncUrl) ?? '';
+                            _cisaTokenController.text =
+                                prefs.getString(CisaSyncService.keyCisaSyncToken) ?? '';
                           },
-                          onChanged: (_) => _saveCisaSettings(),
                         ),
                       ],
                     ),
@@ -1452,112 +1442,6 @@ function doPost(e) {
   }
 }
 
-class _CisaSection extends StatelessWidget {
-  const _CisaSection({
-    required this.isSaving,
-    required this.urlController,
-    required this.tokenController,
-    required this.obscureToken,
-    required this.onToggleObscureToken,
-    required this.onChanged,
-  });
-
-  final bool isSaving;
-  final TextEditingController urlController;
-  final TextEditingController tokenController;
-  final bool obscureToken;
-  final VoidCallback onToggleObscureToken;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return ConvCardSoft(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Configure your team\'s CISA Campus Work Tracker intake endpoint and secret Sync Token to synchronize gathering attendance records.',
-            style: AppTypography.geist(
-              fontSize: 14,
-              color: c.ink3,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            key: const ValueKey('cisa_sync_url_field'),
-            controller: urlController,
-            decoration: InputDecoration(
-              labelText: 'Intake Endpoint URL',
-              hintText: 'https://cisa-tracker.../api/intake',
-              border: const OutlineInputBorder(),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (urlController.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear, size: 20),
-                      tooltip: 'Clear URL',
-                      onPressed: () {
-                        urlController.clear();
-                        onChanged('');
-                      },
-                    ),
-                  if (isSaving)
-                    const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Padding(
-                        padding: EdgeInsets.all(4.0),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            onChanged: onChanged,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            key: const ValueKey('cisa_sync_token_field'),
-            controller: tokenController,
-            obscureText: obscureToken,
-            decoration: InputDecoration(
-              labelText: 'Sync Token',
-              hintText: 'Secret Sync Token',
-              border: const OutlineInputBorder(),
-              suffixIcon: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      obscureToken ? Icons.visibility_off : Icons.visibility,
-                      size: 20,
-                    ),
-                    tooltip: obscureToken ? 'Show Token' : 'Hide Token',
-                    onPressed: onToggleObscureToken,
-                  ),
-                  if (tokenController.text.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear, size: 20),
-                      tooltip: 'Clear Token',
-                      onPressed: () {
-                        tokenController.clear();
-                        onChanged('');
-                      },
-                    ),
-                ],
-              ),
-            ),
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Shared Widgets ────────────────────────────────────────────────────────────
 
