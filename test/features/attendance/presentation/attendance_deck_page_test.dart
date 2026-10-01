@@ -1052,4 +1052,91 @@ void main() {
       expect(repo.deleteCalls, isEmpty);
     });
   });
+
+  group('confirm-mode header present tally matches the Confirm CTA', () {
+    SessionRecord present(Member m) => SessionRecord(
+          memberId: m.id,
+          attendee: m.displayName,
+          status: AttendanceStatus.present,
+          recordedAt: DateTime(2026, 10, 1),
+          recordedBy: 'System (Preseed - Smart)',
+        );
+
+    Future<void> pumpConfirm(
+      WidgetTester tester,
+      List<Family> families,
+      List<SessionRecord> records,
+    ) async {
+      final at = DateTime(2026, 10, 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AttendanceDeckPage(
+            session: Session(
+              id: 'current',
+              title: 'Music Fellowship',
+              sessionDate: at,
+              records: records,
+              createdAt: at,
+              updatedAt: at,
+              createdBy: 'User',
+            ),
+            // Mirrors the hub, which flattens the event's families.
+            members: families.expand((f) => f.members).toList(),
+            families: families,
+            sessionRepository: MockSessionRepository(),
+            attendanceRepository: MockAttendanceRepository(),
+            eventRepository: MockEventRepository(),
+            startMode: AttendanceStartMode.perMemberDefault,
+            initialListMode: true,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    /// The header tally's present number — the first figure in its row.
+    String headerPresent(WidgetTester tester) {
+      final row = find
+          .ancestor(of: find.text('0 changed'), matching: find.byType(Row))
+          .first;
+      return tester
+          .widgetList<Text>(find.descendant(of: row, matching: find.byType(Text)))
+          .first
+          .data!;
+    }
+
+    final kevin = Member(id: 'k', displayName: 'Kevin Garrido');
+    final tony = Member(id: 't', displayName: 'Tony Wang');
+    final fely = Member(id: 'f', displayName: 'Fely Keh');
+
+    testWidgets('a member listed under two families counts once',
+        (tester) async {
+      await pumpConfirm(
+        tester,
+        [
+          Family(id: 'f1', displayName: 'Garrido', members: [kevin, fely]),
+          Family(id: 'f2', displayName: 'Wang', members: [tony, kevin]),
+        ],
+        [present(kevin), present(tony)],
+      );
+      expect(find.text('Confirm 2 present'), findsOneWidget);
+      expect(headerPresent(tester), '2');
+    });
+
+    testWidgets("a namesake's record doesn't mark another member present",
+        (tester) async {
+      final tony2 = Member(id: 't2', displayName: 'Tony Wang');
+      await pumpConfirm(
+        tester,
+        [
+          Family(id: 'f1', displayName: 'Garrido', members: [kevin, fely]),
+          Family(id: 'f2', displayName: 'Wang', members: [tony, tony2]),
+        ],
+        [present(kevin), present(tony)],
+      );
+      expect(find.text('Confirm 2 present'), findsOneWidget);
+      expect(headerPresent(tester), '2');
+    });
+  });
 }
