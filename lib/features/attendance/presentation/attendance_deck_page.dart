@@ -656,8 +656,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     for (final r in _currentSession.records) {
       if (r.memberId != null && r.memberId!.trim().isNotEmpty) {
         byId[r.memberId!] = r;
+      } else {
+        // Name fallback is for id-less records only (as in SessionRoster), so
+        // a namesake's record can't mark another member present.
+        byName[r.attendee] = r;
       }
-      byName[r.attendee] = r;
     }
     var decidedPresent = 0,
         decidedAbsent = 0,
@@ -665,7 +668,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         statusAbsent = 0,
         touched = 0,
         changed = 0;
-    for (final m in _sessionMembers) {
+    // A member listed under two families arrives twice; count them once, as
+    // the List (keyed by id) does.
+    final seenIds = <String>{};
+    final members = [
+      for (final m in _sessionMembers)
+        if (m.id.isEmpty || seenIds.add(m.id)) m,
+    ];
+    for (final m in members) {
       final r = byId[m.id] ?? byName[m.displayName];
       final isTouched = _isMemberTouched(m);
       if (isTouched) touched++;
@@ -689,7 +699,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       decidedAbsent: decidedAbsent,
       statusPresent: statusPresent,
       statusAbsent: statusAbsent,
-      remaining: _sessionMembers.length - touched,
+      remaining: members.length - touched,
       changed: changed,
     );
   }
