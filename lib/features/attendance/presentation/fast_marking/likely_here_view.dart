@@ -4,21 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/design/app_radii.dart';
+import '../../../../core/design/app_shadows.dart';
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../models/member.dart';
 import '../../utils/session_roster_utils.dart';
 import 'fast_marking_model.dart';
-import 'rapid_entry_view.dart';
 
 /// Fast marking without typing: the roster as a grid of tappable names ordered
 /// by how often each person has turned up lately, so the people most likely to
-/// be in the room need the least scrolling. Marked names move out of the
-/// unmarked run so the remaining work visibly shrinks.
+/// be in the room need the least scrolling. Marked names stay in place and turn
+/// to "Here" so the remaining work visibly shrinks.
 ///
-/// Anyone the ordering buries is reachable through [RapidEntryView], which this
-/// surface opens over the grid rather than reimplementing search.
-class LikelyHereView extends StatefulWidget {
+/// The grid has no search: anyone the ordering buries is a scroll away, and the
+/// List surface owns searching. The one extra action is a floating "Add
+/// someone" pill for a person who is not on the grid at all.
+class LikelyHereView extends StatelessWidget {
   const LikelyHereView({
     super.key,
     required this.roster,
@@ -30,15 +31,8 @@ class LikelyHereView extends StatefulWidget {
   final MemberMarkCallback onToggle;
   final VoidCallback onAddGuest;
 
-  @override
-  State<LikelyHereView> createState() => _LikelyHereViewState();
-}
-
-class _LikelyHereViewState extends State<LikelyHereView> {
-  bool _searching = false;
-
   Future<void> _toggle(Member member) async {
-    await widget.onToggle(member, !widget.roster.isPresent(member));
+    await onToggle(member, !roster.isPresent(member));
     unawaited(HapticFeedback.selectionClick());
   }
 
@@ -46,18 +40,9 @@ class _LikelyHereViewState extends State<LikelyHereView> {
   Widget build(BuildContext context) {
     final c = context.conv;
 
-    if (_searching) {
-      return RapidEntryView(
-        roster: widget.roster,
-        onToggle: widget.onToggle,
-        onAddGuest: widget.onAddGuest,
-        onDismiss: () => setState(() => _searching = false),
-      );
-    }
-
     // Stable order (likelihood ranking), does not shuffle when marked.
-    final unmarked = widget.roster.unmarked;
-    final ordered = widget.roster.members;
+    final unmarked = roster.unmarked;
+    final ordered = roster.members;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -84,111 +69,95 @@ class _LikelyHereViewState extends State<LikelyHereView> {
           ),
         ),
         Expanded(
-          child: ordered.isEmpty
-              ? Center(
-                  child: Text(
-                    'Nobody on this roster yet.',
-                    style: AppTypography.geist(fontSize: 14, color: c.ink3),
-                  ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisExtent: 64,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: ordered.length,
-                  itemBuilder: (context, i) => _LikelyChip(
-                    key: Key('likelyHereChip_${ordered[i].id}'),
-                    member: ordered[i],
-                    isPresent: widget.roster.isPresent(ordered[i]),
-                    rate: widget.roster.rateFor(ordered[i]),
-                    onTap: () => _toggle(ordered[i]),
-                  ),
-                ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: c.hair)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Row(
+          child: Stack(
             children: [
-              Expanded(
-                child: Material(
-                  color: c.cardSoft,
-                  borderRadius: AppRadii.compactR,
-                  child: InkWell(
-                    key: const Key('likelyHereSearch'),
-                    borderRadius: AppRadii.compactR,
-                    onTap: () => setState(() => _searching = true),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 13,
+              Positioned.fill(
+                child: ordered.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Nobody on this roster yet.',
+                          style:
+                              AppTypography.geist(fontSize: 14, color: c.ink3),
+                        ),
+                      )
+                    : GridView.builder(
+                        // Bottom padding clears the floating pill so the last
+                        // row can scroll out from under it.
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisExtent: 64,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: ordered.length,
+                        itemBuilder: (context, i) => _LikelyChip(
+                          key: Key('likelyHereChip_${ordered[i].id}'),
+                          member: ordered[i],
+                          isPresent: roster.isPresent(ordered[i]),
+                          rate: roster.rateFor(ordered[i]),
+                          onTap: () => _toggle(ordered[i]),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search_rounded, color: c.ink3, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Search all ${widget.roster.members.length}',
-                              style: AppTypography.geist(
-                                fontSize: 14,
-                                color: c.ink3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               ),
-              const SizedBox(width: 8),
-              Material(
-                color: c.cardSoft,
-                borderRadius: AppRadii.compactR,
-                child: InkWell(
-                  key: const Key('likelyHereAddGuest'),
-                  borderRadius: AppRadii.compactR,
-                  onTap: widget.onAddGuest,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 13,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.person_add_alt_1_outlined,
-                          color: c.primary,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Add',
-                          style: AppTypography.geist(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: c.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              Positioned(
+                right: 16,
+                bottom: 24,
+                child: _AddSomeonePill(onTap: onAddGuest),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AddSomeonePill extends StatelessWidget {
+  const _AddSomeonePill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: AppShadows.fab(c.primary),
+      ),
+      child: Material(
+        color: c.primary,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          key: const Key('likelyHereAddGuest'),
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.person_add_alt_1_outlined,
+                  color: c.onPrimary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Add someone',
+                  style: AppTypography.geist(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: c.onPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

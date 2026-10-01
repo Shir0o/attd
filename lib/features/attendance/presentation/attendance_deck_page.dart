@@ -630,11 +630,23 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddMemberSheet(
-        onAdd: (name, isPresent, isGuest, existingMember) {
-          _addAttendee(name, isPresent, isGuest, existingMember);
+        onAdd: (name, isPresent, isGuest, existingMember) async {
+          await _addAttendee(name, isPresent, isGuest, existingMember);
+          if (!mounted) return;
+          // A newcomer has no history, so their tile lands at the bottom of
+          // the Likely here grid, often off-screen; confirm it happened.
+          final messenger = ScaffoldMessenger.of(this.context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(content: Text('${name.trim()} added · Here')),
+          );
         },
         availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
         families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
+        rosterMemberIds: {
+          for (final m in _sessionMembers)
+            if (m.id.isNotEmpty) m.id,
+        },
       ),
     );
   }

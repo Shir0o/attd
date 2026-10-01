@@ -20,16 +20,11 @@ class RapidEntryView extends StatefulWidget {
     required this.roster,
     required this.onToggle,
     required this.onAddGuest,
-    this.onDismiss,
   });
 
   final FastMarkingRoster roster;
   final MemberMarkCallback onToggle;
   final VoidCallback onAddGuest;
-
-  /// Rendered as a "Back" chip when this view is opened as an overlay from
-  /// another surface (the Likely here grid).
-  final VoidCallback? onDismiss;
 
   @override
   State<RapidEntryView> createState() => _RapidEntryViewState();
@@ -102,20 +97,6 @@ class _RapidEntryViewState extends State<RapidEntryView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.onDismiss != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ConvPill(
-                key: const Key('rapidEntryBack'),
-                label: 'Back to the grid',
-                ghost: true,
-                leading: const Icon(Icons.arrow_back_rounded),
-                onTap: widget.onDismiss,
-              ),
-            ),
-          ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -309,7 +309,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
       await tester.pumpAndSettle();
-      expect(find.text('Add Person'), findsOneWidget);
+      expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
     });
 
     testWidgets('the clear button empties the query', (tester) async {
@@ -375,15 +375,10 @@ void main() {
       expect(find.text('3 left · most frequent first'), findsOneWidget);
     });
 
-    testWidgets('search hands off to rapid entry and back', (tester) async {
+    testWidgets('the grid has no search: List owns searching', (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
-      await tester.tap(find.byKey(const Key('likelyHereSearch')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('rapidEntryField')), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('rapidEntryBack')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('likelyHereChip_an')), findsOneWidget);
+      expect(find.byKey(const Key('likelyHereSearch')), findsNothing);
+      expect(find.byType(TextField), findsNothing);
     });
 
     testWidgets('marking a chip does not push it to the end or shift other chips',
@@ -449,12 +444,19 @@ void main() {
       expect(find.text('CHER'), findsNothing);
     });
 
-    testWidgets('direct add guest button in grid opens Add Person sheet',
+    testWidgets('the floating "Add someone" pill opens the add sheet',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('likelyHereAddGuest')),
+          matching: find.text('Add someone'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
       await tester.pumpAndSettle();
-      expect(find.text('Add Person'), findsOneWidget);
+      expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
     });
   });
 
@@ -662,10 +664,7 @@ void main() {
             await typeQuery(tester, const Key('rapidEntryField'), 'zzzz');
             await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
           case MarkingMode.likelyHere:
-            await tester.tap(find.byKey(const Key('likelyHereSearch')));
-            await tester.pumpAndSettle();
-            await typeQuery(tester, const Key('rapidEntryField'), 'zzzz');
-            await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
+            await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
           case MarkingMode.households:
             await typeQuery(tester, const Key('householdsField'), 'zzzz');
             await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
@@ -675,7 +674,7 @@ void main() {
             fail('not a fast surface');
         }
         await tester.pumpAndSettle();
-        expect(find.text('Add Person'), findsOneWidget);
+        expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
       });
     }
 
@@ -684,22 +683,21 @@ void main() {
       await pumpMode(tester, MarkingMode.likelyHere);
       expect(find.byKey(const Key('likelyHereChip_newbie')), findsNothing);
 
-      // Tap the Add button in the bottom bar of Likely Here
       await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Add Person'), findsOneWidget);
-
-      // Enter name and submit
-      await tester.enterText(find.byType(TextField).first, 'Newbie Guest');
+      await tester.enterText(
+        find.byKey(const Key('addSheetNameField')),
+        'Newbie Guest',
+      );
+      await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
       await tester.pumpAndSettle();
 
-      // Tap "Add & Continue" button
-      await tester.tap(find.text('Add & Continue'));
-      await tester.pumpAndSettle();
-
-      // Verify the new person's chip appears in the grid immediately
+      // Back on the grid: the new person's chip is there, already Here,
+      // and a snackbar confirms it.
       expect(find.text('Newbie Guest'), findsOneWidget);
+      expect(find.text('Newbie Guest added · Here'), findsOneWidget);
+      expect(find.byKey(const Key('addSheetNameField')), findsNothing);
     });
   });
 
