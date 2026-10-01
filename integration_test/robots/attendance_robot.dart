@@ -89,14 +89,13 @@ class AttendanceRobot {
     await tester.enterText(nameField, name);
     await tester.pumpAndSettle();
 
-    // In AddMemberSheet, it's 'Mark as Present' and 'Add as Guest'
-    final submitButton = find.text('Add & Continue');
+    final submitButton = find.byKey(const Key('addSheetAddToRoster'));
     await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
     
     // Wait for bottom sheet to close
     await tester.pumpAndSettle();
-    await tester.pumpUntilAbsent(find.text('Add Person'));
+    await tester.pumpUntilAbsent(find.text('Add someone'));
   }
 
   Future<void> swipeRight() async {

@@ -652,18 +652,18 @@ void main() {
     await tester.tap(addButton);
     await tester.pumpAndSettle();
 
-    // Verify sheet appears (contains "Add Person" text)
-    expect(find.text('Add Person'), findsOneWidget);
+    // Verify sheet appears
+    expect(find.text('Add someone'), findsOneWidget);
 
     // Enter name "Charlie"
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Charlie');
     
-    // Tap "Add & Continue"
-    await tester.tap(find.text('Add & Continue'));
+    // Tap "Add to roster"
+    await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
     await tester.pumpAndSettle();
 
     // Sheet should be gone
-    expect(find.text('Add Person'), findsNothing);
+    expect(find.text('Add someone'), findsNothing);
 
     // Now 2 total members
     expect(find.text('2 Total'), findsOneWidget);
@@ -738,9 +738,6 @@ void main() {
     await tester.tap(find.text('Bob').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Add Existing'));
-    await tester.pumpAndSettle();
-
     // Event was updated with Bob's id appended
     expect(mockEventRepo.updateCalls.length, 1);
     expect(mockEventRepo.updateCalls.last.memberIds, containsAll(['1', '2']));
@@ -809,7 +806,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Charlie');
-    await tester.tap(find.text('Add & Continue'));
+    await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
     await tester.pumpAndSettle();
 
     // A new family was created and member added
@@ -883,13 +880,7 @@ void main() {
 
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Daria');
     await tester.pumpAndSettle();
-    // Toggle "Add as Guest"
-    final guestRow = find
-        .ancestor(of: find.text('Add as Guest'), matching: find.byType(Row));
-    await tester.tap(find.descendant(of: guestRow, matching: find.byType(Switch)));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Add & Continue'));
+    await tester.tap(find.byKey(const Key('addSheetMarkGuest')));
     await tester.pumpAndSettle();
 
     // No new family/member added globally
@@ -1630,7 +1621,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-
     // Tap the late affordance on Alice's row.
     await tester.tap(find.byKey(const ValueKey('memberLate_1')));
     await tester.pumpAndSettle();
@@ -2037,9 +2027,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Alice').last);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Add Existing'));
     await tester.pumpAndSettle();
 
     // Alice should now be visible and unexcluded

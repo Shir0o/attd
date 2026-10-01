@@ -457,9 +457,6 @@ void main() {
     await tester.tap(find.text('Bob').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Add Existing'));
-    await tester.pumpAndSettle();
-
     expect(eventRepo.updateCalls.length, 1);
     expect(eventRepo.updateCalls.last.memberIds, containsAll(['1', '2']));
     expect(fakeRepo.savedSessions, isNotEmpty);
@@ -522,7 +519,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Charlie');
-    await tester.tap(find.text('Add & Continue'));
+    await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
     await tester.pumpAndSettle();
 
     expect(attendanceRepo.addedFamilies.length, 1);

@@ -303,14 +303,13 @@ void main() {
     await tester.pumpAndSettle(); // Wait for bottom sheet
 
     // Verify Sheet is shown
-    expect(find.text('Add Person'), findsOneWidget);
+    expect(find.text('Add someone'), findsOneWidget);
 
     // Enter Name
     await tester.enterText(find.byType(TextField), 'Charlie');
     await tester.pumpAndSettle();
 
-    // Tap Add & Continue
-    await tester.tap(find.text('Add & Continue'));
+    await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
     await tester.pumpAndSettle(); // Wait for sheet to close and save
 
     // Verify Charlie is saved

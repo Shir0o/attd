@@ -72,8 +72,16 @@ _Avoid_: Database export, partial backup
 A Google account authorized to view a Shared Event and record attendance marks within its sessions.
 _Avoid_: Co-worker, sub-user, assistant taker
 
+**Member Directory**:
+Every member the user knows, across all events. A person in the Member Directory is not expected at any particular event until they are on that event's Event Roster.
+_Avoid_: Global roster, all members, master roster
+
+**Event Roster**:
+The members expected at one event; the denominator of its Attendance Rate. Adding someone from the Member Directory to an event puts them on its Event Roster; a brand-new person added to the roster is created in the Member Directory and the Event Roster together.
+_Avoid_: Roster (unqualified), event members, attendee list
+
 **Guest Mark**:
-An attendance mark recorded for an attendee not found on the Shared Event's roster, preserving the attendee name snapshot with a null member ID for the session without mutating the owner's master roster. Legitimate attendance: never flagged by the storage inspector.
+An attendance mark recorded for an attendee not on the event's roster (any event, shared or not), preserving the attendee name snapshot with a null member ID for the session without adding them to the roster. Adding someone to the roster instead creates a member, not a Guest Mark. Legitimate attendance: never flagged by the storage inspector.
 _Avoid_: Walk-in, temporary member, unlisted attendee, unlinked mark
 
 **Insights**:
