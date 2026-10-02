@@ -23,6 +23,20 @@ class SessionRoster {
     for (final m in baseMembers) {
       if (excludedIds.contains(m.id)) continue;
 
+      // An id-less entry (a Guest Mark added mid-session) would otherwise
+      // share the '' key with every other one. Key it by its name snapshot,
+      // as id-less records are keyed below, and keep it a visitor so writes
+      // still carry a null member ID.
+      if (m.id.trim().isEmpty) {
+        final visitorId = 'visitor_${m.displayName}';
+        displayMembersMap[visitorId] = Member(
+          id: visitorId,
+          displayName: m.displayName,
+          isVisitor: true,
+        );
+        continue;
+      }
+
       final record =
           recordByMemberId[m.id] ?? recordByVisitorName[m.displayName];
       if (record != null) {
