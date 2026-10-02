@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.12.0](https://github.com/Shir0o/attd/compare/v1.11.0...v1.12.0) (2026-10-02)
+
+
+### Features
+
+* **attendance:** add someone from Likely Here without a search detour ([#221](https://github.com/Shir0o/attd/issues/221)) ([65966b8](https://github.com/Shir0o/attd/commit/65966b82313efd13ed41264bbeb6341b39ea666f))
+* **attendance:** morph Add someone pill into the add sheet ([#222](https://github.com/Shir0o/attd/issues/222) part B) ([#224](https://github.com/Shir0o/attd/issues/224)) ([ea91a39](https://github.com/Shir0o/attd/commit/ea91a3991b80af3d1b51405cc4c3848feddfd7e0))
+* **design:** motion tokens, press feedback and Hub FAB shuttle ([#222](https://github.com/Shir0o/attd/issues/222) part A) ([#223](https://github.com/Shir0o/attd/issues/223)) ([45c4ad2](https://github.com/Shir0o/attd/commit/45c4ad2518c0c5d8d9db68057ddd5452a11cb983))
+* **design:** progress-filled Done pill, skeleton crossfade, sliding segments and Insights bars ([#222](https://github.com/Shir0o/attd/issues/222) part D) ([#229](https://github.com/Shir0o/attd/issues/229)) ([1da4b9d](https://github.com/Shir0o/attd/commit/1da4b9da7e9e9bf9d9b338d520cf8a98bb3aca01))
+
+
+### Bug Fixes
+
+* **attendance:** keep id-less guests distinct in the session roster ([#227](https://github.com/Shir0o/attd/issues/227)) ([8baff0f](https://github.com/Shir0o/attd/commit/8baff0f25efa8dc666f9abff61f70549bf031663))
+* **attendance:** keep the Add someone pill tappable while the added snackbar shows ([#228](https://github.com/Shir0o/attd/issues/228)) ([6c01b06](https://github.com/Shir0o/attd/commit/6c01b06a325ff5c6c1205fc81e1f80ac16c2d5f8))
+* **attendance:** let the grouping toggle row fit at large text ([#233](https://github.com/Shir0o/attd/issues/233)) ([7b21073](https://github.com/Shir0o/attd/commit/7b21073f19866d21e240781e73cad7ca92960c9a))
+* **attendance:** let the list grouping row wrap at large text ([#231](https://github.com/Shir0o/attd/issues/231)) ([af5ec1d](https://github.com/Shir0o/attd/commit/af5ec1d2bfe9143f01c4fe4d25ed158622880b34))
+* **attendance:** match confirm header present tally to Confirm CTA ([#219](https://github.com/Shir0o/attd/issues/219)) ([9805e02](https://github.com/Shir0o/attd/commit/9805e0210aa89871a2077a40b7f527edd836454a))
+* **ci:** format Play Store release notes without leading spaces or excess blank lines ([#225](https://github.com/Shir0o/attd/issues/225)) ([3f805b1](https://github.com/Shir0o/attd/commit/3f805b1e1f0d3a0391c491194b1c882174f3cfad))
+* **design:** wrap section label text so it fits at large text sizes ([#232](https://github.com/Shir0o/attd/issues/232)) ([7cb09f6](https://github.com/Shir0o/attd/commit/7cb09f6ccc5c7b2088c8cf11147a53ff7fb86cb3))
+
 ## [1.11.0](https://github.com/Shir0o/attd/compare/v1.10.1...v1.11.0) (2026-09-28)
 
 
