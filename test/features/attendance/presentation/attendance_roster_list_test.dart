@@ -46,6 +46,7 @@ Future<void> pumpRoster(
   List<FamilyToggleCall>? familyLog,
   RosterGrouping grouping = RosterGrouping.byFamily,
   Future<void> Function(Member member)? onToggleLate,
+  bool showGroupingToggle = true,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -56,6 +57,7 @@ Future<void> pumpRoster(
             session: session,
             families: families,
             initialGrouping: grouping,
+            showGroupingToggle: showGroupingToggle,
             disableAnimations: true,
             onToggle: (m, p) async {
               toggleLog.add((id: m.id, present: p));
@@ -621,5 +623,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byType(AppShimmer), findsNothing);
     expect(find.text('Alice'), findsOneWidget);
+  });
+
+  group('visitors label at large text', () {
+    for (final scale in [1.3, 2.0]) {
+      testWidgets('lays out without overflow at ${scale}x on a phone',
+          (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearAllTestValues);
+        await pumpRoster(
+          tester,
+          session: sessionWith(members: [alice]),
+          families: const [],
+          toggleLog: <ToggleCall>[],
+          // The grouping row overflows on its own at large text; keep it out
+          // so this asserts only the visitors label.
+          showGroupingToggle: false,
+        );
+        expect(find.text('VISITORS / OTHERS'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
