@@ -1187,21 +1187,58 @@ void main() {
       expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
     });
 
-    testWidgets('an initials chip pops on press and still clears',
+    testWidgets('a pad key pops on press and still types its letter',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
+      final key = find.byKey(const Key('initialsKey_D'));
+
+      final gesture = await tester.startGesture(tester.getCenter(key));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 110));
+      expect(scaleIn(tester, key), lessThan(1));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(scaleIn(tester, key), closeTo(1, 0.001));
+      expect(find.byKey(const Key('initialsChip_first')), findsOneWidget);
+    });
+
+    testWidgets('a pad key without a result does not pop', (tester) async {
+      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
+      // Backspace is disabled until a letter is picked, and icon keys never
+      // pop in any case.
+      final back = find.byKey(const Key('initialsKey_back'));
+      expect(
+        find.descendant(of: back, matching: find.byType(ConvPressable)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('initialsKey_reset')),
+          matching: find.byType(ConvPressable),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an initials chip no longer scales and still clears',
         (tester) async {
       await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
       await tester.tap(find.byKey(const Key('initialsKey_D')));
       await tester.pumpAndSettle();
       final chip = find.byKey(const Key('initialsChip_first'));
-      final pressable = find.ancestor(
-        of: chip,
-        matching: find.byType(ConvPressable),
+      expect(
+        find.ancestor(of: chip, matching: find.byType(ConvPressable)),
+        findsNothing,
       );
 
       final gesture = await tester.startGesture(tester.getCenter(chip));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 110));
-      expect(scaleIn(tester, pressable), lessThan(1));
+      expect(
+        find.descendant(of: chip, matching: find.byType(Transform)),
+        findsNothing,
+      );
 
       await gesture.up();
       await tester.pumpAndSettle();
