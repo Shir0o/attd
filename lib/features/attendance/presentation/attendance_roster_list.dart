@@ -259,34 +259,46 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                 ),
               ]
               // Live grouping toggle + bulk sheet (e.g. session summary).
+              // A Wrap, so at large text All drops below the toggle instead
+              // of overflowing; the toggle scales down rather than overflow
+              // on its own, as the marking-mode toggle does.
               else if (widget.showGroupingToggle ||
                   widget.onMarkAll != null) ...[
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  // All alone still sits at the end, as it did after a Spacer.
+                  alignment: widget.showGroupingToggle
+                      ? WrapAlignment.spaceBetween
+                      : WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     if (widget.showGroupingToggle)
-                      ConvSegmented(
-                        key: const Key('rosterGroupingToggle'),
-                        options: const [
-                          ConvSegmentOption(
-                            label: 'By family',
-                            icon: Icons.groups_outlined,
-                          ),
-                          ConvSegmentOption(
-                            label: 'By status',
-                            icon: Icons.checklist,
-                          ),
-                        ],
-                        selectedIndex:
-                            _grouping == RosterGrouping.byFamily ? 0 : 1,
-                        onChanged: (i) => setState(() {
-                          _grouping = i == 0
-                              ? RosterGrouping.byFamily
-                              : RosterGrouping.byStatus;
-                        }),
-                        disableAnimations: widget.disableAnimations,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: ConvSegmented(
+                          key: const Key('rosterGroupingToggle'),
+                          options: const [
+                            ConvSegmentOption(
+                              label: 'By family',
+                              icon: Icons.groups_outlined,
+                            ),
+                            ConvSegmentOption(
+                              label: 'By status',
+                              icon: Icons.checklist,
+                            ),
+                          ],
+                          selectedIndex:
+                              _grouping == RosterGrouping.byFamily ? 0 : 1,
+                          onChanged: (i) => setState(() {
+                            _grouping = i == 0
+                                ? RosterGrouping.byFamily
+                                : RosterGrouping.byStatus;
+                          }),
+                          disableAnimations: widget.disableAnimations,
+                        ),
                       ),
-                    const Spacer(),
                     if (widget.onMarkAll != null)
                       ConvPill(
                         key: const Key('rosterMarkAllMenu'),
