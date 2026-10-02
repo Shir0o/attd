@@ -642,8 +642,8 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: AttendanceRosterList(
-              session: sessionWith(members: [alice]),
-              families: const [],
+              session: sessionWith(members: [alice, bob]),
+              families: [smiths],
               showGroupingToggle: false,
               showGroupingPreset: true,
               showSearch: false,
