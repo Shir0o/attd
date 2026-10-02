@@ -1197,28 +1197,31 @@ void main() {
       await tester.pump(const Duration(milliseconds: 110));
       expect(scaleIn(tester, key), lessThan(1));
 
-      await gesture.up();
+      // Cancelling springs back without typing the letter.
+      await gesture.cancel();
       await tester.pumpAndSettle();
       expect(scaleIn(tester, key), closeTo(1, 0.001));
+      expect(find.byKey(const Key('initialsChip_first')), findsNothing);
+
+      await tester.tap(key);
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('initialsChip_first')), findsOneWidget);
     });
 
-    testWidgets('a pad key without a result does not pop', (tester) async {
+    testWidgets('icon keys and unmatched letters do not pop', (tester) async {
       await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
-      // Backspace is disabled until a letter is picked, and icon keys never
-      // pop in any case.
-      final back = find.byKey(const Key('initialsKey_back'));
-      expect(
-        find.descendant(of: back, matching: find.byType(ConvPressable)),
-        findsNothing,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('initialsKey_reset')),
-          matching: find.byType(ConvPressable),
-        ),
-        findsNothing,
-      );
+      // Backspace and reset are icon keys, and a letter with no match is
+      // disabled: none of them scale.
+      for (final key in ['back', 'reset', 'Z']) {
+        expect(
+          find.descendant(
+            of: find.byKey(Key('initialsKey_$key')),
+            matching: find.byType(Transform),
+          ),
+          findsNothing,
+          reason: key,
+        );
+      }
     });
 
     testWidgets('an initials chip no longer scales and still clears',
@@ -1227,10 +1230,6 @@ void main() {
       await tester.tap(find.byKey(const Key('initialsKey_D')));
       await tester.pumpAndSettle();
       final chip = find.byKey(const Key('initialsChip_first'));
-      expect(
-        find.ancestor(of: chip, matching: find.byType(ConvPressable)),
-        findsNothing,
-      );
 
       final gesture = await tester.startGesture(tester.getCenter(chip));
       await tester.pump();
