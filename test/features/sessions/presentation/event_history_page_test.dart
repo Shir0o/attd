@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/sessions/presentation/event_history_page.dart';
@@ -195,6 +196,42 @@ void main() {
     expect(find.text('Oct 7, 2023'), findsOneWidget);
     expect(find.text('1 Present'), findsOneWidget);
     expect(find.text('1 Absent'), findsOneWidget);
+  });
+
+  testWidgets('EventHistoryPage crossfades its skeleton into the list (#222 M7)',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository()..emit(const []);
+    final event = Event(
+      id: '1',
+      title: 'Morning Standup',
+      time: const TimeOfDay(hour: 9, minute: 0),
+      frequency: 'Daily',
+      repeatingDays: ['Monday'],
+      createdAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventHistoryPage(
+          event: event,
+          sessionRepository: mockRepo,
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+        ),
+      ),
+    );
+    final content = find.text('No history found');
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(content, findsOneWidget);
   });
 
   testWidgets('EventHistoryPage filters members based on event.memberIds', (

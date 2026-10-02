@@ -112,6 +112,28 @@ void main() {
     expect(find.byType(AppShimmer), findsNothing);
   });
 
+  testWidgets('FamilyListPage crossfades its skeleton into the list (#222 M7)',
+      (WidgetTester tester) async {
+    final mockRepo = MockAttendanceRepository();
+    mockRepo.setFamilies([]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: FamilyListPage(repository: mockRepo)),
+    );
+    const empty = 'No families found. Add one!';
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(find.text(empty), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(find.text(empty), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(find.text(empty), findsOneWidget);
+  });
+
   testWidgets('FamilyListPage shows error message when fetching fails',
       (WidgetTester tester) async {
     final mockRepo = MockAttendanceRepository();

@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_version.dart';
@@ -166,6 +167,31 @@ Widget _wrap(Widget child) => MaterialApp(home: child);
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('crossfades its skeleton into the inspector (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: _AttendanceRepository([]),
+          eventRepository: _EventRepository([]),
+          sessionRepository: _SessionRepository([]),
+        ),
+      ),
+    );
+    final content = find.text('Storage inspector');
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(content, findsOneWidget);
+  });
 
   testWidgets('renders backup data, filters search, and saves deletions', (
     tester,
