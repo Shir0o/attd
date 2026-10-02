@@ -182,6 +182,7 @@ class _InitialsPadViewState extends State<InitialsPadView> {
                       label: 'FIRST',
                       letter: _first!,
                       onClear: _reset,
+                      disableAnimations: widget.disableAnimations,
                     ),
                     const SizedBox(width: 8),
                   ],
@@ -191,6 +192,7 @@ class _InitialsPadViewState extends State<InitialsPadView> {
                       label: 'SURNAME',
                       letter: _last!,
                       onClear: () => setState(() => _last = null),
+                      disableAnimations: widget.disableAnimations,
                     ),
                     const SizedBox(width: 8),
                   ],
@@ -266,52 +268,59 @@ class _InitialChip extends StatelessWidget {
     required this.label,
     required this.letter,
     required this.onClear,
+    required this.disableAnimations,
   });
 
   final Key chipKey;
   final String label;
   final String letter;
   final VoidCallback onClear;
+  final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    return InkWell(
-      key: chipKey,
-      onTap: onClear,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 6, 10, 6),
-        decoration: BoxDecoration(
-          color: c.primary,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: AppTypography.eyebrow(
+    // Pops on press like the Likely here tiles (#222 M4).
+    return ConvPressable(
+      preset: ConvPressPreset.pop,
+      disableAnimations: disableAnimations,
+      child: InkWell(
+        key: chipKey,
+        onTap: onClear,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 6, 10, 6),
+          decoration: BoxDecoration(
+            color: c.primary,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: AppTypography.eyebrow(
+                  color: c.onPrimary.withValues(alpha: 0.75),
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                letter,
+                style: AppTypography.geist(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: c.onPrimary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.close_rounded,
+                size: 13,
                 color: c.onPrimary.withValues(alpha: 0.75),
-                fontSize: 10,
               ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              letter,
-              style: AppTypography.geist(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: c.onPrimary,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.close_rounded,
-              size: 13,
-              color: c.onPrimary.withValues(alpha: 0.75),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
