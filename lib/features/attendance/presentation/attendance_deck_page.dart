@@ -987,10 +987,16 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   ],
                 ),
               ),
-              TextButton(
-                key: const Key('finishSessionButton'),
-                onPressed: () => _finishAndNavigate(),
-                child: const Text('Done'),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: DoneProgressPill(
+                  key: const Key('finishSessionButton'),
+                  progress: progress,
+                  complete: total > 0 && t.remaining == 0,
+                  solid: _confirmMode,
+                  onPressed: () => _finishAndNavigate(),
+                  disableAnimations: widget.disableAnimations,
+                ),
               ),
             ],
           ),
@@ -1029,8 +1035,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             ),
           ),
         ),
-        // Contained progress bar: single present fill on the deck, two-tone
-        // present/absent split in list mode. Fills ease to new values (M5).
+        // Confirm mode keeps its contained bar. While marking, Done itself
+        // carries the progress (M6).
+        if (_confirmMode)
+        // Single present fill on the deck, two-tone present/absent split
+        // elsewhere. Fills ease to new values (M5).
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
           child: ClipRRect(
