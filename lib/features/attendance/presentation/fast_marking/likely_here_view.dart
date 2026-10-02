@@ -25,13 +25,31 @@ class LikelyHereView extends StatelessWidget {
     required this.roster,
     required this.onToggle,
     required this.onAddGuest,
+    this.addSomeoneKey,
     this.disableAnimations = false,
   });
 
   final FastMarkingRoster roster;
   final MemberMarkCallback onToggle;
   final VoidCallback onAddGuest;
+
+  /// Lets the host measure the Add someone pill, see [snackBarMarginAbove].
+  final GlobalKey? addSomeoneKey;
   final bool disableAnimations;
+
+  /// How far the floating Add someone pill sits above the view's bottom edge.
+  static const double addSomeoneInset = 24;
+
+  /// Margin for a floating SnackBar over this view that parks it just above
+  /// the Add someone pill instead of covering it, so the next add needn't wait
+  /// for the snackbar to time out. Measured, so it holds at large text sizes.
+  /// Null (the theme's inset) when the pill isn't on screen.
+  static EdgeInsets? snackBarMarginAbove(GlobalKey addSomeoneKey) {
+    final pill = addSomeoneKey.currentContext?.size;
+    if (pill == null) return null;
+    // Sides and top match the Material default inset.
+    return EdgeInsets.fromLTRB(15, 5, 15, addSomeoneInset + pill.height + 8);
+  }
 
   Future<void> _toggle(Member member) async {
     await onToggle(member, !roster.isPresent(member));
@@ -105,8 +123,9 @@ class LikelyHereView extends StatelessWidget {
               ),
               Positioned(
                 right: 16,
-                bottom: 24,
+                bottom: addSomeoneInset,
                 child: _AddSomeonePill(
+                  key: addSomeoneKey,
                   onTap: onAddGuest,
                   disableAnimations: disableAnimations,
                 ),
@@ -121,6 +140,7 @@ class LikelyHereView extends StatelessWidget {
 
 class _AddSomeonePill extends StatelessWidget {
   const _AddSomeonePill({
+    super.key,
     required this.onTap,
     required this.disableAnimations,
   });

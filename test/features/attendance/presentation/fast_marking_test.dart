@@ -741,6 +741,39 @@ void main() {
       expect(find.byKey(const Key('addSheetNameField')), findsNothing);
     });
 
+    for (final textScale in [1.0, 2.0]) {
+      testWidgets(
+          'the "added" snackbar floats above the Add someone pill '
+          '(text scale $textScale)', (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = textScale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await pumpMode(tester, MarkingMode.likelyHere);
+
+        await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('addSheetNameField')),
+          'Newbie Guest',
+        );
+        await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
+        await tester.pumpAndSettle();
+
+        final snackBar = tester.getRect(find
+            .ancestor(
+              of: find.text('Newbie Guest added · Here'),
+              matching: find.byType(Material),
+            )
+            .first);
+        final pill = tester.getRect(find.byKey(const Key('likelyHereAddGuest')));
+        expect(snackBar.bottom, lessThanOrEqualTo(pill.top));
+
+        // A second add needn't wait for the snackbar to time out.
+        await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
+      });
+    }
+
     testWidgets('two guests marked in one session get their own tiles',
         (tester) async {
       final h = await pumpMode(tester, MarkingMode.likelyHere);
