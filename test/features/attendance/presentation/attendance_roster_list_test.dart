@@ -648,4 +648,68 @@ void main() {
       });
     }
   });
+
+  group('grouping row at large text', () {
+    final pill = find.byKey(const Key('rosterMarkAllPresent'));
+    final label = find.text('Grouped by family');
+
+    Future<List<BulkMarkChoice>> pumpPreset(
+      WidgetTester tester,
+      double scale, {
+      double width = 390,
+    }) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      final marked = <BulkMarkChoice>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AttendanceRosterList(
+              session: sessionWith(members: [alice, bob]),
+              families: [smiths],
+              showGroupingToggle: false,
+              showGroupingPreset: true,
+              showSearch: false,
+              disableAnimations: true,
+              onToggle: (_, __) async {},
+              onMarkAll: (choice) async => marked.add(choice),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return marked;
+    }
+
+    testWidgets('label and All present share one line when they fit',
+        (tester) async {
+      // The test font is wider than the app's, so give it a wider screen.
+      await pumpPreset(tester, 1.0, width: 600);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getCenter(pill).dy,
+        closeTo(tester.getCenter(label).dy, 1),
+      );
+      expect(tester.getRect(pill).right, closeTo(600 - 16, 0.5));
+    });
+
+    for (final scale in [1.3, 2.0]) {
+      testWidgets('All present drops below the label at ${scale}x text',
+          (tester) async {
+        final marked = await pumpPreset(tester, scale);
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.getRect(pill).top,
+          greaterThanOrEqualTo(tester.getRect(label).bottom),
+        );
+        expect(tester.getRect(pill).right, lessThanOrEqualTo(390 - 16));
+        expect(tester.getRect(label).right, lessThanOrEqualTo(390 - 16));
+        await tester.tap(pill);
+        expect(marked, [BulkMarkChoice.present]);
+      });
+    }
+  });
 }
