@@ -166,6 +166,7 @@ class _InsightsPageState extends State<InsightsPage> {
               selectedIndex:
                   InsightsRange.values.indexOf(_insights.config.resolvedRange),
               onChanged: (i) => _setRange(InsightsRange.values[i]),
+              disableAnimations: widget.disableAnimations,
             ),
             const SizedBox(height: 14),
             if (!_insights.hasSessions) _EmptyState(c: c) else ..._sections(c),

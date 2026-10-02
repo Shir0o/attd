@@ -176,6 +176,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   bool get _isDeckMode => _surface == _Surface.deck;
 
+  /// The header toggle's segments, in order; the fast surface only exists when
+  /// the event picked a fast marking mode.
+  List<_Surface> get _surfaces => [
+        _Surface.deck,
+        _Surface.list,
+        if (_markingMode != MarkingMode.none) _Surface.fast,
+      ];
+
   MarkingMode get _markingMode => widget.markingMode ?? kDefaultMarkingMode;
 
   /// True when the List opened from a bulk default (all-present / smart): the
@@ -1006,33 +1014,32 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Center(
-            child: SegmentedButton<_Surface>(
+            // Scales down rather than overflows on a narrow phone or large
+            // text, as the Material toggle it replaces did.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: ConvSegmented(
               key: const Key('deckListModeToggle'),
-              style: const ButtonStyle(
-                side: WidgetStatePropertyAll(BorderSide.none),
-              ),
-              segments: [
-                const ButtonSegment(
-                  value: _Surface.deck,
-                  label: Text('Deck'),
-                  icon: Icon(Icons.style_outlined),
+              options: [
+                const ConvSegmentOption(
+                  label: 'Deck',
+                  icon: Icons.style_outlined,
                 ),
-                const ButtonSegment(
-                  value: _Surface.list,
-                  label: Text('List'),
-                  icon: Icon(Icons.list_alt),
+                const ConvSegmentOption(
+                  label: 'List',
+                  icon: Icons.list_alt,
                 ),
                 // The third segment is whichever fast mode the event picked.
                 if (_markingMode != MarkingMode.none)
-                  ButtonSegment(
-                    value: _Surface.fast,
-                    label: Text(_markingMode.shortLabel),
-                    icon: const Icon(Icons.bolt_outlined),
+                  ConvSegmentOption(
+                    label: _markingMode.shortLabel,
+                    icon: Icons.bolt_outlined,
                   ),
               ],
-              selected: {_surface},
-              onSelectionChanged: (sel) => setState(() => _surface = sel.first),
-              showSelectedIcon: false,
+              selectedIndex: _surfaces.indexOf(_surface),
+              onChanged: (i) => setState(() => _surface = _surfaces[i]),
+              disableAnimations: widget.disableAnimations,
+              ),
             ),
           ),
         ),

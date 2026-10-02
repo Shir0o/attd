@@ -1472,6 +1472,78 @@ void main() {
     });
   });
 
+  group('the mode toggle slides its thumb (#222 M8)', () {
+    final toggle = find.byKey(const Key('deckListModeToggle'));
+    final thumb = find.byKey(convSegmentedThumbKey);
+
+    Rect segmentRect(WidgetTester tester, String label) => tester.getRect(
+          find
+              .descendant(of: toggle, matching: find.text(label))
+              .first,
+        );
+
+    testWidgets('switching modes moves the thumb to the new segment',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      final likely = segmentRect(tester, 'Likely');
+      expect(thumb, findsOneWidget);
+      expect(tester.getRect(thumb).overlaps(likely), isTrue);
+
+      await tester.tap(find.descendant(of: toggle, matching: find.text('List')));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      final mid = tester.getRect(thumb);
+      final list = segmentRect(tester, 'List');
+      expect(mid.center.dx, inExclusiveRange(list.center.dx, likely.center.dx));
+
+      await tester.pumpAndSettle();
+      expect(tester.getRect(thumb).overlaps(segmentRect(tester, 'List')), isTrue);
+      expect(find.text('Marked present'), findsNothing);
+    });
+
+    testWidgets('with motion off the thumb snaps and the mode still switches',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      await tester.tap(find.descendant(of: toggle, matching: find.text('Deck')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(SwipeableCard), findsOneWidget);
+      expect(
+        tester.getRect(thumb).center.dx,
+        closeTo(segmentRect(tester, 'Deck').center.dx, 20),
+      );
+    });
+
+    testWidgets('a mode with no fast surface has just Deck and List',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.none);
+      expect(
+        find.descendant(of: toggle, matching: find.byType(InkWell)),
+        findsNWidgets(2),
+      );
+    });
+
+    testWidgets('the selected segment is announced as selected',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpMode(tester, MarkingMode.likelyHere);
+      expect(
+        tester.getSemantics(
+          find.descendant(of: toggle, matching: find.text('Likely')),
+        ),
+        containsSemantics(isButton: true, isSelected: true),
+      );
+      expect(
+        tester.getSemantics(
+          find.descendant(of: toggle, matching: find.text('Deck')),
+        ),
+        containsSemantics(isButton: true, isSelected: false),
+      );
+      handle.dispose();
+    });
+  });
+
   group('a submit from the add sheet lands where the person went (#222 M3)',
       () {
     final pill = find.byKey(const Key('likelyHereAddGuest'));

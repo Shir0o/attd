@@ -280,6 +280,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                               ? RosterGrouping.byFamily
                               : RosterGrouping.byStatus;
                         }),
+                        disableAnimations: widget.disableAnimations,
                       ),
                     const Spacer(),
                     if (widget.onMarkAll != null)
