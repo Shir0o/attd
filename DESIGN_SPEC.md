@@ -74,6 +74,7 @@ Most surfaces are flat — depth comes from tonal layering (e.g. `card` on `bg2`
 * Toggle thumb slides 200 ms with `cubic-bezier(0.2, 0.7, 0.3, 1)`.
 * Page transitions are intentionally **off** (we keep `NoTransitionsBuilder`). The editorial layout reads better when screens snap.
 * **Exception: shared-element handoffs.** Pages still snap, but the violet control the user touched may visibly become the next thing on top of the instant change (e.g. the Hub **+** travelling on an arc into the **Create event** pill). See ADR 0008.
+* **Morphing sheets.** A filled control (`ConvMorphSource`) can grow into a bottom sheet via `showConvMorphSheet` (`morph`): the sheet starts at the control's rect and radius, the control's colour fades out over ~15–55% while the content fades in from ~30% with a 6 px settle, and the keyboard rises only once the sheet has formed. Cancel (scrim, back) collapses it back into the control (~300 ms); drag-down and submit slide it off the bottom instead. Today only the Likely here **Add someone** pill uses it; text buttons and icons keep the plain slide-up sheet.
 * Motion tokens (`AppMotion`):
   * `morph` — 400 ms, `cubic-bezier(0.05, 0.7, 0.1, 1)` (emphasized decelerate). Container transforms and shared elements.
   * `house` — 220 ms, `cubic-bezier(0.2, 0.7, 0.3, 1)`. In-surface changes: counts, thumbs, tiles, bar heights.

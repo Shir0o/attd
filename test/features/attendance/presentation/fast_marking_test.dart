@@ -6,6 +6,7 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 import 'package:flutter/material.dart';
@@ -879,5 +880,277 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'with results showing');
       });
     }
+  });
+
+  group('the "Add someone" pill grows into the add sheet', () {
+    final pill = find.byKey(const Key('likelyHereAddGuest'));
+    final bounds = find.byKey(convMorphSheetBoundsKey);
+    final nameField = find.byKey(const Key('addSheetNameField'));
+
+    Future<void> pumpPhone(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(822, 1782); // 411x891 logical
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+    }
+
+    bool pillShown(WidgetTester tester) => tester
+        .widget<Visibility>(
+          find.ancestor(of: pill, matching: find.byType(Visibility)).first,
+        )
+        .visible;
+
+    bool nameFocused(WidgetTester tester) => tester
+        .widget<EditableText>(
+          find.descendant(of: nameField, matching: find.byType(EditableText)),
+        )
+        .focusNode
+        .hasFocus;
+
+    /// Opens the sheet from the pill and lets it form; returns the pill's rect
+    /// and the formed sheet's.
+    Future<({Rect pill, Rect sheet})> openFormed(WidgetTester tester) async {
+      final pillRect = tester.getRect(pill);
+      await tester.tap(pill);
+      await tester.pumpAndSettle();
+      return (pill: pillRect, sheet: tester.getRect(bounds));
+    }
+
+    void expectRectNear(Rect actual, Rect expected) {
+      expect(actual.left, closeTo(expected.left, 1));
+      expect(actual.top, closeTo(expected.top, 1));
+      expect(actual.right, closeTo(expected.right, 1));
+      expect(actual.bottom, closeTo(expected.bottom, 1));
+    }
+
+    testWidgets('starts at the pill and ends as the full-width sheet',
+        (tester) async {
+      await pumpPhone(tester);
+      final pillRect = tester.getRect(pill);
+      final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+
+      await tester.tap(pill);
+      await tester.pump();
+      expectRectNear(tester.getRect(bounds), pillRect);
+      // Not the plain slide-up sheet.
+      expect(find.byType(BottomSheet), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 150));
+      final mid = tester.getRect(bounds);
+      expect(mid.left, inExclusiveRange(0, pillRect.left));
+      expect(mid.top, lessThan(pillRect.top));
+      expect(mid.width, inExclusiveRange(pillRect.width, screen.width));
+
+      await tester.pumpAndSettle();
+      final formed = tester.getRect(bounds);
+      expect(formed.left, 0);
+      expect(formed.width, screen.width);
+      expect(formed.bottom, screen.height);
+      expect(
+        tester.getRect(find.byType(AddMemberSheet)),
+        formed,
+        reason: 'the content fills the formed bounds',
+      );
+    });
+
+    testWidgets('the name field is focused only once the sheet has formed',
+        (tester) async {
+      await pumpPhone(tester);
+      await tester.tap(pill);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(nameFocused(tester), isFalse);
+
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump();
+      expect(nameFocused(tester), isTrue);
+    });
+
+    testWidgets('the pill hides while the sheet is up', (tester) async {
+      await pumpPhone(tester);
+      expect(pillShown(tester), isTrue);
+      await openFormed(tester);
+      expect(pillShown(tester), isFalse);
+    });
+
+    testWidgets('a scrim tap collapses the sheet back into the pill',
+        (tester) async {
+      await pumpPhone(tester);
+      final rects = await openFormed(tester);
+
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      final mid = tester.getRect(bounds);
+      expect(mid.left, inExclusiveRange(rects.sheet.left, rects.pill.left));
+      expect(mid.width, inExclusiveRange(rects.pill.width, rects.sheet.width));
+      expect(pillShown(tester), isFalse, reason: 'still collapsing');
+
+      // The last frame before the route goes has landed on the pill, so the
+      // real pill takes over without a jump.
+      var last = mid;
+      while (bounds.evaluate().isNotEmpty) {
+        last = tester.getRect(bounds);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expectRectNear(last, rects.pill);
+
+      await tester.pumpAndSettle();
+      expect(bounds, findsNothing);
+      expect(nameField, findsNothing);
+      expect(pillShown(tester), isTrue);
+      expect(pill.hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('system back collapses the sheet back into the pill',
+        (tester) async {
+      await pumpPhone(tester);
+      final rects = await openFormed(tester);
+
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      final mid = tester.getRect(bounds);
+      expect(mid.width, inExclusiveRange(rects.pill.width, rects.sheet.width));
+
+      await tester.pumpAndSettle();
+      expect(nameField, findsNothing);
+      expect(pillShown(tester), isTrue);
+      // Still on the deck page: back closed only the sheet.
+      expect(pill, findsOneWidget);
+    });
+
+    testWidgets('dragging down follows the finger and slides off the bottom',
+        (tester) async {
+      await pumpPhone(tester);
+      final rects = await openFormed(tester);
+      final handle = find.descendant(
+        of: find.byType(AddMemberSheet),
+        matching: find.text('Add someone'),
+      );
+
+      final gesture = await tester.startGesture(tester.getCenter(handle));
+      for (var i = 0; i < 10; i++) {
+        await gesture.moveBy(const Offset(0, 30));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final dragged = tester.getRect(bounds);
+      expect(dragged.width, rects.sheet.width);
+      expect(dragged.top, greaterThan(rects.sheet.top + 250));
+
+      await gesture.up();
+      // Every frame of the exit is the full-width sheet sliding down; it
+      // never collapses toward the pill.
+      var lastTop = dragged.top;
+      while (bounds.evaluate().isNotEmpty) {
+        final r = tester.getRect(bounds);
+        expect(r.left, rects.sheet.left);
+        expect(r.width, rects.sheet.width);
+        expect(r.top, greaterThanOrEqualTo(lastTop));
+        lastTop = r.top;
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(nameField, findsNothing);
+      expect(pillShown(tester), isTrue);
+    });
+
+    testWidgets('a short drag springs back, then a cancel still collapses',
+        (tester) async {
+      await pumpPhone(tester);
+      final rects = await openFormed(tester);
+      final handle = find.descendant(
+        of: find.byType(AddMemberSheet),
+        matching: find.text('Add someone'),
+      );
+
+      final gesture = await tester.startGesture(tester.getCenter(handle));
+      await gesture.moveBy(const Offset(0, 20));
+      await tester.pump(const Duration(milliseconds: 200));
+      await gesture.moveBy(const Offset(0, 20));
+      await tester.pump(const Duration(milliseconds: 200));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(bounds), rects.sheet);
+
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(tester.getRect(bounds).width, lessThan(rects.sheet.width));
+      await tester.pumpAndSettle();
+      expect(pillShown(tester), isTrue);
+    });
+
+    testWidgets('a fling dismisses the sheet', (tester) async {
+      await pumpPhone(tester);
+      await openFormed(tester);
+      await tester.fling(
+        find.descendant(
+          of: find.byType(AddMemberSheet),
+          matching: find.text('Add someone'),
+        ),
+        const Offset(0, 120),
+        1500,
+      );
+      await tester.pumpAndSettle();
+      expect(nameField, findsNothing);
+      expect(pillShown(tester), isTrue);
+    });
+
+    testWidgets('submitting slides the sheet down and still adds the person',
+        (tester) async {
+      await pumpPhone(tester);
+      final rects = await openFormed(tester);
+      await tester.enterText(nameField, 'Newbie Guest');
+      await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final mid = tester.getRect(bounds);
+      expect(mid.width, rects.sheet.width);
+      expect(mid.top, greaterThan(rects.sheet.top));
+
+      await tester.pumpAndSettle();
+      expect(nameField, findsNothing);
+      expect(find.text('Newbie Guest'), findsOneWidget);
+      expect(find.text('Newbie Guest added · Here'), findsOneWidget);
+      expect(pillShown(tester), isTrue);
+    });
+
+    testWidgets('with the system "Remove animations" setting it is the plain '
+        'sheet, focused at once', (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await pumpPhone(tester);
+      await tester.tap(pill);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(bounds, findsNothing);
+      expect(nameFocused(tester), isTrue);
+    });
+
+    testWidgets('with the test flag it is the plain sheet, focused at once',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      await tester.tap(pill);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(bounds, findsNothing);
+      expect(nameFocused(tester), isTrue);
+    });
+
+    testWidgets("the deck's Add guest button keeps the plain sheet",
+        (tester) async {
+      await pumpMode(tester, MarkingMode.none, disableAnimations: false);
+      await tester.tap(find.byKey(const Key('deckAddGuestButton')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(bounds, findsNothing);
+      expect(nameFocused(tester), isTrue);
+    });
   });
 }

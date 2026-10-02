@@ -6,6 +6,22 @@ import '../../../core/design/widgets/conv_widgets.dart';
 import '../models/family.dart';
 import '../models/member.dart';
 
+/// The control that submitted an [AddMemberSheet].
+enum AddMemberSheetControl { addToRoster, markGuest, existingMember }
+
+/// What an [AddMemberSheet] pops with on submit, so its opener can start a
+/// landing flight from the control that was used (#222 M3). A cancel pops with
+/// null.
+class AddMemberSheetResult {
+  const AddMemberSheetResult({required this.control, required this.rect});
+
+  final AddMemberSheetControl control;
+
+  /// The control's global rect when it was used. A keyboard submit reports the
+  /// "Add to roster" pill.
+  final Rect rect;
+}
+
 /// "Add someone" — adds a person to the session on the spot, always as here.
 ///
 /// Typing a name suggests matching people from the Member Directory; tapping
@@ -44,23 +60,62 @@ class AddMemberSheet extends StatefulWidget {
 
 class _AddMemberSheetState extends State<AddMemberSheet> {
   final _nameController = TextEditingController();
+  final _nameFocus = FocusNode();
+  final _rosterPill = GlobalKey();
+  final _guestPill = GlobalKey();
+
+  /// The morph sheet's entrance while it forms; null for a plain sheet.
+  late final Animation<double>? _forming;
+
+  @override
+  void initState() {
+    super.initState();
+    // A morph sheet forms first and the keyboard rises after (#222 M1).
+    _forming = convMorphSheetFormingOf(context)
+      ?..addStatusListener(_focusOnceFormed);
+  }
+
+  void _focusOnceFormed(AnimationStatus status) {
+    if (!status.isCompleted) return;
+    _forming!.removeStatusListener(_focusOnceFormed);
+    _nameFocus.requestFocus();
+  }
 
   @override
   void dispose() {
+    _forming?.removeStatusListener(_focusOnceFormed);
+    _nameFocus.dispose();
     _nameController.dispose();
     super.dispose();
+  }
+
+  static Rect _globalRect(BuildContext context) {
+    final box = context.findRenderObject()! as RenderBox;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   void _addNew({required bool asGuest}) {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
     widget.onAdd(name, true, asGuest, null);
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(
+      AddMemberSheetResult(
+        control: asGuest
+            ? AddMemberSheetControl.markGuest
+            : AddMemberSheetControl.addToRoster,
+        rect: _globalRect((asGuest ? _guestPill : _rosterPill).currentContext!),
+      ),
+    );
   }
 
-  void _addExisting(Member member) {
+  void _addExisting(Member member, Rect rowRect) {
     widget.onAdd(member.displayName, true, false, member);
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(
+      AddMemberSheetResult(
+        control: AddMemberSheetControl.existingMember,
+        rect: rowRect,
+      ),
+    );
   }
 
   String _subtitleFor(Member member, Map<String, String> memberFamilyMap) {
@@ -144,7 +199,8 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               TextField(
                 key: const Key('addSheetNameField'),
                 controller: _nameController,
-                autofocus: true,
+                focusNode: _nameFocus,
+                autofocus: _forming == null,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.done,
                 style: AppTypography.geist(fontSize: 17, color: c.ink),
@@ -182,7 +238,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                           key: Key('addSheetSuggestion_${member.id}'),
                           member: member,
                           subtitle: _subtitleFor(member, memberFamilyMap),
-                          onTap: () => _addExisting(member),
+                          onTap: (rect) => _addExisting(member, rect),
                         ),
                     ],
                   ),
@@ -194,6 +250,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               Row(
                 children: [
                   Expanded(
+                    key: _rosterPill,
                     child: _SubmitPill(
                       key: const Key('addSheetAddToRoster'),
                       label: 'Add to roster',
@@ -204,6 +261,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
+                    key: _guestPill,
                     child: _SubmitPill(
                       key: const Key('addSheetMarkGuest'),
                       label: 'Mark as guest',
@@ -239,7 +297,9 @@ class _SuggestionRow extends StatelessWidget {
 
   final Member member;
   final String subtitle;
-  final VoidCallback onTap;
+
+  /// Receives the row's global rect.
+  final ValueChanged<Rect> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +308,7 @@ class _SuggestionRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: AppRadii.compactR,
-        onTap: onTap,
+        onTap: () => onTap(_AddMemberSheetState._globalRect(context)),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 56),
           child: Padding(

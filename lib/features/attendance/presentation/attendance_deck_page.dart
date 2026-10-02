@@ -107,6 +107,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   _Surface _surface = _Surface.deck;
   final List<int> _history = [];
 
+  /// The Likely here "Add someone" pill, which the add sheet grows out of.
+  final _addSomeoneSource = GlobalKey<ConvMorphSourceState>();
+
   /// Past sessions (newest-first) backing the likelihood ordering and the
   /// "% recently" line the fast surfaces show. Loaded in the background;
   /// until it arrives the surfaces simply fall back to alphabetical order.
@@ -624,31 +627,46 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     });
   }
 
-  void _showAddMemberSheet() {
+  /// Opens the add sheet. With [morphFrom] (the Likely here "Add someone"
+  /// pill) the sheet grows out of that control; every other opener keeps the
+  /// plain slide-up sheet.
+  void _showAddMemberSheet({GlobalKey<ConvMorphSourceState>? morphFrom}) {
+    Widget sheet(BuildContext context) => AddMemberSheet(
+          onAdd: (name, isPresent, isGuest, existingMember) async {
+            await _addAttendee(name, isPresent, isGuest, existingMember);
+            if (!mounted) return;
+            // A newcomer has no history, so their tile lands at the bottom of
+            // the Likely here grid, often off-screen; confirm it happened.
+            final messenger = ScaffoldMessenger.of(this.context);
+            messenger.hideCurrentSnackBar();
+            messenger.showSnackBar(
+              SnackBar(content: Text('${name.trim()} added · Here')),
+            );
+          },
+          availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
+          families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
+          rosterMemberIds: {
+            for (final m in _sessionMembers)
+              if (m.id.isNotEmpty) m.id,
+          },
+          disableAnimations: widget.disableAnimations,
+        );
+    if (morphFrom != null) {
+      // Submits pop with an AddMemberSheetResult (the control used and its
+      // rect), the hook for the landing flight.
+      showConvMorphSheet<AddMemberSheetResult>(
+        context: context,
+        source: morphFrom,
+        builder: sheet,
+        disableAnimations: widget.disableAnimations,
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddMemberSheet(
-        onAdd: (name, isPresent, isGuest, existingMember) async {
-          await _addAttendee(name, isPresent, isGuest, existingMember);
-          if (!mounted) return;
-          // A newcomer has no history, so their tile lands at the bottom of
-          // the Likely here grid, often off-screen; confirm it happened.
-          final messenger = ScaffoldMessenger.of(this.context);
-          messenger.hideCurrentSnackBar();
-          messenger.showSnackBar(
-            SnackBar(content: Text('${name.trim()} added · Here')),
-          );
-        },
-        availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
-        families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
-        rosterMemberIds: {
-          for (final m in _sessionMembers)
-            if (m.id.isNotEmpty) m.id,
-        },
-        disableAnimations: widget.disableAnimations,
-      ),
+      builder: sheet,
     );
   }
 
@@ -957,7 +975,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       MarkingMode.likelyHere => LikelyHereView(
           roster: roster,
           onToggle: _toggleMemberFromList,
-          onAddGuest: _showAddMemberSheet,
+          onAddGuest: () => _showAddMemberSheet(morphFrom: _addSomeoneSource),
+          addSomeoneKey: _addSomeoneSource,
           disableAnimations: widget.disableAnimations,
         ),
       MarkingMode.households => HouseholdsView(

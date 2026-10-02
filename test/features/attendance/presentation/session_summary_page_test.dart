@@ -676,6 +676,41 @@ void main() {
     expect(updatedSession?.records.first.status, AttendanceStatus.present);
   });
 
+  testWidgets(
+      'SessionSummaryPage "Add attendee" keeps the plain sheet with motion on',
+      (WidgetTester tester) async {
+    final mockRepo = MockSessionRepository();
+    final session = Session(
+      id: 's1',
+      title: 'Test Session',
+      sessionDate: DateTime(2023, 10, 27),
+      records: [],
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'User',
+    );
+    mockRepo.addSession(session);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: session,
+          members: [Member(id: '1', displayName: 'Alice')],
+          sessionRepository: mockRepo,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pump();
+    await tester.pump();
+
+    // Only the Likely here pill morphs; this icon slides the sheet up.
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byKey(convMorphSheetBoundsKey), findsNothing);
+  });
+
   testWidgets('SessionSummaryPage adding an existing global member appends them to event.memberIds', (
     WidgetTester tester,
   ) async {
