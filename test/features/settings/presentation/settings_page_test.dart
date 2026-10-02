@@ -338,6 +338,33 @@ void main() {
     expect(find.byKey(const ValueKey('settings_skeleton')), findsNothing);
   });
 
+  testWidgets('SettingsPage crossfades its skeleton into the content (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          themeController: themeController,
+          driveService: FakeDriveService(),
+          localBackupService: FakeLocalBackupService(),
+          attendanceRepository: MockAttendanceRepository(),
+          eventRepository: MockEventRepository(),
+          sessionRepository: MockSessionRepository(),
+        ),
+      ),
+    );
+    final skeleton = find.byKey(const ValueKey('settings_skeleton'));
+    expect(skeleton, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(skeleton, findsOneWidget, reason: 'still fading out');
+    expect(find.byKey(const ValueKey('content')), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(skeleton, findsNothing);
+    expect(find.byKey(const ValueKey('content')), findsOneWidget);
+  });
+
   testWidgets('SettingsPage renders correctly', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();

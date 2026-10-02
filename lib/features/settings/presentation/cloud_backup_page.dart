@@ -304,9 +304,11 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
       ),
       body: FluidLoadingBorder(
         isLoading: _isOperating,
-        child: _isInitialLoading
-            ? _buildSkeleton(context)
-            : FutureBuilder<List<drive.File>>(
+        child: SkeletonSwitcher(
+          loading: _isInitialLoading,
+          disableAnimations: widget.disableAnimations,
+          skeleton: _buildSkeleton(context),
+          child: FutureBuilder<List<drive.File>>(
                 future: _backupsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting &&
@@ -531,6 +533,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   );
                 },
               ),
+        ),
       ),
     );
   }

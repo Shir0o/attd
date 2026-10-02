@@ -245,10 +245,11 @@ class _ResolveDuplicatesPageState extends State<ResolveDuplicatesPage> {
       ),
       body: FutureBuilder<List<DuplicateGroup>>(
         future: _duplicatesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildSkeleton(context);
-          }
+        builder: (context, snapshot) => SkeletonSwitcher(
+          loading: snapshot.connectionState == ConnectionState.waiting,
+          disableAnimations: widget.disableAnimations,
+          skeleton: _buildSkeleton(context),
+          child: Builder(builder: (context) {
 
           final groups = snapshot.data ?? [];
           if (groups.isEmpty) {
@@ -373,7 +374,8 @@ class _ResolveDuplicatesPageState extends State<ResolveDuplicatesPage> {
               ),
             ],
           );
-        },
+                  }),
+        ),
       ),
     );
   }

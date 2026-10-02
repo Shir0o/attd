@@ -172,6 +172,15 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
 
   @override
   Widget build(BuildContext context) {
+    return SkeletonSwitcher(
+      loading: _isLoading,
+      disableAnimations: widget.disableAnimations,
+      skeleton: _buildSkeleton(context.conv),
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final c = context.conv;
     final roster = _buildRoster();
 
@@ -184,10 +193,6 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
       }
     }
     visitors.sort((a, b) => a.displayName.compareTo(b.displayName));
-
-    if (_isLoading) {
-      return _buildSkeleton(c);
-    }
 
     // Present headcount across everyone displayed, for the confirm CTA.
     var presentCount = 0;
@@ -275,6 +280,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                               ? RosterGrouping.byFamily
                               : RosterGrouping.byStatus;
                         }),
+                        disableAnimations: widget.disableAnimations,
                       ),
                     const Spacer(),
                     if (widget.onMarkAll != null)

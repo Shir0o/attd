@@ -223,10 +223,11 @@ class _AssignSoloMembersPageState extends State<AssignSoloMembersPage> {
       ),
       body: FutureBuilder<List<Family>>(
         future: _familiesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildSkeleton(context);
-          }
+        builder: (context, snapshot) => SkeletonSwitcher(
+          loading: snapshot.connectionState == ConnectionState.waiting,
+          disableAnimations: widget.disableAnimations,
+          skeleton: _buildSkeleton(context),
+          child: Builder(builder: (context) {
 
           final allFamilies = snapshot.data ?? [];
           final realFamilies = allFamilies.where((f) => !f.isAutoSingleton).toList();
@@ -336,7 +337,8 @@ class _AssignSoloMembersPageState extends State<AssignSoloMembersPage> {
               ),
             ],
           );
-        },
+                  }),
+        ),
       ),
     );
   }

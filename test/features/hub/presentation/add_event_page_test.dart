@@ -127,6 +127,30 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
+  testWidgets('the skeleton crossfades into the form after 800 ms (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: _EventRepository(),
+          attendanceRepository: MockAttendanceRepository(),
+        ),
+      ),
+    );
+    final skeleton = find.byKey(const ValueKey('skeleton'));
+    expect(skeleton, findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(skeleton, findsOneWidget, reason: 'still fading out');
+    expect(find.byType(TextFormField), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(skeleton, findsNothing);
+    expect(find.byType(TextFormField), findsOneWidget);
+  });
+
   testWidgets('creates a weekly event', (tester) async {
     final repository = _EventRepository();
 

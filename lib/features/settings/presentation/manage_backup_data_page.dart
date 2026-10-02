@@ -21,6 +21,7 @@ import '../../../data/session_repository.dart';
 import '../../../core/maintenance/bulk_maintenance_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'inspector_context.dart';
+import '../../../core/design/widgets/skeleton_switcher.dart';
 
 final _log = AppLogger('ManageBackup');
 
@@ -834,9 +835,11 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _isLoading
-          ? _buildSkeleton(context)
-          : Column(
+      body: SkeletonSwitcher(
+        loading: _isLoading,
+        disableAnimations: widget.disableAnimations,
+        skeleton: _buildSkeleton(context),
+        child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header title & subtitle
@@ -1103,6 +1106,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                 ),
               ],
             ),
+      ),
     );
   }
 

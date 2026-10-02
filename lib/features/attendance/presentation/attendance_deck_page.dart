@@ -29,6 +29,7 @@ import 'fast_marking/likely_here_view.dart';
 import 'fast_marking/rapid_entry_view.dart';
 import 'mark_everyone_sheet.dart';
 import 'session_summary_page.dart';
+import 'done_progress_pill.dart';
 import 'swipeable_card.dart';
 
 /// Which marking surface the session is currently showing. The third one is
@@ -176,6 +177,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   final Map<String, AttendanceStatus> _baselineStatus = {};
 
   bool get _isDeckMode => _surface == _Surface.deck;
+
+  /// The header toggle's segments, in order; the fast surface only exists when
+  /// the event picked a fast marking mode.
+  List<_Surface> get _surfaces => [
+        _Surface.deck,
+        _Surface.list,
+        if (_markingMode != MarkingMode.none) _Surface.fast,
+      ];
 
   MarkingMode get _markingMode => widget.markingMode ?? kDefaultMarkingMode;
 
@@ -995,10 +1004,16 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   ],
                 ),
               ),
-              TextButton(
-                key: const Key('finishSessionButton'),
-                onPressed: () => _finishAndNavigate(),
-                child: const Text('Done'),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: DoneProgressPill(
+                  key: const Key('finishSessionButton'),
+                  progress: progress,
+                  complete: total > 0 && t.remaining == 0,
+                  solid: _confirmMode,
+                  onPressed: () => _finishAndNavigate(),
+                  disableAnimations: widget.disableAnimations,
+                ),
               ),
             ],
           ),
@@ -1007,38 +1022,40 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Center(
-            child: SegmentedButton<_Surface>(
+            // Scales down rather than overflows on a narrow phone or large
+            // text, as the Material toggle it replaces did.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: ConvSegmented(
               key: const Key('deckListModeToggle'),
-              style: const ButtonStyle(
-                side: WidgetStatePropertyAll(BorderSide.none),
-              ),
-              segments: [
-                const ButtonSegment(
-                  value: _Surface.deck,
-                  label: Text('Deck'),
-                  icon: Icon(Icons.style_outlined),
+              options: [
+                const ConvSegmentOption(
+                  label: 'Deck',
+                  icon: Icons.style_outlined,
                 ),
-                const ButtonSegment(
-                  value: _Surface.list,
-                  label: Text('List'),
-                  icon: Icon(Icons.list_alt),
+                const ConvSegmentOption(
+                  label: 'List',
+                  icon: Icons.list_alt,
                 ),
                 // The third segment is whichever fast mode the event picked.
                 if (_markingMode != MarkingMode.none)
-                  ButtonSegment(
-                    value: _Surface.fast,
-                    label: Text(_markingMode.shortLabel),
-                    icon: const Icon(Icons.bolt_outlined),
+                  ConvSegmentOption(
+                    label: _markingMode.shortLabel,
+                    icon: Icons.bolt_outlined,
                   ),
               ],
-              selected: {_surface},
-              onSelectionChanged: (sel) => setState(() => _surface = sel.first),
-              showSelectedIcon: false,
+              selectedIndex: _surfaces.indexOf(_surface),
+              onChanged: (i) => setState(() => _surface = _surfaces[i]),
+              disableAnimations: widget.disableAnimations,
+              ),
             ),
           ),
         ),
-        // Contained progress bar: single present fill on the deck, two-tone
-        // present/absent split in list mode. Fills ease to new values (M5).
+        // Confirm mode keeps its contained bar. While marking, Done itself
+        // carries the progress (M6).
+        if (_confirmMode)
+        // Single present fill on the deck, two-tone present/absent split
+        // elsewhere. Fills ease to new values (M5).
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
           child: ClipRRect(

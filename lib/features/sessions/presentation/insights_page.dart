@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/design/app_motion.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/app_colors.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
@@ -166,6 +167,7 @@ class _InsightsPageState extends State<InsightsPage> {
               selectedIndex:
                   InsightsRange.values.indexOf(_insights.config.resolvedRange),
               onChanged: (i) => _setRange(InsightsRange.values[i]),
+              disableAnimations: widget.disableAnimations,
             ),
             const SizedBox(height: 14),
             if (!_insights.hasSessions) _EmptyState(c: c) else ..._sections(c),
@@ -230,7 +232,16 @@ class _InsightsPageState extends State<InsightsPage> {
       }
       switch (section) {
         case InsightsSection.rateOverTime:
-          addWide(_RateSection(insights: _insights, c: c));
+          addWide(
+            _RateSection(
+              // Keeps its state across range changes so the bars tween
+              // instead of regrowing.
+              key: const ValueKey('insightsRateSection'),
+              insights: _insights,
+              c: c,
+              disableAnimations: widget.disableAnimations,
+            ),
+          );
         case InsightsSection.extremes:
           addWide(_ExtremesRow(insights: _insights, c: c));
         case InsightsSection.regulars:
@@ -304,15 +315,142 @@ class _InsightsPageState extends State<InsightsPage> {
 
 // ── Sections ──────────────────────────────────────────────────────────────
 
-class _RateSection extends StatelessWidget {
-  const _RateSection({required this.insights, required this.c});
+class _RateSection extends StatefulWidget {
+  const _RateSection({
+    super.key,
+    required this.insights,
+    required this.c,
+    this.disableAnimations = false,
+  });
 
   final EventInsights insights;
   final ConvocationColors c;
+  final bool disableAnimations;
+
+  @override
+  State<_RateSection> createState() => _RateSectionState();
+}
+
+/// Draws the rate headline and bars, animating them (#222 M10): on first load
+/// each bar grows from the baseline over ~500 ms on [AppMotion.morphCurve],
+/// staggered ~40 ms per bar, while the headline counts up with the first bar;
+/// when the range changes the bars tween from their old heights to the new
+/// ones over [AppMotion.houseDuration] and never regrow. Static when motion is
+/// off.
+class _RateSectionState extends State<_RateSection>
+    with TickerProviderStateMixin {
+  static const _growMs = 500;
+  static const _staggerMs = 40;
+
+  late final int _growTotalMs =
+      _growMs + _staggerMs * (widget.insights.points.length - 1).clamp(0, 1000);
+  late final AnimationController _grow = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: _growTotalMs),
+  );
+  late final AnimationController _morph = AnimationController(
+    vsync: this,
+    duration: AppMotion.houseDuration,
+    value: 1,
+  );
+
+  /// Bar heights the current range change started from and is heading to,
+  /// always the same length.
+  late List<double> _to = _heights(widget.insights.points);
+  late List<double> _from = _to;
+  bool _started = false;
+
+  static List<double> _heights(List<SessionPoint> points) =>
+      [for (final p in points) p.rate.clamp(0.02, 1.0)];
+
+  bool get _motion =>
+      motionEnabled(context, disableAnimations: widget.disableAnimations);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (_motion && _to.isNotEmpty) {
+      _grow.forward();
+    } else {
+      _grow.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_RateSection old) {
+    super.didUpdateWidget(old);
+    final next = _heights(widget.insights.points);
+    if (next.length == _to.length &&
+        List.generate(next.length, (i) => next[i] == _to[i])
+            .every((same) => same)) {
+      return;
+    }
+    if (!_motion) {
+      _from = _to = next;
+      _grow.value = 1;
+      return;
+    }
+    // Start from what is on screen, resampled to the new bar count so no bar
+    // drops to zero or regrows.
+    final shown = _shownBase();
+    _grow.value = 1;
+    _from = [
+      for (var i = 0; i < next.length; i++)
+        shown.isEmpty ? next[i] : shown[(i * shown.length / next.length).floor()],
+    ];
+    _to = next;
+    _morph.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _grow.dispose();
+    _morph.dispose();
+    super.dispose();
+  }
+
+  /// The tweened heights before the first-load grow is applied.
+  List<double> _shownBase() {
+    final t = AppMotion.houseCurve.transform(_morph.value);
+    return [for (var i = 0; i < _to.length; i++) _from[i] + (_to[i] - _from[i]) * t];
+  }
+
+  /// How far bar [i] has grown from the baseline, 0–1.
+  double _growth(int i) {
+    if (_grow.isCompleted) return 1;
+    final elapsed = _grow.value * _growTotalMs;
+    return AppMotion.morphCurve
+        .transform(((elapsed - i * _staggerMs) / _growMs).clamp(0.0, 1.0));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final insights = widget.insights;
+    final c = widget.c;
+    return AnimatedBuilder(
+      animation: Listenable.merge([_grow, _morph]),
+      builder: (context, _) {
+        final base = _shownBase();
+        return _buildCard(
+          insights,
+          c,
+          [for (var i = 0; i < base.length; i++) base[i] * _growth(i)],
+          _growth(0),
+        );
+      },
+    );
+  }
+
+  Widget _buildCard(
+    EventInsights insights,
+    ConvocationColors c,
+    List<double> heights,
+    double countProgress,
+  ) {
     final avg = insights.averageRatePercent ?? 0;
+    final shownAvg = (avg * countProgress).round();
     final prior = insights.priorAverageRatePercent ?? avg;
     final up = insights.isImproving;
     final points = insights.points;
@@ -335,7 +473,7 @@ class _RateSection extends StatelessWidget {
                     color: c.primary,
                   ),
                   children: [
-                    TextSpan(text: '$avg'),
+                    TextSpan(text: '$shownAvg'),
                     TextSpan(
                       text: '%',
                       style: AppTypography.displayNumber(
@@ -376,7 +514,7 @@ class _RateSection extends StatelessWidget {
           const SizedBox(height: 16),
           SizedBox(
             height: 96,
-            child: _BarChart(points: points, primary: c.primary),
+            child: _BarChart(heights: heights, primary: c.primary),
           ),
           const SizedBox(height: 8),
           Row(
@@ -399,21 +537,23 @@ class _RateSection extends StatelessWidget {
 }
 
 class _BarChart extends StatelessWidget {
-  const _BarChart({required this.points, required this.primary});
+  const _BarChart({required this.heights, required this.primary});
 
-  final List<SessionPoint> points;
+  /// Each bar's height as a share of the chart, 0–1.
+  final List<double> heights;
   final Color primary;
 
   @override
   Widget build(BuildContext context) {
-    final n = points.length;
+    final n = heights.length;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         for (var i = 0; i < n; i++) ...[
           Expanded(
             child: FractionallySizedBox(
-              heightFactor: points[i].rate.clamp(0.02, 1.0),
+              key: Key('insightsBar_$i'),
+              heightFactor: heights[i].clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: primary.withValues(alpha: i == n - 1 ? 1 : 0.32),

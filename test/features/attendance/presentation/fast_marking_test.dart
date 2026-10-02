@@ -9,6 +9,7 @@ import 'package:attendance_tracker/features/attendance/models/marking_mode.dart'
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
+import 'package:attendance_tracker/features/attendance/presentation/done_progress_pill.dart';
 import 'package:attendance_tracker/features/attendance/presentation/fast_marking/fast_marking_shared.dart';
 import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 import 'package:flutter/material.dart';
@@ -1268,21 +1269,57 @@ void main() {
       expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
     });
 
-    testWidgets('an initials chip pops on press and still clears',
+    testWidgets('a pad key pops on press and still types its letter',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
+      final key = find.byKey(const Key('initialsKey_D'));
+
+      final gesture = await tester.startGesture(tester.getCenter(key));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 110));
+      expect(scaleIn(tester, key), lessThan(1));
+
+      // Cancelling springs back without typing the letter.
+      await gesture.cancel();
+      await tester.pumpAndSettle();
+      expect(scaleIn(tester, key), closeTo(1, 0.001));
+      expect(find.byKey(const Key('initialsChip_first')), findsNothing);
+
+      await tester.tap(key);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('initialsChip_first')), findsOneWidget);
+    });
+
+    testWidgets('icon keys and unmatched letters do not pop', (tester) async {
+      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
+      // Backspace and reset are icon keys, and a letter with no match is
+      // disabled: none of them scale.
+      for (final key in ['back', 'reset', 'Z']) {
+        expect(
+          find.descendant(
+            of: find.byKey(Key('initialsKey_$key')),
+            matching: find.byType(Transform),
+          ),
+          findsNothing,
+          reason: key,
+        );
+      }
+    });
+
+    testWidgets('an initials chip no longer scales and still clears',
         (tester) async {
       await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
       await tester.tap(find.byKey(const Key('initialsKey_D')));
       await tester.pumpAndSettle();
       final chip = find.byKey(const Key('initialsChip_first'));
-      final pressable = find.ancestor(
-        of: chip,
-        matching: find.byType(ConvPressable),
-      );
 
       final gesture = await tester.startGesture(tester.getCenter(chip));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 110));
-      expect(scaleIn(tester, pressable), lessThan(1));
+      expect(
+        find.descendant(of: chip, matching: find.byType(Transform)),
+        findsNothing,
+      );
 
       await gesture.up();
       await tester.pumpAndSettle();
@@ -1331,15 +1368,14 @@ void main() {
       );
     });
 
-    testWidgets('the progress fill eases instead of jumping', (tester) async {
+    testWidgets("Done's progress fill eases instead of jumping",
+        (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
       final fill = find.descendant(
-        of: find.byKey(const Key('headerProgressPresent')),
+        of: find.byKey(const Key('doneProgressFill')),
         matching: find.byType(ColoredBox),
       );
-      final track = tester.getSize(
-        find.ancestor(of: fill, matching: find.byType(Stack)).first,
-      );
+      final track = tester.getSize(find.byKey(const Key('finishSessionButton')));
       expect(tester.getSize(fill).width, 0);
 
       await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
@@ -1389,20 +1425,203 @@ void main() {
       expect(find.text('1 changed'), findsOneWidget);
     });
 
-    testWidgets('with motion off the tally and the bar snap', (tester) async {
+    testWidgets("with motion off the tally and Done's fill snap",
+        (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
       final fill = find.descendant(
-        of: find.byKey(const Key('headerProgressPresent')),
+        of: find.byKey(const Key('doneProgressFill')),
         matching: find.byType(ColoredBox),
       );
-      final track = tester.getSize(
-        find.ancestor(of: fill, matching: find.byType(Stack)).first,
-      );
+      final track = tester.getSize(find.byKey(const Key('finishSessionButton')));
 
       await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
       await tester.pump();
       expect(find.text('3 left'), findsOneWidget);
       expect(tester.getSize(fill).width, closeTo(track.width / 4, 0.01));
+    });
+  });
+
+  group('Done carries the progress (#222 M6)', () {
+    final done = find.byKey(const Key('finishSessionButton'));
+    final fill = find.descendant(
+      of: find.byKey(const Key('doneProgressFill')),
+      matching: find.byType(ColoredBox),
+    );
+    final glow = find.byKey(doneGlowKey);
+
+    Future<void> mark(WidgetTester tester, List<String> ids) async {
+      for (final id in ids) {
+        await tester.tap(find.byKey(Key('likelyHereChip_$id')));
+        await tester.pump();
+      }
+    }
+
+    Color? labelColor(WidgetTester tester) => tester
+        .widget<Text>(
+          find.descendant(of: done, matching: find.text('Done')),
+        )
+        .style
+        ?.color;
+
+    testWidgets('marking replaces the thin bar with the Done pill',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      expect(find.byKey(const Key('headerProgressPresent')), findsNothing);
+      expect(find.byKey(const Key('headerProgressAbsent')), findsNothing);
+      expect(tester.getSize(fill).width, 0);
+      expect(glow, findsNothing);
+    });
+
+    testWidgets("Done's fill grows with each decision", (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      final w = tester.getSize(done).width;
+      await mark(tester, ['duc']);
+      expect(tester.getSize(fill).width, closeTo(w / 4, 0.01));
+      await mark(tester, ['an', 'bao']);
+      expect(tester.getSize(fill).width, closeTo(w * 3 / 4, 0.01));
+      expect(glow, findsNothing);
+    });
+
+    testWidgets('nobody left: fully violet, on-primary label, one glow',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      final c = tester.element(done).conv;
+      final w = tester.getSize(done).width;
+      await mark(tester, ['duc', 'an', 'bao']);
+      await tester.pumpAndSettle();
+      expect(glow, findsNothing, reason: 'one person is still left');
+      expect(labelColor(tester), isNot(c.onPrimary));
+
+      await tester.tap(find.byKey(const Key('likelyHereChip_sam')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(glow, findsOneWidget);
+      expect(tester.getSize(fill).width, closeTo(w, 0.01));
+      expect(labelColor(tester), c.onPrimary);
+
+      // An unrelated rebuild mid-glow does not restart it.
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(glow, findsNothing);
+      await tester.tap(find.text('Deck'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Likely'));
+      await tester.pumpAndSettle();
+      expect(glow, findsNothing);
+      expect(labelColor(tester), c.onPrimary);
+    });
+
+    testWidgets('with motion off completion is the same state, no glow',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      final c = tester.element(done).conv;
+      await mark(tester, ['duc', 'an', 'bao', 'sam']);
+      expect(glow, findsNothing);
+      expect(
+        tester.getSize(fill).width,
+        closeTo(tester.getSize(done).width, 0.01),
+      );
+      expect(labelColor(tester), c.onPrimary);
+    });
+
+    testWidgets('confirm mode keeps the two-tone bar and a solid Done',
+        (tester) async {
+      await pumpMode(
+        tester,
+        MarkingMode.likelyHere,
+        seed: AttendanceStatus.present,
+        startMode: AttendanceStartMode.allPresent,
+      );
+      expect(find.byKey(const Key('headerProgressPresent')), findsOneWidget);
+      expect(find.byKey(const Key('headerProgressAbsent')), findsOneWidget);
+      expect(find.byKey(const Key('doneProgressFill')), findsNothing);
+      final c = tester.element(done).conv;
+      expect(labelColor(tester), c.onPrimary);
+      expect(
+        tester.widget<Material>(
+          find.descendant(of: done, matching: find.byType(Material)).first,
+        ).color,
+        c.primary,
+      );
+    });
+
+    testWidgets('Done still finishes the session', (tester) async {
+      final h = await pumpMode(tester, MarkingMode.likelyHere);
+      await mark(tester, ['duc']);
+      await tester.tap(done);
+      await tester.pumpAndSettle();
+      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
+    });
+  });
+
+  group('the mode toggle slides its thumb (#222 M8)', () {
+    final toggle = find.byKey(const Key('deckListModeToggle'));
+    final thumb = find.byKey(convSegmentedThumbKey);
+
+    Rect segmentRect(WidgetTester tester, String label) => tester.getRect(
+          find
+              .descendant(of: toggle, matching: find.text(label))
+              .first,
+        );
+
+    testWidgets('switching modes moves the thumb to the new segment',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      final likely = segmentRect(tester, 'Likely');
+      expect(thumb, findsOneWidget);
+      expect(tester.getRect(thumb).overlaps(likely), isTrue);
+
+      await tester.tap(find.descendant(of: toggle, matching: find.text('List')));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      final mid = tester.getRect(thumb);
+      final list = segmentRect(tester, 'List');
+      expect(mid.center.dx, inExclusiveRange(list.center.dx, likely.center.dx));
+
+      await tester.pumpAndSettle();
+      expect(tester.getRect(thumb).overlaps(segmentRect(tester, 'List')), isTrue);
+      expect(find.text('Marked present'), findsNothing);
+    });
+
+    testWidgets('with motion off the thumb snaps and the mode still switches',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      await tester.tap(find.descendant(of: toggle, matching: find.text('Deck')));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(SwipeableCard), findsOneWidget);
+      expect(
+        tester.getRect(thumb).center.dx,
+        closeTo(segmentRect(tester, 'Deck').center.dx, 20),
+      );
+    });
+
+    testWidgets('a mode with no fast surface has just Deck and List',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.none);
+      expect(
+        find.descendant(of: toggle, matching: find.byType(InkWell)),
+        findsNWidgets(2),
+      );
+    });
+
+    testWidgets('the selected segment is announced as selected',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpMode(tester, MarkingMode.likelyHere);
+      expect(
+        tester.getSemantics(
+          find.descendant(of: toggle, matching: find.text('Likely')),
+        ),
+        containsSemantics(isButton: true, isSelected: true),
+      );
+      expect(
+        tester.getSemantics(
+          find.descendant(of: toggle, matching: find.text('Deck')),
+        ),
+        containsSemantics(isButton: true, isSelected: false),
+      );
+      handle.dispose();
     });
   });
 

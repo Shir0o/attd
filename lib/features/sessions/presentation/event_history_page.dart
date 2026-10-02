@@ -14,6 +14,7 @@ import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/utils/session_roster_utils.dart';
 import '../../settings/data/drive_service.dart';
+import '../../../core/design/widgets/skeleton_switcher.dart';
 
 class EventHistoryPage extends StatefulWidget {
   const EventHistoryPage({
@@ -149,11 +150,11 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
         child: FutureBuilder<void>(
           future: _initializationFuture,
           builder: (context, initSnapshot) {
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
-              child: initSnapshot.connectionState != ConnectionState.done
-                  ? _buildSkeleton(context)
-                  : RefreshIndicator(
+            return SkeletonSwitcher(
+                loading: initSnapshot.connectionState != ConnectionState.done,
+                disableAnimations: widget.disableAnimations,
+                skeleton: _buildSkeleton(context),
+                child: RefreshIndicator(
                       key: const ValueKey('content'),
                       onRefresh: () async {
                         await widget.sessionRepository.refresh();

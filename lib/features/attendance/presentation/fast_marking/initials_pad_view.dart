@@ -238,6 +238,7 @@ class _InitialsPadViewState extends State<InitialsPadView> {
                       label: letter,
                       enabled: enabled.contains(letter),
                       onTap: () => _tapLetter(letter),
+                      disableAnimations: widget.disableAnimations,
                     ),
                   _PadKey(
                     key: const Key('initialsKey_back'),
@@ -333,6 +334,7 @@ class _PadKey extends StatelessWidget {
     this.icon,
     required this.enabled,
     required this.onTap,
+    this.disableAnimations = true,
   });
 
   final String? label;
@@ -340,10 +342,14 @@ class _PadKey extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
+  /// Only letter keys pop (#222 M4); the back and reset icon keys pass the
+  /// default and stay still.
+  final bool disableAnimations;
+
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    return Material(
+    final key = Material(
       color: enabled ? c.card : c.bg3.withValues(alpha: 0.45),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -367,6 +373,12 @@ class _PadKey extends StatelessWidget {
                 ),
         ),
       ),
+    );
+    // A disabled key never pops: it will not register the tap.
+    return ConvPressable(
+      preset: ConvPressPreset.pop,
+      disableAnimations: disableAnimations || !enabled,
+      child: key,
     );
   }
 }
