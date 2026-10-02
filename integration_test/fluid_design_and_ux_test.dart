@@ -3,8 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter/material.dart';
 
+import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
+import 'package:attendance_tracker/features/attendance/presentation/fast_marking/likely_here_view.dart';
+
 import 'utils/test_utils.dart';
+import 'robots/event_robot.dart';
 import 'robots/hub_robot.dart';
+import 'robots/members_robot.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -127,6 +132,68 @@ void main() {
           await tempDir.delete(recursive: true);
       }
     });
+    testWidgets('Add someone pill morphs into the sheet and back (#222)',
+        (tester) async {
+      final tempDir = await Directory.systemTemp.createTemp('morph_test_');
+      addTearDown(() async {
+        if (await tempDir.exists()) await tempDir.delete(recursive: true);
+      });
+      // Motion on: the morph is the thing under test.
+      final app = await createTestApp(tempDir, disableAnimations: false);
+      await tester.pumpWidget(app);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final hub = HubRobot(tester);
+      final event = EventRobot(tester);
+      final members = MembersRobot(tester);
+
+      // Skip onboarding, then make a startable event with one member.
+      await tester.pumpUntilFound(find.text('Skip'));
+      await tester.tap(find.text('Skip'));
+      await tester.pumpAndSettle();
+      await hub.tapFab();
+      await event.enterName('Morph Event');
+      final today = const [
+        'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+      ][DateTime.now().weekday % 7];
+      await event.selectDay(today);
+      await event.save();
+      await tester.pump(const Duration(milliseconds: 800));
+      await hub.tapEventMenu('Morph Event');
+      await hub.selectMenuOption('Manage Members');
+      await members.addMember('Alice Morph');
+      await hub.goBack();
+
+      // All absent opens on Likely here, which carries the Add someone pill.
+      await hub.tapEventCardWithMode(
+        'Morph Event',
+        AttendanceStartMode.allAbsent,
+      );
+      await tester.pumpUntilFound(find.byType(LikelyHereView));
+      final pill = find.byKey(const Key('likelyHereAddGuest'));
+      final nameField = find.byKey(const Key('addSheetNameField'));
+      await tester.pumpUntilFound(pill);
+
+      // Open: pump through the morph (about 400 ms) and the sheet is up.
+      await tester.tap(pill);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpUntilFound(nameField);
+      expect(nameField, findsOneWidget);
+      await tester.enterText(nameField, 'Ghost Guest');
+      await tester.pump();
+
+      // Cancel with back: the sheet collapses into the pill, nobody is added.
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpUntilAbsent(nameField);
+      expect(nameField, findsNothing);
+      expect(pill, findsOneWidget);
+      expect(find.text('Ghost Guest'), findsNothing);
+      expect(find.text('Alice Morph'), findsOneWidget);
+    });
+
    group('Accessibility Verification', () {
       testWidgets('Large text handling', (tester) async {
         final tempDir = await Directory.systemTemp.createTemp('access_test_');
