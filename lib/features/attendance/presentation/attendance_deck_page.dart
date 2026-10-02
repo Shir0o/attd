@@ -15,6 +15,7 @@ import '../models/marking_mode.dart';
 import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/bulk_attendance.dart';
+import '../utils/session_roster_utils.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
@@ -127,6 +128,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
     return _likelihood!;
   }
+
   final SwipeableCardController _swipeController = SwipeableCardController();
   // Bumped on every navigation so each card gets a unique key. Prevents the
   // AnimatedSwitcher from reusing a dismissed card's off-screen state when
@@ -647,6 +649,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _addedSnackBarText = GlobalKey();
     messenger.showSnackBar(
       SnackBar(
+        behavior: SnackBarBehavior.floating,
+        // On Likely here, park it above the Add someone pill so a second
+        // add needn't wait; elsewhere this is null (the theme's inset).
+        margin: LikelyHereView.snackBarMarginAbove(_addSomeoneSource),
         content: Text(
           '${name.trim()} added · Here',
           key: _addedSnackBarText,
@@ -722,11 +728,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       // Let the new tile and the snackbar lay out first.
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return null;
-      final tile = LikelyHereView.visibleTileRect(context, member.id);
+      // A guest's tile is keyed by its name snapshot, not its (empty) id.
+      final tileId = SessionRoster.keyFor(member);
+      final tile = LikelyHereView.visibleTileRect(context, tileId);
       if (tile != null) {
         var last = tile;
         return () =>
-            last = LikelyHereView.visibleTileRect(context, member.id) ?? last;
+            last = LikelyHereView.visibleTileRect(context, tileId) ?? last;
       }
       // The snackbar may still be queued behind the previous one; aim at
       // where it will sit until it is laid out.
