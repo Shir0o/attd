@@ -125,7 +125,8 @@ class _DoneProgressPillState extends State<DoneProgressPill>
                         colors: [c.onPrimary, c.onPrimary, c.ink, c.ink],
                         stops: [0, f, f, 1],
                       ).createShader(bounds),
-                      child: _label(Colors.white),
+                      // Any opaque colour: srcIn keeps only the glyph shapes.
+                      child: _label(c.ink),
                     ),
             ),
           Positioned.fill(
