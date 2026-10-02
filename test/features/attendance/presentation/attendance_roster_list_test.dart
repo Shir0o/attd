@@ -62,8 +62,7 @@ Future<void> pumpRoster(
             },
             onFamilyToggle: familyLog == null
                 ? null
-                : (f, p) async =>
-                    familyLog.add((familyId: f.id, present: p)),
+                : (f, p) async => familyLog.add((familyId: f.id, present: p)),
             onToggleLate: onToggleLate,
           ),
         ),
@@ -103,7 +102,8 @@ void main() {
     expect(find.text('0 of 1 present'), findsOneWidget);
   });
 
-  testWidgets('family "all present" button calls onFamilyToggle', (tester) async {
+  testWidgets('family "all present" button calls onFamilyToggle',
+      (tester) async {
     final session = sessionWith(members: [alice, bob, carol]);
     final log = <ToggleCall>[];
     final familyLog = <FamilyToggleCall>[];
@@ -555,9 +555,9 @@ void main() {
     }
 
     Finder scaleTransform() => find.descendant(
-      of: find.byType(ConvPressable),
-      matching: find.byType(Transform),
-    );
+          of: find.byType(ConvPressable),
+          matching: find.byType(Transform),
+        );
 
     testWidgets('presses in while held when motion is on', (tester) async {
       await pumpConfirm(tester);
@@ -573,7 +573,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('separates from the list by tone, not a border', (tester) async {
+    testWidgets('separates from the list by tone, not a border',
+        (tester) async {
       await pumpConfirm(tester);
       final bar = tester.widget<Container>(
         find.byKey(const Key('rosterConfirmBar')),
@@ -621,5 +622,69 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byType(AppShimmer), findsNothing);
     expect(find.text('Alice'), findsOneWidget);
+  });
+
+  group('grouping row at large text', () {
+    final pill = find.byKey(const Key('rosterMarkAllPresent'));
+    final label = find.text('Grouped by family');
+
+    Future<List<BulkMarkChoice>> pumpPreset(
+      WidgetTester tester,
+      double scale, {
+      double width = 390,
+    }) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      final marked = <BulkMarkChoice>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AttendanceRosterList(
+              session: sessionWith(members: [alice]),
+              families: const [],
+              showGroupingToggle: false,
+              showGroupingPreset: true,
+              showSearch: false,
+              disableAnimations: true,
+              onToggle: (_, __) async {},
+              onMarkAll: (choice) async => marked.add(choice),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return marked;
+    }
+
+    testWidgets('label and All present share one line when they fit',
+        (tester) async {
+      // The test font is wider than the app's, so give it a wider screen.
+      await pumpPreset(tester, 1.0, width: 600);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getCenter(pill).dy,
+        closeTo(tester.getCenter(label).dy, 1),
+      );
+      expect(tester.getRect(pill).right, closeTo(600 - 16, 0.5));
+    });
+
+    for (final scale in [1.3, 2.0]) {
+      testWidgets('All present drops below the label at ${scale}x text',
+          (tester) async {
+        final marked = await pumpPreset(tester, scale);
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.getRect(pill).top,
+          greaterThanOrEqualTo(tester.getRect(label).bottom),
+        );
+        expect(tester.getRect(pill).right, lessThanOrEqualTo(390 - 16));
+        expect(tester.getRect(label).right, lessThanOrEqualTo(390 - 16));
+        await tester.tap(pill);
+        expect(marked, [BulkMarkChoice.present]);
+      });
+    }
   });
 }

@@ -216,7 +216,8 @@ void main() {
       expect(find.byKey(const Key('fastMarkingResult_sam')), findsNothing);
     });
 
-    testWidgets('subtitle displays attendee last name for members without family',
+    testWidgets(
+        'subtitle displays attendee last name for members without family',
         (tester) async {
       await pumpMode(tester, MarkingMode.rapidEntry);
       await typeQuery(tester, const Key('rapidEntryField'), 'sam');
@@ -389,7 +390,8 @@ void main() {
       expect(find.byType(TextField), findsNothing);
     });
 
-    testWidgets('marking a chip does not push it to the end or shift other chips',
+    testWidgets(
+        'marking a chip does not push it to the end or shift other chips',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere, withHistory: true);
 
@@ -415,7 +417,8 @@ void main() {
       expect(getChipOrder(), initialOrder);
     });
 
-    testWidgets('unranked chips display attendee uppercase last name instead of NEW, and only given name in title',
+    testWidgets(
+        'unranked chips display attendee uppercase last name instead of NEW, and only given name in title',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
       // Roster without history: Sam Okafor and Nguyen family members
@@ -432,7 +435,8 @@ void main() {
       expect(find.text('An Nguyen'), findsNothing);
     });
 
-    testWidgets('unranked chips for single-name member display full name and no duplicate surname subtitle',
+    testWidgets(
+        'unranked chips for single-name member display full name and no duplicate surname subtitle',
         (tester) async {
       final singleMember = Member(id: 'cher', displayName: 'Cher');
       await pumpMode(
@@ -725,7 +729,8 @@ void main() {
       });
     }
 
-    testWidgets('newly added attendee shows up in the Likely Here grid immediately',
+    testWidgets(
+        'newly added attendee shows up in the Likely Here grid immediately',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
       expect(find.byKey(const Key('likelyHereChip_newbie')), findsNothing);
@@ -770,7 +775,8 @@ void main() {
               matching: find.byType(Material),
             )
             .first);
-        final pill = tester.getRect(find.byKey(const Key('likelyHereAddGuest')));
+        final pill =
+            tester.getRect(find.byKey(const Key('likelyHereAddGuest')));
         expect(snackBar.bottom, lessThanOrEqualTo(pill.top));
 
         // A second add needn't wait for the snackbar to time out.
@@ -1201,7 +1207,8 @@ void main() {
       expect(pillShown(tester), isTrue);
     });
 
-    testWidgets('with the system "Remove animations" setting it is the plain '
+    testWidgets(
+        'with the system "Remove animations" setting it is the plain '
         'sheet, focused at once', (tester) async {
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
@@ -1375,7 +1382,8 @@ void main() {
         of: find.byKey(const Key('doneProgressFill')),
         matching: find.byType(ColoredBox),
       );
-      final track = tester.getSize(find.byKey(const Key('finishSessionButton')));
+      final track =
+          tester.getSize(find.byKey(const Key('finishSessionButton')));
       expect(tester.getSize(fill).width, 0);
 
       await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
@@ -1432,7 +1440,8 @@ void main() {
         of: find.byKey(const Key('doneProgressFill')),
         matching: find.byType(ColoredBox),
       );
-      final track = tester.getSize(find.byKey(const Key('finishSessionButton')));
+      final track =
+          tester.getSize(find.byKey(const Key('finishSessionButton')));
 
       await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
       await tester.pump();
@@ -1537,9 +1546,11 @@ void main() {
       final c = tester.element(done).conv;
       expect(labelColor(tester), c.onPrimary);
       expect(
-        tester.widget<Material>(
-          find.descendant(of: done, matching: find.byType(Material)).first,
-        ).color,
+        tester
+            .widget<Material>(
+              find.descendant(of: done, matching: find.byType(Material)).first,
+            )
+            .color,
         c.primary,
       );
     });
@@ -1558,9 +1569,7 @@ void main() {
     final thumb = find.byKey(convSegmentedThumbKey);
 
     Rect segmentRect(WidgetTester tester, String label) => tester.getRect(
-          find
-              .descendant(of: toggle, matching: find.text(label))
-              .first,
+          find.descendant(of: toggle, matching: find.text(label)).first,
         );
 
     testWidgets('switching modes moves the thumb to the new segment',
@@ -1570,7 +1579,8 @@ void main() {
       expect(thumb, findsOneWidget);
       expect(tester.getRect(thumb).overlaps(likely), isTrue);
 
-      await tester.tap(find.descendant(of: toggle, matching: find.text('List')));
+      await tester
+          .tap(find.descendant(of: toggle, matching: find.text('List')));
       await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 60));
@@ -1579,14 +1589,16 @@ void main() {
       expect(mid.center.dx, inExclusiveRange(list.center.dx, likely.center.dx));
 
       await tester.pumpAndSettle();
-      expect(tester.getRect(thumb).overlaps(segmentRect(tester, 'List')), isTrue);
+      expect(
+          tester.getRect(thumb).overlaps(segmentRect(tester, 'List')), isTrue);
       expect(find.text('Marked present'), findsNothing);
     });
 
     testWidgets('with motion off the thumb snaps and the mode still switches',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
-      await tester.tap(find.descendant(of: toggle, matching: find.text('Deck')));
+      await tester
+          .tap(find.descendant(of: toggle, matching: find.text('Deck')));
       await tester.pump();
       await tester.pump();
       expect(find.byType(SwipeableCard), findsOneWidget);
@@ -1628,9 +1640,9 @@ void main() {
             find.descendant(of: toggle, matching: find.text(label)),
           );
           await tester.pumpAndSettle();
-          // The List surface's own grouping row overflows at large text; that
-          // is outside the toggle, so it is drained here, not asserted.
-          tester.takeException();
+          // The surface behind the toggle, List's grouping row included,
+          // lays out without overflow too.
+          expect(tester.takeException(), isNull, reason: '$label surface');
           expect(
             tester.getRect(thumb).overlaps(segmentRect(tester, label)),
             isTrue,
@@ -1688,7 +1700,9 @@ void main() {
         isAutoSingleton: true,
         members: [
           for (var i = 0; i < 40; i++)
-            Member(id: 'm$i', displayName: 'Member ${i.toString().padLeft(2, '0')}'),
+            Member(
+                id: 'm$i',
+                displayName: 'Member ${i.toString().padLeft(2, '0')}'),
         ],
       ),
     ];
@@ -1718,7 +1732,9 @@ void main() {
           matching: find.byWidgetPredicate(
             (w) =>
                 w.key is ValueKey<String> &&
-                (w.key! as ValueKey<String>).value.startsWith('likelyHereChip_'),
+                (w.key! as ValueKey<String>)
+                    .value
+                    .startsWith('likelyHereChip_'),
           ),
         );
 
@@ -1867,8 +1883,8 @@ void main() {
 
     testWidgets('with motion off nothing flies', (tester) async {
       await pumpPhone(tester, disableAnimations: true);
-      final rects =
-          await submit(tester, 'Newbie Guest', const Key('addSheetAddToRoster'));
+      final rects = await submit(
+          tester, 'Newbie Guest', const Key('addSheetAddToRoster'));
       expect(rects, isEmpty);
       expect(find.text('Newbie Guest added · Here'), findsOneWidget);
     });
