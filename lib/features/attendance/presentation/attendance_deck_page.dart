@@ -647,6 +647,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           for (final m in _sessionMembers)
             if (m.id.isNotEmpty) m.id,
         },
+        disableAnimations: widget.disableAnimations,
       ),
     );
   }
@@ -957,6 +958,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           roster: roster,
           onToggle: _toggleMemberFromList,
           onAddGuest: _showAddMemberSheet,
+          disableAnimations: widget.disableAnimations,
         ),
       MarkingMode.households => HouseholdsView(
           roster: roster,

@@ -41,11 +41,14 @@ class AppShadows {
   ];
 
   /// FAB glow — primary-tinted bottom shadow.
-  static List<BoxShadow> fab(Color primary) => [
+  ///
+  /// [pressed] (0..1) tightens the glow toward the surface while the control
+  /// is pressed; 0 is the resting shadow.
+  static List<BoxShadow> fab(Color primary, {double pressed = 0}) => [
     BoxShadow(
       color: primary.withValues(alpha: 0.5),
-      blurRadius: 30,
-      offset: const Offset(0, 10),
+      blurRadius: 30 - 14 * pressed,
+      offset: Offset(0, 10 - 6 * pressed),
       spreadRadius: -8,
     ),
   ];

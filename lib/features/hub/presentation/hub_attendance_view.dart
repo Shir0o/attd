@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../core/design/app_motion.dart';
 import '../../../core/design/app_radii.dart';
 import '../../../core/design/app_shadows.dart';
 import '../../../core/design/app_shimmer.dart';
@@ -649,18 +650,30 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _buildCreateFab(colorScheme),
+    ),
+  );
+}
+
+  Widget _buildCreateFab(ColorScheme colorScheme) {
+    final fab = ConvPressable(
+      disableAnimations: widget.disableAnimations,
+      child: FloatingActionButton(
         key: const ValueKey('hub_fab'),
-        heroTag: widget.disableAnimations ? null : 'fab',
+        // The Hero is applied below (it needs an arc tween and a shuttle).
+        heroTag: null,
         onPressed: _createNewSession,
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Icon(Icons.add, size: 24),
       ),
-    ),
-  );
-}
+    );
+    if (!motionEnabled(context, disableAnimations: widget.disableAnimations)) {
+      return fab;
+    }
+    return Hero(tag: 'fab', createRectTween: convArcRectTween, child: fab);
+  }
 
   Widget _buildEventList(ColorScheme colorScheme) {
     if (_events.isEmpty) {

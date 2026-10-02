@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../../../core/design/app_motion.dart';
 import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
@@ -713,27 +714,30 @@ class _AddEventPageState extends State<AddEventPage> {
   Widget _buildBottomButton(BuildContext context, {required bool isEditing}) {
     final c = context.conv;
     final label = isEditing ? 'Save changes' : 'Create event';
+    final labelStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.2,
+      color: c.onPrimary,
+    );
+    final motion = motionEnabled(
+      context,
+      disableAnimations: widget.disableAnimations,
+    );
     final btn = SizedBox(
       width: double.infinity,
-      child: Material(
-        color: c.primary,
-        borderRadius: BorderRadius.circular(999),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: const ValueKey('save_event_button'),
-          onTap: _saveEvent,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                  color: c.onPrimary,
-                ),
-              ),
+      child: ConvPressable(
+        disableAnimations: widget.disableAnimations,
+        child: Material(
+          color: c.primary,
+          borderRadius: BorderRadius.circular(999),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const ValueKey('save_event_button'),
+            onTap: _saveEvent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Center(child: Text(label, style: labelStyle)),
             ),
           ),
         ),
@@ -744,9 +748,19 @@ class _AddEventPageState extends State<AddEventPage> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
-        child: widget.disableAnimations
+        child: !motion
             ? btn
-            : Hero(tag: 'fab', child: Material(color: Colors.transparent, child: btn)),
+            : Hero(
+                tag: 'fab',
+                createRectTween: convArcRectTween,
+                flightShuttleBuilder: convFabPillShuttleBuilder(
+                  label: label,
+                  color: c.primary,
+                  onColor: c.onPrimary,
+                  labelStyle: labelStyle,
+                ),
+                child: Material(color: Colors.transparent, child: btn),
+              ),
       ),
     );
   }

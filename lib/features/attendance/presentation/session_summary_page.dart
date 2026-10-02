@@ -730,6 +730,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         families: _allFamilies.isNotEmpty
             ? _allFamilies
             : (widget.families ?? const []),
+        disableAnimations: widget.disableAnimations,
       ),
     );
   }

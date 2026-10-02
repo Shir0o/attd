@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
+import 'package:attendance_tracker/core/presentation/no_transitions_builder.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -13,6 +15,7 @@ import 'package:attendance_tracker/features/attendance/models/marking_mode.dart'
 import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
@@ -200,16 +203,39 @@ void main() {
     eventRepository.dispose();
   });
 
-  Future<void> pumpView(WidgetTester tester, {DriveService? driveService}) async {
+  Future<void> pumpView(
+    WidgetTester tester, {
+    DriveService? driveService,
+    bool disableAnimations = true,
+    bool systemDisableAnimations = false,
+    bool snapPages = false,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
+        // Like the real app (ADR 0008): pages snap, only Heroes fly.
+        theme: snapPages
+            ? ThemeData(
+                pageTransitionsTheme: PageTransitionsTheme(
+                  builders: {
+                    for (final p in TargetPlatform.values)
+                      p: const NoTransitionsBuilder(),
+                  },
+                ),
+              )
+            : null,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(disableAnimations: systemDisableAnimations),
+          child: child!,
+        ),
         home: HubAttendanceView(
           themeController: themeController,
           sessionRepository: sessionRepository,
           eventRepository: eventRepository,
           attendanceRepository: attendanceRepository,
           driveService: driveService,
-          disableAnimations: true,
+          disableAnimations: disableAnimations,
         ),
       ),
     );
@@ -608,6 +634,118 @@ void main() {
 
     // AddEventPage app bar title in create mode.
     expect(find.text('NEW EVENT'), findsOneWidget);
+  });
+
+  group('FAB to Create event shuttle', () {
+    final shuttle = find.byKey(const ValueKey('fab_pill_shuttle'));
+    final label = find.byKey(const ValueKey('fab_pill_shuttle_label'));
+
+    Future<void> openFlight(WidgetTester tester) async {
+      await pumpView(tester, disableAnimations: false, snapPages: true);
+      eventRepository.emit([]);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('hub_fab')));
+      await tester.pump();
+    }
+
+    testWidgets('flies the FAB into the pill without wrapping the label', (
+      tester,
+    ) async {
+      await openFlight(tester);
+      expect(find.byType(Hero), findsWidgets);
+
+      // Early in the flight the box is still close to the 56 px FAB, but the
+      // label keeps its intrinsic width on a single line.
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(shuttle, findsOneWidget);
+      final shuttleWidth = tester.getSize(shuttle).width;
+      expect(shuttleWidth, lessThan(150));
+      final labelText = tester.widget<Text>(label);
+      expect(labelText.data, 'Create event');
+      expect(labelText.softWrap, isFalse);
+      expect(labelText.maxLines, 1);
+      expect(tester.getSize(label).width, greaterThan(shuttleWidth));
+      expect(tester.getSize(label).height, lessThan(30));
+
+      // Follow the flight frame by frame until the shuttle lands.
+      final pill = tester.getRect(
+        find.descendant(
+          of: find.byType(AddEventPage),
+          matching: find.byType(Hero),
+        ),
+      );
+      var lastSeen = tester.getRect(shuttle);
+      var frames = 0;
+      while (shuttle.evaluate().isNotEmpty && frames < 60) {
+        lastSeen = tester.getRect(shuttle);
+        await tester.pump(const Duration(milliseconds: 16));
+        frames++;
+      }
+      expect(shuttle, findsNothing, reason: 'the flight should finish');
+      expect(lastSeen.left, closeTo(pill.left, 6));
+      expect(lastSeen.right, closeTo(pill.right, 6));
+      expect(lastSeen.top, closeTo(pill.top, 6));
+      expect(lastSeen.bottom, closeTo(pill.bottom, 6));
+
+      await tester.pumpAndSettle();
+      expect(shuttle, findsNothing);
+      expect(find.text('NEW EVENT'), findsOneWidget);
+    });
+
+    testWidgets('flies back into the FAB when leaving the page', (
+      tester,
+    ) async {
+      await openFlight(tester);
+      await tester.pumpAndSettle();
+
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(shuttle, findsOneWidget);
+      expect(tester.widget<Text>(label).softWrap, isFalse);
+
+      await tester.pumpAndSettle();
+      expect(shuttle, findsNothing);
+      expect(find.byKey(const ValueKey('hub_fab')), findsOneWidget);
+    });
+
+    testWidgets('the FAB presses in when motion is on', (tester) async {
+      await pumpView(tester, disableAnimations: false);
+      eventRepository.emit([]);
+      await tester.pumpAndSettle();
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('hub_fab')),
+          matching: find.byType(ConvPressable),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    for (final (name, flag, system) in [
+      ('the test flag', true, false),
+      ('the system setting', false, true),
+    ]) {
+      testWidgets('does not fly when $name disables motion', (tester) async {
+        await pumpView(
+          tester,
+          disableAnimations: flag,
+          systemDisableAnimations: system,
+        );
+        eventRepository.emit([]);
+        await tester.pumpAndSettle();
+        expect(find.byType(Hero), findsNothing);
+
+        await tester.tap(find.byKey(const ValueKey('hub_fab')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 30));
+        expect(shuttle, findsNothing);
+
+        await tester.pumpAndSettle();
+        expect(find.text('NEW EVENT'), findsOneWidget);
+        expect(find.byType(Hero), findsNothing);
+      });
+    }
   });
 
   testWidgets('one-time event scheduled for today shows the Start pill', (tester) async {
