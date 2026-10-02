@@ -7,6 +7,19 @@ import 'package:attendance_tracker/features/attendance/utils/session_roster_util
 
 void main() {
   group('SessionRoster', () {
+    test('keyFor is the id, or the name snapshot for an id-less visitor', () {
+      expect(
+        SessionRoster.keyFor(Member(id: 'm1', displayName: 'Ann')),
+        'm1',
+      );
+      expect(
+        SessionRoster.keyFor(
+          Member(id: '', displayName: 'Walk In', isVisitor: true),
+        ),
+        'visitor_Walk In',
+      );
+    });
+
     final member1 = Member(id: 'm1', displayName: 'Alice');
     final member2 = Member(id: 'm2', displayName: 'Bob');
     final baseMembers = [member1, member2];

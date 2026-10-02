@@ -15,6 +15,7 @@ import '../models/marking_mode.dart';
 import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/bulk_attendance.dart';
+import '../utils/session_roster_utils.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
@@ -107,8 +108,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   _Surface _surface = _Surface.deck;
   final List<int> _history = [];
 
-  /// The Likely here Add someone pill, measured to keep snackbars off it.
-  final _likelyAddSomeoneKey = GlobalKey();
+  /// The Likely here "Add someone" pill, which the add sheet grows out of.
+  final _addSomeoneSource = GlobalKey<ConvMorphSourceState>();
 
   /// Past sessions (newest-first) backing the likelihood ordering and the
   /// "% recently" line the fast surfaces show. Loaded in the background;
@@ -127,6 +128,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
     return _likelihood!;
   }
+
   final SwipeableCardController _swipeController = SwipeableCardController();
   // Bumped on every navigation so each card gets a unique key. Prevents the
   // AnimatedSwitcher from reusing a dismissed card's off-screen state when
@@ -400,7 +402,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
-  Future<void> _addAttendee(
+  Future<Member> _addAttendee(
     String name,
     bool isPresent,
     bool isGuest,
@@ -437,6 +439,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       resolved.displayName,
       isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
     );
+    return resolved;
   }
 
   Future<void> _recordAttendance(
@@ -627,37 +630,162 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     });
   }
 
-  void _showAddMemberSheet() {
+  /// Adds the person from the add sheet and confirms it in a snackbar.
+  /// Returns who was added.
+  Future<Member> _addFromSheet(
+    String name,
+    bool isPresent,
+    bool isGuest,
+    Member? existingMember,
+  ) async {
+    final member =
+        await _addAttendee(name, isPresent, isGuest, existingMember);
+    if (!mounted) return member;
+    // A newcomer has no history, so their tile lands at the bottom of the
+    // Likely here grid, often off-screen; confirm it happened.
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    // A fresh key per snackbar: the previous one may still be animating out.
+    _addedSnackBarText = GlobalKey();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        // On Likely here, park it above the Add someone pill so a second
+        // add needn't wait; elsewhere this is null (the theme's inset).
+        margin: LikelyHereView.snackBarMarginAbove(_addSomeoneSource),
+        content: Text(
+          '${name.trim()} added · Here',
+          key: _addedSnackBarText,
+        ),
+      ),
+    );
+    return member;
+  }
+
+  /// Opens the add sheet. With [morphFrom] (the Likely here "Add someone"
+  /// pill) the sheet grows out of that control and a submit flies the control
+  /// used to where the person landed; every other opener keeps the plain
+  /// slide-up sheet and no flight.
+  Future<void> _showAddMemberSheet({
+    GlobalKey<ConvMorphSourceState>? morphFrom,
+  }) async {
+    Future<Member>? added;
+    String? addedName;
+    Widget sheet(BuildContext context) => AddMemberSheet(
+          onAdd: (name, isPresent, isGuest, existingMember) {
+            addedName = name.trim();
+            added = _addFromSheet(name, isPresent, isGuest, existingMember);
+          },
+          availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
+          families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
+          rosterMemberIds: {
+            for (final m in _sessionMembers)
+              if (m.id.isNotEmpty) m.id,
+          },
+          disableAnimations: widget.disableAnimations,
+        );
+    if (morphFrom != null) {
+      // Submits pop with an AddMemberSheetResult (the control used and its
+      // rect) as the sheet starts to slide away.
+      final result = await showConvMorphSheet<AddMemberSheetResult>(
+        context: context,
+        source: morphFrom,
+        builder: sheet,
+        disableAnimations: widget.disableAnimations,
+      );
+      if (result != null && added != null && mounted) {
+        await _flyToLanding(result, added!, addedName!);
+      }
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddMemberSheet(
-        onAdd: (name, isPresent, isGuest, existingMember) async {
-          await _addAttendee(name, isPresent, isGuest, existingMember);
-          if (!mounted) return;
-          // A newcomer has no history, so their tile lands at the bottom of
-          // the Likely here grid, often off-screen; confirm it happened.
-          final messenger = ScaffoldMessenger.of(this.context);
-          messenger.hideCurrentSnackBar();
-          messenger.showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              // On Likely here, park it above the Add someone pill so a second
-              // add needn't wait; elsewhere this is null (the theme's inset).
-              margin: LikelyHereView.snackBarMarginAbove(_likelyAddSomeoneKey),
-              content: Text('${name.trim()} added · Here'),
-            ),
-          );
-        },
-        availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
-        families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
-        rosterMemberIds: {
-          for (final m in _sessionMembers)
-            if (m.id.isNotEmpty) m.id,
-        },
-        disableAnimations: widget.disableAnimations,
+      builder: sheet,
+    );
+  }
+
+  /// Last "added · Here" snackbar's text, for finding where it landed.
+  GlobalKey _addedSnackBarText = GlobalKey();
+
+  /// The landing flight (#222 M3): the sheet control that was used flies to
+  /// the person's Likely here tile when it is fully on screen, otherwise to
+  /// the "added · Here" snackbar. The grid is never scrolled to the tile.
+  Future<void> _flyToLanding(
+    AddMemberSheetResult result,
+    Future<Member> added,
+    String name,
+  ) {
+    final c = context.conv;
+    final label = switch (result.control) {
+      AddMemberSheetControl.addToRoster => 'Add to roster',
+      AddMemberSheetControl.markGuest => 'Mark as guest',
+      AddMemberSheetControl.existingMember => name,
+    };
+    Future<Rect Function()?> landing() async {
+      final member = await added;
+      // Let the new tile and the snackbar lay out first.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return null;
+      // A guest's tile is keyed by its name snapshot, not its (empty) id.
+      final tileId = SessionRoster.keyFor(member);
+      final tile = LikelyHereView.visibleTileRect(context, tileId);
+      if (tile != null) {
+        var last = tile;
+        return () =>
+            last = LikelyHereView.visibleTileRect(context, tileId) ?? last;
+      }
+      // The snackbar may still be queued behind the previous one; aim at
+      // where it will sit until it is laid out.
+      var snackBar = _addedSnackBarRect() ?? _snackBarFallbackRect();
+      return () => snackBar = _addedSnackBarRect() ?? snackBar;
+    }
+
+    return showConvLandingFlight(
+      context: context,
+      from: result.rect,
+      target: landing(),
+      color: c.primary,
+      label: Text(
+        label,
+        maxLines: 1,
+        softWrap: false,
+        style: AppTypography.geist(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: c.onPrimary,
+        ),
       ),
+      disableAnimations: widget.disableAnimations,
+    );
+  }
+
+  /// Global rect of the "added · Here" snackbar's bubble, once laid out.
+  Rect? _addedSnackBarRect() {
+    final text = _addedSnackBarText.currentContext;
+    if (text == null || !text.mounted) return null;
+    RenderBox? bubble;
+    text.visitAncestorElements((element) {
+      if (element.widget is! Material) return true;
+      bubble = element.findRenderObject() as RenderBox?;
+      return false;
+    });
+    final box = bubble;
+    if (box == null || !box.attached || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  /// Where a floating snackbar sits: across the bottom of the page, inside
+  /// the default 15/10 margins.
+  Rect _snackBarFallbackRect() {
+    final page = context.findRenderObject()! as RenderBox;
+    final r = page.localToGlobal(Offset.zero) & page.size;
+    return Rect.fromLTRB(
+      r.left + 15,
+      r.bottom - 58,
+      r.right - 15,
+      r.bottom - 10,
     );
   }
 
@@ -789,7 +917,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // only decisions made so far and "N left".
     final present = _confirmMode ? t.statusPresent : t.decidedPresent;
     final absent = _confirmMode ? t.statusAbsent : t.decidedAbsent;
-    final tail = _confirmMode ? '${t.changed} changed' : '${t.remaining} left';
+    final tailCount = _confirmMode ? t.changed : t.remaining;
+    final tailSuffix = _confirmMode ? ' changed' : ' left';
+    // Share of the Event Roster decided so far (deck semantics).
+    final progress = total == 0 ? 0.0 : (total - t.remaining) / total;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -825,8 +956,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            '$present',
+                          ConvRollingNumber(
+                            key: const Key('headerTallyPresent'),
+                            value: present,
+                            disableAnimations: widget.disableAnimations,
                             style: AppTypography.geist(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -834,8 +967,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             ),
                           ),
                           const Text(' · '),
-                          Text(
-                            '$absent',
+                          ConvRollingNumber(
+                            key: const Key('headerTallyAbsent'),
+                            value: absent,
+                            disableAnimations: widget.disableAnimations,
                             style: AppTypography.geist(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -843,8 +978,11 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             ),
                           ),
                           const Text(' · '),
-                          Text(
-                            tail,
+                          ConvRollingNumber(
+                            key: const Key('headerTallyTail'),
+                            value: tailCount,
+                            suffix: tailSuffix,
+                            disableAnimations: widget.disableAnimations,
                             style: AppTypography.geist(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -900,7 +1038,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           ),
         ),
         // Contained progress bar: single present fill on the deck, two-tone
-        // present/absent split in list mode.
+        // present/absent split in list mode. Fills ease to new values (M5).
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
           child: ClipRRect(
@@ -909,37 +1047,33 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
               height: 4,
               child: total == 0
                   ? ColoredBox(color: c.cardSoft)
-                  : !_isDeckMode
-                      ? LayoutBuilder(
-                          builder: (context, constraints) {
-                            final w = constraints.maxWidth;
-                            return Row(
-                              children: [
-                                SizedBox(
-                                  width: w * present / total,
-                                  child: ColoredBox(color: c.present),
-                                ),
-                                SizedBox(
-                                  width: w * absent / total,
-                                  child: ColoredBox(color: c.absent),
-                                ),
-                                Expanded(child: ColoredBox(color: c.cardSoft)),
-                              ],
-                            );
-                          },
-                        )
-                      : Stack(
-                          children: [
-                            Positioned.fill(
-                                child: ColoredBox(color: c.cardSoft)),
-                            FractionallySizedBox(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: ((total - t.remaining) / total)
-                                  .clamp(0.0, 1.0),
-                              child: ColoredBox(color: c.present),
-                            ),
-                          ],
-                        ),
+                  : Stack(
+                      children: [
+                        Positioned.fill(child: ColoredBox(color: c.cardSoft)),
+                        if (!_isDeckMode) ...[
+                          // The absent fill runs under the present one, so
+                          // only its own share past the present fill shows.
+                          ConvProgressFill(
+                            key: const Key('headerProgressAbsent'),
+                            fraction: (present + absent) / total,
+                            color: c.absent,
+                            disableAnimations: widget.disableAnimations,
+                          ),
+                          ConvProgressFill(
+                            key: const Key('headerProgressPresent'),
+                            fraction: present / total,
+                            color: c.present,
+                            disableAnimations: widget.disableAnimations,
+                          ),
+                        ] else
+                          ConvProgressFill(
+                            key: const Key('headerProgressPresent'),
+                            fraction: progress,
+                            color: c.present,
+                            disableAnimations: widget.disableAnimations,
+                          ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -966,8 +1100,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       MarkingMode.likelyHere => LikelyHereView(
           roster: roster,
           onToggle: _toggleMemberFromList,
-          onAddGuest: _showAddMemberSheet,
-          addSomeoneKey: _likelyAddSomeoneKey,
+          onAddGuest: () => _showAddMemberSheet(morphFrom: _addSomeoneSource),
+          addSomeoneKey: _addSomeoneSource,
           disableAnimations: widget.disableAnimations,
         ),
       MarkingMode.households => HouseholdsView(
@@ -980,6 +1114,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           roster: roster,
           onToggle: _toggleMemberFromList,
           onAddGuest: _showAddMemberSheet,
+          disableAnimations: widget.disableAnimations,
         ),
       MarkingMode.none => const SizedBox.shrink(),
     };

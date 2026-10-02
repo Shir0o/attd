@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/design/app_radii.dart';
@@ -33,9 +34,46 @@ class LikelyHereView extends StatelessWidget {
   final MemberMarkCallback onToggle;
   final VoidCallback onAddGuest;
 
-  /// Lets the host measure the Add someone pill, see [snackBarMarginAbove].
-  final GlobalKey? addSomeoneKey;
+  /// Lets the add sheet grow out of the "Add someone" pill (#222 M1); pass the
+  /// same key to `showConvMorphSheet`. Also measured by [snackBarMarginAbove].
+  final GlobalKey<ConvMorphSourceState>? addSomeoneKey;
   final bool disableAnimations;
+
+  /// The global rect of [memberId]'s tile in a [LikelyHereView] somewhere
+  /// under [context], when that tile lies fully inside the grid's viewport.
+  /// Null when there is no such tile, or it is scrolled partly or wholly out
+  /// of view (#222 M3 lands on it only when it is on screen).
+  ///
+  /// Call it outside build, e.g. from a ticker or a post-frame callback.
+  static Rect? visibleTileRect(BuildContext context, String memberId) {
+    final key = _chipKey(memberId);
+    Element? tile;
+    void find(Element element) {
+      if (tile != null) return;
+      if (element.widget.key == key) {
+        tile = element;
+        return;
+      }
+      element.visitChildElements(find);
+    }
+
+    context.visitChildElements(find);
+    final box = tile?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport is! RenderBox) return null;
+    final viewportBox = viewport as RenderBox;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    final view = viewportBox.localToGlobal(Offset.zero) & viewportBox.size;
+    const slop = 0.5;
+    final fullyVisible = rect.left >= view.left - slop &&
+        rect.top >= view.top - slop &&
+        rect.right <= view.right + slop &&
+        rect.bottom <= view.bottom + slop;
+    return fullyVisible ? rect : null;
+  }
+
+  static Key _chipKey(String memberId) => Key('likelyHereChip_$memberId');
 
   /// How far the floating Add someone pill sits above the view's bottom edge.
   static const double addSomeoneInset = 24;
@@ -113,11 +151,12 @@ class LikelyHereView extends StatelessWidget {
                         ),
                         itemCount: ordered.length,
                         itemBuilder: (context, i) => _LikelyChip(
-                          key: Key('likelyHereChip_${ordered[i].id}'),
+                          key: _chipKey(ordered[i].id),
                           member: ordered[i],
                           isPresent: roster.isPresent(ordered[i]),
                           rate: roster.rateFor(ordered[i]),
                           onTap: () => _toggle(ordered[i]),
+                          disableAnimations: disableAnimations,
                         ),
                       ),
               ),
@@ -125,7 +164,7 @@ class LikelyHereView extends StatelessWidget {
                 right: 16,
                 bottom: addSomeoneInset,
                 child: _AddSomeonePill(
-                  key: addSomeoneKey,
+                  sourceKey: addSomeoneKey,
                   onTap: onAddGuest,
                   disableAnimations: disableAnimations,
                 ),
@@ -140,56 +179,72 @@ class LikelyHereView extends StatelessWidget {
 
 class _AddSomeonePill extends StatelessWidget {
   const _AddSomeonePill({
-    super.key,
+    required this.sourceKey,
     required this.onTap,
     required this.disableAnimations,
   });
 
+  final GlobalKey<ConvMorphSourceState>? sourceKey;
   final VoidCallback onTap;
   final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    return ConvPressable.builder(
-      disableAnimations: disableAnimations,
-      builder: (context, pressed) => DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: AppShadows.fab(c.primary, pressed: pressed),
-        ),
-        child: Material(
-          color: c.primary,
-          borderRadius: BorderRadius.circular(999),
-          child: InkWell(
-            key: const Key('likelyHereAddGuest'),
+    return ConvMorphSource(
+      key: sourceKey,
+      color: c.primary,
+      label: const _AddSomeoneLabel(),
+      child: ConvPressable.builder(
+        disableAnimations: disableAnimations,
+        builder: (context, pressed) => DecoratedBox(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.person_add_alt_1_outlined,
-                    color: c.onPrimary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Add someone',
-                    style: AppTypography.geist(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: c.onPrimary,
-                    ),
-                  ),
-                ],
+            boxShadow: AppShadows.fab(c.primary, pressed: pressed),
+          ),
+          child: Material(
+            color: c.primary,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              key: const Key('likelyHereAddGuest'),
+              borderRadius: BorderRadius.circular(999),
+              onTap: onTap,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                child: _AddSomeoneLabel(),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AddSomeoneLabel extends StatelessWidget {
+  const _AddSomeoneLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.person_add_alt_1_outlined,
+          color: c.onPrimary,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Add someone',
+          style: AppTypography.geist(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: c.onPrimary,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -201,12 +256,14 @@ class _LikelyChip extends StatelessWidget {
     required this.isPresent,
     required this.rate,
     required this.onTap,
+    required this.disableAnimations,
   });
 
   final Member member;
   final bool isPresent;
   final double? rate;
   final VoidCallback onTap;
+  final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
@@ -219,72 +276,78 @@ class _LikelyChip extends StatelessWidget {
     final titleText =
         hasDistinctSurname ? memberGivenName(member.displayName) : member.displayName;
 
-    return Material(
-      color: isPresent ? c.present : c.card,
-      borderRadius: AppRadii.compactR,
-      child: InkWell(
-        onTap: onTap,
+    // Pops on press (#222 M4); the tap, and so the present fill, lands on
+    // release at the bottom of the press.
+    return ConvPressable(
+      preset: ConvPressPreset.pop,
+      disableAnimations: disableAnimations,
+      child: Material(
+        color: isPresent ? c.present : c.card,
         borderRadius: AppRadii.compactR,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: AppRadii.compactR,
-            border: Border.all(color: isPresent ? c.present : c.hair),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Flexible, not a bare Text: a name that wraps to two lines (or
-              // a large system text scale) must eat into its own space and
-              // ellipsize rather than push the meta line out of the tile.
-              Flexible(
-                child: Text(
-                  titleText,
-                  style: AppTypography.geist(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                    height: 1.2,
-                    color: isPresent ? c.onPrimary : c.ink,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (isPresent) ...[
-                const SizedBox(height: 2),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_rounded, size: 11, color: c.onPrimary),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Here',
-                      style: AppTypography.eyebrow(
-                        color: c.onPrimary,
-                        fontSize: 10,
-                      ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadii.compactR,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: AppRadii.compactR,
+              border: Border.all(color: isPresent ? c.present : c.hair),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Flexible, not a bare Text: a name that wraps to two lines (or
+                // a large system text scale) must eat into its own space and
+                // ellipsize rather than push the meta line out of the tile.
+                Flexible(
+                  child: Text(
+                    titleText,
+                    style: AppTypography.geist(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                      color: isPresent ? c.onPrimary : c.ink,
                     ),
-                  ],
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ] else if (rate != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  '${(rate! * 100).round()}%',
-                  style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ] else if (hasDistinctSurname) ...[
-                const SizedBox(height: 2),
-                Text(
-                  attendeeSurname.toUpperCase(),
-                  style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                if (isPresent) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_rounded, size: 11, color: c.onPrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Here',
+                        style: AppTypography.eyebrow(
+                          color: c.onPrimary,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (rate != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '${(rate! * 100).round()}%',
+                    style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ] else if (hasDistinctSurname) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    attendeeSurname.toUpperCase(),
+                    style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

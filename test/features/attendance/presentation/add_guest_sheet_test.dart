@@ -144,4 +144,101 @@ void main() {
     expect(find.text('Reyes · not on this event'), findsOneWidget);
     expect(find.text('Loner · on this event'), findsOneWidget);
   });
+
+  group('a submit pops with the control used and where it was', () {
+    late Future<AddMemberSheetResult?> result;
+
+    Future<void> openForResult(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => result =
+                    showModalBottomSheet<AddMemberSheetResult>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => AddMemberSheet(
+                    onAdd: (name, isPresent, isGuest, existing) {},
+                    availableMembers: [jon],
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> expectResult(
+      WidgetTester tester,
+      Finder control,
+      AddMemberSheetControl expected, {
+      Future<void> Function()? submit,
+    }) async {
+      final rect = tester.getRect(control);
+      if (submit != null) {
+        await submit();
+      } else {
+        await tester.tap(control);
+      }
+      await tester.pumpAndSettle();
+      final popped = await result;
+      expect(popped?.control, expected);
+      expect(popped?.rect, rect);
+    }
+
+    testWidgets('"Add to roster"', (tester) async {
+      await openForResult(tester);
+      await tester.enterText(find.byKey(const Key('addSheetNameField')), 'A');
+      await expectResult(
+        tester,
+        find.byKey(const Key('addSheetAddToRoster')),
+        AddMemberSheetControl.addToRoster,
+      );
+    });
+
+    testWidgets('the keyboard action reports the "Add to roster" pill',
+        (tester) async {
+      await openForResult(tester);
+      await tester.enterText(find.byKey(const Key('addSheetNameField')), 'A');
+      await expectResult(
+        tester,
+        find.byKey(const Key('addSheetAddToRoster')),
+        AddMemberSheetControl.addToRoster,
+        submit: () => tester.testTextInput.receiveAction(TextInputAction.done),
+      );
+    });
+
+    testWidgets('"Mark as guest"', (tester) async {
+      await openForResult(tester);
+      await tester.enterText(find.byKey(const Key('addSheetNameField')), 'A');
+      await expectResult(
+        tester,
+        find.byKey(const Key('addSheetMarkGuest')),
+        AddMemberSheetControl.markGuest,
+      );
+    });
+
+    testWidgets('a suggested member row', (tester) async {
+      await openForResult(tester);
+      await tester.enterText(find.byKey(const Key('addSheetNameField')), 'jon');
+      await tester.pumpAndSettle();
+      await expectResult(
+        tester,
+        find.byKey(const Key('addSheetSuggestion_jon')),
+        AddMemberSheetControl.existingMember,
+      );
+    });
+
+    testWidgets('a cancel pops with null', (tester) async {
+      await openForResult(tester);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(await result, isNull);
+    });
+  });
 }

@@ -8,6 +8,12 @@ class SessionRoster {
   final Map<String, SessionRecord> recordByVisitorName = {};
   final Map<String, Member> displayMembersMap = {};
 
+  /// The key [displayMembersMap] holds [member] under: its id, or for an
+  /// id-less visitor (a Guest Mark) its name snapshot.
+  static String keyFor(Member member) => member.id.trim().isEmpty
+      ? 'visitor_${member.displayName}'
+      : member.id;
+
   SessionRoster(Session session, List<Member> baseMembers) {
     for (final r in session.records) {
       final mid = r.memberId;
@@ -28,7 +34,7 @@ class SessionRoster {
       // as id-less records are keyed below, and keep it a visitor so writes
       // still carry a null member ID.
       if (m.id.trim().isEmpty) {
-        final visitorId = 'visitor_${m.displayName}';
+        final visitorId = keyFor(m);
         displayMembersMap[visitorId] = Member(
           id: visitorId,
           displayName: m.displayName,
