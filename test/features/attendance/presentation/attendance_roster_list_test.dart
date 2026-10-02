@@ -639,9 +639,6 @@ void main() {
           session: sessionWith(members: [alice]),
           families: const [],
           toggleLog: <ToggleCall>[],
-          // The grouping row overflows on its own at large text; keep it out
-          // so this asserts only the visitors label.
-          showGroupingToggle: false,
         );
         expect(find.text('VISITORS / OTHERS'), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -709,6 +706,86 @@ void main() {
         expect(tester.getRect(label).right, lessThanOrEqualTo(390 - 16));
         await tester.tap(pill);
         expect(marked, [BulkMarkChoice.present]);
+      });
+    }
+  });
+
+  group('grouping toggle row at large text', () {
+    final toggle = find.byKey(const Key('rosterGroupingToggle'));
+    final pill = find.byKey(const Key('rosterMarkAllMenu'));
+
+    Future<void> pumpToggleRow(
+      WidgetTester tester,
+      double scale, {
+      double width = 390,
+      bool showGroupingToggle = true,
+    }) async {
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AttendanceRosterList(
+              session: sessionWith(members: [alice, bob]),
+              families: [smiths],
+              showGroupingToggle: showGroupingToggle,
+              showSearch: false,
+              disableAnimations: true,
+              onToggle: (_, __) async {},
+              onMarkAll: (_) async {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('toggle and All share one line when they fit', (tester) async {
+      // The test font is wider than the app's, so give it a wider screen.
+      await pumpToggleRow(tester, 1.0, width: 600);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getCenter(pill).dy,
+        closeTo(tester.getCenter(toggle).dy, 1),
+      );
+      expect(tester.getRect(toggle).left, closeTo(16, 0.5));
+      expect(tester.getRect(pill).right, closeTo(600 - 16, 0.5));
+    });
+
+    testWidgets('All alone sits at the end of the row', (tester) async {
+      await pumpToggleRow(tester, 1.0, showGroupingToggle: false);
+      expect(toggle, findsNothing);
+      expect(tester.getRect(pill).right, closeTo(390 - 16, 0.5));
+    });
+
+    for (final scale in [1.3, 2.0]) {
+      testWidgets('fits a phone at ${scale}x text', (tester) async {
+        await pumpToggleRow(tester, scale);
+        expect(tester.takeException(), isNull);
+        expect(tester.getRect(toggle).left, greaterThanOrEqualTo(16));
+        expect(tester.getRect(toggle).right, lessThanOrEqualTo(390 - 16));
+        expect(tester.getRect(pill).right, lessThanOrEqualTo(390 - 16));
+
+        for (final label in ['By family', 'By status']) {
+          final text = find.descendant(of: toggle, matching: find.text(label));
+          // Scaled down to fit, a label still renders no smaller than it
+          // does at the default text size (natural height / scale).
+          expect(
+            tester.getRect(text).height,
+            greaterThanOrEqualTo(tester.getSize(text).height / scale * 0.99),
+            reason: '$label stays legible',
+          );
+        }
+
+        expect(find.text('Smith Family'), findsOneWidget);
+        await tester.tap(
+          find.descendant(of: toggle, matching: find.text('By status')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Smith Family'), findsNothing);
       });
     }
   });
