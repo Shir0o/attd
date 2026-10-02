@@ -62,7 +62,8 @@ Future<void> pumpRoster(
             },
             onFamilyToggle: familyLog == null
                 ? null
-                : (f, p) async => familyLog.add((familyId: f.id, present: p)),
+                : (f, p) async =>
+                    familyLog.add((familyId: f.id, present: p)),
             onToggleLate: onToggleLate,
           ),
         ),
@@ -102,8 +103,7 @@ void main() {
     expect(find.text('0 of 1 present'), findsOneWidget);
   });
 
-  testWidgets('family "all present" button calls onFamilyToggle',
-      (tester) async {
+  testWidgets('family "all present" button calls onFamilyToggle', (tester) async {
     final session = sessionWith(members: [alice, bob, carol]);
     final log = <ToggleCall>[];
     final familyLog = <FamilyToggleCall>[];
@@ -555,9 +555,9 @@ void main() {
     }
 
     Finder scaleTransform() => find.descendant(
-          of: find.byType(ConvPressable),
-          matching: find.byType(Transform),
-        );
+      of: find.byType(ConvPressable),
+      matching: find.byType(Transform),
+    );
 
     testWidgets('presses in while held when motion is on', (tester) async {
       await pumpConfirm(tester);
@@ -573,8 +573,7 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('separates from the list by tone, not a border',
-        (tester) async {
+    testWidgets('separates from the list by tone, not a border', (tester) async {
       await pumpConfirm(tester);
       final bar = tester.widget<Container>(
         find.byKey(const Key('rosterConfirmBar')),
