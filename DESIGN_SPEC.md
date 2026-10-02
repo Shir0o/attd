@@ -73,6 +73,13 @@ Most surfaces are flat — depth comes from tonal layering (e.g. `card` on `bg2`
 
 * Toggle thumb slides 200 ms with `cubic-bezier(0.2, 0.7, 0.3, 1)`.
 * Page transitions are intentionally **off** (we keep `NoTransitionsBuilder`). The editorial layout reads better when screens snap.
+* **Exception: shared-element handoffs.** Pages still snap, but the violet control the user touched may visibly become the next thing on top of the instant change (e.g. the Hub **+** travelling on an arc into the **Create event** pill). See ADR 0008.
+* Motion tokens (`AppMotion`):
+  * `morph` — 400 ms, `cubic-bezier(0.05, 0.7, 0.1, 1)` (emphasized decelerate). Container transforms and shared elements.
+  * `house` — 220 ms, `cubic-bezier(0.2, 0.7, 0.3, 1)`. In-surface changes: counts, thumbs, tiles, bar heights.
+  * `exit` — 200 ms, `cubic-bezier(0.3, 0, 0.8, 0.15)` (emphasized accelerate). Dismissals and collapsing back into the source.
+* Violet primary pills and FABs press in (`ConvPressable`, scale 0.97 over ~110 ms while the shadow tightens, spring back over ~260 ms). Mark tiles use the *pop* preset (scale 0.94, spring back over ~320 ms).
+* All of the above runs only when `motionEnabled(context, disableAnimations: ...)` is true: it is false when the widget's `disableAnimations` flag is set or the system "Remove animations" setting is on, and then behaviour is exactly as without motion.
 * Swipe-deck stamps fade in proportional to drag distance and rotate per `swipe.jsx`.
 
 ## 7. Two screens unique to Convocation

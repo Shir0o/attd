@@ -93,7 +93,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - **Store Screenshots (Goldens):** `flutter test --update-goldens test/store_screenshots_test.dart` (generates high-quality screenshots in `metadata/en-US/images/` for Phone, 7" Tablet, and 10" Tablet)
 ## Architecture Patterns
 ### Instant Transitions & Skeleton Loaders
--- **Instant Transitions**: The app uses `NoTransitionsBuilder` globally to ensure page switches are immediate. Avoid adding artificial delays or complex animations between main screens.
+-- **Instant Transitions**: The app uses `NoTransitionsBuilder` globally to ensure page switches are immediate. Avoid adding artificial delays or complex animations between main screens. The one exception is shared-element motion on the violet element the user touched (e.g. the Hub FAB to Create event `Hero`, `ConvPressable` press feedback); build it from the `AppMotion` tokens and gate it with `motionEnabled(context, disableAnimations: ...)` so the test flag and the system "Remove animations" setting fall back to today's behaviour (see ADR 0008).
 -- **Skeleton Loaders**: Every new page must implement a "Skeleton" or "Loading" state. This state should:
     - Render immediately upon navigation.
     - Use `_ShimmerBox` or similar components to match the final layout's structure.
