@@ -645,7 +645,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                         childCount: 3,
                       ),
                     )
-                  : _buildEventList(colorScheme),
+                  : _fadeInSliver(_buildEventList(colorScheme)),
             ),
           ],
         ),
@@ -654,6 +654,22 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     ),
   );
 }
+
+  /// The skeleton here is a sliver, which cannot overlay the content for a
+  /// [SkeletonSwitcher] crossfade, so the loaded list fades in over the same
+  /// 200 ms instead (#222 M7). It snaps when motion is off.
+  Widget _fadeInSliver(Widget sliver) {
+    if (!motionEnabled(context, disableAnimations: widget.disableAnimations)) {
+      return sliver;
+    }
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: SkeletonSwitcher.duration,
+      builder: (context, opacity, child) =>
+          SliverOpacity(opacity: opacity, sliver: child),
+      child: sliver,
+    );
+  }
 
   Widget _buildCreateFab(ColorScheme colorScheme) {
     final fab = ConvPressable(

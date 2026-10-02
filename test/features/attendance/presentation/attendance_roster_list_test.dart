@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -578,5 +579,36 @@ void main() {
       expect(scaleTransform(), findsNothing);
     });
   });
-}
 
+  testWidgets('the skeleton crossfades into the roster after 800 ms (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 800,
+            child: AttendanceRosterList(
+              session: sessionWith(members: [alice]),
+              families: [
+                Family(id: 'f', displayName: 'Solo', members: [alice]),
+              ],
+              initialGrouping: RosterGrouping.byFamily,
+              onToggle: (m, p) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(find.text('Alice'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(find.text('Alice'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(find.text('Alice'), findsOneWidget);
+  });
+}

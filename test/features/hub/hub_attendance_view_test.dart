@@ -988,6 +988,33 @@ void main() {
     expect(find.text('Nothing on the calendar yet.'), findsOneWidget);
   });
 
+  testWidgets('the loaded list fades in over 200 ms after the skeleton (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HubAttendanceView(
+          themeController: themeController,
+          sessionRepository: sessionRepository,
+          eventRepository: eventRepository,
+          attendanceRepository: attendanceRepository,
+        ),
+      ),
+    );
+    eventRepository.emit([]);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('hub_skeleton')), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 801));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const ValueKey('hub_skeleton')), findsNothing);
+    final fade = tester.widget<SliverOpacity>(find.byType(SliverOpacity));
+    expect(fade.opacity, inExclusiveRange(0, 1));
+
+    await tester.pumpAndSettle();
+    expect(tester.widget<SliverOpacity>(find.byType(SliverOpacity)).opacity, 1);
+    expect(find.text('Nothing on the calendar yet.'), findsOneWidget);
+  });
+
   testWidgets('action menu: View History returns and refreshes', (tester) async {
     await pumpView(tester);
     eventRepository.emit([todayEvent()]);

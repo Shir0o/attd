@@ -136,10 +136,11 @@ class _FamilyListPageState extends State<FamilyListPage> {
       ),
       body: FutureBuilder<List<Family>>(
         future: _familiesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildSkeleton(context);
-          }
+        builder: (context, snapshot) => SkeletonSwitcher(
+          loading: snapshot.connectionState == ConnectionState.waiting,
+          disableAnimations: widget.disableAnimations,
+          skeleton: _buildSkeleton(context),
+          child: Builder(builder: (context) {
 
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -238,7 +239,8 @@ class _FamilyListPageState extends State<FamilyListPage> {
                 ],
             ],
           );
-        },
+                  }),
+        ),
       ),
       floatingActionButton: ConvFab(
         onPressed: _addFamily,

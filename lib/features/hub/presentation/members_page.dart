@@ -791,10 +791,10 @@ class _MembersPageState extends State<MembersPage> {
           const SizedBox(height: 6),
           Expanded(
             child: RepaintBoundary(
-              child: AnimatedSwitcher(
-                duration: widget.disableAnimations
-                    ? Duration.zero
-                    : const Duration(milliseconds: 300),
+              child: SkeletonSwitcher(
+                loading: _isLoading && _families == null,
+                disableAnimations: widget.disableAnimations,
+                skeleton: _buildSkeleton(context.conv),
                 child: _buildBodyContent(context),
               ),
             ),
@@ -909,12 +909,6 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Widget _buildBodyContent(BuildContext context) {
-    final c = context.conv;
-
-    if (_isLoading && _families == null) {
-      return _buildSkeleton(c);
-    }
-
     if (_error != null && _families == null) {
       return Center(
         key: const ValueKey('error'),

@@ -334,13 +334,11 @@ class _AddEventPageState extends State<AddEventPage> {
               _buildHeader(context, isEditing: isEditing),
               Expanded(
                 child: RepaintBoundary(
-                  child: AnimatedSwitcher(
-                    duration: widget.disableAnimations
-                        ? Duration.zero
-                        : const Duration(milliseconds: 600),
-                    child: _isLoading
-                        ? _buildSkeleton()
-                        : _buildContent(context, isEditing: isEditing),
+                  child: SkeletonSwitcher(
+                    loading: _isLoading,
+                    disableAnimations: widget.disableAnimations,
+                    skeleton: _buildSkeleton(),
+                    child: _buildContent(context, isEditing: isEditing),
                   ),
                 ),
               ),

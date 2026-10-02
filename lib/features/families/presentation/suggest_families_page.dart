@@ -164,10 +164,11 @@ class _SuggestFamiliesPageState extends State<SuggestFamiliesPage> {
       ),
       body: FutureBuilder<List<FamilyCluster>>(
         future: _clustersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildSkeleton(context);
-          }
+        builder: (context, snapshot) => SkeletonSwitcher(
+          loading: snapshot.connectionState == ConnectionState.waiting,
+          disableAnimations: widget.disableAnimations,
+          skeleton: _buildSkeleton(context),
+          child: Builder(builder: (context) {
           final clusters = snapshot.data ?? const <FamilyCluster>[];
           if (clusters.isEmpty) {
             return Center(
@@ -182,7 +183,8 @@ class _SuggestFamiliesPageState extends State<SuggestFamiliesPage> {
             );
           }
           return _buildContent(context, clusters);
-        },
+                  }),
+        ),
       ),
     );
   }

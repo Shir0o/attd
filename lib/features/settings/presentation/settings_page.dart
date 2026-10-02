@@ -26,6 +26,7 @@ import '../../../core/design/app_typography.dart';
 import '../../../core/design/fluid_loading_border.dart';
 import '../../../core/design/widgets/conv_primitives.dart';
 import '../../../core/design/widgets/conv_theme.dart';
+import '../../../core/design/widgets/skeleton_switcher.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -156,9 +157,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         body: FluidLoadingBorder(
           isLoading: _isOperating,
-          child: _isInitialLoading
-              ? _buildSkeleton(context)
-              : ListenableBuilder(
+          child: SkeletonSwitcher(
+            loading: _isInitialLoading,
+            disableAnimations: widget.disableAnimations,
+            skeleton: _buildSkeleton(context),
+            child: ListenableBuilder(
                   listenable: widget.driveService,
                   builder: (context, _) {
                     final isSyncing = widget.driveService.isSyncing;
@@ -1045,6 +1048,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               },
             ),
+          ),
         ),
       ),
     );
