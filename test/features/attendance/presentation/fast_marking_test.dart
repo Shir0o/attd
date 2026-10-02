@@ -1628,9 +1628,9 @@ void main() {
             find.descendant(of: toggle, matching: find.text(label)),
           );
           await tester.pumpAndSettle();
-          // The List surface's own grouping row overflows at large text; that
-          // is outside the toggle, so it is drained here, not asserted.
-          tester.takeException();
+          // The surface behind the toggle, List's grouping row included,
+          // lays out without overflow too.
+          expect(tester.takeException(), isNull, reason: '$label surface');
           expect(
             tester.getRect(thumb).overlaps(segmentRect(tester, label)),
             isTrue,

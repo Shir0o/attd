@@ -225,12 +225,16 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                 ),
               ],
               // Read-only grouping indicator (preset) + context bulk action.
+              // A Wrap, so at large text the action drops below the label
+              // instead of overflowing; when both fit it reads as one row.
               if (widget.showGroupingPreset) ...[
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 8,
                   children: [
                     _GroupingIndicator(grouping: _grouping),
-                    const Spacer(),
                     if (widget.confirmMode)
                       if (widget.onReset != null && _changedCount(roster) > 0)
                         TextButton(
@@ -1140,12 +1144,14 @@ class _GroupingIndicator extends StatelessWidget {
           color: c.ink3,
         ),
         const SizedBox(width: 6),
-        Text(
-          byFamily ? 'Grouped by family' : 'Grouped by status',
-          style: AppTypography.geist(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: c.ink3,
+        Flexible(
+          child: Text(
+            byFamily ? 'Grouped by family' : 'Grouped by status',
+            style: AppTypography.geist(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: c.ink3,
+            ),
           ),
         ),
       ],
