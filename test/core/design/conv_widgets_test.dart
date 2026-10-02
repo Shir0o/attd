@@ -156,6 +156,30 @@ void main() {
     expect(find.text('OTHER'), findsOneWidget);
   });
 
+  for (final scale in [1.3, 2.0]) {
+    testWidgets('ConvSectionLabel wraps without overflow at ${scale}x text',
+        (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      await tester.pumpWidget(
+        wrap(
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: ConvSectionLabel(
+              label: 'Visitors / Others',
+              tone: ConvTone.absent,
+            ),
+          ),
+        ),
+      );
+      expect(find.text('VISITORS / OTHERS'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('ConvCard onTap registers taps', (tester) async {
     var taps = 0;
     await tester.pumpWidget(

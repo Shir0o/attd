@@ -370,7 +370,12 @@ class ConvSectionLabel extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(label.toUpperCase(), style: AppTypography.eyebrow(color: color)),
+          Flexible(
+            child: Text(
+              label.toUpperCase(),
+              style: AppTypography.eyebrow(color: color),
+            ),
+          ),
         ],
       ),
     );
