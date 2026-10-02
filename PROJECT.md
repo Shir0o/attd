@@ -18,8 +18,8 @@
 ## Running Tests
 - **Static Analysis:** `flutter analyze`
 - **Unit and Widget Tests:** `flutter test`
-- **Integration Tests:** `flutter test integration_test/app_test.dart` (requires a running emulator or device)
-- **Store Screenshots (Goldens):** `flutter test --update-goldens test/store_screenshots_test.dart` (generates high-quality screenshots in `metadata/en-US/images/` for Phone, 7" Tablet, and 10" Tablet)
+- **Integration Tests:** `flutter test integration_test/app_test.dart` (Nightly CI only; requires running emulator/device — agents do not run)
+- **Store Screenshots (Goldens):** `flutter test --update-goldens test/store_screenshots_test.dart` (Manual release only — agents do not capture screenshots)
 ## Architecture Patterns
 ### Instant Transitions & Skeleton Loaders
 -- **Instant Transitions**: The app uses `NoTransitionsBuilder` globally to ensure page switches are immediate. Avoid adding artificial delays or complex animations between main screens.
