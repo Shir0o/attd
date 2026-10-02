@@ -1596,6 +1596,50 @@ void main() {
       );
     });
 
+    for (final scale in [1.3, 2.0]) {
+      testWidgets('stays whole and tappable at ${scale}x text on a phone',
+          (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = scale;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearAllTestValues);
+        await pumpMode(tester, MarkingMode.likelyHere);
+        // The header (tally, Done pill, mode toggle) fits without overflow.
+        expect(tester.takeException(), isNull);
+
+        for (final label in ['Deck', 'List', 'Likely']) {
+          final text = find.descendant(of: toggle, matching: find.text(label));
+          expect(text, findsOneWidget);
+          final rect = tester.getRect(text);
+          expect(rect.left, greaterThanOrEqualTo(0), reason: label);
+          expect(rect.right, lessThanOrEqualTo(390), reason: label);
+          // Scaled down to fit, a label still renders no smaller than it
+          // does at the default text size (natural height / scale).
+          expect(
+            rect.height,
+            greaterThanOrEqualTo(tester.getSize(text).height / scale * 0.99),
+            reason: '$label stays legible',
+          );
+        }
+
+        for (final label in ['List', 'Deck', 'Likely']) {
+          await tester.tap(
+            find.descendant(of: toggle, matching: find.text(label)),
+          );
+          await tester.pumpAndSettle();
+          // The List surface's own grouping row overflows at large text; that
+          // is outside the toggle, so it is drained here, not asserted.
+          tester.takeException();
+          expect(
+            tester.getRect(thumb).overlaps(segmentRect(tester, label)),
+            isTrue,
+            reason: '$label is selected after the tap',
+          );
+        }
+      });
+    }
+
     testWidgets('a mode with no fast surface has just Deck and List',
         (tester) async {
       await pumpMode(tester, MarkingMode.none);
