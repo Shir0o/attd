@@ -107,6 +107,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   _Surface _surface = _Surface.deck;
   final List<int> _history = [];
 
+  /// The Likely here Add someone pill, measured to keep snackbars off it.
+  final _likelyAddSomeoneKey = GlobalKey();
+
   /// Past sessions (newest-first) backing the likelihood ordering and the
   /// "% recently" line the fast surfaces show. Loaded in the background;
   /// until it arrives the surfaces simply fall back to alphabetical order.
@@ -638,7 +641,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           final messenger = ScaffoldMessenger.of(this.context);
           messenger.hideCurrentSnackBar();
           messenger.showSnackBar(
-            SnackBar(content: Text('${name.trim()} added · Here')),
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              // On Likely here, park it above the Add someone pill so a second
+              // add needn't wait; elsewhere this is null (the theme's inset).
+              margin: LikelyHereView.snackBarMarginAbove(_likelyAddSomeoneKey),
+              content: Text('${name.trim()} added · Here'),
+            ),
           );
         },
         availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
@@ -958,6 +967,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           roster: roster,
           onToggle: _toggleMemberFromList,
           onAddGuest: _showAddMemberSheet,
+          addSomeoneKey: _likelyAddSomeoneKey,
           disableAnimations: widget.disableAnimations,
         ),
       MarkingMode.households => HouseholdsView(
