@@ -81,6 +81,8 @@ void main() {
     bool isReadOnly = false,
     MockEventRepository? eventRepository,
     MockSessionRepository? sessionRepository,
+    bool disableAnimations = true,
+    bool settle = true,
   }) async {
     // A tall surface so the whole page is built: a ListView only builds what
     // is near the viewport, and the lower sections would otherwise be absent
@@ -96,11 +98,11 @@ void main() {
           members: _roster,
           eventRepository: eventRepository,
           sessionRepository: sessionRepository,
-          disableAnimations: true,
+          disableAnimations: disableAnimations,
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) await tester.pumpAndSettle();
   }
 
   testWidgets('renders the headline rate and the event name', (tester) async {
@@ -523,5 +525,108 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('LONGEST STREAK'), findsOneWidget);
+  });
+
+  group('the rate bars (#222 M10)', () {
+    // The chart is 96 logical px tall; a bar's height is its rate x 96.
+    const chart = 96.0;
+
+    Finder bar(int i) => find.byKey(Key('insightsBar_$i'));
+    double h(WidgetTester tester, int i) => tester.getSize(bar(i)).height;
+    int bars() => find
+        .byWidgetPredicate(
+          (w) => w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.startsWith('insightsBar_'),
+        )
+        .evaluate()
+        .length;
+
+    String headline(WidgetTester tester) => tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((r) => r.text.toPlainText())
+        .firstWhere((t) => RegExp(r'^\d+%$').hasMatch(t));
+
+    testWidgets('grow from the baseline in a stagger and the rate counts up',
+        (tester) async {
+      await pumpPage(
+        tester,
+        sessions: _weeks(12),
+        disableAnimations: false,
+        settle: false,
+      );
+      expect(h(tester, 0), lessThan(chart * 0.1));
+      expect(headline(tester), '0%');
+
+      await tester.pump(const Duration(milliseconds: 120));
+      // Earlier bars lead later ones.
+      expect(h(tester, 0), greaterThan(h(tester, 8)));
+      final early = int.parse(headline(tester).replaceAll('%', ''));
+      expect(early, inExclusiveRange(0, 100));
+
+      await tester.pumpAndSettle();
+      // Alice is always present, Bob on even weeks: 100% and 50% bars.
+      expect(h(tester, 0), closeTo(chart * 1.0, 0.5));
+      expect(h(tester, 1), closeTo(chart * 0.5, 0.5));
+      expect(headline(tester), '75%');
+    });
+
+    testWidgets('a range change tweens to the new heights without regrowing',
+        (tester) async {
+      await pumpPage(
+        tester,
+        sessions: _weeks(30),
+        disableAnimations: false,
+      );
+      expect(bars(), 12);
+
+      await tester.tap(find.text('Last 26'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(bars(), 26);
+      for (var i = 0; i < 26; i++) {
+        expect(h(tester, i), greaterThan(chart * 0.3),
+            reason: 'bar $i must not drop to zero mid-tween');
+      }
+      expect(headline(tester), isNot('0%'));
+
+      await tester.pumpAndSettle();
+      expect(h(tester, 0), closeTo(chart * 1.0, 0.5));
+      expect(h(tester, 1), closeTo(chart * 0.5, 0.5));
+    });
+
+    testWidgets('with motion off the bars and rate are static',
+        (tester) async {
+      await pumpPage(tester, sessions: _weeks(12), settle: false);
+      expect(h(tester, 0), closeTo(chart, 0.5));
+      expect(headline(tester), '75%');
+    });
+
+    testWidgets('system "Remove animations" also shows them static',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
+          home: InsightsPage(
+            event: _event(),
+            sessions: _weeks(30),
+            members: _roster,
+          ),
+        ),
+      );
+      expect(h(tester, 0), closeTo(chart, 0.5));
+      expect(headline(tester), '75%');
+
+      await tester.tap(find.text('Last 26'));
+      await tester.pump();
+      expect(bars(), 26);
+      expect(h(tester, 1), closeTo(chart * 0.5, 0.5));
+    });
   });
 }
