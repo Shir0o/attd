@@ -28,6 +28,7 @@ import 'fast_marking/likely_here_view.dart';
 import 'fast_marking/rapid_entry_view.dart';
 import 'mark_everyone_sheet.dart';
 import 'session_summary_page.dart';
+import 'done_progress_pill.dart';
 import 'swipeable_card.dart';
 
 /// Which marking surface the session is currently showing. The third one is
