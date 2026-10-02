@@ -35,7 +35,7 @@ class LikelyHereView extends StatelessWidget {
   final VoidCallback onAddGuest;
 
   /// Lets the add sheet grow out of the "Add someone" pill (#222 M1); pass the
-  /// same key to `showConvMorphSheet`.
+  /// same key to `showConvMorphSheet`. Also measured by [snackBarMarginAbove].
   final GlobalKey<ConvMorphSourceState>? addSomeoneKey;
   final bool disableAnimations;
 
@@ -74,6 +74,20 @@ class LikelyHereView extends StatelessWidget {
   }
 
   static Key _chipKey(String memberId) => Key('likelyHereChip_$memberId');
+
+  /// How far the floating Add someone pill sits above the view's bottom edge.
+  static const double addSomeoneInset = 24;
+
+  /// Margin for a floating SnackBar over this view that parks it just above
+  /// the Add someone pill instead of covering it, so the next add needn't wait
+  /// for the snackbar to time out. Measured, so it holds at large text sizes.
+  /// Null (the theme's inset) when the pill isn't on screen.
+  static EdgeInsets? snackBarMarginAbove(GlobalKey addSomeoneKey) {
+    final pill = addSomeoneKey.currentContext?.size;
+    if (pill == null) return null;
+    // Sides and top match the Material default inset.
+    return EdgeInsets.fromLTRB(15, 5, 15, addSomeoneInset + pill.height + 8);
+  }
 
   Future<void> _toggle(Member member) async {
     await onToggle(member, !roster.isPresent(member));
@@ -148,7 +162,7 @@ class LikelyHereView extends StatelessWidget {
               ),
               Positioned(
                 right: 16,
-                bottom: 24,
+                bottom: addSomeoneInset,
                 child: _AddSomeonePill(
                   sourceKey: addSomeoneKey,
                   onTap: onAddGuest,
