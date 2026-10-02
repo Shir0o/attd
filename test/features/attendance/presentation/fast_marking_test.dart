@@ -740,6 +740,54 @@ void main() {
       expect(find.text('Newbie Guest added · Here'), findsOneWidget);
       expect(find.byKey(const Key('addSheetNameField')), findsNothing);
     });
+
+    testWidgets('two guests marked in one session get their own tiles',
+        (tester) async {
+      final h = await pumpMode(tester, MarkingMode.likelyHere);
+
+      for (final name in ['Guest One', 'Guest Two']) {
+        await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('addSheetNameField')),
+          name,
+        );
+        await tester.tap(find.byKey(const Key('addSheetMarkGuest')));
+        await tester.pumpAndSettle();
+      }
+      ScaffoldMessenger.of(tester.element(find.byType(AttendanceDeckPage)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+
+      // Each guest has its own tile under a distinct key; none share the
+      // empty member id.
+      expect(find.byKey(const Key('likelyHereChip_')), findsNothing);
+      expect(find.byKey(const Key('likelyHereChip_visitor_Guest One')),
+          findsOneWidget);
+      expect(find.byKey(const Key('likelyHereChip_visitor_Guest Two')),
+          findsOneWidget);
+      expect(find.text('Guest One'), findsOneWidget);
+      expect(find.text('Guest Two'), findsOneWidget);
+
+      // Header tally counts both guests present; the four roster members
+      // are still left.
+      expect(find.text('4 left'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+
+      // Both are saved as Guest Marks: present, with no member ID.
+      final saved = await h.sessions.findSessionById('current');
+      final guests = saved!.records.where((r) => r.memberId == null).toList();
+      expect(guests.map((r) => r.attendee),
+          unorderedEquals(['Guest One', 'Guest Two']));
+      expect(guests.every((r) => r.status == AttendanceStatus.present), isTrue);
+
+      // The List shows both guests as well.
+      await tester.tap(find.text('List'));
+      await tester.pumpAndSettle();
+      expect(find.text('Guest One'), findsOneWidget);
+      expect(find.text('Guest Two'), findsOneWidget);
+      expect(find.text('4 left'), findsOneWidget);
+    });
   });
 
   group('under a confirm-mode session everyone starts present', () {

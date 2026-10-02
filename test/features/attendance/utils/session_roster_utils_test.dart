@@ -81,6 +81,43 @@ void main() {
       expect(roster.displayMembersMap.containsKey('m1'), false);
       expect(roster.displayMembersMap.containsKey('m2'), true);
     });
+
+    test('keeps two id-less base members (Guest Marks) distinct', () {
+      SessionRecord guestMark(String name) => SessionRecord(
+            memberId: null,
+            attendee: name,
+            status: AttendanceStatus.present,
+            recordedAt: DateTime.now(),
+            recordedBy: 'user',
+          );
+      final session = Session(
+        id: 's1',
+        title: 'Session 1',
+        sessionDate: DateTime.now(),
+        records: [guestMark('Dana'), guestMark('Eli')],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        createdBy: 'user',
+      );
+
+      final roster = SessionRoster(session, [
+        ...baseMembers,
+        Member(id: '', displayName: 'Dana', isVisitor: true),
+        Member(id: '', displayName: 'Eli', isVisitor: true),
+      ]);
+
+      expect(roster.displayMembersMap.containsKey(''), false);
+      final dana = roster.displayMembersMap['visitor_Dana'];
+      final eli = roster.displayMembersMap['visitor_Eli'];
+      expect(dana?.id, 'visitor_Dana');
+      expect(eli?.id, 'visitor_Eli');
+      // Still Guest Marks: a visitor, so writes keep a null member ID.
+      expect(dana?.isVisitor, true);
+      expect(eli?.isVisitor, true);
+      expect(roster.getStatus(dana!), AttendanceStatus.present);
+      expect(roster.getStatus(eli!), AttendanceStatus.present);
+      expect(roster.displayMembersMap.length, 4);
+    });
   });
 
   group('memberLastName', () {
