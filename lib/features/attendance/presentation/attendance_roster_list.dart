@@ -314,10 +314,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   ) {
     final changed = _changedCount(roster);
     return Container(
-      decoration: BoxDecoration(
-        color: c.bg,
-        border: Border(top: BorderSide(color: c.hair)),
-      ),
+      // Tonal shift, not a hairline: the bar sits one step up the surface
+      // ladder from the list behind it (DESIGN_SPEC no-line rule).
+      key: const Key('rosterConfirmBar'),
+      decoration: BoxDecoration(color: c.bg2),
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
       child: SafeArea(
         top: false,

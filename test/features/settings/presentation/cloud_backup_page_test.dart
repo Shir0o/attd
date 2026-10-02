@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/cloud_backup_page.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,27 @@ void main() {
     expect(find.text('VERSION HISTORY'), findsOneWidget);
     expect(find.text('No Cloud Backups'), findsOneWidget);
     verify(() => service.listCloudBackups()).called(1);
+  });
+
+  testWidgets('crossfades its skeleton into the backups after 1200 ms (#222 M7)',
+      (tester) async {
+    final service = _MockDriveService();
+    when(() => service.listCloudBackups()).thenAnswer((_) async => []);
+    when(() => service.lastSyncTime).thenReturn(null);
+
+    await tester.pumpWidget(_wrap(CloudBackupPage(driveService: service)));
+    final content = find.text('No Cloud Backups');
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(content, findsOneWidget);
   });
 
   testWidgets('lists backups and restores confirmed backup', (tester) async {

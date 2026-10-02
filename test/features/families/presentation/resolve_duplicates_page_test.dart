@@ -60,6 +60,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 850));
   });
 
+  testWidgets('ResolveDuplicatesPage crossfades its skeleton into the content (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ResolveDuplicatesPage(repository: _FakeRepository()),
+      ),
+    );
+    final content = find.text('No duplicate display names found!');
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(content, findsOneWidget);
+  });
+
   testWidgets('ResolveDuplicatesPage shows fallback if no duplicates', (tester) async {
     final repo = _FakeRepository();
     repo.families = [

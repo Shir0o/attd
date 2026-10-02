@@ -107,6 +107,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 850));
   });
 
+  testWidgets('SuggestFamiliesPage crossfades its skeleton into the content (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SuggestFamiliesPage(
+          repository: _FakeRepository(),
+          ungroupedMembers: [_m('1', 'Alice Smith'), _m('2', 'Bob Smith')],
+        ),
+      ),
+    );
+    final content = find.text('GROUP BY LAST NAME');
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(content, findsOneWidget);
+  });
+
   testWidgets('SuggestFamiliesPage creates families on tap', (tester) async {
     final repo = _FakeRepository();
     bool? popResult;

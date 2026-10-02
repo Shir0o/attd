@@ -573,6 +573,17 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('separates from the list by tone, not a border', (tester) async {
+      await pumpConfirm(tester);
+      final bar = tester.widget<Container>(
+        find.byKey(const Key('rosterConfirmBar')),
+      );
+      final decoration = bar.decoration! as BoxDecoration;
+      expect(decoration.border, isNull);
+      final c = tester.element(find.byKey(const Key('rosterConfirmBar'))).conv;
+      expect(decoration.color, c.bg2);
+    });
+
     testWidgets('does not scale when motion is disabled', (tester) async {
       await pumpConfirm(tester, disableAnimations: true);
       expect(find.byType(ConvPressable), findsOneWidget);

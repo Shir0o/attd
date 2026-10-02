@@ -159,6 +159,41 @@ void main() {
     expect(toggle.value, isTrue);
   });
 
+  testWidgets('MembersPage crossfades its skeleton into the list (#222 M7)', (
+    WidgetTester tester,
+  ) async {
+    mockAttendanceRepo.families = [
+      Family(
+        id: 'f1',
+        displayName: 'Family 1',
+        members: [Member(id: '1', displayName: 'Alice')],
+        updatedAt: DateTime.now(),
+      )
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MembersPage(
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+        ),
+      ),
+    );
+    final skeleton = find.byKey(const ValueKey('loading'));
+    final content = find.byKey(const ValueKey('data'));
+    expect(skeleton, findsOneWidget);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(skeleton, findsOneWidget, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(skeleton, findsNothing);
+    expect(content, findsOneWidget);
+  });
+
   testWidgets('MembersPage opens edit dialog from the row edit icon', (
     WidgetTester tester,
   ) async {

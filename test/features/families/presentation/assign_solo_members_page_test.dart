@@ -82,6 +82,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 850));
   });
 
+  testWidgets('AssignSoloMembersPage crossfades its skeleton into the content (#222 M7)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AssignSoloMembersPage(
+          repository: _FakeRepository(),
+          soloMembers: [_m('1', 'Alice Smith')],
+        ),
+      ),
+    );
+    final content = find.text('QUICK ASSIGNMENT');
+    expect(find.byType(AppShimmer), findsWidgets);
+    expect(content, findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AppShimmer), findsWidgets, reason: 'still fading out');
+    expect(content, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byType(AppShimmer), findsNothing);
+    expect(content, findsOneWidget);
+  });
+
   testWidgets('AssignSoloMembersPage lists solo members and allows quick assignment', (tester) async {
     final repo = _FakeRepository();
     repo.families = [

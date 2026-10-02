@@ -962,43 +962,48 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                     const SizedBox(height: 3),
                     DefaultTextStyle(
                       style: AppTypography.geist(fontSize: 12, color: c.ink3),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ConvRollingNumber(
-                            key: const Key('headerTallyPresent'),
-                            value: present,
-                            disableAnimations: widget.disableAnimations,
-                            style: AppTypography.geist(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: c.present,
+                      // Scales down rather than overflows between the close button and the
+                      // Done pill at large text.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ConvRollingNumber(
+                              key: const Key('headerTallyPresent'),
+                              value: present,
+                              disableAnimations: widget.disableAnimations,
+                              style: AppTypography.geist(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: c.present,
+                              ),
                             ),
-                          ),
-                          const Text(' · '),
-                          ConvRollingNumber(
-                            key: const Key('headerTallyAbsent'),
-                            value: absent,
-                            disableAnimations: widget.disableAnimations,
-                            style: AppTypography.geist(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: c.absent,
+                            const Text(' · '),
+                            ConvRollingNumber(
+                              key: const Key('headerTallyAbsent'),
+                              value: absent,
+                              disableAnimations: widget.disableAnimations,
+                              style: AppTypography.geist(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: c.absent,
+                              ),
                             ),
-                          ),
-                          const Text(' · '),
-                          ConvRollingNumber(
-                            key: const Key('headerTallyTail'),
-                            value: tailCount,
-                            suffix: tailSuffix,
-                            disableAnimations: widget.disableAnimations,
-                            style: AppTypography.geist(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: c.ink3,
+                            const Text(' · '),
+                            ConvRollingNumber(
+                              key: const Key('headerTallyTail'),
+                              value: tailCount,
+                              suffix: tailSuffix,
+                              disableAnimations: widget.disableAnimations,
+                              style: AppTypography.geist(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: c.ink3,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
