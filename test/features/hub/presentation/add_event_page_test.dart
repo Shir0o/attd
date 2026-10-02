@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -451,6 +452,82 @@ void main() {
     expect(find.byType(Hero), findsWidgets);
     expect(find.byKey(const ValueKey('save_event_button')), findsOneWidget);
   });
+
+  testWidgets('save button presses in while held, and still saves', (
+    tester,
+  ) async {
+    final repository = _EventRepository();
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Choir');
+    final save = find.byKey(const ValueKey('save_event_button'));
+    expect(
+      find.ancestor(of: save, matching: find.byType(ConvPressable)),
+      findsOneWidget,
+    );
+    final gesture = await tester.startGesture(tester.getCenter(save));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 110));
+    final scale = tester
+        .widget<Transform>(
+          find
+              .descendant(
+                of: find.byType(ConvPressable),
+                matching: find.byType(Transform),
+              )
+              .first,
+        )
+        .transform
+        .entry(0, 0);
+    expect(scale, closeTo(0.97, 0.001));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(repository.createCount, 1);
+  });
+
+  for (final (name, flag, system) in [
+    ('the test flag', true, false),
+    ('the system setting', false, true),
+  ]) {
+    testWidgets('no Hero and no press scale when $name disables motion', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: system),
+            child: child!,
+          ),
+          home: AddEventPage(
+            eventRepository: _EventRepository(),
+            attendanceRepository: MockAttendanceRepository(),
+            disableAnimations: flag,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Hero), findsNothing);
+      expect(find.byType(ConvPressable), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ConvPressable),
+          matching: find.byType(Transform),
+        ),
+        findsNothing,
+      );
+    });
+  }
 
   testWidgets('shows a snackbar when deleting fails', (tester) async {
     final createdAt = DateTime(2025, 1, 1);

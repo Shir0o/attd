@@ -25,11 +25,13 @@ class LikelyHereView extends StatelessWidget {
     required this.roster,
     required this.onToggle,
     required this.onAddGuest,
+    this.disableAnimations = false,
   });
 
   final FastMarkingRoster roster;
   final MemberMarkCallback onToggle;
   final VoidCallback onAddGuest;
+  final bool disableAnimations;
 
   Future<void> _toggle(Member member) async {
     await onToggle(member, !roster.isPresent(member));
@@ -104,7 +106,10 @@ class LikelyHereView extends StatelessWidget {
               Positioned(
                 right: 16,
                 bottom: 24,
-                child: _AddSomeonePill(onTap: onAddGuest),
+                child: _AddSomeonePill(
+                  onTap: onAddGuest,
+                  disableAnimations: disableAnimations,
+                ),
               ),
             ],
           ),
@@ -115,45 +120,52 @@ class LikelyHereView extends StatelessWidget {
 }
 
 class _AddSomeonePill extends StatelessWidget {
-  const _AddSomeonePill({required this.onTap});
+  const _AddSomeonePill({
+    required this.onTap,
+    required this.disableAnimations,
+  });
 
   final VoidCallback onTap;
+  final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: AppShadows.fab(c.primary),
-      ),
-      child: Material(
-        color: c.primary,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          key: const Key('likelyHereAddGuest'),
+    return ConvPressable.builder(
+      disableAnimations: disableAnimations,
+      builder: (context, pressed) => DecoratedBox(
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.person_add_alt_1_outlined,
-                  color: c.onPrimary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Add someone',
-                  style: AppTypography.geist(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+          boxShadow: AppShadows.fab(c.primary, pressed: pressed),
+        ),
+        child: Material(
+          color: c.primary,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            key: const Key('likelyHereAddGuest'),
+            borderRadius: BorderRadius.circular(999),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person_add_alt_1_outlined,
                     color: c.onPrimary,
+                    size: 20,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(
+                    'Add someone',
+                    style: AppTypography.geist(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: c.onPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

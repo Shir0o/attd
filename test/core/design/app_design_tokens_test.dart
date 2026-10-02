@@ -1,4 +1,5 @@
 import 'package:attendance_tracker/core/design/app_colors.dart';
+import 'package:attendance_tracker/core/design/app_motion.dart';
 import 'package:attendance_tracker/core/design/app_radii.dart';
 import 'package:attendance_tracker/core/design/app_shadows.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,15 @@ void main() {
 
     expect(AppColors.lightColorScheme.brightness, Brightness.light);
     expect(AppColors.darkColorScheme.brightness, Brightness.dark);
+  });
+
+  test('AppMotion tokens match the design spec', () {
+    expect(AppMotion.morphDuration, const Duration(milliseconds: 400));
+    expect(AppMotion.morphCurve, const Cubic(0.05, 0.7, 0.1, 1));
+    expect(AppMotion.houseDuration, const Duration(milliseconds: 220));
+    expect(AppMotion.houseCurve, const Cubic(0.2, 0.7, 0.3, 1));
+    expect(AppMotion.exitDuration, const Duration(milliseconds: 200));
+    expect(AppMotion.exitCurve, const Cubic(0.3, 0, 0.8, 0.15));
   });
 
   test('ConvocationColors copyWith and lerp operate correctly', () {

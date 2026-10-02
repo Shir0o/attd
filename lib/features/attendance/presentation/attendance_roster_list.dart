@@ -317,24 +317,27 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         top: false,
         child: SizedBox(
           width: double.infinity,
-          child: FilledButton.icon(
-            key: const Key('rosterConfirmButton'),
-            onPressed: widget.onConfirm,
-            style: FilledButton.styleFrom(
-              backgroundColor: c.primary,
-              foregroundColor: c.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: AppRadii.compactR),
-            ),
-            icon: const Icon(Icons.check_rounded, size: 18),
-            label: Text(
-              changed > 0
-                  ? 'Confirm $presentCount present · $changed changed'
-                  : 'Confirm $presentCount present',
-              style: AppTypography.geist(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: c.onPrimary,
+          child: ConvPressable(
+            disableAnimations: widget.disableAnimations,
+            child: FilledButton.icon(
+              key: const Key('rosterConfirmButton'),
+              onPressed: widget.onConfirm,
+              style: FilledButton.styleFrom(
+                backgroundColor: c.primary,
+                foregroundColor: c.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: AppRadii.compactR),
+              ),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: Text(
+                changed > 0
+                    ? 'Confirm $presentCount present · $changed changed'
+                    : 'Confirm $presentCount present',
+                style: AppTypography.geist(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: c.onPrimary,
+                ),
               ),
             ),
           ),

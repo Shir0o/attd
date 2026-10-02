@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
@@ -54,6 +55,26 @@ void main() {
     expect(find.text('Add someone'), findsOneWidget);
     expect(find.byKey(const Key('addSheetAddToRoster')), findsOneWidget);
     expect(find.byKey(const Key('addSheetMarkGuest')), findsOneWidget);
+  });
+
+  testWidgets('only the violet "Add to roster" pill presses in', (
+    tester,
+  ) async {
+    await pumpSheet(tester);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('addSheetAddToRoster')),
+        matching: find.byType(ConvPressable),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('addSheetMarkGuest')),
+        matching: find.byType(ConvPressable),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('submit pills do nothing until a name is typed', (tester) async {

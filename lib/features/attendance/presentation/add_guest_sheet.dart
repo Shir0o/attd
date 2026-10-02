@@ -19,6 +19,7 @@ class AddMemberSheet extends StatefulWidget {
     this.availableMembers = const [],
     this.families = const [],
     this.rosterMemberIds,
+    this.disableAnimations = false,
   });
 
   final void Function(
@@ -33,6 +34,9 @@ class AddMemberSheet extends StatefulWidget {
   /// Ids on this event's roster. When given, each suggestion says whether
   /// the person is already on this event.
   final Set<String>? rosterMemberIds;
+
+  /// The host page's test/override flag for decorative motion.
+  final bool disableAnimations;
 
   @override
   State<AddMemberSheet> createState() => _AddMemberSheetState();
@@ -194,6 +198,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                       key: const Key('addSheetAddToRoster'),
                       label: 'Add to roster',
                       filled: true,
+                      disableAnimations: widget.disableAnimations,
                       onTap: () => _addNew(asGuest: false),
                     ),
                   ),
@@ -300,16 +305,18 @@ class _SubmitPill extends StatelessWidget {
     required this.label,
     required this.filled,
     required this.onTap,
+    this.disableAnimations = false,
   });
 
   final String label;
   final bool filled;
   final VoidCallback onTap;
+  final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    return Material(
+    final pill = Material(
       color: filled ? c.primary : c.cardSoft,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
@@ -330,5 +337,9 @@ class _SubmitPill extends StatelessWidget {
         ),
       ),
     );
+    // Only the filled violet pill presses in; the tonal one stays flat.
+    return filled
+        ? ConvPressable(disableAnimations: disableAnimations, child: pill)
+        : pill;
   }
 }

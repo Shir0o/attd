@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
+import '../app_motion.dart';
 import '../app_radii.dart';
 import '../app_shadows.dart';
 import '../app_typography.dart';
@@ -267,7 +268,7 @@ class ConvToggle extends StatelessWidget {
           children: [
             AnimatedAlign(
               duration: const Duration(milliseconds: 200),
-              curve: const Cubic(0.2, 0.7, 0.3, 1.0),
+              curve: AppMotion.houseCurve,
               alignment: value
                   ? Alignment.centerRight
                   : Alignment.centerLeft,
@@ -467,20 +468,22 @@ class ConvFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final btn = Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: c.primary,
-        borderRadius: AppRadii.fabR,
-        boxShadow: AppShadows.fab(c.primary),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    final btn = ConvPressable.builder(
+      builder: (context, pressed) => Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: c.primary,
           borderRadius: AppRadii.fabR,
-          onTap: onPressed,
-          child: Icon(icon, color: c.onPrimary, size: 26),
+          boxShadow: AppShadows.fab(c.primary, pressed: pressed),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: AppRadii.fabR,
+            onTap: onPressed,
+            child: Icon(icon, color: c.onPrimary, size: 26),
+          ),
         ),
       ),
     );
@@ -543,6 +546,130 @@ class ConvIconButton extends StatelessWidget {
         child: InkWell(
           onTap: onPressed,
           child: Icon(icon, size: iconSize, color: color ?? c.ink),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Pressable — press-in / pop scale feedback (ADR 0008)
+// ─────────────────────────────────────────────────────────────
+
+/// Scale presets for [ConvPressable].
+enum ConvPressPreset {
+  /// Violet pills and FABs: dip to 0.97 over ~110 ms while the shadow
+  /// tightens, then spring back over ~260 ms.
+  pressIn(
+    pressedScale: 0.97,
+    pressDuration: Duration(milliseconds: 110),
+    releaseDuration: Duration(milliseconds: 260),
+  ),
+
+  /// Mark tiles: dip to 0.94, then spring back over ~320 ms.
+  pop(
+    pressedScale: 0.94,
+    pressDuration: Duration(milliseconds: 110),
+    releaseDuration: Duration(milliseconds: 320),
+  );
+
+  const ConvPressPreset({
+    required this.pressedScale,
+    required this.pressDuration,
+    required this.releaseDuration,
+  });
+
+  final double pressedScale;
+  final Duration pressDuration;
+  final Duration releaseDuration;
+}
+
+/// Tactile press feedback: scales [child] down while a pointer is held on it
+/// and springs back on release.
+///
+/// It only *listens* to raw pointer events, so it never enters the gesture
+/// arena: taps, long-presses, scrolling and the child's [InkWell] ripple all
+/// behave exactly as without it. It is a no-op (the child is returned
+/// untouched) when [motionEnabled] is false.
+class ConvPressable extends StatefulWidget {
+  const ConvPressable({
+    super.key,
+    required Widget this.child,
+    this.preset = ConvPressPreset.pressIn,
+    this.disableAnimations = false,
+  }) : builder = null;
+
+  /// Like the default constructor, but [builder] also receives how far the
+  /// control is pressed in (0 at rest, 1 fully pressed) so it can tighten its
+  /// own shadow.
+  const ConvPressable.builder({
+    super.key,
+    required Widget Function(BuildContext context, double pressed) this.builder,
+    this.preset = ConvPressPreset.pressIn,
+    this.disableAnimations = false,
+  }) : child = null;
+
+  final Widget? child;
+  final Widget Function(BuildContext context, double pressed)? builder;
+  final ConvPressPreset preset;
+
+  /// The host widget's existing test/override flag; see [motionEnabled].
+  final bool disableAnimations;
+
+  @override
+  State<ConvPressable> createState() => _ConvPressableState();
+}
+
+class _ConvPressableState extends State<ConvPressable>
+    with SingleTickerProviderStateMixin {
+  // Holds the current scale; unbounded so the spring curve may overshoot 1.
+  late final AnimationController _scale = AnimationController.unbounded(
+    vsync: this,
+    value: 1,
+  );
+
+  static const Curve _spring = Cubic(0.34, 1.56, 0.64, 1);
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    super.dispose();
+  }
+
+  void _down(PointerDownEvent _) => _scale.animateTo(
+    widget.preset.pressedScale,
+    duration: widget.preset.pressDuration,
+    curve: Curves.easeOut,
+  );
+
+  void _release([PointerEvent? _]) => _scale.animateTo(
+    1,
+    duration: widget.preset.releaseDuration,
+    curve: _spring,
+  );
+
+  double _pressedAmount() =>
+      ((1 - _scale.value) / (1 - widget.preset.pressedScale)).clamp(0.0, 1.0);
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = motionEnabled(
+      context,
+      disableAnimations: widget.disableAnimations,
+    );
+    if (!enabled) {
+      return widget.builder?.call(context, 0) ?? widget.child!;
+    }
+    return Listener(
+      onPointerDown: _down,
+      onPointerUp: _release,
+      onPointerCancel: _release,
+      child: AnimatedBuilder(
+        animation: _scale,
+        child: widget.child,
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value,
+          child: widget.builder?.call(context, _pressedAmount()) ?? child,
         ),
       ),
     );

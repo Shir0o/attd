@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
@@ -97,6 +98,7 @@ Future<Harness> pumpMode(
   bool withHistory = false,
   AttendanceStartMode? startMode,
   List<Family>? families,
+  bool disableAnimations = true,
 }) async {
   // Mirrors the hub: anything but an all-absent start opens the confirm List.
   final opensOnList =
@@ -118,7 +120,7 @@ Future<Harness> pumpMode(
         markingMode: mode,
         startMode: startMode,
         initialListMode: opensOnList,
-        disableAnimations: true,
+        disableAnimations: disableAnimations,
       ),
     ),
   );
@@ -457,6 +459,45 @@ void main() {
       await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
+    });
+
+    testWidgets('the "Add someone" pill presses in when motion is on',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      final pill = find.byKey(const Key('likelyHereAddGuest'));
+      final pressable = find.ancestor(
+        of: pill,
+        matching: find.byType(ConvPressable),
+      );
+      expect(pressable, findsOneWidget);
+      final gesture = await tester.startGesture(tester.getCenter(pill));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 110));
+      final scale = tester
+          .widget<Transform>(
+            find
+                .descendant(of: pressable, matching: find.byType(Transform))
+                .first,
+          )
+          .transform
+          .entry(0, 0);
+      expect(scale, closeTo(0.97, 0.001));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      // Releasing the press still opens the sheet.
+      expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
+    });
+
+    testWidgets('the "Add someone" pill does not scale when motion is off',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      expect(
+        find.descendant(
+          of: find.byType(ConvPressable),
+          matching: find.byType(Transform),
+        ),
+        findsNothing,
+      );
     });
   });
 

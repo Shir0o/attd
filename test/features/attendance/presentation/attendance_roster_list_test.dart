@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
@@ -521,6 +522,61 @@ void main() {
     // The word "late" rides the row subtitle, so meaning is never only an
     // icon.
     expect(find.text('Marked present · late'), findsOneWidget);
+  });
+
+  group('Confirm CTA press feedback', () {
+    Future<void> pumpConfirm(
+      WidgetTester tester, {
+      bool disableAnimations = false,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 800,
+              child: AttendanceRosterList(
+                session: sessionWith(
+                  members: [alice, bob],
+                  seedStatus: AttendanceStatus.present,
+                ),
+                families: [smiths],
+                initialGrouping: RosterGrouping.byFamily,
+                confirmMode: true,
+                onConfirm: () {},
+                disableAnimations: disableAnimations,
+                onToggle: (m, p) async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Finder scaleTransform() => find.descendant(
+      of: find.byType(ConvPressable),
+      matching: find.byType(Transform),
+    );
+
+    testWidgets('presses in while held when motion is on', (tester) async {
+      await pumpConfirm(tester);
+      final cta = find.byKey(const Key('rosterConfirmButton'));
+      final gesture = await tester.startGesture(tester.getCenter(cta));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 110));
+      expect(
+        tester.widget<Transform>(scaleTransform().first).transform.entry(0, 0),
+        closeTo(0.97, 0.001),
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('does not scale when motion is disabled', (tester) async {
+      await pumpConfirm(tester, disableAnimations: true);
+      expect(find.byType(ConvPressable), findsOneWidget);
+      expect(scaleTransform(), findsNothing);
+    });
   });
 }
 
