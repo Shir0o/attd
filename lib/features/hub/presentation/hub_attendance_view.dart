@@ -803,10 +803,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       );
       hero = currentHero;
 
+      final heroInsights = _insightsFor(currentHero);
       children.add(
         _HeroEventCard(
-          insights: _insightsFor(currentHero),
-          onInsightsTap: () => _openInsights(currentHero),
+          insightsSliver: _InsightsSliver(
+            insights: heroInsights,
+            onTap: () => _openInsights(currentHero),
+          ),
           event: currentHero,
           isToday: true,
           status: _statusFor(currentHero),
@@ -841,6 +844,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           ),
         );
         for (final event in alsoToday) {
+          final ins = _insightsFor(event);
           children.add(
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -850,8 +854,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 expected: event.memberIds.length,
                 onTap: () => _handleEventTap(event),
                 onMenuTap: () => _showEventMenu(context, event),
-                insights: _insightsFor(event),
-                onInsightsTap: () => _openInsights(event),
+                insightsSliver: _InsightsSliver(
+                  insights: ins,
+                  onTap: () => _openInsights(event),
+                ),
               ),
             ),
           );
@@ -881,6 +887,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       );
       for (final event in otherEvents) {
+        final ins = _insightsFor(event);
         children.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -890,8 +897,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               status: _statusFor(event),
               onTap: () => _handleEventTap(event),
               onMenuTap: () => _showEventMenu(context, event),
-              insights: _insightsFor(event),
-              onInsightsTap: () => _openInsights(event),
+              insightsSliver: _InsightsSliver(
+                insights: ins,
+                onTap: () => _openInsights(event),
+              ),
             ),
           ),
         );
@@ -1274,8 +1283,7 @@ class _HeroEventCard extends StatefulWidget {
     required this.lastStat,
     required this.onTap,
     required this.onMenuTap,
-    this.insights,
-    this.onInsightsTap,
+    this.insightsSliver,
     this.disableAnimations = false,
   });
 
@@ -1286,8 +1294,7 @@ class _HeroEventCard extends StatefulWidget {
   final ({int present, int total})? lastStat;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
-  final EventInsights? insights;
-  final VoidCallback? onInsightsTap;
+  final Widget? insightsSliver;
   final bool disableAnimations;
 
   @override
@@ -1481,12 +1488,7 @@ class _HeroEventCardState extends State<_HeroEventCard>
                         ),
                       ],
                     ),
-                    if (widget.insights != null &&
-                        widget.onInsightsTap != null)
-                      _InsightsSliver(
-                        insights: widget.insights!,
-                        onTap: widget.onInsightsTap!,
-                      ),
+                    if (widget.insightsSliver != null) widget.insightsSliver!,
                   ],
                 ),
               ),
@@ -1754,8 +1756,7 @@ class _EventRow extends StatelessWidget {
     required this.status,
     required this.onTap,
     required this.onMenuTap,
-    this.insights,
-    this.onInsightsTap,
+    this.insightsSliver,
   });
 
   final Event event;
@@ -1763,8 +1764,7 @@ class _EventRow extends StatelessWidget {
   final _EventStatus status;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
-  final EventInsights? insights;
-  final VoidCallback? onInsightsTap;
+  final Widget? insightsSliver;
 
   @override
   Widget build(BuildContext context) {
@@ -1773,9 +1773,6 @@ class _EventRow extends StatelessWidget {
     final dayLabel =
         isToday ? 'TODAY' : DateFormat('EEE').format(date).toUpperCase();
     final dateNum = DateFormat('d').format(date);
-
-    final ins = insights;
-    final onIns = onInsightsTap;
     return ConvCardSoft(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1860,8 +1857,7 @@ class _EventRow extends StatelessWidget {
           ),
         ],
           ),
-          if (ins != null && onIns != null)
-            _InsightsSliver(insights: ins, onTap: onIns),
+          if (insightsSliver != null) insightsSliver!,
         ],
       ),
     );
@@ -1877,8 +1873,7 @@ class _TodayRow extends StatelessWidget {
     required this.expected,
     required this.onTap,
     required this.onMenuTap,
-    this.insights,
-    this.onInsightsTap,
+    this.insightsSliver,
   });
 
   final Event event;
@@ -1886,8 +1881,7 @@ class _TodayRow extends StatelessWidget {
   final int expected;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
-  final EventInsights? insights;
-  final VoidCallback? onInsightsTap;
+  final Widget? insightsSliver;
 
   @override
   Widget build(BuildContext context) {
@@ -1996,8 +1990,7 @@ class _TodayRow extends StatelessWidget {
             ),
           ],
             ),
-            if (insights != null && onInsightsTap != null)
-              _InsightsSliver(insights: insights!, onTap: onInsightsTap!),
+            if (insightsSliver != null) insightsSliver!,
           ],
         ),
       ),

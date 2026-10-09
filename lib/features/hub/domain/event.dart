@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/enum_by_name.dart';
 import '../../attendance/models/attendance_start_mode.dart';
 import '../../attendance/models/marking_mode.dart';
 import '../../attendance/models/roster_grouping.dart';
@@ -141,36 +142,18 @@ class Event {
 
   factory Event.fromJson(Map<String, dynamic> json) {
     final timeParts = (json['time'] as String).split(':');
-    AttendanceStartMode? startMode;
-    final modeName = json['defaultAttendanceStartMode'] as String?;
-    if (modeName != null) {
-      for (final m in AttendanceStartMode.values) {
-        if (m.name == modeName) {
-          startMode = m;
-          break;
-        }
-      }
-    }
-    RosterGrouping? grouping;
-    final groupingName = json['rosterGrouping'] as String?;
-    if (groupingName != null) {
-      for (final g in RosterGrouping.values) {
-        if (g.name == groupingName) {
-          grouping = g;
-          break;
-        }
-      }
-    }
-    MarkingMode? mode;
-    final modeKey = json['markingMode'] as String?;
-    if (modeKey != null) {
-      for (final m in MarkingMode.values) {
-        if (m.name == modeKey) {
-          mode = m;
-          break;
-        }
-      }
-    }
+    final startMode = enumByNameOrNull(
+      AttendanceStartMode.values,
+      json['defaultAttendanceStartMode'] as String?,
+    );
+    final grouping = enumByNameOrNull(
+      RosterGrouping.values,
+      json['rosterGrouping'] as String?,
+    );
+    final mode = enumByNameOrNull(
+      MarkingMode.values,
+      json['markingMode'] as String?,
+    );
     final insights = InsightsConfig.fromJson(json);
     return Event(
       id: json['id'] as String,

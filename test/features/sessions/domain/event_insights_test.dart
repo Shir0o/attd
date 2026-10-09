@@ -513,8 +513,8 @@ void main() {
         members: _roster,
       );
 
-      expect(insights.firstSeenFor('m1'), _week(0));
-      expect(insights.firstSeenFor('m2'), _week(1));
+      expect(insights.firstSeenFor(const AttendeeIdentity.member('m1')), _week(0));
+      expect(insights.firstSeenFor(const AttendeeIdentity.member('m2')), _week(1));
     });
 
     test('has no first seen for a roster member never marked present', () {
@@ -526,7 +526,7 @@ void main() {
         members: _roster,
       );
 
-      expect(insights.firstSeenFor('m3'), isNull);
+      expect(insights.firstSeenFor(const AttendeeIdentity.member('m3')), isNull);
     });
 
     test('lists people first seen inside the range, guests included', () {
@@ -798,7 +798,7 @@ void main() {
       expect(insights.points.single.present, 1);
       expect(insights.firstTimers.single.name, 'Alice Okonkwo');
       expect(insights.firstTimers.single.isGuest, isFalse);
-      expect(insights.firstSeenFor('m1'), _week(0));
+      expect(insights.firstSeenFor(const AttendeeIdentity.member('m1')), _week(0));
     });
 
     test('counts everyone in the room for median session size', () {

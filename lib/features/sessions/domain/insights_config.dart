@@ -6,6 +6,7 @@
 /// sharing, so a metric means the same thing wherever the event is opened.
 /// See `docs/adr/0007-per-event-insights-configuration.md`.
 library;
+import '../../../core/utils/enum_by_name.dart';
 
 /// How far back Insights looks, counted in most-recent sessions.
 ///
@@ -29,17 +30,25 @@ enum InsightsRange {
 
 /// A section of the Insights page.
 enum InsightsSection {
-  rateOverTime,
-  extremes,
-  regulars,
-  lapsed,
-  guests,
-  lateness,
-  growth,
-  memberTable,
-  firstTimers,
-  streaks,
-  medianSize,
+  rateOverTime('Attendance rate over time', 'Attendance rate'),
+  extremes('Best, lowest and average', 'Best and lowest'),
+  regulars('Regulars', 'Regulars'),
+  lapsed('Lapsed attendees', 'Lapsed'),
+  guests('Guests', 'Guests'),
+  lateness('Late arrivals', 'Late'),
+  growth('People seen over time', 'People seen'),
+  memberTable('Every attendee', 'Every attendee'),
+  firstTimers('First-timers', 'First-timers'),
+  streaks('Longest streak', 'Longest streak'),
+  medianSize('Median session size', 'Median');
+
+  const InsightsSection(this.label, this.shortTitle);
+
+  /// Label shown in the customize settings sheet.
+  final String label;
+
+  /// Short title shown on placeholders and section summaries.
+  final String shortTitle;
 }
 
 /// Sections shown when the user has not chosen otherwise.
@@ -140,28 +149,18 @@ class InsightsConfig {
   }
 
   factory InsightsConfig.fromJson(Map<String, dynamic> json) {
-    InsightsRange? range;
-    final rangeName = json['insightsRange'] as String?;
-    if (rangeName != null) {
-      for (final r in InsightsRange.values) {
-        if (r.name == rangeName) {
-          range = r;
-          break;
-        }
-      }
-    }
+    final range = enumByNameOrNull(
+      InsightsRange.values,
+      json['insightsRange'] as String?,
+    );
 
     Set<InsightsSection>? sections;
     final sectionNames = json['insightsVisibleSections'] as List<dynamic>?;
     if (sectionNames != null) {
       sections = <InsightsSection>{};
       for (final raw in sectionNames) {
-        for (final s in InsightsSection.values) {
-          if (s.name == raw) {
-            sections.add(s);
-            break;
-          }
-        }
+        final s = enumByNameOrNull(InsightsSection.values, raw as String?);
+        if (s != null) sections.add(s);
       }
     }
 
