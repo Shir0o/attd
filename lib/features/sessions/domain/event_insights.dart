@@ -111,6 +111,59 @@ class FirstTimer {
   final bool isGuest;
 }
 
+/// The identity of an attendee across sessions for first-seen calculation.
+sealed class AttendeeIdentity {
+  const AttendeeIdentity();
+
+  /// A roster member identified by their stable member ID.
+  const factory AttendeeIdentity.member(String memberId) =
+      MemberAttendeeIdentity;
+
+  /// A walk-in or guest attendee identified by display name.
+  const factory AttendeeIdentity.unlinked(String attendeeName) =
+      UnlinkedAttendeeIdentity;
+}
+
+/// A roster member attendee identity.
+final class MemberAttendeeIdentity extends AttendeeIdentity {
+  const MemberAttendeeIdentity(this.memberId);
+
+  final String memberId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemberAttendeeIdentity &&
+          runtimeType == other.runtimeType &&
+          memberId == other.memberId;
+
+  @override
+  int get hashCode => memberId.hashCode;
+
+  @override
+  String toString() => 'AttendeeIdentity.member($memberId)';
+}
+
+/// An attendee identity not linked to a roster member, identified by display name.
+final class UnlinkedAttendeeIdentity extends AttendeeIdentity {
+  const UnlinkedAttendeeIdentity(this.attendeeName);
+
+  final String attendeeName;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UnlinkedAttendeeIdentity &&
+          runtimeType == other.runtimeType &&
+          attendeeName == other.attendeeName;
+
+  @override
+  int get hashCode => attendeeName.hashCode;
+
+  @override
+  String toString() => 'AttendeeIdentity.unlinked($attendeeName)';
+}
+
 /// Every Insights number for one event, computed once.
 ///
 /// Sections are pure renders of this object and never derive anything
@@ -128,7 +181,7 @@ class EventInsights {
     required this.presentMarkCount,
     required this.lateMarkCount,
     required this.totalSessionsForEvent,
-    required Map<String, DateTime> firstSeen,
+    required Map<AttendeeIdentity, DateTime> firstSeen,
   }) : _firstSeen = firstSeen;
 
   final Event event;
@@ -155,7 +208,7 @@ class EventInsights {
   /// "needs N more sessions" copy.
   final int totalSessionsForEvent;
 
-  final Map<String, DateTime> _firstSeen;
+  final Map<AttendeeIdentity, DateTime> _firstSeen;
 
   static EventInsights from({
     required Event event,
@@ -181,7 +234,7 @@ class EventInsights {
 
     // First seen spans the event's whole history, not the range: someone who
     // has attended for a year is not a first timer because the window moved.
-    final firstSeen = <String, DateTime>{};
+    final firstSeen = <AttendeeIdentity, DateTime>{};
     for (final s in relevant) {
       for (final r in s.records) {
         if (r.status != AttendanceStatus.present) continue;
@@ -205,7 +258,7 @@ class EventInsights {
     var guestMarks = 0;
     var presentMarks = 0;
     var lateMarks = 0;
-    final seenSoFar = <String>{};
+    final seenSoFar = <AttendeeIdentity>{};
     final pts = <SessionPoint>[];
 
     for (final s in inRange) {
@@ -317,14 +370,25 @@ class EventInsights {
     final rangeStart = inRange.isEmpty ? null : inRange.first.sessionDate;
     final firstTimers = <FirstTimer>[];
     if (rangeStart != null) {
-      firstSeen.forEach((key, date) {
+      firstSeen.forEach((identity, date) {
         if (date.isBefore(rangeStart)) return;
-        final member = rosterById[key];
+        final Member? member;
+        final String name;
+        final bool isGuest;
+        switch (identity) {
+          case MemberAttendeeIdentity(:final memberId):
+            member = rosterById[memberId];
+            name = member?.displayName ?? memberId;
+            isGuest = member == null;
+          case UnlinkedAttendeeIdentity(:final attendeeName):
+            name = attendeeName;
+            isGuest = true;
+        }
         firstTimers.add(
           FirstTimer(
-            name: member?.displayName ?? key,
+            name: name,
             firstSeen: date,
-            isGuest: member == null,
+            isGuest: isGuest,
           ),
         );
       });
@@ -385,12 +449,18 @@ class EventInsights {
   /// member whose name it matches, so a mark recorded before events carried
   /// identifiers is still that person rather than a stranger; only a name
   /// matching nobody keys by itself.
-  static String? _identityOf(
+  static AttendeeIdentity? _identityOf(
       SessionRecord r, Map<String, Member> rosterByName) {
     final mid = r.memberId;
-    if (mid != null && mid.trim().isNotEmpty) return mid;
+    if (mid != null && mid.trim().isNotEmpty) {
+      return AttendeeIdentity.member(mid);
+    }
     if (r.attendee.trim().isEmpty) return null;
-    return rosterByName[r.attendee]?.id ?? r.attendee;
+    final matchedMember = rosterByName[r.attendee];
+    if (matchedMember != null) {
+      return AttendeeIdentity.member(matchedMember.id);
+    }
+    return AttendeeIdentity.unlinked(r.attendee);
   }
 
   static List<LapsedAttendee> _lapsed({
@@ -524,7 +594,7 @@ class EventInsights {
     return best.currentStreak == 0 ? null : best;
   }
 
-  DateTime? firstSeenFor(String memberIdOrName) => _firstSeen[memberIdOrName];
+  DateTime? firstSeenFor(AttendeeIdentity identity) => _firstSeen[identity];
 
   /// How many more sessions a section needs before it can say anything honest.
   ///

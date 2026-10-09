@@ -1083,33 +1083,6 @@ class _NotYet extends StatelessWidget {
   final int sessionsNeeded;
   final ConvocationColors c;
 
-  static String _title(InsightsSection s) {
-    switch (s) {
-      case InsightsSection.rateOverTime:
-        return 'Attendance rate';
-      case InsightsSection.extremes:
-        return 'Best and lowest';
-      case InsightsSection.regulars:
-        return 'Regulars';
-      case InsightsSection.lapsed:
-        return 'Lapsed';
-      case InsightsSection.guests:
-        return 'Guests';
-      case InsightsSection.lateness:
-        return 'Late';
-      case InsightsSection.growth:
-        return 'People seen';
-      case InsightsSection.memberTable:
-        return 'Every attendee';
-      case InsightsSection.firstTimers:
-        return 'First-timers';
-      case InsightsSection.streaks:
-        return 'Longest streak';
-      case InsightsSection.medianSize:
-        return 'Median';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ConvCardSoft(
@@ -1122,7 +1095,7 @@ class _NotYet extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ConvEyebrow(_title(section)),
+                ConvEyebrow(section.shortTitle),
                 const SizedBox(height: 3),
                 Text(
                   sessionsNeeded == 1

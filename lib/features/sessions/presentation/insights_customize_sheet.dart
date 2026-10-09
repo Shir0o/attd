@@ -23,19 +23,6 @@ Future<InsightsConfig?> showInsightsCustomizeSheet(
   );
 }
 
-const _sectionLabels = <InsightsSection, String>{
-  InsightsSection.rateOverTime: 'Attendance rate over time',
-  InsightsSection.extremes: 'Best, lowest and average',
-  InsightsSection.regulars: 'Regulars',
-  InsightsSection.lapsed: 'Lapsed attendees',
-  InsightsSection.guests: 'Guests',
-  InsightsSection.lateness: 'Late arrivals',
-  InsightsSection.growth: 'People seen over time',
-  InsightsSection.memberTable: 'Every attendee',
-  InsightsSection.firstTimers: 'First-timers',
-  InsightsSection.streaks: 'Longest streak',
-  InsightsSection.medianSize: 'Median session size',
-};
 
 class _CustomizeSheet extends StatefulWidget {
   const _CustomizeSheet({required this.config, required this.readOnly});
@@ -186,22 +173,22 @@ class _CustomizeSheetState extends State<_CustomizeSheet> {
             const SizedBox(height: 26),
             ConvEyebrow('Sections'),
             const SizedBox(height: 4),
-            for (final entry in _sectionLabels.entries)
+            for (final section in InsightsSection.values)
               SwitchListTile.adaptive(
-                key: ValueKey('section_${entry.key.name}'),
+                key: ValueKey('section_${section.name}'),
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  entry.value,
+                  section.label,
                   style: TextStyle(fontSize: 15, color: c.ink),
                 ),
-                value: _visible.contains(entry.key),
+                value: _visible.contains(section),
                 onChanged: ro
                     ? null
                     : (on) => setState(() {
                           if (on) {
-                            _visible.add(entry.key);
+                            _visible.add(section);
                           } else {
-                            _visible.remove(entry.key);
+                            _visible.remove(section);
                           }
                         }),
               ),
