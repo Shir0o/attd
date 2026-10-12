@@ -816,5 +816,28 @@ void main() {
 
       expect(insights.medianPresentCount, 2);
     });
+
+    test('disambiguates duplicate member names and avoids legacy clashing', () {
+      final john1 = Member(id: 'j1', displayName: 'John Smith');
+      final john2 = Member(id: 'j2', displayName: 'John Smith');
+
+      final insights = EventInsights.from(
+        event: _event(),
+        sessions: [
+          _session(0, [
+            _mark('j1', 'John Smith'),
+            _mark(null, 'Walk-in Guest'),
+          ]),
+        ],
+        members: [john1, john2],
+      );
+
+      expect(insights.memberTable.length, 2);
+      expect(insights.memberTable.map((m) => m.member.id), ['j1', 'j2']);
+      expect(insights.memberTable.first.attended, 1);
+      expect(insights.memberTable.last.attended, 0);
+      expect(insights.firstTimers.map((f) => f.memberId), contains('j1'));
+      expect(insights.firstTimers.map((f) => f.memberId), isNot(contains('j2')));
+    });
   });
 }
