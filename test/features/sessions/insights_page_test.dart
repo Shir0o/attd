@@ -7,6 +7,7 @@ import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
+import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/sessions/domain/event_insights.dart';
@@ -627,6 +628,48 @@ void main() {
       await tester.pump();
       expect(bars(), 26);
       expect(h(tester, 1), closeTo(chart * 0.5, 0.5));
+    });
+
+    testWidgets('disambiguates duplicate member names with family name',
+        (tester) async {
+      final john1 = Member(id: 'j1', displayName: 'John Smith');
+      final john2 = Member(id: 'j2', displayName: 'John Smith');
+      final family1 = Family(id: 'f1', displayName: 'Smiths', members: [john1]);
+      final family2 =
+          Family(id: 'f2', displayName: 'Johnsons', members: [john2]);
+
+      final sessions = [
+        for (var i = 0; i < 8; i++)
+          _session(i, [
+            _mark('j1', 'John Smith'),
+            _mark('j2', 'John Smith',
+                status: i < 5 ? AttendanceStatus.present : AttendanceStatus.absent),
+          ]),
+      ];
+
+      await tester.pumpWidget(
+        wrap(
+          InsightsPage(
+            event: _event(
+              config: InsightsConfig(
+                visibleSections: {
+                  InsightsSection.regulars,
+                  InsightsSection.lapsed,
+                  InsightsSection.memberTable,
+                },
+              ),
+            ),
+            sessions: sessions,
+            members: [john1, john2],
+            families: [family1, family2],
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('John Smith · Smiths'), findsWidgets);
+      expect(find.text('John Smith · Johnsons'), findsWidgets);
     });
   });
 }

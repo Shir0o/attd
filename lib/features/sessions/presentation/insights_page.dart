@@ -718,6 +718,12 @@ class _RegularsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final regulars = insights.regulars;
     final window = insights.config.resolvedRegularWindow;
+    final nameCounts = <String, int>{};
+    for (final r in regulars) {
+      nameCounts[r.member.displayName] =
+          (nameCounts[r.member.displayName] ?? 0) + 1;
+    }
+
     return _SectionCard(
       title: 'Regulars · ${regulars.length}',
       c: c,
@@ -738,7 +744,11 @@ class _RegularsSection extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      r.member.displayName,
+                      (nameCounts[r.member.displayName] ?? 0) > 1 &&
+                              r.familyName != null &&
+                              r.familyName!.isNotEmpty
+                          ? '${r.member.displayName} · ${r.familyName}'
+                          : r.member.displayName,
                       style: TextStyle(fontSize: 14, color: c.ink),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -766,6 +776,12 @@ class _LapsedSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final lapsed = insights.lapsed;
     final df = DateFormat('MMM d');
+    final nameCounts = <String, int>{};
+    for (final l in lapsed) {
+      nameCounts[l.member.displayName] =
+          (nameCounts[l.member.displayName] ?? 0) + 1;
+    }
+
     return _SectionCard(
       title: 'Lapsed · ${lapsed.length}',
       accent: c.absent,
@@ -798,7 +814,11 @@ class _LapsedSection extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l.member.displayName,
+                          (nameCounts[l.member.displayName] ?? 0) > 1 &&
+                                  l.familyName != null &&
+                                  l.familyName!.isNotEmpty
+                              ? '${l.member.displayName} · ${l.familyName}'
+                              : l.member.displayName,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -849,12 +869,17 @@ class _MemberTableSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lapsedIds = insights.lapsed.map((l) => l.member.id).toSet();
-    final newIds = insights.firstTimers
-        .where((f) => !f.isGuest)
-        .map((f) => f.name)
+    final newMemberIds = insights.firstTimers
+        .where((f) => !f.isGuest && f.memberId != null)
+        .map((f) => f.memberId!)
         .toSet();
 
     final rows = [...insights.memberTable];
+    final nameCounts = <String, int>{};
+    for (final m in rows) {
+      nameCounts[m.member.displayName] =
+          (nameCounts[m.member.displayName] ?? 0) + 1;
+    }
     if (!sortByRate) {
       rows.sort(
         (a, b) => a.member.displayName.toLowerCase().compareTo(
@@ -892,7 +917,11 @@ class _MemberTableSection extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    m.member.displayName,
+                    (nameCounts[m.member.displayName] ?? 0) > 1 &&
+                            m.familyName != null &&
+                            m.familyName!.isNotEmpty
+                        ? '${m.member.displayName} · ${m.familyName}'
+                        : m.member.displayName,
                     style: TextStyle(fontSize: 14, color: c.ink),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -901,7 +930,7 @@ class _MemberTableSection extends StatelessWidget {
                 if (lapsedIds.contains(m.member.id)) ...[
                   const _TinyPill(label: 'Lapsed', tone: ConvTone.absent),
                   const SizedBox(width: 8),
-                ] else if (newIds.contains(m.member.displayName)) ...[
+                ] else if (newMemberIds.contains(m.member.id)) ...[
                   const _TinyPill(label: 'New', tone: ConvTone.present),
                   const SizedBox(width: 8),
                 ],

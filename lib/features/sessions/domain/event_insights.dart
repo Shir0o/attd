@@ -103,12 +103,17 @@ class LapsedAttendee {
 
 /// Someone whose first mark at this event falls inside the range.
 class FirstTimer {
-  FirstTimer(
-      {required this.name, required this.firstSeen, required this.isGuest});
+  FirstTimer({
+    required this.name,
+    required this.firstSeen,
+    required this.isGuest,
+    this.memberId,
+  });
 
   final String name;
   final DateTime firstSeen;
   final bool isGuest;
+  final String? memberId;
 }
 
 /// The identity of an attendee across sessions for first-seen calculation.
@@ -220,8 +225,16 @@ class EventInsights {
 
     final roster = _rosterFor(event, members);
     final rosterById = {for (final m in roster) m.id: m};
-    final rosterByName = {for (final m in roster) m.displayName: m};
-    final rosterNames = rosterByName.keys.toSet();
+    final nameCounts = <String, int>{};
+    for (final m in roster) {
+      nameCounts[m.displayName] = (nameCounts[m.displayName] ?? 0) + 1;
+    }
+    // Only map names that are unique in the roster to prevent cross-attribution.
+    final rosterByName = {
+      for (final m in roster)
+        if (nameCounts[m.displayName] == 1) m.displayName: m
+    };
+    final rosterNames = {for (final m in roster) m.displayName};
 
     final familyByMember = <String, String>{};
     for (final f in families) {
@@ -375,20 +388,25 @@ class EventInsights {
         final Member? member;
         final String name;
         final bool isGuest;
+        final String? mid;
         switch (identity) {
           case MemberAttendeeIdentity(:final memberId):
             member = rosterById[memberId];
             name = member?.displayName ?? memberId;
             isGuest = member == null;
+            mid = memberId;
           case UnlinkedAttendeeIdentity(:final attendeeName):
+            member = null;
             name = attendeeName;
             isGuest = true;
+            mid = null;
         }
         firstTimers.add(
           FirstTimer(
             name: name,
             firstSeen: date,
             isGuest: isGuest,
+            memberId: mid,
           ),
         );
       });
