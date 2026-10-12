@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.1](https://github.com/Shir0o/attd/compare/v1.12.0...v1.12.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **insights:** disambiguate duplicate member names in stats and badges ([#239](https://github.com/Shir0o/attd/issues/239)) ([1071d78](https://github.com/Shir0o/attd/commit/1071d78c519d7008b9024c01b85c9c8b7697ee46))
+
+
+### Refactoring
+
+* **insights:** structural cleanups deferred from [#196](https://github.com/Shir0o/attd/issues/196) ([#201](https://github.com/Shir0o/attd/issues/201)) ([#237](https://github.com/Shir0o/attd/issues/237)) ([d75b18c](https://github.com/Shir0o/attd/commit/d75b18ce41141517b537d410b0a88f7d3134cfd6))
+
 ## [1.12.0](https://github.com/Shir0o/attd/compare/v1.11.0...v1.12.0) (2026-10-06)
 
 
