@@ -14,7 +14,7 @@ import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _FakeSessionRepository implements SessionRepository {
+class _FakeSessionRepository extends SessionRepository {
   List<Session> savedSnapshots = [];
   final List<String> deletedSessionIds = [];
   final List<Completer<void>> pendingSaveCompleters = [];
@@ -129,7 +129,7 @@ class _FakeAttendanceRepository extends AttendanceRepository {
   Stream<List<Family>> streamFamilies() => Stream.value(families);
 }
 
-class _FakeEventRepository implements EventRepository {
+class _FakeEventRepository extends EventRepository {
   List<Event> events = [];
   final List<Event> updatedEvents = [];
 

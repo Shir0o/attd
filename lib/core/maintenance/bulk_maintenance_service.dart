@@ -1,6 +1,5 @@
 import 'package:intl/intl.dart';
 
-import '../../data/local_session_repository.dart';
 import '../../data/session.dart';
 import '../../data/session_record.dart';
 import '../../data/session_repository.dart';
@@ -40,21 +39,9 @@ class BulkMaintenanceService {
   final AttendanceRepository attendanceRepository;
   final SessionRepository sessionRepository;
 
-  Future<List<Family>> _getFamilies() async {
-    final attRepo = attendanceRepository;
-    if (attRepo is LocalJsonAttendanceRepository) {
-      return attRepo.fetchAllFamilies();
-    }
-    return attRepo.fetchFamilies();
-  }
+  Future<List<Family>> _getFamilies() => attendanceRepository.fetchAllFamilies();
 
-  Future<List<Session>> _getSessions() async {
-    final sesRepo = sessionRepository;
-    if (sesRepo is LocalJsonSessionRepository) {
-      return sesRepo.fetchAllSessions();
-    }
-    return sesRepo.loadSessions();
-  }
+  Future<List<Session>> _getSessions() => sessionRepository.fetchAllSessions();
 
   /// Simulates a merge of [sourceName] / [sourceIdentifier] into [targetName] / [targetMemberId].
   Future<BulkDryRunResult> simulateMerge({
@@ -195,14 +182,7 @@ class BulkMaintenanceService {
       return session;
     }).toList();
 
-    final sesRepo = sessionRepository;
-    if (sesRepo is LocalJsonSessionRepository) {
-      await sesRepo.saveSessions(updatedSessions);
-    } else {
-      try {
-        await (sesRepo as dynamic).saveSessions(updatedSessions);
-      } catch (_) {}
-    }
+    await sessionRepository.saveSessions(updatedSessions);
 
     _log.info('Bulk merge completed: "$sourceName" -> "$targetName"');
   }
@@ -308,14 +288,7 @@ class BulkMaintenanceService {
       return session;
     }).toList();
 
-    final sesRepo = sessionRepository;
-    if (sesRepo is LocalJsonSessionRepository) {
-      await sesRepo.saveSessions(updatedSessions);
-    } else {
-      try {
-        await (sesRepo as dynamic).saveSessions(updatedSessions);
-      } catch (_) {}
-    }
+    await sessionRepository.saveSessions(updatedSessions);
 
     _log.info('Bulk rename completed: "$oldName" -> "$newName"');
   }

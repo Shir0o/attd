@@ -41,6 +41,9 @@ abstract class AttendanceRepository {
 
   /// Soft-deletes a family and unassociates all its members into auto-singletons.
   Future<void> deleteFamily(String familyId) => throw UnimplementedError();
+
+  /// Fetches all families including soft-deleted ones (tombstones).
+  Future<List<Family>> fetchAllFamilies() => fetchFamilies();
 }
 
 class LocalJsonAttendanceRepository extends AttendanceRepository {
@@ -174,6 +177,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     return List<Family>.from(visible);
   }
 
+  @override
   Future<List<Family>> fetchAllFamilies() async {
     return _loadRawFamilies();
   }

@@ -39,7 +39,7 @@ class MockAttendanceRepository extends AttendanceRepository {
   }
 }
 
-class MockEventRepository implements EventRepository {
+class MockEventRepository extends EventRepository {
   @override
   Future<void> createEvent(Event event) async {}
   @override
@@ -56,7 +56,7 @@ class MockEventRepository implements EventRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class MockSessionRepository implements SessionRepository {
+class MockSessionRepository extends SessionRepository {
   final _controller = StreamController<List<Session>>();
 
   List<String> deletedIds = [];

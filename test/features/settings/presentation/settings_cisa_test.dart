@@ -37,7 +37,7 @@ class _MockAttendanceRepository extends AttendanceRepository {
   Stream<List<Family>> streamFamilies() => Stream.value([]);
 }
 
-class _MockEventRepository implements EventRepository {
+class _MockEventRepository extends EventRepository {
   @override
   Future<void> createEvent(Event event) async {}
   @override
@@ -54,7 +54,7 @@ class _MockEventRepository implements EventRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class _MockSessionRepository implements SessionRepository {
+class _MockSessionRepository extends SessionRepository {
   @override
   Future<Session> createSession({
     required String title,

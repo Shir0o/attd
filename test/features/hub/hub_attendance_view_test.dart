@@ -73,7 +73,7 @@ class FakeAttendanceRepository extends AttendanceRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class FakeEventRepository implements EventRepository {
+class FakeEventRepository extends EventRepository {
   final controller = StreamController<List<Event>>.broadcast();
   final deletedEventIds = <String>[];
   final updatedEvents = <Event>[];
@@ -110,7 +110,7 @@ class FakeEventRepository implements EventRepository {
   }
 }
 
-class FakeSessionRepository implements SessionRepository {
+class FakeSessionRepository extends SessionRepository {
   List<Session> sessions = [];
   final createdSessions = <Session>[];
   final deletedSessionIds = <String>[];

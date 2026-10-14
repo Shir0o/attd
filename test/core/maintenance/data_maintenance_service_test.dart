@@ -105,7 +105,7 @@ class _MaintenanceAttendanceRepository extends AttendanceRepository {
   Stream<List<Family>> streamFamilies() => const Stream.empty();
 }
 
-class _MaintenanceEventRepository implements EventRepository {
+class _MaintenanceEventRepository extends EventRepository {
   int pruneCount = 0;
 
   @override
@@ -132,7 +132,7 @@ class _MaintenanceEventRepository implements EventRepository {
   Future<void> updateEvent(Event event) => throw UnimplementedError();
 }
 
-class _MaintenanceSessionRepository implements SessionRepository {
+class _MaintenanceSessionRepository extends SessionRepository {
   int pruneCount = 0;
 
   @override

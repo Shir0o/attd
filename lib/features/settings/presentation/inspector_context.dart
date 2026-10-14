@@ -5,71 +5,10 @@ import '../../../core/design/widgets/conv_theme.dart';
 import '../../../data/session.dart';
 import '../../../data/session_record.dart';
 import '../../attendance/models/attendance_status.dart';
-import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
-import '../../hub/domain/event.dart';
 
-/// Lookups the storage inspector uses to explain a record in context: the
-/// session a mark sits in, what else was recorded for the same event and
-/// date, and which live members a dangling mark could belong to.
-class InspectorIndex {
-  InspectorIndex({
-    required this.events,
-    required this.sessions,
-    required this.families,
-  });
-
-  final List<Event> events;
-  final List<Session> sessions;
-  final List<Family> families;
-
-  static String slotOf(Session s) =>
-      '${s.title.trim().toLowerCase()}|${DateFormat('yyyy-MM-dd').format(s.sessionDate)}';
-
-  Session? session(String? id) {
-    for (final s in sessions) {
-      if (s.id == id) return s;
-    }
-    return null;
-  }
-
-  Event? event(String? id) {
-    for (final e in events) {
-      if (e.id == id) return e;
-    }
-    return null;
-  }
-
-  /// Other live sessions for the same event title and date.
-  List<Session> siblings(Session s) => sessions
-      .where((o) => o.id != s.id && o.deletedAt == null && slotOf(o) == slotOf(s))
-      .toList();
-
-  bool isLiveMember(String? id) => liveMembers().any((m) => m.$1.id == id);
-
-  List<(Member, Family)> liveMembers() => [
-        for (final f in families)
-          if (f.deletedAt == null)
-            for (final m in f.members)
-              if (m.deletedAt == null) (m, f),
-      ];
-
-  /// Live members whose display or canonical name matches [name].
-  List<(Member, Family)> liveMembersNamed(String name) {
-    final n = name.trim().toLowerCase();
-    return liveMembers()
-        .where((e) =>
-            e.$1.displayName.trim().toLowerCase() == n ||
-            e.$1.canonicalName.trim().toLowerCase() == n)
-        .toList();
-  }
-
-  /// Index of the mark in [s] identified by its person and recorded-at time.
-  static int markIndex(Session s, {String? memberId, required String attendee, required int recordedAtMs}) =>
-      s.records.indexWhere((r) =>
-          (memberId != null ? r.memberId == memberId : r.attendee == attendee) &&
-          r.recordedAt.millisecondsSinceEpoch == recordedAtMs);
-}
+import '../domain/storage_inspector.dart';
+export '../domain/storage_inspector.dart' show InspectorIndex;
 
 String _sessionLine(Session s) =>
     '${s.title} · ${DateFormat('MMM d, yyyy').format(s.sessionDate)} · '

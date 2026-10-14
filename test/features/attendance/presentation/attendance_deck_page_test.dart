@@ -70,7 +70,7 @@ class MockAttendanceRepository extends AttendanceRepository {
   }
 }
 
-class MockEventRepository implements EventRepository {
+class MockEventRepository extends EventRepository {
   final List<Event> _events = [];
   final List<Event> updateCalls = [];
 
@@ -110,7 +110,7 @@ class MockEventRepository implements EventRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class MockSessionRepository implements SessionRepository {
+class MockSessionRepository extends SessionRepository {
   List<Session> savedSessions = [];
   final List<String> deleteCalls = [];
 
