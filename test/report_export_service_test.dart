@@ -11,7 +11,7 @@ import 'package:attendance_tracker/features/reports/report_models.dart';
 import 'package:attendance_tracker/features/reports/sheets_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _FakeSessionRepository implements SessionRepository {
+class _FakeSessionRepository extends SessionRepository {
   _FakeSessionRepository(this.sessions);
 
   final List<Session> sessions;

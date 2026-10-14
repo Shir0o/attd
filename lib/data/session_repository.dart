@@ -31,4 +31,10 @@ abstract class SessionRepository {
 
   /// Permanently removes items that were marked as deleted before [threshold].
   Future<void> pruneSoftDeleted(DateTime threshold);
+
+  /// Fetches all sessions including soft-deleted ones (tombstones).
+  Future<List<Session>> fetchAllSessions() => loadSessions();
+
+  /// Persists a batch of sessions.
+  Future<void> saveSessions(List<Session> sessions) => throw UnimplementedError();
 }

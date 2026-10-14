@@ -53,7 +53,7 @@ class MockAttendanceRepository extends AttendanceRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class MockEventRepository implements EventRepository {
+class MockEventRepository extends EventRepository {
   final _controller = StreamController<List<Event>>.broadcast();
   List<Event> _events = [];
 
@@ -102,9 +102,18 @@ class MockEventRepository implements EventRepository {
 
   @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
+
+  @override
+  Future<List<Event>> fetchAllEvents() async => _events;
+
+  @override
+  Future<void> saveEvents(List<Event> events) async {
+    _events = List.from(events);
+    _controller.add(_events);
+  }
 }
 
-class MockSessionRepository implements SessionRepository {
+class MockSessionRepository extends SessionRepository {
   final _controller = StreamController<List<Session>>.broadcast();
   List<Session> _sessions = [];
 
@@ -194,6 +203,15 @@ class MockSessionRepository implements SessionRepository {
 
   @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
+
+  @override
+  Future<List<Session>> fetchAllSessions() async => _sessions;
+
+  @override
+  Future<void> saveSessions(List<Session> sessions) async {
+    _sessions = List.from(sessions);
+    _controller.add(_sessions);
+  }
 }
 
 class MockAuthRepository implements AuthRepository {

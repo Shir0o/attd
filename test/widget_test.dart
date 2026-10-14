@@ -24,7 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class MockEventRepository implements EventRepository {
+class MockEventRepository extends EventRepository {
   final _controller = StreamController<List<Event>>.broadcast();
 
   void emit(List<Event> events) {
@@ -84,7 +84,7 @@ class MockAttendanceRepository extends AttendanceRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class MockSessionRepository implements SessionRepository {
+class MockSessionRepository extends SessionRepository {
   @override
   Stream<List<Session>> streamSessions() {
     return Stream.value([]);

@@ -146,11 +146,13 @@ class LocalJsonEventRepository implements EventRepository {
     _controller.add(_cache.where((e) => e.deletedAt == null).toList());
   }
 
+  @override
   Future<List<Event>> fetchAllEvents() async {
     await _init();
     return List<Event>.from(_cache);
   }
 
+  @override
   Future<void> saveEvents(List<Event> events) async {
     _cache = List<Event>.from(events);
     await _save();

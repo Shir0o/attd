@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../helpers/mocks.dart';
 
-class _EventRepository implements EventRepository {
+class _EventRepository extends EventRepository {
   final List<Event> events;
   Object? createError;
   Object? updateError;
@@ -71,7 +71,7 @@ class _EventRepository implements EventRepository {
   }
 }
 
-class _SessionRepository implements SessionRepository {
+class _SessionRepository extends SessionRepository {
   final List<Session> sessions;
 
   _SessionRepository(this.sessions);

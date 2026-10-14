@@ -71,7 +71,7 @@ class MockAttendanceRepository extends AttendanceRepository {
   }
 }
 
-class MockEventRepository implements EventRepository {
+class MockEventRepository extends EventRepository {
   Event? event;
   final List<Event> updatedEvents = [];
   Object? updateError;
@@ -880,7 +880,7 @@ void main() {
   });
 }
 
-class _StubSessionRepository implements SessionRepository {
+class _StubSessionRepository extends SessionRepository {
   _StubSessionRepository({this.sessions = const []});
 
   final List<Session> sessions;

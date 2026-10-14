@@ -15,7 +15,7 @@ import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class MockSessionRepository implements SessionRepository {
+class MockSessionRepository extends SessionRepository {
   final List<Session> _sessions = [];
   final StreamController<List<Session>> _streamController = StreamController();
 
@@ -145,7 +145,7 @@ class MockAttendanceRepository extends AttendanceRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
-class MockEventRepository implements EventRepository {
+class MockEventRepository extends EventRepository {
   final List<Event> _events = [];
   final _controller = StreamController<List<Event>>.broadcast();
   final List<Event> updateCalls = [];
@@ -2189,7 +2189,7 @@ void main() {
   });
 }
 
-class _ThrowingSessionRepository implements SessionRepository {
+class _ThrowingSessionRepository extends SessionRepository {
   Session? _seeded;
   void seed(Session s) => _seeded = s;
 

@@ -6,54 +6,22 @@ import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_primitives.dart';
 import '../../../core/design/widgets/conv_theme.dart';
+import '../../../core/design/widgets/skeleton_switcher.dart';
 import '../../../core/logging/app_logger.dart';
-import '../../attendance/data/attendance_repository.dart';
-import '../../attendance/models/attendance_status.dart';
-import '../../attendance/models/family.dart';
-import '../../attendance/models/member.dart';
-import '../../hub/data/event_repository.dart';
-import '../../hub/data/local_event_repository.dart';
-import '../../hub/domain/event.dart';
+import '../../../core/maintenance/bulk_maintenance_service.dart';
 import '../../../data/session.dart';
 import '../../../data/session_record.dart';
-import '../../../data/local_session_repository.dart';
 import '../../../data/session_repository.dart';
-import '../../../core/maintenance/bulk_maintenance_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../attendance/data/attendance_repository.dart';
+import '../../attendance/models/attendance_status.dart';
+import '../../attendance/models/member.dart';
+import '../../hub/data/event_repository.dart';
+import '../domain/storage_inspector.dart';
 import 'inspector_context.dart';
-import '../../../core/design/widgets/skeleton_switcher.dart';
+
+export '../domain/storage_inspector.dart' show DbRecord, StorageInspector;
 
 final _log = AppLogger('ManageBackup');
-
-/// Suggestions the user marked "Not an issue" (DbRecord.uniqueKey values).
-/// Device-local: dismissing never changes synced data.
-const _dismissedPrefsKey = 'inspector_dismissed_suggestions';
-
-class DbRecord {
-  DbRecord({
-    required this.id,
-    required this.table,
-    required this.title,
-    required this.meta,
-    this.flag,
-    this.note,
-    required this.fields,
-  });
-
-  final String id;
-  final String table; // 'events', 'sessions', 'members', 'families', 'photos', 'attendance'
-  final String title;
-  final String meta;
-  final String? flag; // 'hidden' | 'orphan' | 'duplicate' | null
-  final String? note;
-  final Map<String, String> fields;
-
-  String get uniqueKey => '${table}_$id';
-
-  /// Soft-deleted records are already gone from the app and are pruned by
-  /// data maintenance, so only the other flags count as cleanup issues.
-  bool get isIssue => flag != null && flag != 'hidden';
-}
 
 class ManageBackupDataPage extends StatefulWidget {
   const ManageBackupDataPage({
@@ -61,12 +29,14 @@ class ManageBackupDataPage extends StatefulWidget {
     required this.attendanceRepository,
     required this.eventRepository,
     required this.sessionRepository,
+    this.inspector,
     this.disableAnimations = false,
   });
 
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
   final SessionRepository sessionRepository;
+  final StorageInspector? inspector;
   final bool disableAnimations;
 
   @override
@@ -76,22 +46,22 @@ class ManageBackupDataPage extends StatefulWidget {
 class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
-
-  List<Family> _families = [];
-  List<Event> _events = [];
-  List<Session> _sessions = [];
-  List<DbRecord> _allRecords = [];
-  final Map<String, List<({String title, DateTime date})>> _memberUsageMap = {};
+  late final StorageInspector _inspector;
 
   String _selectedTable = 'all';
   bool _issuesOnly = false;
   String _searchQuery = '';
   String? _openRecordId;
-  final Set<String> _dismissed = {};
 
   @override
   void initState() {
     super.initState();
+    _inspector = widget.inspector ??
+        StorageInspector(
+          attendanceRepository: widget.attendanceRepository,
+          eventRepository: widget.eventRepository,
+          sessionRepository: widget.sessionRepository,
+        );
     _loadData();
   }
 
@@ -105,46 +75,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     final startTime = DateTime.now();
     setState(() => _isLoading = true);
     try {
-      List<Family> families = [];
-      List<Event> events = [];
-      List<Session> sessions = [];
-
-      // Load using dynamic invocations or concrete casts
-      final attRepo = widget.attendanceRepository;
-      if (attRepo is LocalJsonAttendanceRepository) {
-        families = await attRepo.fetchAllFamilies();
-      } else {
-        try {
-          families = await (attRepo as dynamic).fetchAllFamilies();
-        } catch (_) {
-          families = await attRepo.fetchFamilies();
-        }
-      }
-
-      final evRepo = widget.eventRepository;
-      if (evRepo is LocalJsonEventRepository) {
-        events = await evRepo.fetchAllEvents();
-      } else {
-        try {
-          events = await (evRepo as dynamic).fetchAllEvents();
-        } catch (_) {
-          events = await evRepo.streamEvents().first;
-        }
-      }
-
-      final sesRepo = widget.sessionRepository;
-      if (sesRepo is LocalJsonSessionRepository) {
-        sessions = await sesRepo.fetchAllSessions();
-      } else {
-        try {
-          sessions = await (sesRepo as dynamic).fetchAllSessions();
-        } catch (_) {
-          sessions = await sesRepo.loadSessions();
-        }
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      final dismissed = prefs.getStringList(_dismissedPrefsKey) ?? const <String>[];
+      await _inspector.scan();
 
       // Minimum loading duration for visual consistency
       final elapsed = DateTime.now().difference(startTime);
@@ -154,13 +85,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       }
 
       if (mounted) {
-        setState(() {
-          _dismissed
-            ..clear()
-            ..addAll(dismissed);
-          _applyData(families, events, sessions);
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     } catch (e, st) {
       _log.error('Failed to load backup data', e, st);
@@ -170,261 +95,24 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     }
   }
 
-  void _applyData(List<Family> families, List<Event> events, List<Session> sessions) {
-    _families = families;
-    _events = events;
-    _sessions = sessions;
-    _memberUsageMap.clear();
-    for (final session in sessions) {
-      if (session.deletedAt != null) continue;
-      for (final record in session.records) {
-        if (record.memberId != null) {
-          _memberUsageMap
-              .putIfAbsent(record.memberId!, () => [])
-              .add((title: session.title, date: session.sessionDate));
-        }
-      }
-    }
-    _rebuildDbRecords();
-  }
-
-  void _rebuildDbRecords() {
-    final List<DbRecord> records = [];
-
-    // Map Events
-    for (final event in _events) {
-      final isDeleted = event.deletedAt != null;
-      records.add(DbRecord(
-        id: event.id,
-        table: 'events',
-        title: event.title,
-        meta: '${event.repeatingDays.isNotEmpty ? event.repeatingDays.map((d) => d.substring(0, 3)).join(', ') : event.frequency} · ${event.time.hour.toString().padLeft(2, '0')}:${event.time.minute.toString().padLeft(2, '0')}',
-        flag: isDeleted ? 'hidden' : null,
-        note: isDeleted ? 'This event is soft-deleted and hidden in the main app.' : null,
-        fields: {
-          'id': event.id,
-          'title': event.title,
-          'frequency': event.frequency,
-          'days': event.repeatingDays.toString(),
-          'time': '${event.time.hour.toString().padLeft(2, '0')}:${event.time.minute.toString().padLeft(2, '0')}',
-          'members': '${event.memberIds.length}',
-          'date': DateFormat('yyyy-MM-dd').format(event.createdAt),
-          'created': DateFormat('yyyy-MM-dd HH:mm').format(event.createdAt),
-          'deletedAt': event.deletedAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(event.deletedAt!) : 'null',
-        },
-      ));
-    }
-
-    // Map Sessions
-    for (final session in _sessions) {
-      final isDeleted = session.deletedAt != null;
-      final eventExists = session.eventId == null || _events.any((e) => e.id == session.eventId && e.deletedAt == null);
-
-      String? flag;
-      String? note;
-      if (isDeleted) {
-        flag = 'hidden';
-        note = 'This session is soft-deleted and hidden in the main app.';
-      } else if (!eventExists) {
-        flag = 'orphan';
-        note = 'This session references event ID ${session.eventId}, which is not in the database or is deleted.';
-      } else if (session.records.isEmpty) {
-        flag = 'orphan';
-        note = 'This session is empty and has no attendance records.';
-      }
-
-      records.add(DbRecord(
-        id: session.id,
-        table: 'sessions',
-        title: session.title,
-        meta: '${session.records.length} marks · ${DateFormat('MMM dd, yyyy').format(session.sessionDate)}',
-        flag: flag,
-        note: note,
-        fields: {
-          'id': session.id,
-          'event_id': session.eventId ?? '—',
-          'date': DateFormat('yyyy-MM-dd').format(session.sessionDate),
-          'formatted_date': DateFormat('MMM dd, yyyy').format(session.sessionDate),
-          'records': '${session.records.length}',
-          'created_by': session.createdBy,
-          'deletedAt': session.deletedAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(session.deletedAt!) : 'null',
-        },
-      ));
-    }
-
-    // Helper set for member exist check
-    final activeMemberIds = _families
-        .expand((f) => f.members)
-        .where((m) => m.deletedAt == null && (_families.firstWhere((fam) => fam.members.contains(m)).deletedAt == null))
-        .map((m) => m.id)
-        .toSet();
-
-    // Map Members
-    final seenMemberIds = <String>{};
-    for (final family in _families) {
-      for (final member in family.members) {
-        if (!seenMemberIds.add(member.id)) continue;
-        final isDeleted = member.deletedAt != null || family.deletedAt != null;
-        records.add(DbRecord(
-          id: member.id,
-          table: 'members',
-          title: member.displayName,
-          meta: 'Family: ${family.displayName}',
-          flag: isDeleted ? 'hidden' : null,
-          note: isDeleted ? 'This member is soft-deleted or belongs to a soft-deleted family.' : null,
-          fields: {
-            'id': member.id,
-            'name': member.displayName,
-            'family_id': family.id,
-            'isVisitor': '${member.isVisitor}',
-            'deletedAt': member.deletedAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(member.deletedAt!) : 'null',
-          },
-        ));
-      }
-    }
-
-    // Map Families
-    for (final family in _families) {
-      final isDeleted = family.deletedAt != null;
-      final isEmpty = family.members.isEmpty;
-
-      String? flag;
-      String? note;
-      if (isDeleted) {
-        flag = 'hidden';
-        note = 'This family is soft-deleted and hidden in the main app.';
-      } else if (isEmpty) {
-        flag = 'orphan';
-        note = 'This family group has no members.';
-      }
-
-      records.add(DbRecord(
-        id: family.id,
-        table: 'families',
-        title: family.displayName,
-        meta: '${family.members.length} members',
-        flag: flag,
-        note: note,
-        fields: {
-          'id': family.id,
-          'name': family.displayName,
-          'isAutoSingleton': '${family.isAutoSingleton}',
-          'members': '${family.members.length}',
-          'deletedAt': family.deletedAt != null ? DateFormat('yyyy-MM-dd HH:mm').format(family.deletedAt!) : 'null',
-        },
-      ));
-    }
-
-    // Map Attendance (marks) & Track Duplicates (event name + date + attendant name match)
-    final Map<String, String> seenAttendanceKeys = {};
-    for (final session in _sessions) {
-      final sessionDateStr = DateFormat('yyyy-MM-dd').format(session.sessionDate);
-      final sessionDateFormatted = DateFormat('MMM dd, yyyy').format(session.sessionDate);
-
-      for (final record in session.records) {
-        final isSessionDeleted = session.deletedAt != null;
-        final isMemberDeleted = record.memberId != null && !activeMemberIds.contains(record.memberId);
-        final compositeKey = '${session.title.trim().toLowerCase()}|$sessionDateStr|${record.attendee.trim().toLowerCase()}';
-
-        String? flag;
-        String? note;
-        if (isSessionDeleted) {
-          flag = 'hidden';
-          note = 'This attendance mark belongs to a soft-deleted session.';
-        } else if (isMemberDeleted) {
-          flag = 'orphan';
-          note = 'This attendance mark references member ID ${record.memberId}, who has been deleted or is missing from the roster.';
-        } else if (seenAttendanceKeys.containsKey(compositeKey)) {
-          flag = 'duplicate';
-          note = 'Duplicate attendance entry detected: matches event "${session.title}", date "$sessionDateStr", and attendant "${record.attendee}".';
-        } else {
-          seenAttendanceKeys[compositeKey] = '${session.id}_${record.memberId ?? record.attendee}';
-        }
-
-        final recordKey = '${session.id}_${record.memberId ?? record.attendee}_${record.recordedAt.millisecondsSinceEpoch}';
-
-        records.add(DbRecord(
-          id: recordKey,
-          table: 'attendance',
-          title: 'mark · ${record.status.name}',
-          meta: '${session.title} · ${record.attendee} · $sessionDateFormatted',
-          flag: flag,
-          note: note,
-          fields: {
-            'session_id': session.id,
-            'member_id': record.memberId ?? '—',
-            'attendee': record.attendee,
-            'status': record.status.name,
-            'date': sessionDateStr,
-            'formatted_date': sessionDateFormatted,
-            'recordedAt': DateFormat('yyyy-MM-dd HH:mm:ss').format(record.recordedAt),
-            'recordedAtMs': '${record.recordedAt.millisecondsSinceEpoch}',
-            'recordedBy': record.recordedBy,
-          },
-        ));
-      }
-    }
-
-    _allRecords = records;
-  }
-
-  bool _needsReview(DbRecord r) => r.isIssue && !_dismissed.contains(r.uniqueKey);
+  bool _needsReview(DbRecord r) => _inspector.needsReview(r);
 
   Future<void> _setDismissed(DbRecord r, bool dismissed) async {
-    setState(() {
-      if (dismissed) {
-        _dismissed.add(r.uniqueKey);
-      } else {
-        _dismissed.remove(r.uniqueKey);
-      }
-    });
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_dismissedPrefsKey, _dismissed.toList());
+    await _inspector.setDismissed(r, dismissed);
+    if (mounted) setState(() {});
   }
 
-  Future<void> _save(_Draft d) async {
-    final saves = <Future<void>>[];
-    if (d.touchedEvents.isNotEmpty) {
-      final evRepo = widget.eventRepository;
-      if (evRepo is LocalJsonEventRepository) {
-        saves.add(evRepo.saveEvents(d.events));
-      } else {
-        saves.add((evRepo as dynamic).saveEvents(d.events));
-      }
-    }
-    if (d.touchedSessions.isNotEmpty) {
-      final sesRepo = widget.sessionRepository;
-      if (sesRepo is LocalJsonSessionRepository) {
-        saves.add(sesRepo.saveSessions(d.sessions));
-      } else {
-        saves.add((sesRepo as dynamic).saveSessions(d.sessions));
-      }
-    }
-    if (d.touchedFamilies.isNotEmpty) {
-      saves.add(widget.attendanceRepository.saveFamilies(d.families));
-    }
-    await Future.wait(saves);
-    if (mounted) {
-      setState(() => _applyData(d.families, d.events, d.sessions));
-    }
-  }
-
-  /// Applies [edit] to working copies of the data, saves what it touched, and
-  /// offers Undo. Edits bump updatedAt (and deletions leave tombstones) so the
-  /// change wins the next Drive merge instead of being re-added from the cloud.
-  Future<void> _mutate(String message, void Function(_Draft d) edit) async {
-    final before = _Draft(_events, _sessions, _families);
-    final after = _Draft(_events, _sessions, _families);
+  Future<void> _mutate(String message, Future<void> Function() action) async {
     try {
-      edit(after);
-      await _save(after);
+      await action();
       if (!mounted) return;
+      setState(() {});
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           content: Text(message),
           duration: const Duration(seconds: 5),
-          action: SnackBarAction(label: 'Undo', onPressed: () => _undo(before, after)),
+          action: SnackBarAction(label: 'Undo', onPressed: _undo),
         ));
     } catch (e, st) {
       _log.error('Failed to update records', e, st);
@@ -435,111 +123,27 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     }
   }
 
-  /// Puts back the entities [after] touched as they were in [before], with a
-  /// fresh updatedAt so the restore also wins the next Drive merge.
-  Future<void> _undo(_Draft before, _Draft after) async {
-    final now = DateTime.now();
-    final d = _Draft(_events, _sessions, _families);
-    for (final id in after.touchedEvents) {
-      final prev = before.events.where((e) => e.id == id).firstOrNull;
-      prev == null ? d.removeEvent(id) : d.putEvent(prev.copyWith(updatedAt: now));
-    }
-    for (final id in after.touchedSessions) {
-      final prev = before.sessions.where((s) => s.id == id).firstOrNull;
-      prev == null ? d.removeSession(id) : d.putSession(prev.copyWith(updatedAt: now));
-    }
-    for (final id in after.touchedFamilies) {
-      final prev = before.families.where((f) => f.id == id).firstOrNull;
-      prev == null ? d.removeFamily(id) : d.putFamily(prev.copyWith(updatedAt: now));
-    }
+  Future<void> _undo() async {
     try {
-      await _save(d);
+      await _inspector.undo();
+      if (mounted) setState(() {});
     } catch (e, st) {
       _log.error('Failed to undo', e, st);
     }
   }
 
-  Future<void> _delete(DbRecord r) {
-    final now = DateTime.now();
-    return _mutate(r.table == 'attendance' ? 'Mark deleted' : 'Deleted ${r.title}', (d) {
-      switch (r.table) {
-        case 'events':
-          final e = d.events.firstWhere((e) => e.id == r.id);
-          e.deletedAt == null ? d.putEvent(e.copyWith(deletedAt: now, updatedAt: now)) : d.removeEvent(e.id);
-        case 'sessions':
-          final s = d.sessions.firstWhere((s) => s.id == r.id);
-          s.deletedAt == null ? d.putSession(s.copyWith(deletedAt: now, updatedAt: now)) : d.removeSession(s.id);
-        case 'families':
-          final f = d.families.firstWhere((f) => f.id == r.id);
-          f.deletedAt == null ? d.putFamily(f.copyWith(deletedAt: now, updatedAt: now)) : d.removeFamily(f.id);
-        case 'members':
-          for (final f in d.families.where((f) => f.members.any((m) => m.id == r.id)).toList()) {
-            d.putFamily(f.copyWith(
-              members: [
-                for (final m in f.members)
-                  if (m.id != r.id)
-                    m
-                  else if (m.deletedAt == null)
-                    m.copyWith(deletedAt: now, updatedAt: now),
-              ],
-              updatedAt: now,
-            ));
-          }
-        case 'attendance':
-          final s = d.sessions.firstWhere((s) => s.id == r.fields['session_id']);
-          final i = _markIndex(s, r);
-          if (i != -1) {
-            d.putSession(s.copyWith(records: [...s.records]..removeAt(i), updatedAt: now));
-          }
-      }
-    });
-  }
+  Future<void> _delete(DbRecord r) =>
+      _mutate(r.table == 'attendance' ? 'Mark deleted' : 'Deleted ${r.title}',
+          () => _inspector.deleteRecord(r));
 
-  Future<void> _restore(DbRecord r) {
-    final now = DateTime.now();
-    return _mutate('Restored ${r.title}', (d) {
-      switch (r.table) {
-        case 'events':
-          final e = d.events.firstWhere((e) => e.id == r.id);
-          d.putEvent(e.copyWith(clearDeletedAt: true, updatedAt: now));
-        case 'sessions':
-          final s = d.sessions.firstWhere((s) => s.id == r.id);
-          d.putSession(s.copyWith(clearDeletedAt: true, updatedAt: now));
-        case 'families':
-          final f = d.families.firstWhere((f) => f.id == r.id);
-          d.putFamily(f.copyWith(clearDeletedAt: true, updatedAt: now));
-        case 'members':
-          final f = d.families.firstWhere((f) => f.members.any((m) => m.id == r.id));
-          d.putFamily(f.copyWith(
-            clearDeletedAt: true,
-            updatedAt: now,
-            members: [
-              for (final m in f.members)
-                m.id == r.id ? m.copyWith(clearDeletedAt: true, updatedAt: now) : m,
-            ],
-          ));
-      }
-    });
-  }
+  Future<void> _restore(DbRecord r) =>
+      _mutate('Restored ${r.title}', () => _inspector.restoreRecord(r));
 
-  Future<void> _editMark(DbRecord r, String message, SessionRecord Function(SessionRecord mark) change) {
-    return _mutate(message, (d) {
-      final s = d.sessions.firstWhere((s) => s.id == r.fields['session_id']);
-      final i = _markIndex(s, r);
-      if (i == -1) return;
-      d.putSession(s.copyWith(
-        records: [...s.records]..[i] = change(s.records[i]),
-        updatedAt: DateTime.now(),
-      ));
-    });
-  }
+  Future<void> _editMark(
+          DbRecord r, String message, SessionRecord Function(SessionRecord mark) change) =>
+      _mutate(message, () => _inspector.editMark(r, change));
 
-  int _markIndex(Session s, DbRecord r) => InspectorIndex.markIndex(
-        s,
-        memberId: r.fields['member_id'] == '—' ? null : r.fields['member_id'],
-        attendee: r.fields['attendee']!,
-        recordedAtMs: int.parse(r.fields['recordedAtMs']!),
-      );
+  int _markIndex(Session s, DbRecord r) => _inspector.markIndex(s, r);
 
   Widget? _detailsFor(DbRecord r, InspectorIndex index) {
     if (r.table == 'sessions') {
@@ -676,7 +280,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       );
       if (confirmed != true) return;
     } else if (r.table == 'members') {
-      final linkedSessions = _memberUsageMap[r.id] ?? [];
+      final linkedSessions = _inspector.memberUsageMap[r.id] ?? [];
       if (linkedSessions.isNotEmpty) {
         final confirmed = await showDialog<bool>(
           context: context,
@@ -792,7 +396,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     final c = context.conv;
 
     // Filter out locally deleted records
-    final live = _allRecords.toList();
+    final live = _inspector.allRecords.toList();
 
     // Counts mapping
     final counts = <String, int>{'all': live.length};
@@ -802,7 +406,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
     counts['photos'] = 0;
 
     final issueTotal = live.where(_needsReview).length;
-    final inspectorIndex = InspectorIndex(events: _events, sessions: _sessions, families: _families);
+    final inspectorIndex = _inspector.index;
 
     // Filter results
     final ql = _searchQuery.trim().toLowerCase();
@@ -1555,57 +1159,6 @@ class _RecordRow extends StatelessWidget {
   }
 }
 
-/// Working copies of the inspector's data for one edit, recording which
-/// entities the edit touched so only those files are saved (and undone).
-class _Draft {
-  _Draft(List<Event> events, List<Session> sessions, List<Family> families)
-      : events = List.of(events),
-        sessions = List.of(sessions),
-        families = List.of(families);
-
-  final List<Event> events;
-  final List<Session> sessions;
-  final List<Family> families;
-  final touchedEvents = <String>{};
-  final touchedSessions = <String>{};
-  final touchedFamilies = <String>{};
-
-  static void _put<T>(List<T> list, T item, bool Function(T) same) {
-    final i = list.indexWhere(same);
-    i == -1 ? list.add(item) : list[i] = item;
-  }
-
-  void putEvent(Event e) {
-    _put(events, e, (x) => x.id == e.id);
-    touchedEvents.add(e.id);
-  }
-
-  void removeEvent(String id) {
-    events.removeWhere((e) => e.id == id);
-    touchedEvents.add(id);
-  }
-
-  void putSession(Session s) {
-    _put(sessions, s, (x) => x.id == s.id);
-    touchedSessions.add(s.id);
-  }
-
-  void removeSession(String id) {
-    sessions.removeWhere((s) => s.id == id);
-    touchedSessions.add(id);
-  }
-
-  void putFamily(Family f) {
-    _put(families, f, (x) => x.id == f.id);
-    touchedFamilies.add(f.id);
-  }
-
-  void removeFamily(String id) {
-    families.removeWhere((f) => f.id == id);
-    touchedFamilies.add(id);
-  }
-}
-
 enum _BulkMode { merge, rename }
 
 class _BulkMaintenanceModal extends StatefulWidget {
@@ -1657,9 +1210,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
     setState(() => _isLoading = true);
     try {
       final attRepo = widget.attendanceRepository;
-      final families = attRepo is LocalJsonAttendanceRepository
-          ? await attRepo.fetchAllFamilies()
-          : await attRepo.fetchFamilies();
+      final families = await attRepo.fetchAllFamilies();
 
       final members = families
           .expand((f) => f.members)
@@ -1668,9 +1219,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
         ..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
 
       final sesRepo = widget.sessionRepository;
-      final sessions = sesRepo is LocalJsonSessionRepository
-          ? await sesRepo.fetchAllSessions()
-          : await sesRepo.loadSessions();
+      final sessions = await sesRepo.fetchAllSessions();
 
       final attendees = <String>{};
       for (final s in sessions) {

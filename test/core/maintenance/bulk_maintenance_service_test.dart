@@ -18,6 +18,7 @@ class _MockAttendanceRepository extends AttendanceRepository {
   @override
   Future<List<Family>> fetchFamilies() async => families;
 
+  @override
   Future<List<Family>> fetchAllFamilies() async => families;
 
   @override
