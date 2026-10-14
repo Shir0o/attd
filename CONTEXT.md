@@ -107,3 +107,20 @@ _Avoid_: Join date, member since, signup date
 **Insights Configuration**:
 The per-event presets governing what Insights computes and shows — viewing range, Regular threshold and window, Lapsed rule, and section visibility — stored on the Event beside the existing roster grouping and marking mode presets. A preset, not derived data. Read-only on a Shared Event the user does not own.
 _Avoid_: Stats settings, dashboard preferences
+
+**Attendance Marking Session**:
+The in-process domain module and state coordinator governing active attendance recording, optimistic persistence serialization, undo history, and member/guest identity resolution for a session.
+_Avoid_: Deck state, attendance controller, marking manager
+
+**Storage Inspector**:
+The diagnostic engine that scans repository data for Review Suggestions, tombstones, orphaned records, and duplicate collisions without dynamic casts into storage implementations.
+_Avoid_: Cleanup tool, DB cleaner, backup manager
+
+**Active Roster Index**:
+The in-memory search, query, and ranking index derived from an Event Roster and historical sessions, providing tokenized surname matching, initials lookup, and likelihood ordering behind a single query interface.
+_Avoid_: Search helper, initials indexer, likelihood cache
+
+**Shared Event Synchronization**:
+The ports-and-adapters synchronization coordinator that mediates between Google Drive subfolders / Shared Slices and local repositories without leaking storage schemas into UI controllers.
+_Avoid_: Drive sync, sharing helper, cloud bridge
+
