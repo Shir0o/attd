@@ -8,8 +8,8 @@ import '../../../../core/design/app_radii.dart';
 import '../../../../core/design/app_shadows.dart';
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
+import '../../domain/active_roster_index.dart';
 import '../../models/member.dart';
-import '../../utils/session_roster_utils.dart';
 import 'fast_marking_model.dart';
 
 /// Fast marking without typing: the roster as a grid of tappable names ordered
@@ -153,6 +153,7 @@ class LikelyHereView extends StatelessWidget {
                         itemBuilder: (context, i) => _LikelyChip(
                           key: _chipKey(ordered[i].id),
                           member: ordered[i],
+                          index: roster.index,
                           isPresent: roster.isPresent(ordered[i]),
                           rate: roster.rateFor(ordered[i]),
                           onTap: () => _toggle(ordered[i]),
@@ -253,6 +254,7 @@ class _LikelyChip extends StatelessWidget {
   const _LikelyChip({
     super.key,
     required this.member,
+    required this.index,
     required this.isPresent,
     required this.rate,
     required this.onTap,
@@ -260,6 +262,7 @@ class _LikelyChip extends StatelessWidget {
   });
 
   final Member member;
+  final ActiveRosterIndex index;
   final bool isPresent;
   final double? rate;
   final VoidCallback onTap;
@@ -269,12 +272,10 @@ class _LikelyChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.conv;
     final isUnranked = !isPresent && rate == null;
-    final attendeeSurname = memberLastName(member.displayName);
-    final hasDistinctSurname =
-        isUnranked && attendeeSurname.isNotEmpty && attendeeSurname != member.displayName.trim();
+    final hasDistinctSurname = isUnranked && index.hasDistinctSurname(member);
 
     final titleText =
-        hasDistinctSurname ? memberGivenName(member.displayName) : member.displayName;
+        hasDistinctSurname ? index.displayNameFor(member) : member.displayName;
 
     // Pops on press (#222 M4); the tap, and so the present fill, lands on
     // release at the bottom of the press.
@@ -340,7 +341,7 @@ class _LikelyChip extends StatelessWidget {
                 ] else if (hasDistinctSurname) ...[
                   const SizedBox(height: 2),
                   Text(
-                    attendeeSurname.toUpperCase(),
+                    index.surnameFor(member).toUpperCase(),
                     style: AppTypography.eyebrow(color: c.ink4, fontSize: 10),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

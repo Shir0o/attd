@@ -9,6 +9,7 @@ import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
+import '../domain/active_roster_index.dart';
 import '../models/attendance_start_mode.dart';
 import '../models/attendance_status.dart';
 import '../models/marking_mode.dart';
@@ -117,17 +118,28 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   /// until it arrives the surfaces simply fall back to alphabetical order.
   List<Session> _recentSessions = const [];
 
-  /// Cached likelihood for [_recentSessions]. Rebuilt only when the history
-  /// arrives, never on the rebuild that follows each mark.
-  MarkingLikelihood? _likelihood;
-  List<Session>? _likelihoodFrom;
+  /// Cached active roster index for [_sessionMembers], [_sessionFamilies], and [_recentSessions].
+  /// Rebuilt only when the history arrives or roster changes, never on the rebuild that follows each mark.
+  ActiveRosterIndex? _activeRosterIndex;
+  List<Session>? _indexSessionsFrom;
+  int _indexMembersLength = 0;
+  int _indexFamiliesLength = 0;
 
-  MarkingLikelihood get _memoisedLikelihood {
-    if (_likelihood == null || !identical(_likelihoodFrom, _recentSessions)) {
-      _likelihoodFrom = _recentSessions;
-      _likelihood = MarkingLikelihood(_sessionMembers, _recentSessions);
+  ActiveRosterIndex get _memoisedActiveRosterIndex {
+    if (_activeRosterIndex == null ||
+        !identical(_indexSessionsFrom, _recentSessions) ||
+        _indexMembersLength != _sessionMembers.length ||
+        _indexFamiliesLength != _sessionFamilies.length) {
+      _indexSessionsFrom = _recentSessions;
+      _indexMembersLength = _sessionMembers.length;
+      _indexFamiliesLength = _sessionFamilies.length;
+      _activeRosterIndex = ActiveRosterIndex(
+        members: _sessionMembers,
+        families: _sessionFamilies,
+        recentSessions: _recentSessions,
+      );
     }
-    return _likelihood!;
+    return _activeRosterIndex!;
   }
 
   final SwipeableCardController _swipeController = SwipeableCardController();
@@ -440,7 +452,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         m.displayName == resolved.displayName)) {
       setState(() {
         _sessionMembers.add(resolved);
-        _likelihood = null; // Recompute likelihood ordering with new member
+        _activeRosterIndex = null; // Recompute roster index with new member
       });
     }
     await _recordAttendance(
@@ -1111,7 +1123,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       session: _currentSession,
       members: _sessionMembers,
       families: _sessionFamilies,
-      likelihood: _memoisedLikelihood,
+      index: _memoisedActiveRosterIndex,
     );
     return switch (_markingMode) {
       MarkingMode.rapidEntry => RapidEntryView(

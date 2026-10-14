@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
+import '../../domain/active_roster_index.dart';
 import '../../models/member.dart';
-import '../../utils/session_roster_utils.dart';
 import 'fast_marking_model.dart';
 import 'fast_marking_shared.dart';
 
@@ -46,25 +46,13 @@ class _RapidEntryViewState extends State<RapidEntryView> {
     super.dispose();
   }
 
-  List<SearchEntry> get _results {
-    final all = rankedSearch(
-      widget.roster.searchEntries,
-      _query,
-      priority: widget.roster.likelihoodPriority,
-    );
-    return all.length > _maxResults ? all.sublist(0, _maxResults) : all;
-  }
+  List<SearchEntry> get _results =>
+      widget.roster.index.search(_query, limit: _maxResults);
 
   /// True when the return key should act: either a single result, or a top hit
   /// that matches strictly better than the runner-up.
-  bool _isUnambiguous(List<SearchEntry> results) {
-    if (results.length == 1) return true;
-    if (results.length < 2) return false;
-    final first = searchRank(results[0], _query);
-    final second = searchRank(results[1], _query);
-    if (first == null || second == null) return false;
-    return first < second;
-  }
+  bool _isUnambiguous(List<SearchEntry> results) =>
+      widget.roster.index.isUnambiguous(_query, results);
 
   Future<void> _mark(Member member) async {
     final wasPresent = widget.roster.isPresent(member);

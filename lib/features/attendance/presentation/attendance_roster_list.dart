@@ -5,6 +5,7 @@ import '../../../core/design/app_radii.dart';
 import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
+import '../domain/active_roster_index.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
@@ -134,16 +135,29 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     super.dispose();
   }
 
+  late ActiveRosterIndex _rosterIndex = _buildIndex();
+
+  ActiveRosterIndex _buildIndex() {
+    final allMembers =
+        widget.families.expand((f) => f.members).toList(growable: false);
+    return ActiveRosterIndex(members: allMembers, families: widget.families);
+  }
+
+  @override
+  void didUpdateWidget(AttendanceRosterList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.families != oldWidget.families) {
+      _rosterIndex = _buildIndex();
+    }
+  }
+
   SessionRoster _buildRoster() {
     final allMembers =
         widget.families.expand((f) => f.members).toList(growable: false);
     return SessionRoster(widget.session, allMembers);
   }
 
-  bool _matchesQuery(String value) {
-    if (_query.isEmpty) return true;
-    return value.toLowerCase().contains(_query);
-  }
+  bool _matchesQuery(String value) => _rosterIndex.matches(value, _query);
 
   Future<void> _openMarkEveryone(
     BuildContext context,

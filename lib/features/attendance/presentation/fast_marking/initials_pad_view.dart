@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../models/member.dart';
-import '../../utils/session_roster_utils.dart';
 import 'fast_marking_model.dart';
 import 'fast_marking_shared.dart';
 
@@ -46,7 +45,8 @@ class _InitialsPadViewState extends State<InitialsPadView> {
   String? _first;
   String? _last;
 
-  Map<String, Set<String>> get _index => initialsIndex(widget.roster.unmarked);
+  Map<String, Set<String>> get _index =>
+      widget.roster.index.initialsIndex(widget.roster.unmarked);
 
   /// The letters still worth tapping at the current stage.
   Set<String> get _enabled {
@@ -62,7 +62,7 @@ class _InitialsPadViewState extends State<InitialsPadView> {
     final unmarked = <Member>[];
     final marked = <Member>[];
     for (final m in widget.roster.members) {
-      final initials = nameInitials(m.displayName);
+      final initials = widget.roster.index.initialsFor(m);
       if (initials.first != _first) continue;
       if (_last != null && initials.last != _last) continue;
       (widget.roster.isPresent(m) ? marked : unmarked).add(m);
