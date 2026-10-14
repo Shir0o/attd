@@ -17,6 +17,7 @@ import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
+import 'package:attendance_tracker/features/hub/domain/shared_event_sync.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ import 'package:intl/intl.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class MockSharedEventSync extends Mock implements SharedEventSync {}
 class MockDriveApi extends Mock implements drive.DriveApi {}
 class MockFilesResource extends Mock implements drive.FilesResource {}
 class MockPermissionsResource extends Mock implements drive.PermissionsResource {}
@@ -206,6 +208,7 @@ void main() {
   Future<void> pumpView(
     WidgetTester tester, {
     DriveService? driveService,
+    SharedEventSync? sharedEventSync,
     bool disableAnimations = true,
     bool systemDisableAnimations = false,
     bool snapPages = false,
@@ -235,6 +238,7 @@ void main() {
           eventRepository: eventRepository,
           attendanceRepository: attendanceRepository,
           driveService: driveService,
+          sharedEventSync: sharedEventSync,
           disableAnimations: disableAnimations,
         ),
       ),
@@ -1225,5 +1229,26 @@ void main() {
     // Verify ShareEventSheet is displayed
     expect(find.text('Share this event'), findsOneWidget);
     expect(find.byKey(const Key('shareEventSwitch')), findsOneWidget);
+  });
+
+  testWidgets('HubAttendanceView triggers sharedEventSync on refresh', (tester) async {
+    final mockSync = MockSharedEventSync();
+    when(() => mockSync.syncSharedEvents()).thenAnswer((_) async {});
+
+    await pumpView(tester, sharedEventSync: mockSync);
+    await tester.pumpAndSettle();
+
+    verify(() => mockSync.syncSharedEvents()).called(1);
+  });
+
+  testWidgets('HubAttendanceView catches error from sharedEventSync gracefully', (tester) async {
+    final mockSync = MockSharedEventSync();
+    when(() => mockSync.syncSharedEvents()).thenThrow(Exception('Sync failed'));
+
+    await pumpView(tester, sharedEventSync: mockSync);
+    await tester.pumpAndSettle();
+
+    verify(() => mockSync.syncSharedEvents()).called(1);
+    expect(find.byType(HubAttendanceView), findsOneWidget);
   });
 }
