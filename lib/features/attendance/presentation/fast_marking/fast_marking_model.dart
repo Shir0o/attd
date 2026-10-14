@@ -1,68 +1,63 @@
 import '../../../../data/session.dart';
+import '../../domain/active_roster_index.dart';
 import '../../models/attendance_status.dart';
 import '../../models/family.dart';
 import '../../models/member.dart';
-import '../../utils/member_default_resolver.dart';
 import '../../utils/session_roster_utils.dart';
-import 'fast_marking_shared.dart';
 
 typedef MemberMarkCallback = Future<void> Function(
     Member member, bool isPresent);
 typedef FamilyMarkCallback = Future<void> Function(
     Family family, bool isPresent);
 
-/// How likely each member is to be here, derived from session history.
-///
-/// Split out from [FastMarkingRoster] because it is the expensive half and
-/// depends only on the roster and the history, never on the marks made so far.
-/// The host holds one and reuses it: recomputing an attendance rate per member
-/// per keystroke is far too much work on the large rosters this exists for.
+/// Compatibility bridge for [MarkingLikelihood] backed by [ActiveRosterIndex].
 class MarkingLikelihood {
   MarkingLikelihood(List<Member> members, List<Session> recentSessions)
-    : rates = {
-        for (final m in members) m.id: attendanceRate(m.id, recentSessions),
-      } {
-    final ranked = rankByLikelihood(members, recentSessions);
-    for (var i = 0; i < ranked.length; i++) {
-      order[ranked[i].id] = i;
-    }
-  }
+      : this.fromIndex(
+          ActiveRosterIndex(members: members, recentSessions: recentSessions),
+        );
+
+  MarkingLikelihood.fromIndex(ActiveRosterIndex index)
+      : rates = {
+          for (final m in index.likelyHere()) m.id: index.rateFor(m),
+        },
+        order = index.likelihoodPriority;
 
   /// Member id → recent attendance rate, or null without enough history.
   final Map<String, double?> rates;
 
   /// Member id → its place in the likelihood order (most likely first).
-  final Map<String, int> order = {};
+  final Map<String, int> order;
 }
 
 /// Everything the fast marking surfaces need to *read* about a session,
 /// derived once by the host so each surface stays presentation-only.
 ///
 /// Members are exposed in likelihood order — most likely to be in the room
-/// first — because every surface either shows them that way (the grid) or uses
-/// it to break search ties.
+/// first — backed by [ActiveRosterIndex].
 class FastMarkingRoster {
   FastMarkingRoster({
     required Session session,
     required List<Member> members,
     required this.families,
-    required MarkingLikelihood likelihood,
-  }) : likelihoodPriority = likelihood.order,
-       _rateById = likelihood.rates {
+    ActiveRosterIndex? index,
+    MarkingLikelihood? likelihood,
+  })  : index = index ??
+            ActiveRosterIndex(
+              members: members,
+              families: families,
+              recentSessions: const [],
+            ),
+        likelihoodPriority = index?.likelihoodPriority ??
+            likelihood?.order ??
+            const {} {
     final roster = SessionRoster(session, members);
     final display = roster.displayMembersMap.values.toList();
 
     for (final m in display) {
       _present[m.id] = roster.getStatus(m) == AttendanceStatus.present;
     }
-    for (final f in families) {
-      for (final m in f.members) {
-        _familyNameById[m.id] = f.isAutoSingleton ? null : f.displayName;
-      }
-    }
 
-    // Display members carry the name captured on the record, so they are
-    // re-derived every build; the likelihood order they sort by is not.
     const unranked = 1 << 30;
     this.members = display
       ..sort((a, b) {
@@ -71,10 +66,13 @@ class FastMarkingRoster {
         );
         if (byOrder != 0) return byOrder;
         return a.displayName.toLowerCase().compareTo(
-          b.displayName.toLowerCase(),
-        );
+              b.displayName.toLowerCase(),
+            );
       });
   }
+
+  /// The active roster index backing query and search structures.
+  final ActiveRosterIndex index;
 
   /// Display members in likelihood order (most likely present first).
   late final List<Member> members;
@@ -86,22 +84,16 @@ class FastMarkingRoster {
   final Map<String, int> likelihoodPriority;
 
   final Map<String, bool> _present = {};
-  final Map<String, String?> _familyNameById = {};
-  final Map<String, double?> _rateById;
 
   bool isPresent(Member member) => _present[member.id] ?? false;
 
   /// The member's household, or `null` for a loner / auto-singleton bucket.
-  String? familyNameFor(Member member) => _familyNameById[member.id];
+  String? familyNameFor(Member member) => index.familyNameFor(member);
 
   /// Recent attendance rate, or `null` without enough history to rank.
-  double? rateFor(Member member) => _rateById[member.id];
+  double? rateFor(Member member) => index.rateFor(member);
 
-  String subtitleFor(Member member) => memberSubtitle(
-        familyNameFor(member),
-        rateFor(member),
-        lastName: memberLastName(member.displayName),
-      );
+  String subtitleFor(Member member) => index.subtitleFor(member);
 
   /// How many of [family] are currently marked present.
   int presentCountIn(Family family) =>
@@ -116,7 +108,6 @@ class FastMarkingRoster {
   List<Member> get unmarked =>
       members.where((m) => !isPresent(m)).toList(growable: false);
 
-  List<SearchEntry> get searchEntries => [
-        for (final m in members) (member: m, familyName: familyNameFor(m)),
-      ];
+  List<SearchEntry> get searchEntries => index.searchEntries;
 }
+

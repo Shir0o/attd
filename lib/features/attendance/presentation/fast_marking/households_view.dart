@@ -8,7 +8,6 @@ import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../models/family.dart';
 import '../../models/member.dart';
-import '../../utils/session_roster_utils.dart';
 import 'fast_marking_model.dart';
 import 'fast_marking_shared.dart';
 
@@ -52,30 +51,10 @@ class _HouseholdsViewState extends State<HouseholdsView> {
 
   /// Households whose own name, or any member's name, matches the query.
   /// Ordered by the best match any of their names achieves.
-  List<Family> get _matches {
-    if (_query.trim().isEmpty) return const [];
-    final scored = <({Family family, int rank})>[];
-    for (final family in widget.roster.families) {
-      int? best = matchRank(family.displayName, _query);
-      for (final m in family.members) {
-        final r = matchRank(m.displayName, _query);
-        if (r != null && (best == null || r < best)) best = r;
-      }
-      if (best != null && family.members.isNotEmpty) {
-        scored.add((family: family, rank: best));
-      }
-    }
-    scored.sort((a, b) {
-      if (a.rank != b.rank) return a.rank.compareTo(b.rank);
-      return a.family.displayName.toLowerCase().compareTo(
-            b.family.displayName.toLowerCase(),
-          );
-    });
-    final ordered = [for (final s in scored) s.family];
-    return ordered.length > _maxHouseholds
-        ? ordered.sublist(0, _maxHouseholds)
-        : ordered;
-  }
+  List<Family> get _matches => widget.roster.index.groupedByFamily(
+        query: _query,
+        limit: _maxHouseholds,
+      );
 
   bool _isPlainRow(Family family) => family.members.length == 1;
 
