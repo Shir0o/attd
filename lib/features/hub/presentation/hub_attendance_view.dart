@@ -37,6 +37,7 @@ import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../data/event_sharing_service.dart';
+import '../data/google_drive_shared_event_transport.dart';
 import 'share_event_sheet.dart';
 
 class HubAttendanceView extends StatefulWidget {
@@ -47,6 +48,7 @@ class HubAttendanceView extends StatefulWidget {
     required this.eventRepository,
     required this.attendanceRepository,
     this.driveService,
+    this.sharedEventSync,
     this.localBackupService,
     this.appLockController,
     this.crashReportingService,
@@ -58,6 +60,7 @@ class HubAttendanceView extends StatefulWidget {
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final DriveService? driveService;
+  final SharedEventSync? sharedEventSync;
   final LocalBackupService? localBackupService;
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
@@ -121,6 +124,20 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     });
   }
 
+  SharedEventSync? get _sharedEventSync {
+    if (widget.sharedEventSync != null) return widget.sharedEventSync;
+    final drive = widget.driveService;
+    if (drive == null || drive.driveApi == null) return null;
+    return SharedEventSync(
+      transport: GoogleDriveSharedEventTransport(
+        driveApiProvider: () => drive.driveApi,
+      ),
+      eventRepository: widget.eventRepository,
+      attendanceRepository: widget.attendanceRepository,
+      sessionRepository: widget.sessionRepository,
+    );
+  }
+
   EventSharingService? get _eventSharingService {
     final drive = widget.driveService;
     if (drive == null || drive.driveApi == null) return null;
@@ -131,13 +148,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
 
   Future<void> _refreshData() async {
     try {
-      final sharing = _eventSharingService;
-      if (sharing != null) {
-        await sharing.discoverAndIngestSharedEvents(
-          eventRepo: widget.eventRepository,
-          attendanceRepo: widget.attendanceRepository,
-          sessionRepo: widget.sessionRepository,
-        );
+      final sync = _sharedEventSync;
+      if (sync != null) {
+        await sync.syncSharedEvents();
       }
     } catch (e) {
       debugPrint('Error syncing shared events: $e');
@@ -351,8 +364,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 title: const Text('Share Event'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final sharing = _eventSharingService;
-                  if (sharing == null) {
+                  final sync = _sharedEventSync;
+                  if (sync == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Please sign in to Google Drive in Settings to share events.'),
@@ -363,7 +376,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   await ShareEventSheet.show(
                     context,
                     event: event,
-                    eventSharingService: sharing,
+                    sharedEventSync: sync,
+                    eventSharingService: _eventSharingService,
                     eventRepository: widget.eventRepository,
                     attendanceRepository: widget.attendanceRepository,
                     sessionRepository: widget.sessionRepository,

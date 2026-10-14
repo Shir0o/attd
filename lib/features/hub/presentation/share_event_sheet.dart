@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
 
 import '../../../core/design/app_radii.dart';
 import '../../../core/design/app_typography.dart';
@@ -17,14 +16,16 @@ class ShareEventSheet extends StatefulWidget {
   const ShareEventSheet({
     super.key,
     required this.event,
-    required this.eventSharingService,
+    this.sharedEventSync,
+    this.eventSharingService,
     required this.eventRepository,
     required this.attendanceRepository,
     required this.sessionRepository,
   });
 
   final Event event;
-  final EventSharingService eventSharingService;
+  final SharedEventSync? sharedEventSync;
+  final EventSharingService? eventSharingService;
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final SessionRepository sessionRepository;
@@ -32,7 +33,8 @@ class ShareEventSheet extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required Event event,
-    required EventSharingService eventSharingService,
+    SharedEventSync? sharedEventSync,
+    EventSharingService? eventSharingService,
     required EventRepository eventRepository,
     required AttendanceRepository attendanceRepository,
     required SessionRepository sessionRepository,
@@ -44,6 +46,7 @@ class ShareEventSheet extends StatefulWidget {
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (ctx) => ShareEventSheet(
         event: event,
+        sharedEventSync: sharedEventSync,
         eventSharingService: eventSharingService,
         eventRepository: eventRepository,
         attendanceRepository: attendanceRepository,
@@ -61,7 +64,7 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
   bool _isLoading = true;
   bool _isActionLoading = false;
   late Event _event;
-  List<drive.Permission> _permissions = [];
+  List<RemotePermission> _permissions = [];
 
   @override
   void initState() {
@@ -80,14 +83,32 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
     setState(() => _isLoading = true);
     if (_event.isShared && _event.sharedFolderId != null) {
       try {
-        final perms = await widget.eventSharingService.listCollaborators(
-          _event.sharedFolderId!,
-        );
+        final List<RemotePermission> perms;
+        if (widget.sharedEventSync != null) {
+          perms = await widget.sharedEventSync!.listCollaborators(
+            _event.sharedFolderId!,
+          );
+        } else if (widget.eventSharingService != null) {
+          final rawPerms = await widget.eventSharingService!.listCollaborators(
+            _event.sharedFolderId!,
+          );
+          perms = rawPerms
+              .where((p) => p.role == 'writer' && p.type == 'user')
+              .map((p) => RemotePermission(
+                    id: p.id ?? '',
+                    emailAddress: p.emailAddress,
+                    displayName: p.displayName,
+                    role: p.role ?? 'writer',
+                  ))
+              .toList();
+        } else {
+          perms = [];
+        }
+
         if (mounted) {
           setState(() {
-            // Filter out the owner/organizer or keep writer permissions
             _permissions = perms
-                .where((p) => p.role == 'writer' && p.type == 'user')
+                .where((p) => p.role == 'writer')
                 .toList();
           });
         }
@@ -103,31 +124,46 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
   Future<void> _enableSharing() async {
     setState(() => _isActionLoading = true);
     try {
-      final folderId = await widget.eventSharingService.createSharedEventFolder(_event);
-      final families = await widget.attendanceRepository.fetchFamilies();
-      final allMembers = families.expand((f) => f.members).toList();
-      final sessions = await widget.sessionRepository.loadSessions();
+      if (widget.sharedEventSync != null) {
+        final folderId = await widget.sharedEventSync!.publishSharedEvent(_event);
+        final updatedEvent = _event.copyWith(
+          isShared: true,
+          sharedFolderId: folderId,
+          updatedAt: DateTime.now(),
+        );
+        if (mounted) {
+          setState(() {
+            _event = updatedEvent;
+          });
+        }
+        await _loadCollaborators();
+      } else if (widget.eventSharingService != null) {
+        final folderId = await widget.eventSharingService!.createSharedEventFolder(_event);
+        final families = await widget.attendanceRepository.fetchFamilies();
+        final allMembers = families.expand((f) => f.members).toList();
+        final sessions = await widget.sessionRepository.loadSessions();
 
-      final slice = EventSharingService.generateSharedSlice(
-        event: _event,
-        allMembers: allMembers,
-        sessions: sessions,
-      );
-      await widget.eventSharingService.uploadSharedSlice(folderId, slice);
+        final slice = EventSharingService.generateSharedSlice(
+          event: _event,
+          allMembers: allMembers,
+          sessions: sessions,
+        );
+        await widget.eventSharingService!.uploadSharedSlice(folderId, slice);
 
-      final updatedEvent = _event.copyWith(
-        isShared: true,
-        sharedFolderId: folderId,
-        updatedAt: DateTime.now(),
-      );
-      await widget.eventRepository.updateEvent(updatedEvent);
+        final updatedEvent = _event.copyWith(
+          isShared: true,
+          sharedFolderId: folderId,
+          updatedAt: DateTime.now(),
+        );
+        await widget.eventRepository.updateEvent(updatedEvent);
 
-      if (mounted) {
-        setState(() {
-          _event = updatedEvent;
-        });
+        if (mounted) {
+          setState(() {
+            _event = updatedEvent;
+          });
+        }
+        await _loadCollaborators();
       }
-      await _loadCollaborators();
     } catch (e) {
       _log.error('Failed to enable event sharing', e);
       if (mounted) {
@@ -143,8 +179,10 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
   Future<void> _disableSharing() async {
     setState(() => _isActionLoading = true);
     try {
-      if (_event.sharedFolderId != null) {
-        await widget.eventSharingService.unshareEvent(_event.sharedFolderId!);
+      if (widget.sharedEventSync != null) {
+        await widget.sharedEventSync!.unshareEvent(_event);
+      } else if (widget.eventSharingService != null && _event.sharedFolderId != null) {
+        await widget.eventSharingService!.unshareEvent(_event.sharedFolderId!);
       }
 
       final updatedEvent = _event.copyWith(
@@ -152,7 +190,9 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
         collaborators: [],
         updatedAt: DateTime.now(),
       );
-      await widget.eventRepository.updateEvent(updatedEvent);
+      if (widget.sharedEventSync == null) {
+        await widget.eventRepository.updateEvent(updatedEvent);
+      }
 
       if (mounted) {
         setState(() {
@@ -184,7 +224,11 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
 
       final folderId = _event.sharedFolderId;
       if (folderId != null) {
-        await widget.eventSharingService.inviteCollaborator(folderId, email);
+        if (widget.sharedEventSync != null) {
+          await widget.sharedEventSync!.inviteCollaborator(folderId, email);
+        } else if (widget.eventSharingService != null) {
+          await widget.eventSharingService!.inviteCollaborator(folderId, email);
+        }
         final updatedCollaborators = List<String>.from(_event.collaborators)..add(email);
         final updatedEvent = _event.copyWith(
           collaborators: updatedCollaborators,
@@ -212,14 +256,18 @@ class _ShareEventSheetState extends State<ShareEventSheet> {
     }
   }
 
-  Future<void> _revokeCollaborator(drive.Permission permission) async {
+  Future<void> _revokeCollaborator(RemotePermission permission) async {
     final permId = permission.id;
     final folderId = _event.sharedFolderId;
-    if (permId == null || folderId == null) return;
+    if (permId.isEmpty || folderId == null) return;
 
     setState(() => _isActionLoading = true);
     try {
-      await widget.eventSharingService.revokeCollaborator(folderId, permId);
+      if (widget.sharedEventSync != null) {
+        await widget.sharedEventSync!.revokeCollaborator(folderId, permId);
+      } else if (widget.eventSharingService != null) {
+        await widget.eventSharingService!.revokeCollaborator(folderId, permId);
+      }
       final email = permission.emailAddress;
       final updatedCollaborators = List<String>.from(_event.collaborators)
         ..removeWhere((e) => e == email);

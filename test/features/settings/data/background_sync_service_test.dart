@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/features/hub/domain/shared_event_sync.dart';
 import 'package:attendance_tracker/features/settings/data/background_sync_service.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,8 @@ class MockWorkmanager extends Mock implements Workmanager {}
 class MockDriveService extends Mock implements DriveService {}
 
 class MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
+
+class MockSharedEventSync extends Mock implements SharedEventSync {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -264,6 +267,60 @@ void main() {
         ).called(1);
       },
     );
+
+    test('invokes sharedEventSyncBuilder when provided', () async {
+      SharedPreferences.setMockInitialValues({
+        'drive_sync_enabled': true,
+        DriveService.backgroundSyncEnabledKey: true,
+      });
+
+      when(() => mockDriveService.init()).thenAnswer((_) async {});
+      when(() => mockDriveService.currentUser).thenReturn(mockUser);
+      when(
+        () => mockDriveService.syncFiles(
+          actionTitle: any(named: 'actionTitle'),
+          tags: any(named: 'tags'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final mockSharedEventSync = MockSharedEventSync();
+      when(() => mockSharedEventSync.syncSharedEvents()).thenAnswer((_) async {});
+
+      final result = await performBackgroundSync(
+        driveServiceBuilder: () => mockDriveService,
+        sharedEventSyncBuilder: () => mockSharedEventSync,
+      );
+
+      expect(result, isTrue);
+      verify(() => mockSharedEventSync.syncSharedEvents()).called(1);
+    });
+
+    test('continues and succeeds when sharedEventSync throws', () async {
+      SharedPreferences.setMockInitialValues({
+        'drive_sync_enabled': true,
+        DriveService.backgroundSyncEnabledKey: true,
+      });
+
+      when(() => mockDriveService.init()).thenAnswer((_) async {});
+      when(() => mockDriveService.currentUser).thenReturn(mockUser);
+      when(
+        () => mockDriveService.syncFiles(
+          actionTitle: any(named: 'actionTitle'),
+          tags: any(named: 'tags'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final mockSharedEventSync = MockSharedEventSync();
+      when(() => mockSharedEventSync.syncSharedEvents()).thenThrow(Exception('Shared sync failed'));
+
+      final result = await performBackgroundSync(
+        driveServiceBuilder: () => mockDriveService,
+        sharedEventSyncBuilder: () => mockSharedEventSync,
+      );
+
+      expect(result, isTrue);
+      verify(() => mockSharedEventSync.syncSharedEvents()).called(1);
+    });
   });
 
   group('BackgroundSyncService error handling', () {

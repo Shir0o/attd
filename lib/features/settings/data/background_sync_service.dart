@@ -9,6 +9,8 @@ import 'package:workmanager/workmanager.dart';
 
 import '../../../core/logging/app_logger.dart';
 import '../../auth/config/google_oauth_config.dart';
+import '../../hub/data/google_drive_shared_event_transport.dart';
+import '../../hub/domain/shared_event_sync.dart';
 import 'drive_service.dart';
 
 final _log = AppLogger('BackgroundSyncService');
@@ -47,6 +49,7 @@ Future<bool> executeBackgroundTask(
 
 Future<bool> performBackgroundSync({
   DriveService Function()? driveServiceBuilder,
+  SharedEventSync Function()? sharedEventSyncBuilder,
 }) async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +98,29 @@ Future<bool> performBackgroundSync({
       actionTitle: 'Background Auto-Sync',
       tags: ['Auto-Sync'],
     );
+
+    // Sync shared events across the clean seam
+    try {
+      final sharedSync = sharedEventSyncBuilder?.call() ??
+          (driveService.driveApi != null &&
+                  driveService.eventRepository != null &&
+                  driveService.attendanceRepository != null &&
+                  driveService.sessionRepository != null
+              ? SharedEventSync(
+                  transport: GoogleDriveSharedEventTransport(
+                    driveApiProvider: () => driveService.driveApi,
+                  ),
+                  eventRepository: driveService.eventRepository!,
+                  attendanceRepository: driveService.attendanceRepository!,
+                  sessionRepository: driveService.sessionRepository!,
+                )
+              : null);
+      if (sharedSync != null) {
+        await sharedSync.syncSharedEvents();
+      }
+    } catch (e, st) {
+      _log.warning('Background shared event sync error', e, st);
+    }
 
     final now = DateTime.now();
     await prefs.setString(
