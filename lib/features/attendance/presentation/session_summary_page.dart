@@ -1,20 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
-import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../settings/data/cisa_sync_service.dart';
 import '../../settings/data/drive_service.dart';
-import '../models/attendance_status.dart';
+import '../domain/attendance_marking_session.dart';
 import '../models/family.dart';
 import '../models/member.dart';
-import '../utils/bulk_attendance.dart';
 import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
@@ -33,6 +30,7 @@ class SessionSummaryPage extends StatefulWidget {
     this.driveService,
     this.cisaSyncService,
     this.disableAnimations = false,
+    this.markingSession,
   });
 
   final Session session;
@@ -45,6 +43,7 @@ class SessionSummaryPage extends StatefulWidget {
   final DriveService? driveService;
   final CisaSyncService? cisaSyncService;
   final bool disableAnimations;
+  final AttendanceMarkingSession? markingSession;
 
   @override
   State<SessionSummaryPage> createState() => _SessionSummaryPageState();
@@ -52,6 +51,8 @@ class SessionSummaryPage extends StatefulWidget {
 
 class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late Session _currentSession;
+  late AttendanceMarkingSession _markingSession;
+  late bool _ownsMarkingSession;
   late final CisaSyncService _cisaSyncService;
   bool _isSyncingCisa = false;
   List<Member> _allMembers = [];
@@ -60,12 +61,36 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
 
+  void _onMarkingSessionChanged() {
+    if (mounted) {
+      setState(() {
+        _currentSession = _markingSession.session;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _currentSession = widget.session;
     _currentEvent = widget.event;
     _cisaSyncService = widget.cisaSyncService ?? CisaSyncService();
+    if (widget.markingSession != null) {
+      _markingSession = widget.markingSession!;
+      _ownsMarkingSession = false;
+    } else {
+      _markingSession = AttendanceMarkingSession(
+        session: widget.session,
+        baseMembers: widget.members,
+        families: widget.families,
+        event: widget.event,
+        sessionRepository: widget.sessionRepository,
+        attendanceRepository: widget.attendanceRepository,
+        eventRepository: widget.eventRepository,
+      );
+      _ownsMarkingSession = true;
+    }
+    _markingSession.addListener(_onMarkingSessionChanged);
     debugPrint(
         'DEBUG: SessionSummaryPage.initState: session=${_currentSession.id}, title=${_currentSession.title}');
     _refreshLatest();
@@ -75,6 +100,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
   @override
   void dispose() {
+    _markingSession.removeListener(_onMarkingSessionChanged);
+    if (_ownsMarkingSession) {
+      _markingSession.dispose();
+    }
     _membersSubscription?.cancel();
     _eventsSubscription?.cancel();
     if (widget.cisaSyncService == null) {
@@ -122,6 +151,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           _allFamilies = families;
           _allMembers = families.expand((f) => f.members).toList();
         });
+        _markingSession.updateFamilies(families);
       }
     });
   }
@@ -135,6 +165,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       for (final e in events) {
         if (e.id == eventId) {
           setState(() => _currentEvent = e);
+          _markingSession.updateEvent(e);
           return;
         }
       }
@@ -178,11 +209,18 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   @override
   void didUpdateWidget(covariant SessionSummaryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.session.currentVersion > _currentSession.currentVersion ||
+    if (widget.markingSession != null &&
+        widget.markingSession != oldWidget.markingSession) {
+      oldWidget.markingSession?.removeListener(_onMarkingSessionChanged);
+      _markingSession = widget.markingSession!;
+      _markingSession.addListener(_onMarkingSessionChanged);
+      _currentSession = _markingSession.session;
+    } else if (widget.session.currentVersion > _currentSession.currentVersion ||
         (widget.session.currentVersion == _currentSession.currentVersion &&
             widget.session.updatedAt.isAfter(_currentSession.updatedAt))) {
+      _markingSession.syncRemoteSession(widget.session);
       setState(() {
-        _currentSession = widget.session;
+        _currentSession = _markingSession.session;
       });
     }
 
@@ -196,39 +234,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       _eventsSubscription?.cancel();
       _eventsSubscription = null;
       _currentEvent = widget.event;
+      if (widget.event != null) {
+        _markingSession.updateEvent(widget.event!);
+      }
       _subscribeToEvents();
-    }
-  }
-
-  Future<void> _ensureMemberInEvent(String memberId) async {
-    final ev = _currentEvent;
-    final repo = widget.eventRepository;
-    if (ev == null || repo == null) return;
-    if (ev.memberIds.contains(memberId)) return;
-
-    final updated = ev.copyWith(
-      memberIds: [...ev.memberIds, memberId],
-      updatedAt: DateTime.now(),
-    );
-    setState(() => _currentEvent = updated);
-    try {
-      await repo.updateEvent(updated);
-    } catch (e) {
-      debugPrint('Error adding member to event: $e');
-    }
-  }
-
-  Future<Member?> _createGlobalMember(String name) async {
-    final repo = widget.attendanceRepository;
-    if (repo == null) return null;
-    try {
-      final family = await repo.addFamily(name, isAutoSingleton: true);
-      final member = Member(id: const Uuid().v4(), displayName: name);
-      await repo.addMember(family.id, member);
-      return member;
-    } catch (e) {
-      debugPrint('Error creating global member: $e');
-      return null;
     }
   }
 
@@ -238,23 +247,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     bool isGuest,
     Member? existingMember,
   ) async {
-    Member resolved;
-    if (existingMember != null) {
-      resolved = existingMember;
-      await _ensureMemberInEvent(existingMember.id);
-    } else if (!isGuest && name.trim().isNotEmpty) {
-      final trimmed = name.trim();
-      final created = await _createGlobalMember(trimmed);
-      if (created != null) {
-        resolved = created;
-        await _ensureMemberInEvent(created.id);
-      } else {
-        resolved = Member(id: '', displayName: trimmed, isVisitor: true);
-      }
-    } else {
-      resolved = Member(id: '', displayName: name, isVisitor: true);
-    }
-    await _toggleAttendance(resolved, isPresent);
+    final resolved = await _markingSession.addAttendee(
+      name,
+      isPresent: isPresent,
+      isGuest: isGuest,
+      existingMember: existingMember,
+      actor: 'User',
+    );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -275,148 +274,44 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     );
 
     if (!mounted || latest == null) return;
-
-    final isNewer = latest.currentVersion > _currentSession.currentVersion ||
-        (latest.currentVersion == _currentSession.currentVersion &&
-            latest.updatedAt.isAfter(_currentSession.updatedAt));
-    if (isNewer) {
-      setState(() {
-        _currentSession = latest;
-      });
-    }
+    _markingSession.syncRemoteSession(latest);
   }
 
   Future<void> _toggleAttendance(Member member, bool isPresent) async {
-    final status =
-        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
-
-    final memberIdForRecord =
-        (member.isVisitor || member.id.trim().isEmpty) ? null : member.id;
-
-    final newRecord = SessionRecord(
-      memberId: memberIdForRecord,
-      attendee: member.displayName,
-      status: status,
-      recordedAt: DateTime.now(),
-      recordedBy: 'User',
-    );
-
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    updatedRecords.removeWhere((r) =>
-        (memberIdForRecord != null && r.memberId == memberIdForRecord) ||
-        (memberIdForRecord == null &&
-            r.memberId == null &&
-            r.attendee == member.displayName));
-    updatedRecords.add(newRecord);
-
-    final updatedExcluded = List<String>.from(_currentSession.excludedMemberIds);
-    if (memberIdForRecord != null) {
-      updatedExcluded.remove(memberIdForRecord);
-    }
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      excludedMemberIds: updatedExcluded,
-      updatedAt: DateTime.now(),
-    );
-
-    setState(() {
-      _currentSession = updatedSession;
-    });
-
-    try {
-      final saved = await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-      if (mounted) {
-        setState(() {
-          _currentSession = saved;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error updating session record: $e');
-    }
+    await _markingSession.toggleMember(member, isPresent, actor: 'User');
   }
 
   Future<void> _toggleFamilyAttendance(Family family, bool isPresent) async {
-    // Batch every family member into a single saveSnapshot call — much
-    // cheaper than one write per member.
-    final now = DateTime.now();
-    final status =
-        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    for (final m in family.members) {
-      final mid = (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
-      updatedRecords.removeWhere((r) =>
-          (mid != null && r.memberId == mid) ||
-          (mid == null && r.memberId == null && r.attendee == m.displayName));
-      updatedRecords.add(SessionRecord(
-        memberId: mid,
-        attendee: m.displayName,
-        status: status,
-        recordedAt: now,
-        recordedBy: 'User',
-      ));
-    }
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-    setState(() {
-      _currentSession = updatedSession;
-    });
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      debugPrint('Error updating session records: $e');
-    }
+    await _markingSession.markFamily(family, isPresent, actor: 'User');
   }
 
   Future<void> _markAllAttendance(BulkMarkChoice choice) async {
-    final previousRecords = List<SessionRecord>.from(_currentSession.records);
-    final now = DateTime.now();
     final allMembers = _displayFamilies.expand((f) => f.members).toList();
 
-    final List<SessionRecord> updatedRecords;
     final String summary;
     if (choice == BulkMarkChoice.smart) {
       final recentSessions = await _loadRecentSessions();
-      final result = applyBulkSmartRecords(
-        previousRecords: previousRecords,
+      final result = await _markingSession.markAllSmart(
         members: allMembers,
         recentSessions: recentSessions,
-        recordedAt: now,
+        actor: 'User',
       );
-      updatedRecords = result.records;
       summary = result.resolved == 0
           ? 'No members had enough history for a smart guess.'
           : 'Applied smart defaults to ${result.resolved} '
               '${result.resolved == 1 ? 'member' : 'members'}.';
     } else {
       final present = choice == BulkMarkChoice.present;
-      updatedRecords = applyBulkRecords(
-        previousRecords: previousRecords,
-        members: allMembers,
+      await _markingSession.markAll(
+        allMembers,
         present: present,
-        recordedAt: now,
+        actor: 'User',
       );
       summary = 'Marked ${allMembers.length} '
           '${allMembers.length == 1 ? 'member' : 'members'} '
           '${present ? 'present' : 'absent'}.';
     }
 
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-    setState(() => _currentSession = updatedSession);
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      debugPrint('Error bulk-updating session: $e');
-      return;
-    }
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -426,7 +321,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         content: Text(summary),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => _restoreRecords(previousRecords),
+          onPressed: () => _markingSession.undo(actor: 'User'),
         ),
       ),
     );
@@ -446,74 +341,11 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     }
   }
 
-  Future<void> _restoreRecords(List<SessionRecord> previousRecords) async {
-    final restored = _currentSession.copyWith(
-      records: previousRecords,
-      updatedAt: DateTime.now(),
-    );
-    setState(() => _currentSession = restored);
-    try {
-      await widget.sessionRepository.saveSnapshot(restored, actor: 'User');
-    } catch (e) {
-      debugPrint('Error restoring session: $e');
-    }
-  }
-
-  /// Flags [member] present-but-late (or clears the flag when they are
-  /// already late) by rebuilding their record through the same snapshot path
-  /// as the present/absent toggle.
-  ///
-  /// Resolves the record the way [SessionRoster] reads it — by memberId when
-  /// the member has one, falling back to the visitor-name index — so a
-  /// present record stored without a memberId (a guest whose name matches a
-  /// roster member, or legacy/Drive-restored data) is still flipped. Without
-  /// the fallback the dot would be a silent no-op for exactly the rows that
-  /// show it.
   Future<void> _toggleLate(Member member) async {
-    final hasId = !member.isVisitor && member.id.trim().isNotEmpty;
-
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-
-    // Resolve the record the way SessionRoster reads it: by memberId when a
-    // member-keyed record exists, else the visitor-name index. A present
-    // record stored without a memberId (a guest whose name matches a roster
-    // member, or legacy/Drive-restored data) is still flipped — without this
-    // fallback the dot would be a silent no-op for exactly those rows.
-    SessionRecord? target;
-    var targetIndex = -1;
-    for (var i = 0; i < updatedRecords.length; i++) {
-      final r = updatedRecords[i];
-      final byId = hasId && r.memberId == member.id;
-      final byName = r.memberId == null && r.attendee == member.displayName;
-      if (byId || byName) {
-        target = r;
-        targetIndex = i;
-        if (byId) break; // member-keyed record wins over a name match
-      }
-    }
-    if (target == null || targetIndex < 0) return;
-
-    updatedRecords[targetIndex] = target.copyWith(
-      isLate: !target.isLate,
-      recordedAt: DateTime.now(),
-      recordedBy: 'User',
-    );
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: DateTime.now(),
-    );
-    setState(() => _currentSession = updatedSession);
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      debugPrint('Error toggling late flag: $e');
-    }
+    await _markingSession.toggleLate(member, actor: 'User');
   }
 
   Future<void> _editMemberName(Member member) async {
-    final isVisitor = member.isVisitor;
     final controller = TextEditingController(text: member.displayName);
 
     final newName = await showDialog<String>(
@@ -554,32 +386,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       return;
     }
 
-    final updatedRecords = _currentSession.records.map((r) {
-      final matchesById = !isVisitor && r.memberId == member.id;
-      final matchesByName =
-          isVisitor && r.attendee == member.displayName && r.memberId == null;
-
-      if (matchesById || matchesByName) {
-        return r.copyWith(attendee: newName);
-      }
-      return r;
-    }).toList();
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: DateTime.now(),
-    );
-
-    setState(() {
-      _currentSession = updatedSession;
-    });
-
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-    } catch (e) {
-      debugPrint('Error updating session record: $e');
-    }
+    await _markingSession.editMemberName(member, newName, actor: 'User');
   }
 
   Future<void> _removeMemberFromSession(Member member) async {
@@ -606,46 +413,13 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
 
     if (confirmed != true) return;
 
-    final isSyntheticVisitor =
-        member.isVisitor || member.id.startsWith('visitor_');
-
-    final updatedRecords = _currentSession.records.where((r) {
-      if (isSyntheticVisitor) {
-        return r.attendee != member.displayName;
-      } else {
-        return r.memberId != member.id && r.attendee != member.displayName;
-      }
-    }).toList();
-
-    List<String> updatedExcluded =
-        List<String>.from(_currentSession.excludedMemberIds);
-    if (!isSyntheticVisitor &&
-        member.id.isNotEmpty &&
-        !updatedExcluded.contains(member.id)) {
-      updatedExcluded.add(member.id);
-    }
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      excludedMemberIds: updatedExcluded,
-      updatedAt: DateTime.now(),
-    );
-
-    setState(() {
-      _currentSession = updatedSession;
-    });
-
-    try {
-      await widget.sessionRepository
-          .saveSnapshot(updatedSession, actor: 'User');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('${member.displayName} removed from this report')),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error removing member from session: $e');
+    await _markingSession.removeMemberFromSession(member, actor: 'User');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${member.displayName} removed from this report'),
+        ),
+      );
     }
   }
 
@@ -700,10 +474,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       final navigator = Navigator.of(context);
 
       try {
-        await widget.sessionRepository.deleteSession(
-          _currentSession.id,
-          actor: 'You',
-        );
+        await _markingSession.discardSession(actor: 'You');
 
         navigator.pop(null);
         messenger.showSnackBar(
