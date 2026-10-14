@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../core/design/app_radii.dart';
 import '../../../../core/design/app_shadows.dart';
@@ -10,12 +9,12 @@ import '../../../../data/session.dart';
 import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../domain/active_roster_index.dart';
+import '../domain/attendance_marking_session.dart';
 import '../models/attendance_start_mode.dart';
 import '../models/attendance_status.dart';
 import '../models/marking_mode.dart';
 import '../models/family.dart';
 import '../models/member.dart';
-import '../utils/bulk_attendance.dart';
 import '../utils/session_roster_utils.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
@@ -54,8 +53,10 @@ class AttendanceDeckPage extends StatefulWidget {
     this.rosterGrouping,
     this.markingMode,
     this.deleteOnCancel = false,
+    this.markingSession,
   });
 
+  final AttendanceMarkingSession? markingSession;
   final Session session;
   final List<Member> members;
   final List<Family>? families;
@@ -98,17 +99,27 @@ class AttendanceDeckPage extends StatefulWidget {
 }
 
 class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
-  late Session _currentSession;
+  late final AttendanceMarkingSession _markingSession;
+  bool _ownsMarkingSession = false;
   late int _currentIndex;
-  final List<Member> _sessionMembers = [];
-  final List<Member> _remainingMembers = [];
   List<Member> _allMembers = [];
   List<Family> _allFamilies = [];
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
+  StreamSubscription? _saveErrorSubscription;
   _Surface _surface = _Surface.deck;
   final List<int> _history = [];
+
+  Session get _currentSession => _markingSession.session;
+  List<Member> get _sessionMembers => _markingSession.sessionMembers;
+  List<Family> get _sessionFamilies => _markingSession.sessionFamilies;
+  Map<String, AttendanceStatus> get _baselineStatus => _markingSession.baselineStatus;
+  AttendanceStatus? _baselineFor(Member m) => _markingSession.baselineFor(m);
+  bool _isMemberTouched(Member member) => _markingSession.isTouched(member);
+  bool get _hasUserEdits => _markingSession.hasUserEdits;
+  Future<void> _drainSaves() => _markingSession.drain();
+  Family? _familyForMember(Member member) => _markingSession.familyForMember(member);
 
   /// The Likely here "Add someone" pill, which the add sheet grows out of.
   final _addSomeoneSource = GlobalKey<ConvMorphSourceState>();
@@ -147,46 +158,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   // AnimatedSwitcher from reusing a dismissed card's off-screen state when
   // returning to the same member (e.g. via undo).
   int _navSeq = 0;
-  final Set<String> _touchedMemberIds = {};
-  final Set<String> _touchedMemberNames = {};
-
-  /// Background write queue. Every attendance mark updates the UI immediately
-  /// and enqueues its disk write here, so rapid swipes never wait on I/O.
-  /// Writes run one at a time (each awaits the previous) so concurrent
-  /// read-modify-write on the shared sessions file can never interleave.
-  Future<void> _saveQueue = Future.value();
-
-  /// Serializes a session write through the background queue. Every call still
-  /// writes in order (preserving version history); callers that need the write
-  /// finished before proceeding (undo, discard) await the returned future.
-  Future<void> _enqueueSave(Session session) {
-    _saveQueue = _saveQueue.then((_) async {
-      try {
-        await widget.sessionRepository.saveSnapshot(session, actor: 'User');
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save record: $e')),
-          );
-        }
-      }
-    });
-    return _saveQueue;
-  }
-
-  /// Completes once every enqueued write has finished.
-  Future<void> _drainSaves() => _saveQueue;
 
   /// Live drag progress of the top card, used to fade the deck's left/right
   /// hint zones in and out without rebuilding the card itself.
   final ValueNotifier<SwipeProgress> _dragProgress = ValueNotifier(
     const SwipeProgress(dx: 0, rightProgress: 0, leftProgress: 0),
   );
-
-  /// Status each member arrived with (the preseed). Drives the confirm-mode
-  /// "changed" tally and per-row highlight — a member is "changed" when their
-  /// current status differs from this baseline.
-  final Map<String, AttendanceStatus> _baselineStatus = {};
 
   bool get _isDeckMode => _surface == _Surface.deck;
 
@@ -206,29 +183,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       widget.initialListMode &&
       (widget.startMode == AttendanceStartMode.allPresent ||
           widget.startMode == AttendanceStartMode.perMemberDefault);
-
-  void _updateSession(Session session) {
-    _currentSession = session;
-    _touchedMemberIds.clear();
-    _touchedMemberNames.clear();
-    for (final r in _currentSession.records) {
-      if (r.recordedBy != 'System (Preseed)') {
-        if (r.memberId != null) {
-          _touchedMemberIds.add(r.memberId!);
-        }
-        _touchedMemberNames.add(r.attendee);
-      }
-    }
-  }
-
-  bool _isMemberTouched(Member member) {
-    return _touchedMemberIds.contains(member.id) ||
-        _touchedMemberNames.contains(member.displayName);
-  }
-
-  /// Whether the user has made any real (non-preseed) marks in this session.
-  bool get _hasUserEdits =>
-      _touchedMemberIds.isNotEmpty || _touchedMemberNames.isNotEmpty;
 
   /// Cancel (X / system back) on a freshly created session that the user has
   /// already marked: ask whether to keep those marks or throw the session away,
@@ -259,13 +213,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
     if (choice == null || !mounted) return; // dismissed → stay on the deck
     if (choice == 'discard') {
-      // Drain any background writes first so a pending saveSnapshot can't
-      // recreate the session after we delete it.
-      await _drainSaves();
-      await widget.sessionRepository.deleteSession(
-        _currentSession.id,
-        actor: 'System (Cleanup)',
-      );
+      await _markingSession.discardSession(actor: 'System (Cleanup)');
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -280,17 +228,38 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _surface = widget.initialListMode
         ? _Surface.list
         : (_markingMode == MarkingMode.none ? _Surface.deck : _Surface.fast);
-    _updateSession(widget.session);
-    _snapshotBaseline(widget.session);
+
+    if (widget.markingSession != null) {
+      _markingSession = widget.markingSession!;
+      _ownsMarkingSession = false;
+    } else {
+      _markingSession = AttendanceMarkingSession(
+        session: widget.session,
+        baseMembers: widget.members,
+        families: widget.families,
+        event: widget.event,
+        sessionRepository: widget.sessionRepository,
+        attendanceRepository: widget.attendanceRepository,
+        eventRepository: widget.eventRepository,
+        defaultActor: 'User',
+      );
+      _ownsMarkingSession = true;
+    }
+
+    _markingSession.addListener(_onMarkingSessionChanged);
+    _saveErrorSubscription = _markingSession.saveErrors.listen((error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save record: $error')),
+      );
+    });
+
     _currentEvent = widget.event;
     debugPrint(
         'DEBUG: AttendanceDeckPage.initState: session=${_currentSession.id}, title=${_currentSession.title}, recordsCount=${_currentSession.records.length}');
     debugPrint(
         'DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
-    _sessionMembers.clear();
-    _sessionMembers.addAll(widget.members);
-    _remainingMembers.addAll(widget.members);
     if (_markingMode != MarkingMode.none) {
       unawaited(_primeRecentSessions());
     }
@@ -309,33 +278,29 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         'DEBUG: AttendanceDeckPage.initState: _currentIndex=$_currentIndex');
   }
 
+  void _onMarkingSessionChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    _markingSession.removeListener(_onMarkingSessionChanged);
+    _saveErrorSubscription?.cancel();
+    if (_ownsMarkingSession) {
+      _markingSession.dispose();
+    }
     _membersSubscription?.cancel();
     _eventsSubscription?.cancel();
     _dragProgress.dispose();
     super.dispose();
   }
 
-  /// Records the status each member started with (their preseed), keyed by id
-  /// (or display name for id-less entries), for confirm-mode change tracking.
-  void _snapshotBaseline(Session session) {
-    _baselineStatus.clear();
-    for (final r in session.records) {
-      final key = (r.memberId != null && r.memberId!.trim().isNotEmpty)
-          ? r.memberId!
-          : r.attendee;
-      _baselineStatus[key] = r.status;
-    }
-  }
-
-  AttendanceStatus? _baselineFor(Member m) =>
-      _baselineStatus[m.id] ?? _baselineStatus[m.displayName];
-
   void _subscribeToMembers() {
     _membersSubscription =
         widget.attendanceRepository.streamFamilies().listen((families) {
       if (!mounted) return;
+      _markingSession.updateFamilies(families);
       setState(() {
         _allFamilies = families;
         _allMembers = families.expand((f) => f.members).toList();
@@ -351,76 +316,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       if (!mounted) return;
       for (final e in events) {
         if (e.id == eventId) {
+          _markingSession.updateEvent(e);
           setState(() => _currentEvent = e);
           return;
         }
       }
     });
-  }
-
-  /// Families restricted to the members in this event. Falls back to a single
-  /// synthetic family wrapping `widget.members` if no family context exists.
-  List<Family> get _sessionFamilies {
-    if (widget.families != null && widget.families!.isNotEmpty) {
-      return widget.families!;
-    }
-    if (_allFamilies.isNotEmpty) {
-      final eventIds = _sessionMembers.map((m) => m.id).toSet();
-      final result = <Family>[];
-      for (final f in _allFamilies) {
-        final filtered =
-            f.members.where((m) => eventIds.contains(m.id)).toList();
-        if (filtered.isEmpty) continue;
-        result.add(f.copyWith(members: filtered));
-      }
-      if (result.isNotEmpty) return result;
-    }
-    return [
-      Family(
-        id: '_synthetic_all',
-        displayName: 'All members',
-        members: _sessionMembers,
-      ),
-    ];
-  }
-
-  Family? _familyForMember(Member member) {
-    for (final f in _sessionFamilies) {
-      if (f.members.any((m) => m.id == member.id)) return f;
-    }
-    return null;
-  }
-
-  Future<void> _ensureMemberInEvent(String memberId) async {
-    final ev = _currentEvent;
-    if (ev == null) return;
-    if (ev.memberIds.contains(memberId)) return;
-
-    final updated = ev.copyWith(
-      memberIds: [...ev.memberIds, memberId],
-      updatedAt: DateTime.now(),
-    );
-    setState(() => _currentEvent = updated);
-    try {
-      await widget.eventRepository.updateEvent(updated);
-    } catch (e) {
-      debugPrint('Error adding member to event: $e');
-    }
-  }
-
-  Future<Member?> _createGlobalMember(String name) async {
-    try {
-      final family = await widget.attendanceRepository.addFamily(
-        name,
-        isAutoSingleton: true,
-      );
-      final member = Member(id: const Uuid().v4(), displayName: name);
-      await widget.attendanceRepository.addMember(family.id, member);
-      return member;
-    } catch (e) {
-      debugPrint('Error creating global member: $e');
-      return null;
-    }
   }
 
   Future<Member> _addAttendee(
@@ -429,92 +330,23 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     bool isGuest,
     Member? existingMember,
   ) async {
-    Member resolved;
-    if (existingMember != null) {
-      resolved = existingMember;
-      await _ensureMemberInEvent(existingMember.id);
-    } else if (!isGuest && name.trim().isNotEmpty) {
-      final trimmed = name.trim();
-      final created = await _createGlobalMember(trimmed);
-      if (created != null) {
-        resolved = created;
-        await _ensureMemberInEvent(created.id);
-      } else {
-        resolved = Member(id: '', displayName: trimmed, isVisitor: true);
-      }
-    } else {
-      resolved = Member(id: '', displayName: name, isVisitor: true);
-    }
-    final memberIdForRecord =
-        (resolved.isVisitor || resolved.id.trim().isEmpty) ? null : resolved.id;
-    if (!_sessionMembers.any((m) =>
-        (resolved.id.isNotEmpty && m.id == resolved.id) ||
-        m.displayName == resolved.displayName)) {
-      setState(() {
-        _sessionMembers.add(resolved);
-        _activeRosterIndex = null; // Recompute roster index with new member
-      });
-    }
-    await _recordAttendance(
-      memberIdForRecord,
-      resolved.displayName,
-      isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
+    final resolved = await _markingSession.addAttendee(
+      name,
+      isPresent: isPresent,
+      isGuest: isGuest,
+      existingMember: existingMember,
     );
-    return resolved;
-  }
-
-  Future<void> _recordAttendance(
-    String? memberId,
-    String attendeeName,
-    AttendanceStatus status,
-  ) async {
-    // Create new record
-    final newRecord = SessionRecord(
-      memberId: memberId,
-      attendee: attendeeName,
-      status: status,
-      recordedAt: DateTime.now(),
-      recordedBy: 'User', // Placeholder
-    );
-
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    // Overwrite the existing record for this identity only. Match real members
-    // by id (never by name — two different members can share a display name);
-    // match visitors by name among the id-less records. Normalize blank ids to
-    // null so records stored with an empty memberId match like visitors, as
-    // SessionRoster treats them.
-    final cleanMemberId =
-        (memberId == null || memberId.trim().isEmpty) ? null : memberId;
-    updatedRecords.removeWhere((r) {
-      final rCleanId = (r.memberId == null || r.memberId!.trim().isEmpty)
-          ? null
-          : r.memberId;
-      return cleanMemberId != null
-          ? rCleanId == cleanMemberId
-          : (rCleanId == null && r.attendee == attendeeName);
-    });
-    updatedRecords.add(newRecord);
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: DateTime.now(),
-    );
-
     if (mounted) {
       setState(() {
-        _updateSession(updatedSession);
+        _activeRosterIndex = null;
       });
     }
-
-    // Optimistic: update the UI now, persist in the background. The write is
-    // serialized with every other mark so rapid swipes never wait on disk I/O.
-    // Not awaited — callers advance the deck immediately.
-    unawaited(_enqueueSave(updatedSession));
+    return resolved;
   }
 
   Future<void> _processAttendance(AttendanceStatus status) async {
     final member = widget.members[_currentIndex];
-    await _recordAttendance(member.id, member.displayName, status);
+    unawaited(_markingSession.markMember(member, status));
 
     if (mounted) {
       int next = _currentIndex + 1;
@@ -540,38 +372,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     }
   }
 
-  /// Applies a single bulk attendance update for every member in [family]
-  /// using one saveSnapshot call — much cheaper than one write per member.
   Future<void> _bulkRecordFamily(Family family, bool present) async {
-    final now = DateTime.now();
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-    final status = present ? AttendanceStatus.present : AttendanceStatus.absent;
-    for (final m in family.members) {
-      final mid = (m.isVisitor || m.id.trim().isEmpty) ? null : m.id;
-      updatedRecords.removeWhere((r) {
-        final rCleanId = (r.memberId == null || r.memberId!.trim().isEmpty)
-            ? null
-            : r.memberId;
-        return mid != null
-            ? rCleanId == mid
-            : (rCleanId == null && r.attendee == m.displayName);
-      });
-      updatedRecords.add(SessionRecord(
-        memberId: mid,
-        attendee: m.displayName,
-        status: status,
-        recordedAt: now,
-        recordedBy: 'User',
-      ));
-    }
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-    if (mounted) {
-      setState(() => _updateSession(updatedSession));
-    }
-    await _enqueueSave(updatedSession);
+    await _markingSession.markFamily(family, present);
   }
 
   Future<void> _markCurrentFamilyPresent() async {
@@ -607,13 +409,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   Future<void> _toggleMemberFromList(Member member, bool isPresent) async {
-    final memberIdForRecord =
-        (member.isVisitor || member.id.trim().isEmpty) ? null : member.id;
-    await _recordAttendance(
-      memberIdForRecord,
-      member.displayName,
-      isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
-    );
+    await _markingSession.toggleMember(member, isPresent);
   }
 
   Future<void> _toggleFamilyFromList(Family family, bool isPresent) async {
@@ -621,6 +417,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   }
 
   void _undo() {
+    if (_markingSession.canUndo) {
+      _markingSession.undo();
+    }
     if (_history.isNotEmpty) {
       setState(() {
         _currentIndex = _history.removeLast();
@@ -638,13 +437,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         MaterialPageRoute(
           builder: (_) => SessionSummaryPage(
             session: _currentSession,
-            members: widget.members,
-            families: widget.families,
+            members: _sessionMembers,
+            families: _sessionFamilies,
             sessionRepository: widget.sessionRepository,
             attendanceRepository: widget.attendanceRepository,
             eventRepository: widget.eventRepository,
             event: _currentEvent ?? widget.event,
             disableAnimations: widget.disableAnimations,
+            markingSession: _markingSession,
           ),
         ),
       );
@@ -1182,49 +982,31 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   /// Confirm-mode "Reset" — restore every member to the status they arrived
   /// with (the preseed captured at entry).
   Future<void> _resetToPreseed() async {
-    await _restoreSessionRecords(widget.session.records);
+    await _markingSession.resetToBaseline();
   }
 
   Future<void> _markAllAttendance(BulkMarkChoice choice) async {
-    final previousRecords = List<SessionRecord>.from(_currentSession.records);
-    final now = DateTime.now();
     final allMembers =
         _sessionFamilies.expand((f) => f.members).toList(growable: false);
 
-    final List<SessionRecord> updatedRecords;
     final String summary;
     if (choice == BulkMarkChoice.smart) {
       final recentSessions = await _loadRecentSessions();
-      final result = applyBulkSmartRecords(
-        previousRecords: previousRecords,
+      final result = await _markingSession.markAllSmart(
         members: allMembers,
         recentSessions: recentSessions,
-        recordedAt: now,
       );
-      updatedRecords = result.records;
       summary = result.resolved == 0
           ? 'No members had enough history for a smart guess.'
           : 'Applied smart defaults to ${result.resolved} '
               '${result.resolved == 1 ? 'member' : 'members'}.';
     } else {
       final present = choice == BulkMarkChoice.present;
-      updatedRecords = applyBulkRecords(
-        previousRecords: previousRecords,
-        members: allMembers,
-        present: present,
-        recordedAt: now,
-      );
+      await _markingSession.markAll(allMembers, present: present);
       summary = 'Marked ${allMembers.length} '
           '${allMembers.length == 1 ? 'member' : 'members'} '
           '${present ? 'present' : 'absent'}.';
     }
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-    if (mounted) setState(() => _updateSession(updatedSession));
-    await _enqueueSave(updatedSession);
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -1234,7 +1016,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         content: Text(summary),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => _restoreSessionRecords(previousRecords),
+          onPressed: () => _markingSession.undo(),
         ),
       ),
     );
@@ -1260,16 +1042,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final sessions = await _loadRecentSessions();
     if (!mounted) return;
     setState(() => _recentSessions = sessions);
-  }
-
-  Future<void> _restoreSessionRecords(
-      List<SessionRecord> previousRecords) async {
-    final restored = _currentSession.copyWith(
-      records: previousRecords,
-      updatedAt: DateTime.now(),
-    );
-    if (mounted) setState(() => _updateSession(restored));
-    await _enqueueSave(restored);
   }
 
   /// Eyebrow caption under the name on a deck card: "Loner" for a singleton /
@@ -1456,7 +1228,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Widget _buildDeckFooter(ColorScheme colorScheme) {
     final c = context.conv;
     final canMark = _currentIndex < widget.members.length;
-    final canUndo = _history.isNotEmpty;
+    final canUndo = _history.isNotEmpty || _markingSession.canUndo;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Column(
