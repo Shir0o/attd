@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.12.2](https://github.com/Shir0o/attd/compare/v1.12.1...v1.12.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **hub:** prevent view error when attendance is marked with 0 attendees (closes [#252](https://github.com/Shir0o/attd/issues/252)) ([#253](https://github.com/Shir0o/attd/issues/253)) ([be21178](https://github.com/Shir0o/attd/commit/be211784ddaaa1b1ae1ebd1fa470a1cafddd84e8))
+
+
+### Refactoring
+
+* **attendance:** collapse session marking lifecycle into deep module ([#246](https://github.com/Shir0o/attd/issues/246)) ([823ef2e](https://github.com/Shir0o/attd/commit/823ef2ee4f7bdeb2b4a7b1a387f5e63b1035dc00))
+* **attendance:** consolidate fast-marking query into active roster index ([#244](https://github.com/Shir0o/attd/issues/244)) ([704c37a](https://github.com/Shir0o/attd/commit/704c37a580973747d537e1e5813e79d4c54fddba))
+* **hub:** unify shared event synchronization behind single sync port ([#248](https://github.com/Shir0o/attd/issues/248)) ([8e07e0b](https://github.com/Shir0o/attd/commit/8e07e0b6dcf65fbe21c7e5507bbbfbea61f6369d))
+* **settings:** deepen storage inspector and review suggestions module ([#247](https://github.com/Shir0o/attd/issues/247)) ([4892fa7](https://github.com/Shir0o/attd/commit/4892fa79c0209373f0287e4b0a59da13083ce847))
+
 ## [1.12.1](https://github.com/Shir0o/attd/compare/v1.12.0...v1.12.1) (2026-10-12)
 
 
