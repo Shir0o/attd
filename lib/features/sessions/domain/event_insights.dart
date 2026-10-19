@@ -514,6 +514,7 @@ class EventInsights {
 
       final priorIndices = marked.sublist(0, marked.length - run);
       if (priorIndices.length < minPrior) continue;
+      if (priorIndices.isEmpty) continue;
       final priorAttended =
           priorIndices.where((i) => history[i] == true).length;
       if (priorAttended / priorIndices.length < threshold) continue;

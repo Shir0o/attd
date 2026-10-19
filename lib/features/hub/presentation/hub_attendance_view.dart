@@ -783,7 +783,9 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       for (final event in otherEvents) event: getNextOccurrence(event, now),
     };
     otherEvents.sort((a, b) {
-      final dateCompare = nextOccurrence[a]!.compareTo(nextOccurrence[b]!);
+      final dateA = nextOccurrence[a] ?? getNextOccurrence(a, now);
+      final dateB = nextOccurrence[b] ?? getNextOccurrence(b, now);
+      final dateCompare = dateA.compareTo(dateB);
       return dateCompare != 0 ? dateCompare : byTime(a, b);
     });
 
@@ -794,14 +796,22 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     // calm orientation card pointing at the next event instead of a Start hero.
     final restState = todayEvents.isEmpty && otherEvents.isNotEmpty;
     if (restState) {
-      // otherEvents is already sorted by next-occurrence date (then time), so
-      // the first entry is the soonest upcoming event — reuse the precomputed
-      // nextOccurrence map rather than recomputing getNextOccurrence.
-      final nextEvent = otherEvents.first;
+      // Pick the soonest upcoming event (on or after today). Historical one-time
+      // events sort earlier by date but are not the "next" event.
+      final todayDate = DateTime(now.year, now.month, now.day);
+      final nextEvent = otherEvents.firstWhere(
+        (e) {
+          final occ = nextOccurrence[e] ?? getNextOccurrence(e, now);
+          return !occ.isBefore(todayDate);
+        },
+        orElse: () => otherEvents.first,
+      );
+      final nextDate =
+          nextOccurrence[nextEvent] ?? getNextOccurrence(nextEvent, now);
       children.add(
         _RestStateCard(
           event: nextEvent,
-          nextDate: nextOccurrence[nextEvent]!,
+          nextDate: nextDate,
           onTap: () => _handleEventTap(nextEvent),
         ),
       );
