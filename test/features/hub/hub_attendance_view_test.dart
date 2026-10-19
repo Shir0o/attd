@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/core/presentation/no_transitions_builder.dart';
+import 'package:attendance_tracker/core/ui/app_error_feedback.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
@@ -1251,4 +1252,355 @@ void main() {
     verify(() => mockSync.syncSharedEvents()).called(1);
     expect(find.byType(HubAttendanceView), findsOneWidget);
   });
+
+  testWidgets('HubAttendanceView renders when a session has 0 attendees (all absent)', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final member1 = Member(id: 'member-1', displayName: 'Alice');
+    final member2 = Member(id: 'member-2', displayName: 'Bob');
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: [member1, member2],
+        updatedAt: now,
+      ),
+    ];
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-today',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: [
+          SessionRecord(
+            memberId: 'member-1',
+            attendee: 'Alice',
+            status: AttendanceStatus.absent,
+            recordedAt: today,
+            recordedBy: 'user',
+          ),
+          SessionRecord(
+            memberId: 'member-2',
+            attendee: 'Bob',
+            status: AttendanceStatus.absent,
+            recordedAt: today,
+            recordedBy: 'user',
+          ),
+        ],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester);
+    eventRepository.emit([todayEvent(memberIds: ['member-1', 'member-2'])]);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppErrorView), findsNothing);
+  });
+
+  testWidgets('HubAttendanceView renders with 130 sessions and a 0-attendance session today', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final members = List.generate(
+      50,
+      (i) => Member(id: 'member-$i', displayName: 'Member $i'),
+    );
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: members,
+        updatedAt: now,
+      ),
+    ];
+
+    final sessions = <Session>[];
+    // 129 past sessions (one per week)
+    for (int i = 129; i >= 1; i--) {
+      final date = today.subtract(Duration(days: i * 7));
+      sessions.add(
+        Session(
+          id: 'session-past-$i',
+          eventId: 'event-1',
+          title: 'Sunday Service',
+          sessionDate: date,
+          records: [
+            for (int m = 0; m < 50; m++)
+              SessionRecord(
+                memberId: 'member-$m',
+                attendee: 'Member $m',
+                status: (m + i) % 3 == 0 ? AttendanceStatus.absent : AttendanceStatus.present,
+                recordedAt: date,
+                recordedBy: 'user',
+              ),
+          ],
+          createdAt: date,
+          updatedAt: date,
+          createdBy: 'user',
+        ),
+      );
+    }
+
+    // 1 session today with 0 people attended (all absent)
+    sessions.add(
+      Session(
+        id: 'session-today',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: [
+          for (int m = 0; m < 50; m++)
+            SessionRecord(
+              memberId: 'member-$m',
+              attendee: 'Member $m',
+              status: AttendanceStatus.absent,
+              recordedAt: today,
+              recordedBy: 'user',
+            ),
+        ],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    );
+
+    sessionRepository.sessions = sessions;
+
+    await pumpView(tester, disableAnimations: true);
+    final dayName = DateFormat('EEEE').format(now);
+    final ev1 = Event(
+      id: 'event-1',
+      title: 'Sunday Service',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [dayName],
+      memberIds: members.map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    final ev2 = Event(
+      id: 'event-2',
+      title: 'Midweek Bible Study',
+      time: const TimeOfDay(hour: 19, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: ['Wednesday'],
+      memberIds: members.take(20).map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    eventRepository.emit([ev1, ev2]);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppErrorView), findsNothing);
+  });
+
+  testWidgets('HubAttendanceView with rest-state (no events today) and 0-attendance session yesterday', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final members = List.generate(
+      139,
+      (i) => Member(id: 'member-$i', displayName: 'Member $i'),
+    );
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: members,
+        updatedAt: now,
+      ),
+    ];
+
+    final sessions = <Session>[];
+    for (int i = 129; i >= 1; i--) {
+      final date = yesterday.subtract(Duration(days: i * 7));
+      sessions.add(
+        Session(
+          id: 'session-past-$i',
+          eventId: 'event-1',
+          title: 'Sunday Service',
+          sessionDate: date,
+          records: [
+            for (int m = 0; m < 139; m++)
+              SessionRecord(
+                memberId: 'member-$m',
+                attendee: 'Member $m',
+                status: (m + i) % 3 == 0 ? AttendanceStatus.absent : AttendanceStatus.present,
+                recordedAt: date,
+                recordedBy: 'user',
+              ),
+          ],
+          createdAt: date,
+          updatedAt: date,
+          createdBy: 'user',
+        ),
+      );
+    }
+
+    // 0 attendance yesterday
+    sessions.add(
+      Session(
+        id: 'session-yesterday-zero',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: yesterday,
+        records: [
+          for (int m = 0; m < 139; m++)
+            SessionRecord(
+              memberId: 'member-$m',
+              attendee: 'Member $m',
+              status: AttendanceStatus.absent,
+              recordedAt: yesterday,
+              recordedBy: 'user',
+            ),
+        ],
+        createdAt: yesterday,
+        updatedAt: yesterday,
+        createdBy: 'user',
+      ),
+    );
+
+    sessionRepository.sessions = sessions;
+
+    await pumpView(tester, disableAnimations: true);
+    final notToday = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ].firstWhere((d) => d.toLowerCase() != DateFormat('EEEE').format(now).toLowerCase());
+
+    final ev1 = Event(
+      id: 'event-1',
+      title: 'Sunday Service',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [notToday],
+      memberIds: members.map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    eventRepository.emit([ev1]);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppErrorView), findsNothing);
+  });
+
+  testWidgets('HubAttendanceView with empty records session (0 people attended)', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final members = List.generate(
+      10,
+      (i) => Member(id: 'member-$i', displayName: 'Member $i'),
+    );
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: members,
+        updatedAt: now,
+      ),
+    ];
+
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-empty-records',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: const [],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester, disableAnimations: true);
+    final dayName = DateFormat('EEEE').format(now);
+    final ev1 = Event(
+      id: 'event-1',
+      title: 'Sunday Service',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [dayName],
+      memberIds: members.map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    eventRepository.emit([ev1]);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppErrorView), findsNothing);
+  });
+
+  testWidgets('HubAttendanceView renders with disableAnimations: false and 0 attendance session', (tester) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final members = List.generate(
+      10,
+      (i) => Member(id: 'member-$i', displayName: 'Member $i'),
+    );
+    attendanceRepository.families = [
+      Family(
+        id: 'family-1',
+        displayName: 'Family 1',
+        members: members,
+        updatedAt: now,
+      ),
+    ];
+
+    sessionRepository.sessions = [
+      Session(
+        id: 'session-zero',
+        eventId: 'event-1',
+        title: 'Sunday Service',
+        sessionDate: today,
+        records: [
+          for (final m in members)
+            SessionRecord(
+              memberId: m.id,
+              attendee: m.displayName,
+              status: AttendanceStatus.absent,
+              recordedAt: today,
+              recordedBy: 'user',
+            ),
+        ],
+        createdAt: today,
+        updatedAt: today,
+        createdBy: 'user',
+      ),
+    ];
+
+    await pumpView(tester, disableAnimations: false);
+    final dayName = DateFormat('EEEE').format(now);
+    final ev1 = Event(
+      id: 'event-1',
+      title: 'Sunday Service',
+      time: const TimeOfDay(hour: 10, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: [dayName],
+      memberIds: members.map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    final ev2 = Event(
+      id: 'event-2',
+      title: 'Bible Study',
+      time: const TimeOfDay(hour: 19, minute: 0),
+      frequency: 'Weekly',
+      repeatingDays: ['Wednesday'],
+      memberIds: members.map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    final ev3 = Event(
+      id: 'event-3',
+      title: 'Past One-Time Event',
+      time: const TimeOfDay(hour: 14, minute: 0),
+      frequency: 'One-time',
+      oneTimeDate: today.subtract(const Duration(days: 2)),
+      memberIds: members.map((m) => m.id).toList(),
+      createdAt: today.subtract(const Duration(days: 365 * 3)),
+    );
+    eventRepository.emit([ev1, ev2, ev3]);
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.byType(AppErrorView), findsNothing);
+  });
 }
+

@@ -237,7 +237,8 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
 
     try {
       return widget.builder(context);
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('ErrorBoundary caught error: $e\n$stack');
       return AppErrorView(
         title: widget.fallbackTitle,
         message: widget.fallbackMessage,
