@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.3](https://github.com/Shir0o/attd/compare/v1.12.2...v1.12.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **insights:** count a member listed twice in the roster once ([#254](https://github.com/Shir0o/attd/issues/254)) ([8d043d5](https://github.com/Shir0o/attd/commit/8d043d5c8ee74674da3ec2cce1409685a96acab4))
+
 ## [1.12.2](https://github.com/Shir0o/attd/compare/v1.12.1...v1.12.2) (2026-10-19)
 
 
