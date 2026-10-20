@@ -430,8 +430,15 @@ class EventInsights {
 
   // ── Session and roster scoping ──────────────────────────────────────────
 
+  /// Active roster members, one per id.
+  ///
+  /// The same member can be listed more than once (e.g. in two families);
+  /// a repeat would append twice per session to that member's history and
+  /// desync it from the sessions it indexes.
   static List<Member> _rosterFor(Event event, List<Member> members) {
-    final active = members.where((m) => m.deletedAt == null);
+    final seen = <String>{};
+    final active =
+        members.where((m) => m.deletedAt == null && seen.add(m.id));
     if (event.memberIds.isEmpty) return active.toList();
     final ids = event.memberIds.toSet();
     return active.where((m) => ids.contains(m.id)).toList();
