@@ -438,6 +438,20 @@ void main() {
       expect(insights.lapsed.single.lastSeen, _week(5));
     });
 
+    test('counts a member listed twice in the roster once', () {
+      // A duplicated member row (e.g. after a Drive merge) must not double
+      // that member's history and index past the sessions in range.
+      final insights = EventInsights.from(
+        event: _event(),
+        sessions: regularThenAbsent(attended: 6, missed: 3),
+        members: [..._roster, _alice],
+      );
+
+      expect(insights.lapsed.map((l) => l.member.id), ['m1']);
+      expect(insights.lapsed.single.consecutiveMisses, 3);
+      expect(insights.lapsed.single.lastSeen, _week(5));
+    });
+
     test('does not flag someone still short of the run', () {
       final insights = EventInsights.from(
         event: _event(),
