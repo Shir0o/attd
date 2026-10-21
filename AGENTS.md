@@ -67,13 +67,24 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **Screenshots only for visual changes (1–2 of final state). Never record video. Skip captures for logic.**
 
-- **Logic-only tasks**: Skip all captures and app launches altogether. Verify exclusively through automated test suites, compiler/type checks, linting, and static analysis.
+- **Logic-only tasks**: Skip all captures and app launches altogether. Verify locally through compiler/type checks, linting, and static analysis. Offload full test suites and coverage runs to GitHub CI.
 - **Visual changes (shapes, effects, UI)**:
   - Take **1–2 screenshots of the final state only** to confirm what changed on screen.
   - **No videos or screen recordings**, and do not capture every combination or intermediate state.
   - The user performs a short manual playtest at milestones (e.g. after a ticket lands), rather than agents recording or continuously running the app.
 
-## 6. Legal & Regulatory Compliance (US & California)
+## 6. CPU Conservation & GitHub CI Test Delegation
+
+**Do not run full test suites locally. Let GitHub CI handle tests.**
+
+Running comprehensive test suites locally consumes excessive CPU, triggers thermal throttling, and wastes local cycles. All repositories run full test matrices in GitHub Actions CI:
+- **No full test runs locally**: Do not run full test suites (e.g. `flutter test`, `npm test`, `jest`, `pytest`, `cargo test`, `go test`, or coverage runs) locally before opening a pull request.
+- **Lightweight local gates only**: Local verification prior to pushing is strictly limited to fast static checks: typechecking (`tsc --noEmit`, `flutter analyze`), linting (`eslint`, `dart analyze`), and formatting checks.
+- **Targeted single tests during TDD**: If writing a unit test for a bug reproduction or new seam, you may execute *only that specific test file* if strictly needed to verify behavior. Never execute the broader suite.
+- **Push and let CI verify**: Push the branch, open the PR, and monitor GitHub Actions (`gh pr checks <pr> --watch`). If and only if CI fails, inspect the failing job log and fix the targeted issue.
+- **Sequential execution for any local heavy tasks**: Any remaining required local heavy tasks (e.g. build steps or code generators) must strictly run sequentially (`cmd1 && cmd2`), never concurrently.
+
+## 7. Legal & Regulatory Compliance (US & California)
 
 **Prevent statutory exposure before writing or shipping features.**
 See full standards in [Shir0o/.github/docs/standards/legal-compliance.md](https://github.com/Shir0o/.github/blob/main/docs/standards/legal-compliance.md).
@@ -86,9 +97,17 @@ Before introducing new features, enforce these gates:
 - **Privacy & CDNs (Google Fonts)**: Self-host web fonts and static resources locally; do not link remote `fonts.googleapis.com` CDNs that leak user IP addresses.
 - **DMCA Safe Harbor**: If hosting user-generated uploads, ensure designated DMCA agent details and takedown procedures are in place.
 
+## 8. Multi-Repo & Environment Conventions
+
+- **Organization Standards**: Canonical org templates, rulesets, and DevOps tooling live at `~/.github-repo/` (not `~/.github/`).
+- **Reactive Wakeup**: After dispatching background tasks or long-running CI watches, stop calling tools. Never poll `manage_task status` in a loop; the environment notifies upon completion.
+- **GitHub Apps vs Workflows**: Copilot Code Review and org-level automated scans are GitHub App / repository settings, not in-repo `.github/workflows/` YAML files. Do not grep workflows to disable them.
+- **Squash-Merge on Protected Branches**: When merging approved automated chore PRs on repos with branch protection rulesets, use `gh pr merge <num> --squash --admin --delete-branch`.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, zero regulatory compliance gaps, zero video recordings or superfluous captures, and clarifying questions come before implementation rather than after mistakes.
+
 
 ---
 
@@ -116,7 +135,7 @@ Before introducing new features, enforce these gates:
 - **Store Screenshots (Goldens):** `flutter test --update-goldens test/store_screenshots_test.dart` (Manual release only — agents do not capture screenshots)
 ## Architecture Patterns
 ### Instant Transitions & Skeleton Loaders
--- **Instant Transitions**: The app uses `NoTransitionsBuilder` globally to ensure page switches are immediate. Avoid adding artificial delays or complex animations between main screens. The one exception is shared-element motion on the violet element the user touched (e.g. the Hub FAB to Create event `Hero`, `ConvPressable` press feedback); build it from the `AppMotion` tokens and gate it with `motionEnabled(context, disableAnimations: ...)` so the test flag and the system "Remove animations" setting fall back to today's behaviour (see ADR 0008).
+-- **Instant Transitions**: The app uses `NoTransitionsBuilder` globally to ensure page switches are immediate. Avoid adding artificial delays or complex animations between main screens.
 -- **Skeleton Loaders**: Every new page must implement a "Skeleton" or "Loading" state. This state should:
     - Render immediately upon navigation.
     - Use `_ShimmerBox` or similar components to match the final layout's structure.
