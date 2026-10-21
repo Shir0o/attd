@@ -73,6 +73,17 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   - **No videos or screen recordings**, and do not capture every combination or intermediate state.
   - The user performs a short manual playtest at milestones (e.g. after a ticket lands), rather than agents recording or continuously running the app.
 
+## 6. CPU Conservation & GitHub CI Test Delegation
+
+**Do not run full test suites locally. Let GitHub CI handle tests.**
+
+Running comprehensive test suites locally consumes excessive CPU, triggers thermal throttling, and wastes local cycles. All repositories run full test matrices in GitHub Actions CI:
+- **No full test runs locally**: Do not run full test suites (e.g. `flutter test`, `npm test`, `jest`, `pytest`, `cargo test`, `go test`, or coverage runs) locally before opening a pull request.
+- **Lightweight local gates only**: Local verification prior to pushing is strictly limited to fast static checks: typechecking (`tsc --noEmit`, `flutter analyze`), linting (`eslint`, `dart analyze`), and formatting checks.
+- **Targeted single tests during TDD**: If writing a unit test for a bug reproduction or new seam, you may execute *only that specific test file* if strictly needed to verify behavior. Never execute the broader suite.
+- **Push and let CI verify**: Push the branch, open the PR, and monitor GitHub Actions (`gh pr checks <pr> --watch`). If and only if CI fails, inspect the failing job log and fix the targeted issue.
+- **Sequential execution for any local heavy tasks**: Any remaining required local heavy tasks (e.g. build steps or code generators) must strictly run sequentially (`cmd1 && cmd2`), never concurrently.
+
 ## 6. Legal & Regulatory Compliance (US & California)
 
 **Prevent statutory exposure before writing or shipping features.**
@@ -100,10 +111,10 @@ Before introducing new features, enforce these gates:
 
 ## Agent Instructions
 - Always write or update relevant tests when changing code.
-- Run the full test suite after modifications to confirm correctness.
+- Run lightweight static checks (e.g. flutter analyze); do not run full test suites locally before PR — GitHub CI runs tests.
 - Ensure static analysis (`flutter analyze`) passes with no errors or warnings.
 - Keep test coverage aligned with the code changes; avoid skipping tests without justification.
-- All unit and widget tests must pass and coverage thresholds must be met before a PR is considered ready (integration tests run nightly or via the `ci:integration-test` label).
+- Lightweight static checks must pass before PR; full test execution and coverage verification are delegated to GitHub CI (integration tests run nightly or via the `ci:integration-test` label).
 ## Sandbox Setup (Flutter CLI)
 - Install Flutter in the sandbox: `git clone https://github.com/flutter/flutter.git -b stable ~/.flutter`.
 - Add the Flutter binary to your PATH for the session: `export PATH="$HOME/.flutter/bin:$PATH"`.
