@@ -6,10 +6,10 @@
 
 ## Agent Instructions
 - Always write or update relevant tests when changing code.
-- Run the full test suite after modifications to confirm correctness.
+- Run lightweight static checks (e.g. flutter analyze); do not run full test suites locally before PR — GitHub CI runs tests.
 - Ensure static analysis (`flutter analyze`) passes with no errors or warnings.
 - Keep test coverage aligned with the code changes; avoid skipping tests without justification.
-- All unit and widget tests must pass and coverage thresholds must be met before a PR is considered ready (integration tests run nightly or via the `ci:integration-test` label).
+- Lightweight static checks must pass before PR; full test execution and coverage verification are delegated to GitHub CI (integration tests run nightly or via the `ci:integration-test` label).
 ## Sandbox Setup (Flutter CLI)
 - Install Flutter in the sandbox: `git clone https://github.com/flutter/flutter.git -b stable ~/.flutter`.
 - Add the Flutter binary to your PATH for the session: `export PATH="$HOME/.flutter/bin:$PATH"`.
