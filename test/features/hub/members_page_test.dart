@@ -685,6 +685,51 @@ void main() {
       expect(find.text('... and 2 more'), findsOneWidget);
     });
 
+    testWidgets('historical alert keeps its actions clear of the content at '
+        'large text sizes', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      final member = Member(id: 'm1', displayName: 'Alice');
+      mockAttendanceRepo.families = [familyWith([member])];
+
+      final sessions = _StubSessionRepository(sessions: List.generate(7, (i) {
+        return Session(
+          id: 's$i',
+          title: 'Session $i',
+          sessionDate: DateTime(2025, 1, i + 1),
+          records: [
+            SessionRecord(
+              memberId: 'm1',
+              attendee: 'Alice',
+              status: AttendanceStatus.present,
+              recordedAt: DateTime(2025, 1, i + 1),
+              recordedBy: 'tester',
+            ),
+          ],
+          createdAt: DateTime(2025, 1, i + 1),
+          updatedAt: DateTime(2025, 1, i + 1),
+          createdBy: 'tester',
+        );
+      }));
+
+      await tester.pumpWidget(host(
+        attendance: mockAttendanceRepo,
+        sessions: sessions,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Alice'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Continue'), findsOneWidget);
+      expect(find.textContaining('Do you want to continue?'), findsOneWidget);
+    });
+
     testWidgets('editing to a duplicate name shows confirmation and '
         'cancelling aborts', (tester) async {
       mockAttendanceRepo.families = [
@@ -843,6 +888,48 @@ void main() {
       expect(find.text('Luis Vazquez'), findsOneWidget);
       expect(find.text('ROSTER · 1'), findsOneWidget);
       expect(find.text('1 / 1'), findsOneWidget);
+    });
+
+    testWidgets('MembersPage in directory mode does not list a member twice '
+        'when they are also in an auto-singleton family', (tester) async {
+      final members = [
+        Member(id: 'm1', displayName: 'Ana Morelos'),
+        Member(id: 'm2', displayName: 'Beto Morelos'),
+        Member(id: 'm3', displayName: 'Carla Morelos'),
+        Member(id: 'm4', displayName: 'Diego Morelos'),
+      ];
+      mockAttendanceRepo.families = [
+        Family(
+          id: 'f1',
+          displayName: 'Morelos',
+          members: members,
+          updatedAt: DateTime.now(),
+        ),
+        for (final m in members)
+          Family(
+            id: 'solo-${m.id}',
+            displayName: m.displayName,
+            isAutoSingleton: true,
+            members: [m],
+            updatedAt: DateTime.now(),
+          ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MembersPage(
+            attendanceRepository: mockAttendanceRepo,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('MORELOS · 4'), findsOneWidget);
+      expect(find.textContaining('LONERS'), findsNothing);
+      for (final m in members) {
+        expect(find.text(m.displayName), findsOneWidget);
+      }
     });
 
     testWidgets('MembersPage in event mode disambiguates distinct members sharing identical names', (tester) async {

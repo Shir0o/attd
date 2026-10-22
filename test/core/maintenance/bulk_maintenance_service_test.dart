@@ -247,6 +247,261 @@ void main() {
       expect(s1.records.first.attendee, 'Bobby Smith');
     });
 
+
+    test('findDuplicateMembers includes loners, suggests the real family and '
+        'reports unlinked marks', () async {
+      final realFamily = Family(
+        id: 'fam-morelos',
+        displayName: 'Morelos',
+        members: [
+          Member(id: 'm-ana', displayName: 'Ana Morelos'),
+          Member(id: 'm-beto', displayName: 'Beto Morelos'),
+        ],
+      );
+      final lonerFamily = Family(
+        id: 'fam-ana-loner',
+        displayName: 'Ana Morelos',
+        isAutoSingleton: true,
+        members: [Member(id: 'm-ana-loner', displayName: 'Ana Morelos')],
+      );
+      // The same member id is also referenced by a leftover auto-singleton.
+      final duplicateReference = Family(
+        id: 'fam-ana-dup-ref',
+        displayName: 'Ana Morelos',
+        isAutoSingleton: true,
+        members: [Member(id: 'm-ana', displayName: 'Ana Morelos')],
+      );
+      attRepo.families = [realFamily, lonerFamily, duplicateReference];
+
+      sessionRepo.sessions = [
+        Session(
+          id: 's-1',
+          title: 'Sunday Service',
+          sessionDate: DateTime(2026, 5, 20),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [
+            SessionRecord(
+              memberId: 'm-ana',
+              attendee: 'Ana Morelos',
+              status: AttendanceStatus.present,
+              recordedAt: now,
+              recordedBy: 'Admin',
+            ),
+          ],
+        ),
+        Session(
+          id: 's-2',
+          title: 'Bible Study',
+          sessionDate: DateTime(2026, 5, 27),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [
+            SessionRecord(
+              memberId: 'm-ana',
+              attendee: 'Ana Morelos',
+              status: AttendanceStatus.present,
+              recordedAt: now,
+              recordedBy: 'Admin',
+            ),
+            SessionRecord(
+              memberId: null,
+              attendee: 'Ana Morelos',
+              status: AttendanceStatus.present,
+              recordedAt: now,
+              recordedBy: 'Admin',
+            ),
+          ],
+        ),
+      ];
+
+      final groups = await service.findDuplicateMembers();
+
+      expect(groups, hasLength(1));
+      final group = groups.single;
+      expect(group.displayName, 'Ana Morelos');
+      expect(group.key, 'ana morelos');
+      expect(group.unlinkedMarkCount, 1);
+      // The duplicate reference to m-ana is one occurrence, not two.
+      expect(group.occurrences, hasLength(2));
+      expect(group.occurrences.first.member.id, 'm-ana');
+      expect(group.occurrences.first.isLoner, isFalse);
+      expect(group.occurrences.first.linkedMarkCount, 2);
+      expect(group.occurrences.last.member.id, 'm-ana-loner');
+      expect(group.occurrences.last.isLoner, isTrue);
+      expect(group.suggestedTarget.member.id, 'm-ana');
+    });
+
+    test('simulateMergeMembers and executeMergeMembers merge by id, prune '
+        'collisions, and leave same-named other people alone', () async {
+      attRepo.families = [
+        Family(
+          id: 'fam-morelos',
+          displayName: 'Morelos',
+          members: [
+            Member(id: 'm-ana', displayName: 'Ana Morelos'),
+          ],
+        ),
+        Family(
+          id: 'fam-ana-loner',
+          displayName: 'Ana Morelos',
+          isAutoSingleton: true,
+          members: [Member(id: 'm-ana-loner', displayName: 'Ana Morelos')],
+        ),
+      ];
+
+      SessionRecord record(String? memberId, String attendee) => SessionRecord(
+            memberId: memberId,
+            attendee: attendee,
+            status: AttendanceStatus.present,
+            recordedAt: now,
+            recordedBy: 'Admin',
+          );
+
+      sessionRepo.sessions = [
+        Session(
+          id: 's-target-only',
+          title: 'Target Only',
+          sessionDate: DateTime(2026, 5, 20),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [record('m-ana', 'Ana Morelos')],
+        ),
+        Session(
+          id: 's-collision',
+          title: 'Collision',
+          sessionDate: DateTime(2026, 5, 21),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [
+            record('m-ana', 'Ana Morelos'),
+            record('m-ana-loner', 'Ana Morelos'),
+          ],
+        ),
+        Session(
+          id: 's-source-only',
+          title: 'Source Only',
+          sessionDate: DateTime(2026, 5, 22),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [record('m-ana-loner', 'Ana Morelos')],
+        ),
+        Session(
+          id: 's-other-person',
+          title: 'Other Person',
+          sessionDate: DateTime(2026, 5, 23),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [record('m-ana-other', 'Ana Morelos')],
+        ),
+        Session(
+          id: 's-legacy',
+          title: 'Legacy',
+          sessionDate: DateTime(2026, 5, 24),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: [record(null, 'Ana Morelos')],
+        ),
+      ];
+
+      const plan = MemberMergePlan(
+        sourceMemberId: 'm-ana-loner',
+        targetMemberId: 'm-ana',
+        sourceName: 'Ana Morelos',
+        targetName: 'Ana Morelos',
+      );
+
+      final dryRun = await service.simulateMergeMembers([plan]);
+      expect(dryRun.sessionsAffected, 2);
+      expect(dryRun.marksUpdated, 2);
+      expect(dryRun.collisionsPruned, 1);
+      expect(dryRun.rosterMembersRemoved, 1);
+      expect(dryRun.rosterMembersUpdated, 0);
+
+      await service.executeMergeMembers([plan]);
+
+      final morelos = attRepo.families.firstWhere((f) => f.id == 'fam-morelos');
+      expect(morelos.members.map((m) => m.id), ['m-ana']);
+      final loner = attRepo.families.firstWhere((f) => f.id == 'fam-ana-loner');
+      expect(loner.members, isEmpty);
+
+      final collision =
+          sessionRepo.sessions.firstWhere((s) => s.id == 's-collision');
+      expect(collision.records, hasLength(1));
+      expect(collision.records.single.memberId, 'm-ana');
+
+      final sourceOnly =
+          sessionRepo.sessions.firstWhere((s) => s.id == 's-source-only');
+      expect(sourceOnly.records.single.memberId, 'm-ana');
+      expect(sourceOnly.records.single.attendee, 'Ana Morelos');
+
+      final other =
+          sessionRepo.sessions.firstWhere((s) => s.id == 's-other-person');
+      expect(other.records.single.memberId, 'm-ana-other');
+
+      final legacy =
+          sessionRepo.sessions.firstWhere((s) => s.id == 's-legacy');
+      expect(legacy.records.single.memberId, isNull);
+    });
+
+    test('merge plans reject ambiguous sources and targets', () async {
+      const same = MemberMergePlan(
+        sourceMemberId: 'm-1',
+        targetMemberId: 'm-1',
+        sourceName: 'A',
+        targetName: 'A',
+      );
+      await expectLater(
+        service.simulateMergeMembers([same]),
+        throwsArgumentError,
+      );
+
+      const repeatedSource = [
+        MemberMergePlan(
+          sourceMemberId: 'm-1',
+          targetMemberId: 'm-2',
+          sourceName: 'A',
+          targetName: 'B',
+        ),
+        MemberMergePlan(
+          sourceMemberId: 'm-1',
+          targetMemberId: 'm-3',
+          sourceName: 'A',
+          targetName: 'C',
+        ),
+      ];
+      await expectLater(
+        service.simulateMergeMembers(repeatedSource),
+        throwsArgumentError,
+      );
+
+      const chain = [
+        MemberMergePlan(
+          sourceMemberId: 'm-1',
+          targetMemberId: 'm-2',
+          sourceName: 'A',
+          targetName: 'B',
+        ),
+        MemberMergePlan(
+          sourceMemberId: 'm-2',
+          targetMemberId: 'm-3',
+          sourceName: 'B',
+          targetName: 'C',
+        ),
+      ];
+      await expectLater(
+        service.executeMergeMembers(chain),
+        throwsArgumentError,
+      );
+    });
+
     test('BulkDryRunResult totalOperations computes correctly', () {
       const result = BulkDryRunResult(
         sessionsAffected: 2,

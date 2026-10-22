@@ -256,11 +256,12 @@ class _MembersPageState extends State<MembersPage> {
         builder: (context) {
           final colorScheme = Theme.of(context).colorScheme;
           return AlertDialog(
+            scrollable: true,
             title: Row(
               children: [
                 Icon(Icons.history, color: colorScheme.primary),
                 const SizedBox(width: 12),
-                const Text('Historical Data Alert'),
+                const Expanded(child: Text('Historical Data Alert')),
               ],
             ),
             content: Column(
@@ -329,15 +330,17 @@ class _MembersPageState extends State<MembersPage> {
                             child: Row(
                               children: [
                                 const SizedBox(width: 24),
-                                Text(
-                                  '... and ${linkedSessions.length - 5} more',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        fontStyle: FontStyle.italic,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
+                                Expanded(
+                                  child: Text(
+                                    '... and ${linkedSessions.length - 5} more',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          fontStyle: FontStyle.italic,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -972,10 +975,16 @@ class _MembersPageState extends State<MembersPage> {
         ));
       }
     } else {
+      // A member can be referenced by more than one family (for example an
+      // auto-singleton left behind after the person joined a real family).
+      // The directory lists each member once, preferring the real family.
+      final seenMemberIds = <String>{};
       final realFamilies = families.where((f) => !f.isAutoSingleton).toList()
         ..sort((a, b) => a.displayName.compareTo(b.displayName));
       for (final f in realFamilies) {
         final filtered = filter(f.members)
+            .where((m) => seenMemberIds.add(m.id))
+            .toList()
           ..sort((a, b) => a.displayName.compareTo(b.displayName));
         if (filtered.isEmpty) continue;
         children.add(
@@ -997,6 +1006,8 @@ class _MembersPageState extends State<MembersPage> {
           if (f.isAutoSingleton) ...f.members,
       ];
       final filteredLoners = filter(loners)
+          .where((m) => !seenMemberIds.contains(m.id))
+          .toList()
         ..sort((a, b) => a.displayName.compareTo(b.displayName));
       if (filteredLoners.isNotEmpty) {
         children.add(

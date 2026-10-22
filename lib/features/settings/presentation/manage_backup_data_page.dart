@@ -17,6 +17,7 @@ import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/member.dart';
 import '../../hub/data/event_repository.dart';
 import '../domain/storage_inspector.dart';
+import 'duplicate_members_cleanup_sheet.dart';
 import 'inspector_context.dart';
 
 export '../domain/storage_inspector.dart' show DbRecord, StorageInspector;
@@ -217,6 +218,15 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         destructive: true,
       ),
     ];
+  }
+
+  void _showDuplicateCleanup() {
+    showDuplicateMembersCleanupSheet(
+      context: context,
+      attendanceRepository: widget.attendanceRepository,
+      sessionRepository: widget.sessionRepository,
+      onComplete: _loadData,
+    );
   }
 
   void _showBulkMergeDialog() {
@@ -430,6 +440,12 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
         title: const ConvEyebrow('Backup data'),
         centerTitle: true,
         actions: [
+          IconButton(
+            key: const ValueKey('duplicate_cleanup_button'),
+            tooltip: 'Duplicate cleanup',
+            icon: Icon(Icons.group_remove_outlined, color: c.ink),
+            onPressed: _showDuplicateCleanup,
+          ),
           IconButton(
             key: const ValueKey('bulk_merge_names_button'),
             tooltip: 'Bulk Rename & Merge',
