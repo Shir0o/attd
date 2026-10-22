@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/Shir0o/attd/compare/v1.13.0...v1.14.0) (2026-10-22)
+
+
+### Features
+
+* **settings:** repair historical event session titles ([#264](https://github.com/Shir0o/attd/issues/264)) ([85af76a](https://github.com/Shir0o/attd/commit/85af76a9797b54a7a0831a202fdc7fe7220e6c86))
+
 ## [1.13.0](https://github.com/Shir0o/attd/compare/v1.12.3...v1.13.0) (2026-10-22)
 
 
