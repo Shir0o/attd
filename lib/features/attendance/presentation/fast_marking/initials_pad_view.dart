@@ -14,8 +14,9 @@ import 'fast_marking_shared.dart';
 /// never moves, and nothing is ever occluded — which is what makes this the
 /// one-handed option while walking a room.
 ///
-/// Letters with no remaining *unmarked* match are dimmed and inert, so a tap
-/// can never land on an empty result set.
+/// Letters nobody on the roster matches are dimmed and inert, so a tap can
+/// never land on an empty result set. Someone already marked keeps their
+/// letter live, so the mark can be checked or taken back from here.
 class InitialsPadView extends StatefulWidget {
   const InitialsPadView({
     super.key,
@@ -46,7 +47,7 @@ class _InitialsPadViewState extends State<InitialsPadView> {
   String? _last;
 
   Map<String, Set<String>> get _index =>
-      widget.roster.index.initialsIndex(widget.roster.unmarked);
+      widget.roster.index.initialsIndex(widget.roster.members);
 
   /// The letters still worth tapping at the current stage.
   Set<String> get _enabled {
@@ -57,8 +58,8 @@ class _InitialsPadViewState extends State<InitialsPadView> {
 
   List<Member> get _results {
     if (_first == null) return const [];
-    // Unmarked first: a letter only lights up while it still has an unmarked
-    // match, so that match must be the one the list actually shows.
+    // Unmarked first: they are who is still being looked for, so the cap
+    // never hides one behind people already marked.
     final unmarked = <Member>[];
     final marked = <Member>[];
     for (final m in widget.roster.members) {
