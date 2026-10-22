@@ -16,6 +16,7 @@ import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/member.dart';
 import '../../hub/data/event_repository.dart';
+import '../../hub/domain/event.dart';
 import '../domain/storage_inspector.dart';
 import 'duplicate_members_cleanup_sheet.dart';
 import 'inspector_context.dart';
@@ -237,6 +238,7 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
       builder: (context) {
         return _BulkMaintenanceModal(
           attendanceRepository: widget.attendanceRepository,
+          eventRepository: widget.eventRepository,
           sessionRepository: widget.sessionRepository,
           onComplete: () async {
             await _loadData();
@@ -1175,16 +1177,18 @@ class _RecordRow extends StatelessWidget {
   }
 }
 
-enum _BulkMode { merge, rename }
+enum _BulkMode { merge, rename, event }
 
 class _BulkMaintenanceModal extends StatefulWidget {
   const _BulkMaintenanceModal({
     required this.attendanceRepository,
+    required this.eventRepository,
     required this.sessionRepository,
     required this.onComplete,
   });
 
   final AttendanceRepository attendanceRepository;
+  final EventRepository eventRepository;
   final SessionRepository sessionRepository;
   final Future<void> Function() onComplete;
 
@@ -1199,6 +1203,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
 
   List<Member> _rosterMembers = [];
   List<String> _attendeeNames = [];
+  List<Event> _events = [];
 
   String? _selectedSourceMemberId;
   String _sourceName = '';
@@ -1207,7 +1212,12 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
   String _renameNewName = '';
   bool _updateRoster = true;
 
+  String? _selectedEventId;
+  String _eventNewName = '';
+  bool _includeTitleOnlySessions = true;
+
   BulkDryRunResult? _dryRunResult;
+  EventTitleRepairPreview? _eventPreview;
   String? _dryRunError;
 
   late final BulkMaintenanceService _service;
@@ -1250,10 +1260,16 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
       final sortedAttendees = attendees.toList()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
+      final events = await widget.eventRepository.fetchAllEvents();
+      final liveEvents = events.where((e) => e.deletedAt == null).toList()
+        ..sort((a, b) =>
+            a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+
       if (mounted) {
         setState(() {
           _rosterMembers = members;
           _attendeeNames = sortedAttendees;
+          _events = liveEvents;
           _isLoading = false;
         });
       }
@@ -1265,6 +1281,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
   Future<void> _runDryRun() async {
     setState(() {
       _dryRunResult = null;
+      _eventPreview = null;
       _dryRunError = null;
     });
 
@@ -1290,7 +1307,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
       } catch (e) {
         if (mounted) setState(() => _dryRunError = 'Dry run simulation failed: $e');
       }
-    } else {
+    } else if (_mode == _BulkMode.rename) {
       if (_sourceName.trim().isEmpty || _renameNewName.trim().isEmpty) {
         setState(() => _dryRunError = 'Please provide an old name and a new name.');
         return;
@@ -1311,12 +1328,59 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
       } catch (e) {
         if (mounted) setState(() => _dryRunError = 'Dry run simulation failed: $e');
       }
+    } else {
+      final event = _selectedEvent;
+      if (event == null) {
+        setState(() => _dryRunError = 'Please choose an event.');
+        return;
+      }
+      if (_eventNewName.trim().isEmpty) {
+        setState(() => _dryRunError = 'Please enter a new event name.');
+        return;
+      }
+      if (_eventNewName.trim() == event.title.trim()) {
+        setState(
+          () => _dryRunError = 'The new event name must differ from the current name.',
+        );
+        return;
+      }
+
+      try {
+        final preview = await _service.previewEventTitleRename(
+          eventId: event.id,
+          oldTitle: event.title,
+          newTitle: _eventNewName.trim(),
+          includeTitleOnlySessions: _includeTitleOnlySessions,
+        );
+        if (mounted) setState(() => _eventPreview = preview);
+      } catch (e) {
+        if (mounted) setState(() => _dryRunError = 'Dry run simulation failed: $e');
+      }
     }
+  }
+
+  Event? get _selectedEvent {
+    final id = _selectedEventId;
+    if (id == null) return null;
+    for (final event in _events) {
+      if (event.id == id) return event;
+    }
+    return null;
+  }
+
+  void _selectMode(_BulkMode mode) {
+    setState(() {
+      _mode = mode;
+      _dryRunResult = null;
+      _eventPreview = null;
+      _dryRunError = null;
+    });
   }
 
   Future<void> _execute() async {
     setState(() => _isExecuting = true);
     try {
+      var updatedSessions = 0;
       if (_mode == _BulkMode.merge) {
         await _service.executeMerge(
           sourceIdentifier: _selectedSourceMemberId,
@@ -1325,26 +1389,38 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
           targetName: _targetName.trim(),
           updateRoster: _updateRoster,
         );
-      } else {
+      } else if (_mode == _BulkMode.rename) {
         await _service.executeRename(
           oldName: _sourceName.trim(),
           newName: _renameNewName.trim(),
           memberId: _selectedSourceMemberId,
           updateRoster: _updateRoster,
         );
+      } else {
+        final event = _selectedEvent!;
+        updatedSessions = await _service.executeEventTitleRename(
+          eventId: event.id,
+          oldTitle: event.title,
+          newTitle: _eventNewName.trim(),
+          includeTitleOnlySessions: _includeTitleOnlySessions,
+        );
       }
 
       await widget.onComplete();
 
       if (mounted) {
+        final message = switch (_mode) {
+          _BulkMode.merge =>
+            'Successfully merged "$_sourceName" into "$_targetName"',
+          _BulkMode.rename =>
+            'Successfully renamed "$_sourceName" to "$_renameNewName"',
+          _BulkMode.event =>
+            'Updated $updatedSessions session title${updatedSessions == 1 ? '' : 's'} for "${_eventNewName.trim()}"',
+        };
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              _mode == _BulkMode.merge
-                  ? 'Successfully merged "$_sourceName" into "$_targetName"'
-                  : 'Successfully renamed "$_sourceName" to "$_renameNewName"',
-            ),
+            content: Text(message),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1430,7 +1506,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                               ),
                             ),
                             Text(
-                              'Static history safe · Dry-run verified',
+                              'Dry-run verified · Nothing applies without confirmation',
                               style: TextStyle(fontSize: 12, color: c.ink3),
                             ),
                           ],
@@ -1452,13 +1528,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                         Expanded(
                           child: GestureDetector(
                             key: const ValueKey('bulk_mode_merge_tab'),
-                            onTap: () {
-                              setState(() {
-                                _mode = _BulkMode.merge;
-                                _dryRunResult = null;
-                                _dryRunError = null;
-                              });
-                            },
+                            onTap: () => _selectMode(_BulkMode.merge),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
@@ -1468,6 +1538,8 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                               child: Center(
                                 child: Text(
                                   'Merge Two Names',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: _mode == _BulkMode.merge
@@ -1483,13 +1555,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                         Expanded(
                           child: GestureDetector(
                             key: const ValueKey('bulk_mode_rename_tab'),
-                            onTap: () {
-                              setState(() {
-                                _mode = _BulkMode.rename;
-                                _dryRunResult = null;
-                                _dryRunError = null;
-                              });
-                            },
+                            onTap: () => _selectMode(_BulkMode.rename),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
@@ -1499,6 +1565,8 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                               child: Center(
                                 child: Text(
                                   'Rename Name',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: _mode == _BulkMode.rename
@@ -1511,74 +1579,159 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                             ),
                           ),
                         ),
+                        Expanded(
+                          child: GestureDetector(
+                            key: const ValueKey('bulk_mode_event_tab'),
+                            onTap: () => _selectMode(_BulkMode.event),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _mode == _BulkMode.event ? c.card : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Event Names',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _mode == _BulkMode.event
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: _mode == _BulkMode.event ? c.ink : c.ink3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Source Name Input
-                  Text(
-                    _mode == _BulkMode.merge ? 'Source Person (to be merged):' : 'Current Name:',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
-                  ),
-                  const SizedBox(height: 6),
-                  Autocomplete<String>(
-                    optionsBuilder: (textEditingValue) {
-                      if (textEditingValue.text.isEmpty) return _attendeeNames;
-                      return _attendeeNames.where((n) => n
-                          .toLowerCase()
-                          .contains(textEditingValue.text.toLowerCase()));
-                    },
-                    onSelected: (val) {
-                      final match = _rosterMembers.cast<Member?>().firstWhere(
-                            (m) => m?.displayName.toLowerCase() == val.toLowerCase(),
-                            orElse: () => null,
-                          );
-                      setState(() {
-                        _sourceName = val;
-                        _selectedSourceMemberId = match?.id;
-                        _dryRunResult = null;
-                      });
-                    },
-                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        key: const ValueKey('bulk_source_name_input'),
-                        controller: controller,
-                        focusNode: focusNode,
-                        style: TextStyle(color: c.ink, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'e.g. Bob Smith',
-                          hintStyle: TextStyle(color: c.ink3),
-                          filled: true,
-                          fillColor: c.cardSoft,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
-                        onChanged: (val) {
-                          final match = _rosterMembers.cast<Member?>().firstWhere(
-                                (m) => m?.displayName.toLowerCase() == val.trim().toLowerCase(),
-                                orElse: () => null,
-                              );
-                          setState(() {
-                            _sourceName = val;
-                            _selectedSourceMemberId = match?.id;
-                            _dryRunResult = null;
-                          });
-                        },
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  if (_mode == _BulkMode.merge) ...[
-                    // Target Name Input
+                  if (_mode == _BulkMode.event) ...[
                     Text(
-                      'Target Person (to keep):',
+                      'Event:',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      key: const ValueKey('bulk_event_picker'),
+                      initialValue: _selectedEventId,
+                      isExpanded: true,
+                      hint: Text(
+                        'Choose an event',
+                        style: TextStyle(color: c.ink3, fontSize: 14),
+                      ),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: c.cardSoft,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      items: [
+                        for (final event in _events)
+                          DropdownMenuItem<String>(
+                            key: ValueKey('bulk_event_option_${event.id}'),
+                            value: event.id,
+                            child: Text(
+                              event.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: c.ink, fontSize: 14),
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedEventId = value;
+                          _eventPreview = null;
+                          _dryRunError = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'New Event Name:',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      key: const ValueKey('bulk_event_new_name_input'),
+                      style: TextStyle(color: c.ink, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'New event name',
+                        hintStyle: TextStyle(color: c.ink3),
+                        helperText: _selectedEvent == null
+                            ? null
+                            : 'Currently "${_selectedEvent!.title}"',
+                        helperStyle: TextStyle(color: c.ink3, fontSize: 11.5),
+                        filled: true,
+                        fillColor: c.cardSoft,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _eventNewName = val;
+                          _eventPreview = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      key: const ValueKey('bulk_event_include_legacy_checkbox'),
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        setState(() {
+                          _includeTitleOnlySessions = !_includeTitleOnlySessions;
+                          _eventPreview = null;
+                          _dryRunError = null;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _includeTitleOnlySessions,
+                                activeColor: c.primary,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _includeTitleOnlySessions = val ?? true;
+                                    _eventPreview = null;
+                                    _dryRunError = null;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Also update older sessions that only match by name',
+                                style: TextStyle(fontSize: 13, color: c.ink),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // Source Name Input
+                    Text(
+                      _mode == _BulkMode.merge ? 'Source Person (to be merged):' : 'Current Name:',
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
                     ),
                     const SizedBox(height: 6),
@@ -1595,19 +1748,19 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                               orElse: () => null,
                             );
                         setState(() {
-                          _targetName = val;
-                          _selectedTargetMemberId = match?.id;
+                          _sourceName = val;
+                          _selectedSourceMemberId = match?.id;
                           _dryRunResult = null;
                         });
                       },
                       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                         return TextField(
-                          key: const ValueKey('bulk_target_name_input'),
+                          key: const ValueKey('bulk_source_name_input'),
                           controller: controller,
                           focusNode: focusNode,
                           style: TextStyle(color: c.ink, fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'e.g. Robert Smith',
+                            hintText: 'e.g. Bob Smith',
                             hintStyle: TextStyle(color: c.ink3),
                             filled: true,
                             fillColor: c.cardSoft,
@@ -1623,85 +1776,145 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                                   orElse: () => null,
                                 );
                             setState(() {
-                              _targetName = val;
-                              _selectedTargetMemberId = match?.id;
+                              _sourceName = val;
+                              _selectedSourceMemberId = match?.id;
                               _dryRunResult = null;
                             });
                           },
                         );
                       },
                     ),
-                  ] else ...[
-                    // Rename Target Input
-                    Text(
-                      'New Display Name:',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      key: const ValueKey('bulk_rename_new_name_input'),
-                      style: TextStyle(color: c.ink, fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'e.g. Robert Smith',
-                        hintStyle: TextStyle(color: c.ink3),
-                        filled: true,
-                        fillColor: c.cardSoft,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+
+                    const SizedBox(height: 14),
+
+                    if (_mode == _BulkMode.merge) ...[
+                      // Target Name Input
+                      Text(
+                        'Target Person (to keep):',
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
                       ),
-                      onChanged: (val) {
-                        _renameNewName = val;
-                        _dryRunResult = null;
+                      const SizedBox(height: 6),
+                      Autocomplete<String>(
+                        optionsBuilder: (textEditingValue) {
+                          if (textEditingValue.text.isEmpty) return _attendeeNames;
+                          return _attendeeNames.where((n) => n
+                              .toLowerCase()
+                              .contains(textEditingValue.text.toLowerCase()));
+                        },
+                        onSelected: (val) {
+                          final match = _rosterMembers.cast<Member?>().firstWhere(
+                                (m) => m?.displayName.toLowerCase() == val.toLowerCase(),
+                                orElse: () => null,
+                              );
+                          setState(() {
+                            _targetName = val;
+                            _selectedTargetMemberId = match?.id;
+                            _dryRunResult = null;
+                          });
+                        },
+                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                          return TextField(
+                            key: const ValueKey('bulk_target_name_input'),
+                            controller: controller,
+                            focusNode: focusNode,
+                            style: TextStyle(color: c.ink, fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText: 'e.g. Robert Smith',
+                              hintStyle: TextStyle(color: c.ink3),
+                              filled: true,
+                              fillColor: c.cardSoft,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            ),
+                            onChanged: (val) {
+                              final match = _rosterMembers.cast<Member?>().firstWhere(
+                                    (m) => m?.displayName.toLowerCase() == val.trim().toLowerCase(),
+                                    orElse: () => null,
+                                  );
+                              setState(() {
+                                _targetName = val;
+                                _selectedTargetMemberId = match?.id;
+                                _dryRunResult = null;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ] else ...[
+                      // Rename Target Input
+                      Text(
+                        'New Display Name:',
+                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        key: const ValueKey('bulk_rename_new_name_input'),
+                        style: TextStyle(color: c.ink, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Robert Smith',
+                          hintStyle: TextStyle(color: c.ink3),
+                          filled: true,
+                          fillColor: c.cardSoft,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                        onChanged: (val) {
+                          _renameNewName = val;
+                          _dryRunResult = null;
+                        },
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // Option to also apply to active roster
+                    InkWell(
+                      key: const ValueKey('bulk_update_roster_checkbox'),
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        setState(() {
+                          _updateRoster = !_updateRoster;
+                          _dryRunResult = null;
+                        });
                       },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _updateRoster,
+                                activeColor: c.primary,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _updateRoster = val ?? true;
+                                    _dryRunResult = null;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _mode == _BulkMode.merge
+                                    ? 'Also remove source member from roster'
+                                    : 'Also rename matching roster member',
+                                style: TextStyle(fontSize: 13, color: c.ink),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
-
-                  const SizedBox(height: 12),
-
-                  // Option to also apply to active roster
-                  InkWell(
-                    key: const ValueKey('bulk_update_roster_checkbox'),
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      setState(() {
-                        _updateRoster = !_updateRoster;
-                        _dryRunResult = null;
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: Checkbox(
-                              value: _updateRoster,
-                              activeColor: c.primary,
-                              onChanged: (val) {
-                                setState(() {
-                                  _updateRoster = val ?? true;
-                                  _dryRunResult = null;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _mode == _BulkMode.merge
-                                  ? 'Also remove source member from roster'
-                                  : 'Also rename matching roster member',
-                              style: TextStyle(fontSize: 13, color: c.ink),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
 
                   const SizedBox(height: 10),
 
@@ -1737,7 +1950,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                     ),
                   ],
 
-                  if (_dryRunResult != null) ...[
+                  if (_dryRunResult != null || _eventPreview != null) ...[
                     const SizedBox(height: 16),
                     Container(
                       key: const ValueKey('bulk_dry_run_results_card'),
@@ -1764,68 +1977,94 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          _buildDryRunRow('Past sessions affected:', '${_dryRunResult!.sessionsAffected}'),
-                          _buildDryRunRow('Historical marks updated:', '${_dryRunResult!.marksUpdated}'),
-                          if (_dryRunResult!.collisionsPruned > 0)
-                            _buildDryRunRow(
-                              'Intra-session collisions pruned:',
-                              '${_dryRunResult!.collisionsPruned}',
-                              highlightColor: const Color(0xFFD97706),
-                            ),
-                          if (_dryRunResult!.rosterMembersRemoved > 0)
-                            _buildDryRunRow('Roster members removed:', '${_dryRunResult!.rosterMembersRemoved}'),
-                          if (_dryRunResult!.rosterMembersUpdated > 0)
-                            _buildDryRunRow('Roster members renamed:', '${_dryRunResult!.rosterMembersUpdated}'),
+                          if (_mode == _BulkMode.event) ...[
+                            _buildDryRunRow('Sessions linked to this event:', '${_eventPreview!.linkedCount}'),
+                            _buildDryRunRow('Older sessions matched by name:', '${_eventPreview!.titleOnlyCount}'),
+                            if (_eventPreview!.sampleLabels.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'Sample Sessions Affected:',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: c.ink3),
+                              ),
+                              const SizedBox(height: 4),
+                              ..._eventPreview!.sampleLabels.map((label) {
+                                return Text(
+                                  '• $label',
+                                  style: TextStyle(fontSize: 11.5, color: c.ink2),
+                                );
+                              }),
+                            ],
+                          ] else ...[
+                            _buildDryRunRow('Past sessions affected:', '${_dryRunResult!.sessionsAffected}'),
+                            _buildDryRunRow('Historical marks updated:', '${_dryRunResult!.marksUpdated}'),
+                            if (_dryRunResult!.collisionsPruned > 0)
+                              _buildDryRunRow(
+                                'Intra-session collisions pruned:',
+                                '${_dryRunResult!.collisionsPruned}',
+                                highlightColor: const Color(0xFFD97706),
+                              ),
+                            if (_dryRunResult!.rosterMembersRemoved > 0)
+                              _buildDryRunRow('Roster members removed:', '${_dryRunResult!.rosterMembersRemoved}'),
+                            if (_dryRunResult!.rosterMembersUpdated > 0)
+                              _buildDryRunRow('Roster members renamed:', '${_dryRunResult!.rosterMembersUpdated}'),
 
-                          if (_dryRunResult!.affectedSessionTitles.isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Text(
-                              'Sample Sessions Affected:',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: c.ink3),
-                            ),
-                            const SizedBox(height: 4),
-                            ...(_dryRunResult!.affectedSessionTitles.take(3).map((title) {
-                              return Text(
-                                '• $title',
-                                style: TextStyle(fontSize: 11.5, color: c.ink2),
-                              );
-                            })),
+                            if (_dryRunResult!.affectedSessionTitles.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'Sample Sessions Affected:',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: c.ink3),
+                              ),
+                              const SizedBox(height: 4),
+                              ...(_dryRunResult!.affectedSessionTitles.take(3).map((title) {
+                                return Text(
+                                  '• $title',
+                                  style: TextStyle(fontSize: 11.5, color: c.ink2),
+                                );
+                              })),
+                            ],
                           ],
                         ],
                       ),
                     ),
                     const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        key: const ValueKey('bulk_execute_button'),
-                        onPressed: _isExecuting ? null : _execute,
-                        icon: _isExecuting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.done_all, size: 18),
-                        label: Text(
-                          _isExecuting
-                              ? 'Applying...'
-                              : 'Confirm & Apply (${_dryRunResult!.totalOperations} changes)',
-                        ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: c.primary,
-                          foregroundColor: c.onPrimary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                    if (_mode != _BulkMode.event || _eventPreview!.sessionsAffected > 0)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          key: const ValueKey('bulk_execute_button'),
+                          onPressed: _isExecuting ? null : _execute,
+                          icon: _isExecuting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.done_all, size: 18),
+                          label: Text(
+                            _isExecuting ? 'Applying...' : _applyLabel(),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: c.primary,
+                            foregroundColor: c.onPrimary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ],
               ),
             ),
       ),
     );
+  }
+
+  String _applyLabel() {
+    if (_mode == _BulkMode.event) {
+      final count = _eventPreview!.sessionsAffected;
+      return 'Confirm & Apply ($count session${count == 1 ? '' : 's'})';
+    }
+    return 'Confirm & Apply (${_dryRunResult!.totalOperations} changes)';
   }
 
   Widget _buildDryRunRow(String label, String value, {Color? highlightColor}) {
