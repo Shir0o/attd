@@ -47,7 +47,7 @@ class _RapidEntryViewState extends State<RapidEntryView> {
   }
 
   List<SearchEntry> get _results =>
-      widget.roster.index.search(_query, limit: _maxResults);
+      widget.roster.search(_query, limit: _maxResults);
 
   /// True when the return key should act: either a single result, or a top hit
   /// that matches strictly better than the runner-up.

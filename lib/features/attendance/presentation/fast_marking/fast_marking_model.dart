@@ -108,6 +108,23 @@ class FastMarkingRoster {
   List<Member> get unmarked =>
       members.where((m) => !isPresent(m)).toList(growable: false);
 
-  List<SearchEntry> get searchEntries => index.searchEntries;
+  /// Built from [members], not the index's base roster: the display list is
+  /// deduped by id (a member under two households arrives twice) and carries
+  /// the guests and visitors recorded on this session.
+  List<SearchEntry> get searchEntries => [
+        for (final m in members) (member: m, familyName: familyNameFor(m)),
+      ];
+
+  /// The [members] matching [query], best match first, capped at [limit].
+  List<SearchEntry> search(String query, {int? limit}) {
+    final results = ActiveRosterIndex.executeRankedSearch(
+      searchEntries,
+      query,
+      priority: likelihoodPriority,
+    );
+    return limit != null && results.length > limit
+        ? results.sublist(0, limit)
+        : results;
+  }
 }
 
