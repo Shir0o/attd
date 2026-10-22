@@ -328,6 +328,46 @@ void main() {
 
       expect(find.byKey(const Key('fastMarkingResult_an')), findsNothing);
     });
+
+    testWidgets('a member listed under two households appears once',
+        (tester) async {
+      final hall = Family(
+        id: 'f-hall',
+        displayName: 'Hall cleaning',
+        members: [Member(id: 'an', displayName: 'An Nguyen')],
+      );
+      await pumpMode(
+        tester,
+        MarkingMode.rapidEntry,
+        families: [_nguyens, _okafor, hall],
+      );
+      await typeQuery(tester, const Key('rapidEntryField'), 'an ng');
+
+      expect(find.byKey(const Key('fastMarkingResult_an')), findsOneWidget);
+      expect(find.text('1 MATCH'), findsOneWidget);
+    });
+
+    testWidgets('a guest added this session can be found and reads as here',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.rapidEntry);
+      await typeQuery(tester, const Key('rapidEntryField'), 'Guest One');
+      await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('addSheetNameField')),
+        'Guest One',
+      );
+      await tester.tap(find.byKey(const Key('addSheetMarkGuest')));
+      await tester.pumpAndSettle();
+
+      await typeQuery(tester, const Key('rapidEntryField'), 'guest');
+      final row = find.byKey(const Key('fastMarkingResult_visitor_Guest One'));
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('Already here')),
+        findsOneWidget,
+      );
+    });
   });
 
   group('likely here', () {
@@ -601,7 +641,7 @@ void main() {
       expect(find.text('Pick a first-name initial'), findsOneWidget);
     });
 
-    testWidgets('a letter goes dark once its last match is marked',
+    testWidgets('a letter stays live once its last match is marked',
         (tester) async {
       await pumpMode(tester, MarkingMode.initialsPad);
       await tester.tap(find.byKey(const Key('initialsKey_S')));
@@ -609,9 +649,16 @@ void main() {
       await tester.tap(find.byKey(const Key('fastMarkingResult_sam')));
       await tester.pumpAndSettle();
 
+      // Sam is still reachable, shown as already here, so a mark can be
+      // checked or taken back from the pad.
       await tester.tap(find.byKey(const Key('initialsKey_S')));
       await tester.pumpAndSettle();
-      expect(find.text('Pick a first-name initial'), findsOneWidget);
+      final row = find.byKey(const Key('fastMarkingResult_sam'));
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('Already here')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('tapping a result marks that person present', (tester) async {
