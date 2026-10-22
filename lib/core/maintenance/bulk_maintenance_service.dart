@@ -5,6 +5,7 @@ import '../../data/session_record.dart';
 import '../../data/session_repository.dart';
 import '../../features/attendance/data/attendance_repository.dart';
 import '../../features/attendance/models/family.dart';
+import '../../features/attendance/models/member.dart';
 import '../logging/app_logger.dart';
 
 final _log = AppLogger('BulkMaintenanceService');
@@ -28,6 +29,62 @@ class BulkDryRunResult {
 
   int get totalOperations =>
       marksUpdated + collisionsPruned + rosterMembersUpdated + rosterMembersRemoved;
+}
+
+
+/// One live member record that shares a display name with another record.
+class DuplicateMemberOccurrence {
+  const DuplicateMemberOccurrence({
+    required this.member,
+    required this.family,
+    required this.linkedMarkCount,
+  });
+
+  final Member member;
+  final Family family;
+  final int linkedMarkCount;
+
+  bool get isLoner => family.isAutoSingleton;
+}
+
+/// A group of live member records whose display names normalise to the same
+/// text. Same-name records are only a suggestion: the merge itself is keyed by
+/// member id, so two genuinely different people are never merged by accident.
+class DuplicateMemberGroup {
+  const DuplicateMemberGroup({
+    required this.displayName,
+    required this.occurrences,
+    required this.unlinkedMarkCount,
+  });
+
+  final String displayName;
+  final List<DuplicateMemberOccurrence> occurrences;
+
+  /// Marks with no member link (legacy or guest) whose attendee text matches.
+  /// They are reported for context but never rewritten by an id-based merge.
+  final int unlinkedMarkCount;
+
+  String get key => normaliseName(displayName);
+
+  DuplicateMemberOccurrence get suggestedTarget => occurrences.first;
+
+  static String normaliseName(String name) =>
+      name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+}
+
+/// One explicit source -> target pair for an id-based member merge.
+class MemberMergePlan {
+  const MemberMergePlan({
+    required this.sourceMemberId,
+    required this.targetMemberId,
+    required this.sourceName,
+    required this.targetName,
+  });
+
+  final String sourceMemberId;
+  final String targetMemberId;
+  final String sourceName;
+  final String targetName;
 }
 
 class BulkMaintenanceService {
@@ -291,5 +348,248 @@ class BulkMaintenanceService {
     await sessionRepository.saveSessions(updatedSessions);
 
     _log.info('Bulk rename completed: "$oldName" -> "$newName"');
+  }
+  /// Finds live member records that share a normalised display name.
+  ///
+  /// Includes auto-singletons ("Loners"), which the family duplicate banner
+  /// ignores, and de-duplicates the same member id referenced by more than one
+  /// family. Groups are suggestions only; nothing is merged here.
+  Future<List<DuplicateMemberGroup>> findDuplicateMembers() async {
+    final families = await _getFamilies();
+    final sessions = await _getSessions();
+
+    final marksByMemberId = <String, int>{};
+    final unlinkedByName = <String, int>{};
+    for (final session in sessions) {
+      if (session.deletedAt != null) continue;
+      for (final r in session.records) {
+        final mid = r.memberId;
+        if (mid != null && mid.trim().isNotEmpty) {
+          marksByMemberId[mid] = (marksByMemberId[mid] ?? 0) + 1;
+        } else {
+          final key = DuplicateMemberGroup.normaliseName(r.attendee);
+          if (key.isNotEmpty) {
+            unlinkedByName[key] = (unlinkedByName[key] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    // The same person may be referenced by a real family and a leftover
+    // auto-singleton. Show one occurrence, preferring the real family.
+    final occurrencesById = <String, DuplicateMemberOccurrence>{};
+    for (final family in families) {
+      if (family.deletedAt != null) continue;
+      for (final member in family.members) {
+        if (member.deletedAt != null) continue;
+        final occurrence = DuplicateMemberOccurrence(
+          member: member,
+          family: family,
+          linkedMarkCount: marksByMemberId[member.id] ?? 0,
+        );
+        final existing = occurrencesById[member.id];
+        if (existing == null || (existing.isLoner && !occurrence.isLoner)) {
+          occurrencesById[member.id] = occurrence;
+        }
+      }
+    }
+
+    final byName = <String, List<DuplicateMemberOccurrence>>{};
+    for (final occurrence in occurrencesById.values) {
+      final key =
+          DuplicateMemberGroup.normaliseName(occurrence.member.displayName);
+      if (key.isEmpty) continue;
+      byName.putIfAbsent(key, () => []).add(occurrence);
+    }
+
+    final groups = <DuplicateMemberGroup>[];
+    for (final entry in byName.entries) {
+      if (entry.value.length < 2) continue;
+      entry.value.sort(_compareDuplicateOccurrences);
+      groups.add(DuplicateMemberGroup(
+        displayName: entry.value.first.member.displayName,
+        occurrences: List.unmodifiable(entry.value),
+        unlinkedMarkCount: unlinkedByName[entry.key] ?? 0,
+      ));
+    }
+    groups.sort((a, b) =>
+        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+    return groups;
+  }
+
+  static int _compareDuplicateOccurrences(
+    DuplicateMemberOccurrence a,
+    DuplicateMemberOccurrence b,
+  ) {
+    final marks = b.linkedMarkCount.compareTo(a.linkedMarkCount);
+    if (marks != 0) return marks;
+    if (a.isLoner != b.isLoner) return a.isLoner ? 1 : -1;
+    final family = a.family.displayName
+        .toLowerCase()
+        .compareTo(b.family.displayName.toLowerCase());
+    if (family != 0) return family;
+    return a.member.id.compareTo(b.member.id);
+  }
+
+  /// Simulates [plans] without writing. Matching is by member id only, so a
+  /// different person who happens to share the same text is never touched.
+  Future<BulkDryRunResult> simulateMergeMembers(
+    List<MemberMergePlan> plans, {
+    bool updateRoster = true,
+  }) async {
+    _validateMergePlans(plans);
+    if (plans.isEmpty) {
+      return const BulkDryRunResult(
+        sessionsAffected: 0,
+        marksUpdated: 0,
+        collisionsPruned: 0,
+        rosterMembersUpdated: 0,
+        rosterMembersRemoved: 0,
+        affectedSessionTitles: [],
+      );
+    }
+
+    final families = await _getFamilies();
+    final sessions = await _getSessions();
+    final plansBySource = {for (final p in plans) p.sourceMemberId: p};
+    final targetIds = plans.map((p) => p.targetMemberId).toSet();
+
+    var rosterMembersRemoved = 0;
+    if (updateRoster) {
+      for (final f in families) {
+        for (final m in f.members) {
+          if (m.deletedAt == null && plansBySource.containsKey(m.id)) {
+            rosterMembersRemoved++;
+          }
+        }
+      }
+    }
+
+    var sessionsAffected = 0;
+    var marksUpdated = 0;
+    var collisionsPruned = 0;
+    final affectedSessionTitles = <String>[];
+
+    for (final session in sessions) {
+      final targetPresent = <String>{
+        for (final r in session.records)
+          if (r.memberId != null &&
+              targetIds.contains(r.memberId) &&
+              !plansBySource.containsKey(r.memberId))
+            r.memberId!,
+      };
+      var sourceMatches = 0;
+      var collisions = 0;
+      for (final r in session.records) {
+        final plan = plansBySource[r.memberId];
+        if (plan == null) continue;
+        sourceMatches++;
+        if (targetPresent.contains(plan.targetMemberId)) {
+          collisions++;
+        } else {
+          targetPresent.add(plan.targetMemberId);
+        }
+      }
+      if (sourceMatches == 0) continue;
+      sessionsAffected++;
+      marksUpdated += sourceMatches;
+      collisionsPruned += collisions;
+      final dateStr = DateFormat('MMM dd, yyyy').format(session.sessionDate);
+      affectedSessionTitles.add('${session.title} ($dateStr)');
+    }
+
+    return BulkDryRunResult(
+      sessionsAffected: sessionsAffected,
+      marksUpdated: marksUpdated,
+      collisionsPruned: collisionsPruned,
+      rosterMembersUpdated: 0,
+      rosterMembersRemoved: rosterMembersRemoved,
+      affectedSessionTitles: affectedSessionTitles,
+    );
+  }
+
+  /// Applies [plans] by member id. Source records are repointed to the target
+  /// and a source record that collides with an existing target mark in the
+  /// same session is pruned.
+  Future<void> executeMergeMembers(
+    List<MemberMergePlan> plans, {
+    bool updateRoster = true,
+  }) async {
+    _validateMergePlans(plans);
+    if (plans.isEmpty) return;
+
+    final families = await _getFamilies();
+    final sessions = await _getSessions();
+    final plansBySource = {for (final p in plans) p.sourceMemberId: p};
+    final targetIds = plans.map((p) => p.targetMemberId).toSet();
+    final now = DateTime.now();
+
+    if (updateRoster) {
+      var changed = false;
+      final updatedFamilies = families.map((f) {
+        final remaining =
+            f.members.where((m) => !plansBySource.containsKey(m.id)).toList();
+        if (remaining.length == f.members.length) return f;
+        changed = true;
+        return f.copyWith(members: remaining, updatedAt: now);
+      }).toList();
+      if (changed) await attendanceRepository.saveFamilies(updatedFamilies);
+    }
+
+    var sessionsChanged = false;
+    final updatedSessions = sessions.map((session) {
+      final targetPresent = <String>{
+        for (final r in session.records)
+          if (r.memberId != null &&
+              targetIds.contains(r.memberId) &&
+              !plansBySource.containsKey(r.memberId))
+            r.memberId!,
+      };
+      var modified = false;
+      final records = <SessionRecord>[];
+      for (final r in session.records) {
+        final plan = plansBySource[r.memberId];
+        if (plan == null) {
+          records.add(r);
+          continue;
+        }
+        modified = true;
+        if (targetPresent.contains(plan.targetMemberId)) {
+          continue;
+        }
+        targetPresent.add(plan.targetMemberId);
+        records.add(r.copyWith(
+          memberId: plan.targetMemberId,
+          attendee: plan.targetName,
+        ));
+      }
+      if (!modified) return session;
+      sessionsChanged = true;
+      return session.copyWith(records: records, updatedAt: now);
+    }).toList();
+
+    if (sessionsChanged) {
+      await sessionRepository.saveSessions(updatedSessions);
+    }
+    _log.info('Merged ${plans.length} duplicate member record(s) by id');
+  }
+
+  void _validateMergePlans(List<MemberMergePlan> plans) {
+    final sources = <String>{};
+    final targets = <String>{};
+    for (final plan in plans) {
+      if (plan.sourceMemberId == plan.targetMemberId) {
+        throw ArgumentError('A member cannot be merged into themselves');
+      }
+      if (!sources.add(plan.sourceMemberId)) {
+        throw ArgumentError('Duplicate source member ${plan.sourceMemberId}');
+      }
+      targets.add(plan.targetMemberId);
+    }
+    for (final target in targets) {
+      if (sources.contains(target)) {
+        throw ArgumentError('A merge target cannot also be a source');
+      }
+    }
   }
 }
