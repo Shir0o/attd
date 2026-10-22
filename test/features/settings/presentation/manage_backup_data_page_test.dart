@@ -1048,7 +1048,7 @@ void main() {
 
     // Verify modal is open
     expect(find.text('Bulk Update & Merge'), findsOneWidget);
-    expect(find.text('Static history safe · Dry-run verified'), findsOneWidget);
+    expect(find.text('Dry-run verified · Nothing applies without confirmation'), findsOneWidget);
 
     // Enter source and target names
     await tester.enterText(find.byKey(const ValueKey('bulk_source_name_input')), 'Bob Smith');
@@ -1269,5 +1269,134 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Failed to update records: Exception: Simulated DB failure'), findsOneWidget);
+  });
+
+  testWidgets('bulk modal repairs historical event session titles',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final now = DateTime(2025, 4, 5, 10);
+    final attendance = _AttendanceRepository([]);
+    final events = _EventRepository([
+      Event(
+        id: 'event-sunday',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+      Event(
+        id: 'event-other',
+        title: 'Other Event',
+        time: const TimeOfDay(hour: 18, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ),
+    ]);
+
+    Session eventSession(String id, {String? eventId}) => Session(
+          id: id,
+          eventId: eventId,
+          title: 'Sunday Service',
+          sessionDate: DateTime(2025, 4, 6),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: const [],
+        );
+
+    final sessions = _SessionRepository([
+      eventSession('s-linked', eventId: 'event-sunday'),
+      eventSession('s-legacy'),
+      eventSession('s-other', eventId: 'event-other'),
+    ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        ManageBackupDataPage(
+          attendanceRepository: attendance,
+          eventRepository: events,
+          sessionRepository: sessions,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bulk_merge_names_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bulk_mode_event_tab')));
+    await tester.pumpAndSettle();
+
+    // No event chosen yet.
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please choose an event.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('bulk_event_picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sunday Service').last);
+    await tester.pumpAndSettle();
+
+    // A blank new name is rejected.
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Please enter a new event name.'), findsOneWidget);
+
+    // The current name is rejected, so a no-op repair cannot be applied.
+    await tester.enterText(
+      find.byKey(const ValueKey('bulk_event_new_name_input')),
+      'Sunday Service',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('The new event name must differ from the current name.'),
+      findsOneWidget,
+    );
+
+    // Toggling the title-only option clears the previous preview.
+    await tester
+        .tap(find.byKey(const ValueKey('bulk_event_include_legacy_checkbox')));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('bulk_event_include_legacy_checkbox')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('bulk_event_new_name_input')),
+      'Sunday Gathering',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('bulk_dry_run_results_card')),
+        findsOneWidget);
+    expect(find.text('Sessions linked to this event:'), findsOneWidget);
+    expect(find.text('Older sessions matched by name:'), findsOneWidget);
+
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('bulk_execute_button')));
+    await tester.tap(find.byKey(const ValueKey('bulk_execute_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      sessions.sessions.firstWhere((s) => s.id == 's-linked').title,
+      'Sunday Gathering',
+    );
+    expect(
+      sessions.sessions.firstWhere((s) => s.id == 's-legacy').title,
+      'Sunday Gathering',
+    );
+    expect(
+      sessions.sessions.firstWhere((s) => s.id == 's-other').title,
+      'Sunday Service',
+    );
   });
 }

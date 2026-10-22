@@ -31,6 +31,31 @@ class BulkDryRunResult {
       marksUpdated + collisionsPruned + rosterMembersUpdated + rosterMembersRemoved;
 }
 
+/// How a historical session was matched when repairing an event title.
+enum EventTitleMatch {
+  /// The session carries the event id.
+  linked,
+
+  /// The session has no event id, so it matched on its recorded title.
+  titleOnly,
+}
+
+/// Sessions an event title repair would rewrite, classified by match.
+class EventTitleRepairPreview {
+  const EventTitleRepairPreview({required this.matches});
+
+  final List<({String label, EventTitleMatch match})> matches;
+
+  int get linkedCount =>
+      matches.where((m) => m.match == EventTitleMatch.linked).length;
+
+  int get titleOnlyCount =>
+      matches.where((m) => m.match == EventTitleMatch.titleOnly).length;
+
+  int get sessionsAffected => matches.length;
+
+  List<String> get sampleLabels => matches.take(3).map((m) => m.label).toList();
+}
 
 /// One live member record that shares a display name with another record.
 class DuplicateMemberOccurrence {
@@ -349,6 +374,120 @@ class BulkMaintenanceService {
 
     _log.info('Bulk rename completed: "$oldName" -> "$newName"');
   }
+
+  /// Simulates rewriting the recorded title of every session that belongs to
+  /// [eventId], without touching the event record itself.
+  Future<EventTitleRepairPreview> previewEventTitleRename({
+    required String eventId,
+    required String oldTitle,
+    required String newTitle,
+    required bool includeTitleOnlySessions,
+  }) async {
+    _validateEventTitleRename(
+      eventId: eventId,
+      oldTitle: oldTitle,
+      newTitle: newTitle,
+    );
+
+    final sessions = await _getSessions();
+    final trimmedNewTitle = newTitle.trim();
+    final matches = <({String label, EventTitleMatch match})>[];
+
+    for (final session in sessions) {
+      final match = _matchEventTitle(
+        session,
+        eventId: eventId,
+        oldTitle: oldTitle,
+        includeTitleOnlySessions: includeTitleOnlySessions,
+      );
+      if (match == null) continue;
+      if (session.title == trimmedNewTitle) continue;
+      final dateStr = DateFormat('MMM dd, yyyy').format(session.sessionDate);
+      matches.add((label: '${session.title} · $dateStr', match: match));
+    }
+
+    return EventTitleRepairPreview(matches: matches);
+  }
+
+  /// Rewrites the recorded title on sessions belonging to [eventId] and
+  /// returns how many titles actually changed.
+  Future<int> executeEventTitleRename({
+    required String eventId,
+    required String oldTitle,
+    required String newTitle,
+    required bool includeTitleOnlySessions,
+  }) async {
+    _validateEventTitleRename(
+      eventId: eventId,
+      oldTitle: oldTitle,
+      newTitle: newTitle,
+    );
+
+    final sessions = await _getSessions();
+    final now = DateTime.now();
+    final trimmedNewTitle = newTitle.trim();
+    var changed = 0;
+
+    final updatedSessions = sessions.map((session) {
+      final match = _matchEventTitle(
+        session,
+        eventId: eventId,
+        oldTitle: oldTitle,
+        includeTitleOnlySessions: includeTitleOnlySessions,
+      );
+      if (match == null) return session;
+      if (session.title == trimmedNewTitle) return session;
+      changed++;
+      return session.copyWith(title: trimmedNewTitle, updatedAt: now);
+    }).toList();
+
+    if (changed > 0) {
+      await sessionRepository.saveSessions(updatedSessions);
+    }
+    _log.info(
+      'Event title rename completed: "$oldTitle" -> "$trimmedNewTitle" '
+      '($changed session(s))',
+    );
+    return changed;
+  }
+
+  /// Matches a session to an event the same way history and Insights do: by
+  /// event id when present, otherwise by recorded title. A session linked to a
+  /// different event is never touched, even when the title matches.
+  EventTitleMatch? _matchEventTitle(
+    Session session, {
+    required String eventId,
+    required String oldTitle,
+    required bool includeTitleOnlySessions,
+  }) {
+    final id = session.eventId;
+    if (id != null && id.isNotEmpty) {
+      return id == eventId ? EventTitleMatch.linked : null;
+    }
+    if (!includeTitleOnlySessions) return null;
+    return session.title.trim().toLowerCase() == oldTitle.trim().toLowerCase()
+        ? EventTitleMatch.titleOnly
+        : null;
+  }
+
+  void _validateEventTitleRename({
+    required String eventId,
+    required String oldTitle,
+    required String newTitle,
+  }) {
+    if (eventId.trim().isEmpty) {
+      throw ArgumentError('An event id is required');
+    }
+    final trimmedNewTitle = newTitle.trim();
+    if (trimmedNewTitle.isEmpty) {
+      throw ArgumentError('A new event name is required');
+    }
+    if (trimmedNewTitle == oldTitle.trim()) {
+      throw ArgumentError(
+          'The new event name must differ from the current one');
+    }
+  }
+
   /// Finds live member records that share a normalised display name.
   ///
   /// Includes auto-singletons ("Loners"), which the family duplicate banner

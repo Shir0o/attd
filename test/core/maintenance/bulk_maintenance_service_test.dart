@@ -502,6 +502,156 @@ void main() {
       );
     });
 
+    test(
+        'previewEventTitleRename splits linked from title-only sessions and '
+        'ignores another event', () async {
+      Session eventSession(String id,
+              {String? eventId, String title = 'Sunday Service'}) =>
+          Session(
+            id: id,
+            eventId: eventId,
+            title: title,
+            sessionDate: DateTime(2026, 5, 20),
+            createdAt: now,
+            updatedAt: now,
+            createdBy: 'Admin',
+            records: const [],
+          );
+
+      sessionRepo.sessions = [
+        eventSession('s-linked', eventId: 'event-sunday'),
+        eventSession('s-legacy'),
+        eventSession('s-other', eventId: 'event-other'),
+      ];
+
+      final preview = await service.previewEventTitleRename(
+        eventId: 'event-sunday',
+        oldTitle: 'Sunday Service',
+        newTitle: 'Sunday Gathering',
+        includeTitleOnlySessions: true,
+      );
+
+      expect(preview.sessionsAffected, 2);
+      expect(preview.linkedCount, 1);
+      expect(preview.titleOnlyCount, 1);
+      expect(preview.sampleLabels, hasLength(2));
+      expect(preview.sampleLabels.first, startsWith('Sunday Service · '));
+    });
+
+    test(
+        'executeEventTitleRename rewrites linked and title-only sessions and '
+        'leaves another event alone', () async {
+      Session eventSession(
+        String id, {
+        String? eventId,
+        String title = 'Sunday Service',
+      }) =>
+          Session(
+            id: id,
+            eventId: eventId,
+            title: title,
+            sessionDate: DateTime(2026, 5, 20),
+            createdAt: now,
+            updatedAt: now,
+            createdBy: 'Admin',
+            records: const [],
+          );
+
+      sessionRepo.sessions = [
+        eventSession('s-linked', eventId: 'event-sunday'),
+        eventSession('s-legacy'),
+        eventSession('s-other', eventId: 'event-other'),
+        // Already at the target title: counted as nothing, updatedAt untouched.
+        eventSession('s-done',
+            eventId: 'event-sunday', title: 'Sunday Gathering'),
+      ];
+
+      final changed = await service.executeEventTitleRename(
+        eventId: 'event-sunday',
+        oldTitle: 'Sunday Service',
+        newTitle: 'Sunday Gathering',
+        includeTitleOnlySessions: true,
+      );
+
+      expect(changed, 2);
+      expect(sessionRepo.saveCount, 1);
+      expect(
+        sessionRepo.sessions.firstWhere((s) => s.id == 's-linked').title,
+        'Sunday Gathering',
+      );
+      expect(
+        sessionRepo.sessions.firstWhere((s) => s.id == 's-legacy').title,
+        'Sunday Gathering',
+      );
+      expect(
+        sessionRepo.sessions.firstWhere((s) => s.id == 's-other').title,
+        'Sunday Service',
+      );
+      final alreadyRenamed =
+          sessionRepo.sessions.firstWhere((s) => s.id == 's-done');
+      expect(alreadyRenamed.title, 'Sunday Gathering');
+      expect(alreadyRenamed.updatedAt, now);
+    });
+
+    test(
+        'executeEventTitleRename leaves title-only sessions when the flag is off',
+        () async {
+      Session eventSession(String id, {String? eventId}) => Session(
+            id: id,
+            eventId: eventId,
+            title: 'Sunday Service',
+            sessionDate: DateTime(2026, 5, 20),
+            createdAt: now,
+            updatedAt: now,
+            createdBy: 'Admin',
+            records: const [],
+          );
+
+      sessionRepo.sessions = [
+        eventSession('s-linked', eventId: 'event-sunday'),
+        eventSession('s-legacy'),
+      ];
+
+      final changed = await service.executeEventTitleRename(
+        eventId: 'event-sunday',
+        oldTitle: 'Sunday Service',
+        newTitle: 'Sunday Gathering',
+        includeTitleOnlySessions: false,
+      );
+
+      expect(changed, 1);
+      expect(
+        sessionRepo.sessions.firstWhere((s) => s.id == 's-linked').title,
+        'Sunday Gathering',
+      );
+      expect(
+        sessionRepo.sessions.firstWhere((s) => s.id == 's-legacy').title,
+        'Sunday Service',
+      );
+    });
+
+    test('executeEventTitleRename rejects blank and unchanged new names',
+        () async {
+      await expectLater(
+        service.executeEventTitleRename(
+          eventId: 'event-sunday',
+          oldTitle: 'Sunday Service',
+          newTitle: '   ',
+          includeTitleOnlySessions: true,
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        service.executeEventTitleRename(
+          eventId: 'event-sunday',
+          oldTitle: 'Sunday Service',
+          newTitle: ' Sunday Service ',
+          includeTitleOnlySessions: true,
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('BulkDryRunResult totalOperations computes correctly', () {
       const result = BulkDryRunResult(
         sessionsAffected: 2,
