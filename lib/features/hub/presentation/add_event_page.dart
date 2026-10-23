@@ -241,6 +241,12 @@ class _AddEventPageState extends State<AddEventPage> {
             widget.eventToEdit?.defaultAttendanceStartMode,
         rosterGrouping: _grouping,
         markingMode: _markingMode,
+        // Fields this form does not edit must survive the save.
+        insightsConfig: widget.eventToEdit?.insightsConfig,
+        isShared: widget.eventToEdit?.isShared ?? false,
+        sharedFolderId: widget.eventToEdit?.sharedFolderId,
+        collaborators: widget.eventToEdit?.collaborators ?? const [],
+        isReadOnly: widget.eventToEdit?.isReadOnly ?? false,
         createdAt: createdAt,
       );
 

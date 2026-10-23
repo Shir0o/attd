@@ -376,18 +376,17 @@ class BulkMaintenanceService {
   }
 
   /// Simulates rewriting the recorded title of every session that belongs to
-  /// [eventId], without touching the event record itself.
+  /// [eventId] to [newTitle], without touching the event record itself.
+  ///
+  /// [newTitle] may equal the event's current name: that is how history is
+  /// brought in line after the event was renamed. Sessions with no event id are
+  /// only matched when [legacyTitle] names the title they were recorded under.
   Future<EventTitleRepairPreview> previewEventTitleRename({
     required String eventId,
-    required String oldTitle,
     required String newTitle,
-    required bool includeTitleOnlySessions,
+    String? legacyTitle,
   }) async {
-    _validateEventTitleRename(
-      eventId: eventId,
-      oldTitle: oldTitle,
-      newTitle: newTitle,
-    );
+    _validateEventTitleRename(eventId: eventId, newTitle: newTitle);
 
     final sessions = await _getSessions();
     final trimmedNewTitle = newTitle.trim();
@@ -397,8 +396,7 @@ class BulkMaintenanceService {
       final match = _matchEventTitle(
         session,
         eventId: eventId,
-        oldTitle: oldTitle,
-        includeTitleOnlySessions: includeTitleOnlySessions,
+        legacyTitle: legacyTitle,
       );
       if (match == null) continue;
       if (session.title == trimmedNewTitle) continue;
@@ -410,18 +408,13 @@ class BulkMaintenanceService {
   }
 
   /// Rewrites the recorded title on sessions belonging to [eventId] and
-  /// returns how many titles actually changed.
+  /// returns how many titles actually changed. See [previewEventTitleRename].
   Future<int> executeEventTitleRename({
     required String eventId,
-    required String oldTitle,
     required String newTitle,
-    required bool includeTitleOnlySessions,
+    String? legacyTitle,
   }) async {
-    _validateEventTitleRename(
-      eventId: eventId,
-      oldTitle: oldTitle,
-      newTitle: newTitle,
-    );
+    _validateEventTitleRename(eventId: eventId, newTitle: newTitle);
 
     final sessions = await _getSessions();
     final now = DateTime.now();
@@ -432,8 +425,7 @@ class BulkMaintenanceService {
       final match = _matchEventTitle(
         session,
         eventId: eventId,
-        oldTitle: oldTitle,
-        includeTitleOnlySessions: includeTitleOnlySessions,
+        legacyTitle: legacyTitle,
       );
       if (match == null) return session;
       if (session.title == trimmedNewTitle) return session;
@@ -445,7 +437,7 @@ class BulkMaintenanceService {
       await sessionRepository.saveSessions(updatedSessions);
     }
     _log.info(
-      'Event title rename completed: "$oldTitle" -> "$trimmedNewTitle" '
+      'Event title rename completed: -> "$trimmedNewTitle" '
       '($changed session(s))',
     );
     return changed;
@@ -457,34 +449,28 @@ class BulkMaintenanceService {
   EventTitleMatch? _matchEventTitle(
     Session session, {
     required String eventId,
-    required String oldTitle,
-    required bool includeTitleOnlySessions,
+    required String? legacyTitle,
   }) {
     final id = session.eventId;
     if (id != null && id.isNotEmpty) {
       return id == eventId ? EventTitleMatch.linked : null;
     }
-    if (!includeTitleOnlySessions) return null;
-    return session.title.trim().toLowerCase() == oldTitle.trim().toLowerCase()
+    final legacy = legacyTitle?.trim().toLowerCase() ?? '';
+    if (legacy.isEmpty) return null;
+    return session.title.trim().toLowerCase() == legacy
         ? EventTitleMatch.titleOnly
         : null;
   }
 
   void _validateEventTitleRename({
     required String eventId,
-    required String oldTitle,
     required String newTitle,
   }) {
     if (eventId.trim().isEmpty) {
       throw ArgumentError('An event id is required');
     }
-    final trimmedNewTitle = newTitle.trim();
-    if (trimmedNewTitle.isEmpty) {
+    if (newTitle.trim().isEmpty) {
       throw ArgumentError('A new event name is required');
-    }
-    if (trimmedNewTitle == oldTitle.trim()) {
-      throw ArgumentError(
-          'The new event name must differ from the current one');
     }
   }
 
