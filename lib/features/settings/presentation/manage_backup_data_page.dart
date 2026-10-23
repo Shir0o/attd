@@ -1341,6 +1341,15 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
     return null;
   }
 
+  /// Whether applying the repair also renames the event record itself, so the
+  /// event and its sessions never end up under different names.
+  bool get _eventWillBeRenamed {
+    final event = _selectedEvent;
+    if (event == null) return false;
+    final newName = _eventNewNameController.text.trim();
+    return newName.isNotEmpty && newName != event.title;
+  }
+
   void _selectMode(_BulkMode mode) {
     setState(() {
       _mode = mode;
@@ -1371,6 +1380,13 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
         );
       } else {
         final event = _selectedEvent!;
+        // Rename the event first: if saving sessions then fails, re-running
+        // the repair defaults to the new name and finishes the job.
+        if (_eventWillBeRenamed) {
+          await widget.eventRepository.updateEvent(
+            event.copyWith(title: _eventNewNameController.text.trim()),
+          );
+        }
         updatedSessions = await _service.executeEventTitleRename(
           eventId: event.id,
           newTitle: _eventNewNameController.text.trim(),
@@ -1940,6 +1956,11 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                           ),
                           const SizedBox(height: 12),
                           if (_mode == _BulkMode.event) ...[
+                            if (_eventWillBeRenamed)
+                              _buildDryRunRow(
+                                'Event renamed:',
+                                '${_selectedEvent!.title} → ${_eventNewNameController.text.trim()}',
+                              ),
                             _buildDryRunRow('Sessions linked to this event:', '${_eventPreview!.linkedCount}'),
                             _buildDryRunRow('Older sessions matched by name:', '${_eventPreview!.titleOnlyCount}'),
                             if (_eventPreview!.sampleLabels.isNotEmpty) ...[
@@ -1989,7 +2010,9 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    if (_mode != _BulkMode.event || _eventPreview!.sessionsAffected > 0)
+                    if (_mode != _BulkMode.event ||
+                        _eventPreview!.sessionsAffected > 0 ||
+                        _eventWillBeRenamed)
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
@@ -2037,12 +2060,16 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: 12.5, color: c.ink2)),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: highlightColor ?? c.ink,
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: highlightColor ?? c.ink,
+              ),
             ),
           ),
         ],

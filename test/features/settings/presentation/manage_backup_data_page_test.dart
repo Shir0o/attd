@@ -97,7 +97,11 @@ class _EventRepository extends LocalJsonEventRepository {
   Stream<List<Event>> streamEvents() => Stream.value(events);
 
   @override
-  Future<void> updateEvent(Event event) async {}
+  Future<void> updateEvent(Event event) async {
+    events = [
+      for (final e in events) e.id == event.id ? event : e,
+    ];
+  }
 }
 
 class _SessionRepository extends LocalJsonSessionRepository {
@@ -1399,5 +1403,118 @@ void main() {
       sessions.sessions.firstWhere((s) => s.id == 's-other').title,
       'Sunday Service',
     );
+  });
+
+  group('event name repair renames the event too', () {
+    final now = DateTime(2025, 4, 5, 10);
+
+    Future<void> openEventRepair(
+      WidgetTester tester,
+      _EventRepository events,
+      _SessionRepository sessions,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        _wrap(
+          ManageBackupDataPage(
+            attendanceRepository: _AttendanceRepository([]),
+            eventRepository: events,
+            sessionRepository: sessions,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('bulk_merge_names_button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('bulk_mode_event_tab')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('bulk_event_picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sunday Service').last);
+      await tester.pumpAndSettle();
+    }
+
+    Event sundayEvent() => Event(
+          id: 'event-sunday',
+          title: 'Sunday Service',
+          time: const TimeOfDay(hour: 10, minute: 0),
+          frequency: 'Weekly',
+          createdAt: now,
+        );
+
+    testWidgets('a different, untrimmed name renames sessions and the event',
+        (tester) async {
+      final events = _EventRepository([sundayEvent()]);
+      final sessions = _SessionRepository([
+        Session(
+          id: 's-linked',
+          eventId: 'event-sunday',
+          title: 'Sunday Service',
+          sessionDate: DateTime(2025, 4, 6),
+          createdAt: now,
+          updatedAt: now,
+          createdBy: 'Admin',
+          records: const [],
+        ),
+      ]);
+      await openEventRepair(tester, events, sessions);
+
+      await tester.enterText(
+        find.byKey(const ValueKey('bulk_event_new_name_input')),
+        '  Sunday Gathering  ',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Event renamed:'), findsOneWidget);
+      expect(find.text('Sunday Service → Sunday Gathering'), findsOneWidget);
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('bulk_execute_button')));
+      await tester.tap(find.byKey(const ValueKey('bulk_execute_button')));
+      await tester.pumpAndSettle();
+
+      expect(events.events.single.title, 'Sunday Gathering');
+      expect(sessions.sessions.single.title, 'Sunday Gathering');
+    });
+
+    testWidgets('renames the event even when no session needs a change',
+        (tester) async {
+      final events = _EventRepository([sundayEvent()]);
+      final sessions = _SessionRepository([]);
+      await openEventRepair(tester, events, sessions);
+
+      await tester.enterText(
+        find.byKey(const ValueKey('bulk_event_new_name_input')),
+        'Sunday Gathering',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+      await tester.pumpAndSettle();
+
+      await tester
+          .ensureVisible(find.byKey(const ValueKey('bulk_execute_button')));
+      await tester.tap(find.byKey(const ValueKey('bulk_execute_button')));
+      await tester.pumpAndSettle();
+
+      expect(events.events.single.title, 'Sunday Gathering');
+    });
+
+    testWidgets('keeping the current name leaves the event untouched',
+        (tester) async {
+      final events = _EventRepository([sundayEvent()]);
+      final sessions = _SessionRepository([]);
+      await openEventRepair(tester, events, sessions);
+
+      await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Event renamed:'), findsNothing);
+      expect(find.byKey(const ValueKey('bulk_execute_button')), findsNothing);
+    });
   });
 }
