@@ -11,8 +11,8 @@ class AppLockController extends ChangeNotifier {
     this._prefs, {
     LocalAuthentication? auth,
     Duration backgroundLockThreshold = const Duration(minutes: 1),
-  }) : _auth = auth ?? LocalAuthentication(),
-       _backgroundLockThreshold = backgroundLockThreshold {
+  })  : _auth = auth ?? LocalAuthentication(),
+        _backgroundLockThreshold = backgroundLockThreshold {
     _enabled = _prefs.getBool(_enabledKey) ?? false;
     _isLocked = _enabled;
   }
@@ -120,10 +120,8 @@ class AppLockController extends ChangeNotifier {
     try {
       return await _auth.authenticate(
         localizedReason: reason,
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false,
-        ),
+        persistAcrossBackgrounding: true,
+        biometricOnly: false,
       );
     } on Object {
       return false;
