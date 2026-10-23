@@ -578,6 +578,46 @@ void main() {
         expect(alreadyRenamed.updatedAt, now);
       });
 
+      test(
+          'an event renamed more than once is synced one older name at a time',
+          () async {
+        // Renamed "Sunday Service" -> "Sunday Worship" -> "Sunday Gathering".
+        sessionRepo.sessions = [
+          eventSession('s-linked-a', eventId: 'event-sunday'),
+          eventSession('s-linked-b',
+              eventId: 'event-sunday', title: 'Sunday Worship'),
+          eventSession('s-legacy-a'),
+          eventSession('s-legacy-b', title: 'Sunday Worship'),
+        ];
+
+        final first = await service.executeEventTitleRename(
+          eventId: 'event-sunday',
+          newTitle: 'Sunday Gathering',
+          legacyTitle: 'Sunday Service',
+        );
+        // Linked sessions sync whatever name they were recorded under.
+        expect(first, 3);
+
+        final preview = await service.previewEventTitleRename(
+          eventId: 'event-sunday',
+          newTitle: 'Sunday Gathering',
+          legacyTitle: 'Sunday Worship',
+        );
+        expect(preview.linkedCount, 0);
+        expect(preview.titleOnlyCount, 1);
+
+        final second = await service.executeEventTitleRename(
+          eventId: 'event-sunday',
+          newTitle: 'Sunday Gathering',
+          legacyTitle: 'Sunday Worship',
+        );
+        expect(second, 1);
+        expect(
+          sessionRepo.sessions.map((s) => s.title),
+          everyElement('Sunday Gathering'),
+        );
+      });
+
       test('leaves title-only sessions alone when no legacy name is given',
           () async {
         sessionRepo.sessions = [
