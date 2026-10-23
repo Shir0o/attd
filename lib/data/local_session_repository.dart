@@ -14,7 +14,10 @@ import 'session_record.dart';
 final _log = AppLogger('SessionRepository');
 
 class LocalJsonSessionRepository implements SessionRepository {
-  LocalJsonSessionRepository({this.storagePath}) {
+  LocalJsonSessionRepository({
+    this.storagePath,
+    this.maxHistoryVersionsPerSession = defaultMaxHistoryVersionsPerSession,
+  }) {
     _controller = StreamController<List<Session>>.broadcast(
       onListen: () {
         loadSessions().then((sessions) {
@@ -26,7 +29,11 @@ class LocalJsonSessionRepository implements SessionRepository {
     );
   }
 
+  static const int defaultMaxHistoryVersionsPerSession = 5;
+  static const Duration _historyCoalesceWindow = Duration(minutes: 1);
+
   final String? storagePath;
+  final int maxHistoryVersionsPerSession;
   File? _file;
   late final StreamController<List<Session>> _controller;
 
@@ -112,7 +119,7 @@ class LocalJsonSessionRepository implements SessionRepository {
       final Map<String, dynamic> jsonMap = jsonDecode(content);
       jsonMap.forEach((key, value) {
         if (value is List) {
-          _historyCache[key] = value
+          final parsed = value
               .map(
                 (v) => SessionVersion(
                   sessionId: v['sessionId'],
@@ -122,7 +129,11 @@ class LocalJsonSessionRepository implements SessionRepository {
                   actor: v['actor'],
                 ),
               )
-              .toList();
+              .toList()
+            ..sort((a, b) => b.version.compareTo(a.version));
+          _historyCache[key] = parsed.length > maxHistoryVersionsPerSession
+              ? parsed.sublist(0, maxHistoryVersionsPerSession)
+              : parsed;
         }
       });
     } catch (e, st) {
@@ -458,7 +469,22 @@ class LocalJsonSessionRepository implements SessionRepository {
     if (!_historyCache.containsKey(session.id)) {
       _historyCache[session.id] = [];
     }
-    _historyCache[session.id]!.insert(0, version); // Newer first
+    final existingList = _historyCache[session.id]!;
+    if (existingList.length >= 2 &&
+        existingList.first.actor == actor &&
+        existingList.first.version > 1 &&
+        now.difference(existingList.first.recordedAt).abs() <=
+            _historyCoalesceWindow) {
+      existingList[0] = version;
+    } else {
+      existingList.insert(0, version); // Newer first
+      if (existingList.length > maxHistoryVersionsPerSession) {
+        existingList.removeRange(
+          maxHistoryVersionsPerSession,
+          existingList.length,
+        );
+      }
+    }
     await _saveHistory();
 
     return nextSession;

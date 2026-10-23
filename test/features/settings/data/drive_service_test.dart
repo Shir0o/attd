@@ -34,17 +34,31 @@ void main() {
       driveService = DriveService(googleSignIn: mockGoogleSignIn);
     });
 
-    test('SyncStats reports changes as ordered tags', () {
+    test('SyncStats reports changes as ordered tags including updated/deleted and families', () {
       final stats = SyncStats()
         ..newSessions = 2
         ..newEvents = 1
-        ..newMembers = 3;
+        ..newMembers = 3
+        ..newFamilies = 1;
 
       expect(stats.hasChanges, isTrue);
       expect(stats.toTags(), [
         '+2 Sessions',
         '+1 Events',
         '+3 Members',
+        '+1 Families',
+      ]);
+
+      final updateDeleteStats = SyncStats()
+        ..updatedSessions = 1
+        ..deletedEvents = 2
+        ..updatedMembers = 1
+        ..deletedFamilies = 1;
+      expect(updateDeleteStats.toTags(), [
+        '1 Sessions',
+        '2 Events',
+        '1 Members',
+        '1 Families',
       ]);
     });
 
@@ -62,7 +76,15 @@ void main() {
       ];
       final remote = [
         {'id': 'session_1', 'title': 'Local'},
-        {'id': 'session_2', 'title': 'Remote'},
+        {
+          'id': 'session_2',
+          'title': 'Remote',
+          'sessionDate': '2026-10-18T10:00:00.000',
+          'records': [
+            {'status': 'present'},
+            {'status': 'absent'},
+          ],
+        },
       ];
 
       final result = driveService.testMergeJsonLists(
@@ -76,6 +98,238 @@ void main() {
       expect(stats.newSessions, 1);
       expect(stats.hasChanges, isTrue);
       expect(stats.toTags(), ['+1 Sessions']);
+      expect(
+        stats.itemChanges,
+        contains('Added session · Remote (Oct 18) · 1 present, 1 absent'),
+      );
+    });
+
+    test('Scenario: Local-only additions and updatedAt conflicts record exact item changes', () {
+      final stats = SyncStats();
+      final local = [
+        {
+          'id': 'event_1',
+          'title': 'Youth Group (Updated)',
+          'updatedAt': '2026-10-20T12:00:00Z',
+        },
+        {
+          'id': 'event_2',
+          'title': 'Bible Study',
+          'updatedAt': '2026-10-20T12:00:00Z',
+        },
+        {
+          'id': 'event_3',
+          'title': 'Deleted Event',
+          'updatedAt': '2026-10-20T12:00:00Z',
+          'deletedAt': '2026-10-20T12:00:00Z',
+        },
+      ];
+      final remote = [
+        {
+          'id': 'event_1',
+          'title': 'Youth Group',
+          'updatedAt': '2026-10-19T12:00:00Z',
+        },
+        {
+          'id': 'event_3',
+          'title': 'Deleted Event',
+          'updatedAt': '2026-10-19T12:00:00Z',
+        },
+      ];
+
+      final result = driveService.testMergeJsonLists(
+        local,
+        remote,
+        'events.json',
+        stats: stats,
+      );
+
+      expect(result.length, 3);
+      expect(stats.newEvents, 1);
+      expect(stats.updatedEvents, 1);
+      expect(stats.deletedEvents, 1);
+      expect(stats.hasChanges, isTrue);
+      expect(
+        stats.itemChanges,
+        containsAll([
+          'Added event · Bible Study',
+          'Updated event · Youth Group (Updated)',
+          'Deleted event · Deleted Event',
+        ]),
+      );
+    });
+
+    test('Scenario: Sessions, families, and members updated/deleted record exact item changes', () {
+      final sessionStats = SyncStats();
+      driveService.testMergeJsonLists(
+        [
+          {
+            'id': 's1',
+            'title': 'Morning Prayer',
+            'sessionDate': '2026-10-18T10:00:00Z',
+            'updatedAt': '2026-10-19T10:00:00Z',
+            'records': [
+              {'status': 'excused'},
+            ],
+          },
+          {
+            'id': 's2',
+            'title': 'Old Session',
+            'sessionDate': '2026-10-10T10:00:00Z',
+            'updatedAt': '2026-10-19T10:00:00Z',
+            'deletedAt': '2026-10-19T10:00:00Z',
+          },
+        ],
+        [
+          {
+            'id': 's1',
+            'title': 'Morning Prayer',
+            'sessionDate': '2026-10-18T10:00:00Z',
+            'updatedAt': '2026-10-18T10:00:00Z',
+          },
+          {
+            'id': 's2',
+            'title': 'Old Session',
+            'sessionDate': '2026-10-10T10:00:00Z',
+            'updatedAt': '2026-10-18T10:00:00Z',
+          },
+        ],
+        'sessions.json',
+        stats: sessionStats,
+      );
+      expect(sessionStats.updatedSessions, 1);
+      expect(sessionStats.deletedSessions, 1);
+      expect(
+        sessionStats.itemChanges,
+        containsAll([
+          'Updated session · Morning Prayer (Oct 18) · 1 marks',
+          'Deleted session · Old Session (Oct 10)',
+        ]),
+      );
+
+      final familyStats = SyncStats();
+      driveService.testMergeJsonLists(
+        [
+          {
+            'id': 'f1',
+            'displayName': 'Smith Family',
+            'updatedAt': '2026-10-20T10:00:00Z',
+            'members': [
+              {
+                'id': 'm1',
+                'displayName': 'Alice Updated',
+                'updatedAt': '2026-10-20T10:00:00Z',
+              },
+              {
+                'id': 'm2',
+                'displayName': 'Bob Deleted',
+                'updatedAt': '2026-10-20T10:00:00Z',
+                'deletedAt': '2026-10-20T10:00:00Z',
+              },
+            ],
+          },
+          {
+            'id': 'f2',
+            'displayName': 'Deleted Family',
+            'updatedAt': '2026-10-20T10:00:00Z',
+            'deletedAt': '2026-10-20T10:00:00Z',
+            'members': [],
+          },
+          {
+            'id': 'f3',
+            'displayName': 'New Family',
+            'updatedAt': '2026-10-20T10:00:00Z',
+            'members': [
+              {'id': 'm3', 'displayName': 'Charlie'},
+            ],
+          },
+        ],
+        [
+          {
+            'id': 'f1',
+            'displayName': 'Smith',
+            'updatedAt': '2026-10-19T10:00:00Z',
+            'members': [
+              {
+                'id': 'm1',
+                'displayName': 'Alice',
+                'updatedAt': '2026-10-19T10:00:00Z',
+              },
+              {
+                'id': 'm2',
+                'displayName': 'Bob Deleted',
+                'updatedAt': '2026-10-19T10:00:00Z',
+              },
+            ],
+          },
+          {
+            'id': 'f2',
+            'displayName': 'Deleted Family',
+            'updatedAt': '2026-10-19T10:00:00Z',
+            'members': [],
+          },
+        ],
+        'families.json',
+        stats: familyStats,
+      );
+      expect(familyStats.newFamilies, 1);
+      expect(familyStats.updatedFamilies, 1);
+      expect(familyStats.deletedFamilies, 1);
+      expect(familyStats.newMembers, 1);
+      expect(familyStats.updatedMembers, 1);
+      expect(familyStats.deletedMembers, 1);
+      expect(
+        familyStats.itemChanges,
+        containsAll([
+          'Added family · New Family',
+          'Updated family · Smith Family',
+          'Deleted family · Deleted Family',
+          'Updated member · Alice Updated (Smith Family)',
+          'Deleted member · Bob Deleted (Smith Family)',
+          'Added member · Charlie (New Family)',
+        ]),
+      );
+    });
+
+    test('Scenario: SyncStats caps itemChanges and tracks overflow count', () {
+      final stats = SyncStats();
+      for (var i = 0; i < SyncStats.maxRecordedItemChanges + 5; i++) {
+        stats.addItemChange('Added member · Person $i');
+      }
+      expect(stats.itemChanges.length, SyncStats.maxRecordedItemChanges);
+      expect(stats.overflowItemChanges, 5);
+    });
+
+    test('Scenario: selectBackupsToThin enforces 10-snapshot floor, 7-day full, 8-30d daily, >30d prune', () {
+      final now = DateTime(2026, 10, 23, 12, 0);
+      final backups = <drive.File>[
+        // 10 recent backups within last 3 days (protected floor)
+        for (var i = 0; i < 10; i++)
+          drive.File()
+            ..id = 'recent_$i'
+            ..createdTime = now.subtract(Duration(hours: i * 4)),
+        // 2 backups on day 5 (within 7 days -> both kept)
+        drive.File()
+          ..id = 'day5_a'
+          ..createdTime = DateTime(2026, 10, 18, 15, 0),
+        drive.File()
+          ..id = 'day5_b'
+          ..createdTime = DateTime(2026, 10, 18, 9, 0),
+        // 2 backups on day 14 (between 7 and 30 days -> latest kept, older thinned)
+        drive.File()
+          ..id = 'day14_latest'
+          ..createdTime = DateTime(2026, 10, 9, 18, 0),
+        drive.File()
+          ..id = 'day14_older'
+          ..createdTime = DateTime(2026, 10, 9, 8, 0),
+        // 1 backup on day 45 (>30 days -> thinned)
+        drive.File()
+          ..id = 'day45_old'
+          ..createdTime = DateTime(2026, 9, 1, 12, 0),
+      ];
+
+      final toThin = DriveService.selectBackupsToThin(backups, now: now);
+      expect(toThin, ['day14_older', 'day45_old']);
     });
 
     test('Scenario: Soft-deleted remote items are not resurrected when purged locally', () {

@@ -591,6 +591,92 @@ void main() {
       // Repositories should have been refreshed.
       verify(() => sessionRepo.refresh()).called(1);
     });
+
+    test('_thinCloudBackups trashes snapshots returned by selectBackupsToThin and swallows errors',
+        () async {
+      await File(p.join(tempDir.path, 'sessions.json')).writeAsString('[{"id":"s1","title":"Sun"}]');
+
+      final now = DateTime.now();
+      final oldSnapshots = <drive.File>[
+        for (var i = 0; i < 10; i++)
+          drive.File()
+            ..id = 'keep-$i'
+            ..name = 'attendance_snapshot_$i.zip'
+            ..createdTime = now.subtract(Duration(hours: i)),
+        drive.File()
+          ..id = 'thin-old-1'
+          ..name = 'attendance_snapshot_old1.zip'
+          ..createdTime = now.subtract(const Duration(days: 40)),
+        drive.File()
+          ..id = 'thin-old-2'
+          ..name = 'attendance_snapshot_old2.zip'
+          ..createdTime = now.subtract(const Duration(days: 45)),
+      ];
+
+      when(() => files.list(
+            q: any(named: 'q'),
+            $fields: any(named: r'$fields'),
+            orderBy: any(named: 'orderBy'),
+            pageSize: any(named: 'pageSize'),
+          )).thenAnswer((invocation) async {
+        final q = invocation.namedArguments[#q] as String? ?? '';
+        if (q.contains("name = 'Attendance Tracker Data'")) {
+          return drive.FileList(files: [_file('app', 'Attendance Tracker Data')]);
+        }
+        if (q.contains("name = 'Backups'")) {
+          return drive.FileList(files: [_file('backup', 'Backups')]);
+        }
+        if (q.contains('attendance_snapshot_')) {
+          return drive.FileList(files: oldSnapshots);
+        }
+        return drive.FileList(files: []);
+      });
+
+      when(() => files.create(any(),
+              uploadMedia: any(named: 'uploadMedia')))
+          .thenAnswer((_) async => _file('x', 'x'));
+
+      final trashedIds = <String>[];
+      when(() => files.update(any(), any(),
+              uploadMedia: any(named: 'uploadMedia')))
+          .thenAnswer((invocation) async {
+        final id = invocation.positionalArguments[1] as String;
+        if (id == 'thin-old-2') {
+          throw Exception('failed to trash');
+        }
+        trashedIds.add(id);
+        return _file(id, id);
+      });
+
+      await service.syncFiles();
+
+      expect(trashedIds, contains('thin-old-1'));
+    });
+
+    test('syncFiles skips snapshot creation when local and remote are already identical',
+        () async {
+      final localFile = File(p.join(tempDir.path, 'sessions.json'));
+      await localFile.writeAsString('[{"id":"s1","title":"Same"}]');
+
+      stubFolders(childFiles: [
+        _file('rid', 'sessions.json', modifiedTime: DateTime.utc(2025, 1, 1)),
+      ]);
+      when(() => files.get('rid',
+              downloadOptions: any(named: 'downloadOptions')))
+          .thenAnswer((_) async => _media('[{"id":"s1","title":"Same"}]'));
+
+      var creates = 0;
+      when(() => files.create(any(),
+              uploadMedia: any(named: 'uploadMedia')))
+          .thenAnswer((_) async {
+        creates++;
+        return _file('zip', 'zip');
+      });
+
+      await service.syncFiles();
+
+      expect(creates, 0);
+    });
   });
 
   group('DriveService extra branch coverage (no DriveApi pre-set)', () {

@@ -77,6 +77,47 @@ void main() {
       expect(history.last.version, 1);
     });
 
+    test('saveSnapshot coalesces rapid updates by the same actor and caps history',
+        () async {
+      final now = DateTime.now();
+      var session = await repository.createSession(
+        title: 'Session 1',
+        sessionDate: now,
+        actor: 'Admin',
+        records: [],
+      );
+
+      // Rapid updates by same actor coalesce into the latest entry (preserving v1)
+      session = await repository.saveSnapshot(
+        session.copyWith(title: 'Update 1'),
+        actor: 'Admin',
+      );
+      session = await repository.saveSnapshot(
+        session.copyWith(title: 'Update 2'),
+        actor: 'Admin',
+      );
+
+      var history = await repository.history(session.id);
+      expect(history.length, 2);
+      expect(history.first.version, 3);
+      expect(history.first.snapshot.title, 'Update 2');
+      expect(history.last.version, 1);
+
+      // Distinct actors bypass same-actor coalescing, up to maxHistoryVersionsPerSession (5)
+      for (var i = 0; i < 6; i++) {
+        session = await repository.saveSnapshot(
+          session.copyWith(title: 'Actor $i'),
+          actor: 'Actor_$i',
+        );
+      }
+
+      history = await repository.history(session.id);
+      expect(
+        history.length,
+        LocalJsonSessionRepository.defaultMaxHistoryVersionsPerSession,
+      );
+    });
+
     test('deleteSession soft deletes session and preserves history', () async {
       final now = DateTime.now();
       final session = await repository.createSession(

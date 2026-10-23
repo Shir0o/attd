@@ -124,3 +124,16 @@ _Avoid_: Search helper, initials indexer, likelihood cache
 The ports-and-adapters synchronization coordinator that mediates between Google Drive subfolders / Shared Slices and local repositories without leaking storage schemas into UI controllers.
 _Avoid_: Drive sync, sharing helper, cloud bridge
 
+**Cloud Snapshot**:
+A point-in-time archive of the app's repositories stored in Google Drive only when sync detects actual data changes (or prior to a destructive recovery action), annotated with a bounded list of the exact domain items changed and subject to automatic retention thinning.
+_Avoid_: Version history zip, raw backup file
+
+**Snapshot Thinning**:
+The automatic retention policy that prunes older Cloud Snapshots over time (preserving recent snapshots, daily rollups within 30 days, and a minimum safety floor) and caps per-session version history to prevent unbounded cloud and local storage bloat.
+_Avoid_: Manual backup cleanup, unbounded history
+
+**Force Overwrite**:
+An explicit recovery action that unilaterally replaces either local device data with the cloud copy or the cloud copy with local device data, always preceded by a safety Cloud Snapshot.
+_Avoid_: Hard reset, blind overwrite
+
+
