@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.15.0](https://github.com/Shir0o/attd/compare/v1.14.0...v1.15.0) (2026-10-23)
+
+
+### Features
+
+* **design:** unify search bar and remove focus border ([#269](https://github.com/Shir0o/attd/issues/269)) ([2229ac1](https://github.com/Shir0o/attd/commit/2229ac1e46854c77b17e4acf9a83eb666e21259c))
+
+
+### Performance
+
+* optimize ActiveRosterIndex query lowercasing and cached name matching ([#262](https://github.com/Shir0o/attd/issues/262)) ([21eba09](https://github.com/Shir0o/attd/commit/21eba091568acfefa1d61cd3e93f6ec89d1d2722))
+* optimize soft deleted pruning in LocalJsonAttendanceRepository ([#268](https://github.com/Shir0o/attd/issues/268)) ([6076489](https://github.com/Shir0o/attd/commit/6076489af96270ee52da4a9854fb70eda94a9fad))
+
 ## [1.14.0](https://github.com/Shir0o/attd/compare/v1.13.0...v1.14.0) (2026-10-22)
 
 
