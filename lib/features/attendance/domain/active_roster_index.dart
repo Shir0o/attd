@@ -146,12 +146,25 @@ class ActiveRosterIndex {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return null;
     final h = haystack.toLowerCase();
-    final at = h.indexOf(q);
+    return calculateMatchRankLowercased(h, q);
+  }
+
+  /// Internal helper for match ranking that expects both [haystackLower] and
+  /// [cleanQueryLower] to be pre-lowercased and [cleanQueryLower] to be pre-trimmed,
+  /// avoiding redundant string lowercasing and trimming in search loops.
+  static int? calculateMatchRankLowercased(
+    String haystackLower,
+    String cleanQueryLower,
+  ) {
+    if (cleanQueryLower.isEmpty) return null;
+    final at = haystackLower.indexOf(cleanQueryLower);
     if (at < 0) return null;
     if (at == 0) return 0;
-    for (var i = at; i >= 0; i = h.indexOf(q, i + 1)) {
+    for (var i = at;
+        i >= 0;
+        i = haystackLower.indexOf(cleanQueryLower, i + 1)) {
       if (i <= 0) continue;
-      final before = h[i - 1];
+      final before = haystackLower[i - 1];
       if (before == ' ' || before == '-' || before == "'") return 1;
     }
     return 2;
@@ -160,11 +173,28 @@ class ActiveRosterIndex {
   /// How well [entry] matches [query] — lower is better, `null` for no match.
   /// A family-name match always ranks worse (+3) than any display-name match.
   static int? calculateSearchRank(SearchEntry entry, String query) {
-    final byName = calculateMatchRank(entry.member.displayName, query);
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return null;
+    return calculateSearchRankLowercased(entry, cleanQuery);
+  }
+
+  /// Internal helper using pre-lowercased query string and cached member
+  /// lowercased display name to eliminate repeated lowercasing per entry.
+  static int? calculateSearchRankLowercased(
+    SearchEntry entry,
+    String cleanQueryLower,
+  ) {
+    final byName = calculateMatchRankLowercased(
+      entry.member.displayNameLowercase,
+      cleanQueryLower,
+    );
     if (byName != null) return byName;
     final familyName = entry.familyName;
     if (familyName == null) return null;
-    final byFamily = calculateMatchRank(familyName, query);
+    final byFamily = calculateMatchRankLowercased(
+      familyName.toLowerCase(),
+      cleanQueryLower,
+    );
     return byFamily == null ? null : byFamily + 3;
   }
 
@@ -174,11 +204,12 @@ class ActiveRosterIndex {
     String query, {
     Map<String, int> priority = const {},
   }) {
-    if (query.trim().isEmpty) return const [];
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return const [];
 
     final scored = <({SearchEntry entry, int rank})>[];
     for (final entry in entries) {
-      final rank = calculateSearchRank(entry, query);
+      final rank = calculateSearchRankLowercased(entry, cleanQuery);
       if (rank == null) continue;
       scored.add((entry: entry, rank: rank));
     }
@@ -192,9 +223,9 @@ class ActiveRosterIndex {
         if (pb == null) return -1;
         return pa.compareTo(pb);
       }
-      return a.entry.member.displayName.toLowerCase().compareTo(
-            b.entry.member.displayName.toLowerCase(),
-          );
+      return a.entry.member.displayNameLowercase.compareTo(
+        b.entry.member.displayNameLowercase,
+      );
     });
 
     return [for (final s in scored) s.entry];
@@ -334,7 +365,14 @@ class ActiveRosterIndex {
   /// Households whose name or members match [query], ordered by best match rank.
   /// If [query] is null or empty, returns all non-empty families in the roster.
   List<Family> groupedByFamily({String? query, int? limit}) {
-    if (query == null || query.trim().isEmpty) {
+    if (query == null) {
+      final list = _families.where((f) => f.members.isNotEmpty).toList();
+      return limit != null && list.length > limit
+          ? list.sublist(0, limit)
+          : list;
+    }
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) {
       final list = _families.where((f) => f.members.isNotEmpty).toList();
       return limit != null && list.length > limit
           ? list.sublist(0, limit)
@@ -344,9 +382,15 @@ class ActiveRosterIndex {
     final scored = <({Family family, int rank})>[];
     for (final family in _families) {
       if (family.members.isEmpty) continue;
-      int? best = calculateMatchRank(family.displayName, query);
+      int? best = calculateMatchRankLowercased(
+        family.displayNameLowercase,
+        cleanQuery,
+      );
       for (final m in family.members) {
-        final r = calculateMatchRank(m.displayName, query);
+        final r = calculateMatchRankLowercased(
+          m.displayNameLowercase,
+          cleanQuery,
+        );
         if (r != null && (best == null || r < best)) best = r;
       }
       if (best != null) {
@@ -356,9 +400,9 @@ class ActiveRosterIndex {
 
     scored.sort((a, b) {
       if (a.rank != b.rank) return a.rank.compareTo(b.rank);
-      return a.family.displayName.toLowerCase().compareTo(
-            b.family.displayName.toLowerCase(),
-          );
+      return a.family.displayNameLowercase.compareTo(
+        b.family.displayNameLowercase,
+      );
     });
 
     final ordered = [for (final s in scored) s.family];
