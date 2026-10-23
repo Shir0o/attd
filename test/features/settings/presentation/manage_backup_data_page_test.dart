@@ -1280,9 +1280,10 @@ void main() {
     final now = DateTime(2025, 4, 5, 10);
     final attendance = _AttendanceRepository([]);
     final events = _EventRepository([
+      // Already renamed on the edit page; history still says "Sunday Service".
       Event(
         id: 'event-sunday',
-        title: 'Sunday Service',
+        title: 'Sunday Gathering',
         time: const TimeOfDay(hour: 10, minute: 0),
         frequency: 'Weekly',
         createdAt: now,
@@ -1338,48 +1339,48 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bulk_event_picker')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sunday Service').last);
+    await tester.tap(find.text('Sunday Gathering').last);
     await tester.pumpAndSettle();
 
+    // The new name defaults to the event's current name.
+    final newNameField = find.byKey(const ValueKey('bulk_event_new_name_input'));
+    expect(tester.widget<TextField>(newNameField).controller!.text,
+        'Sunday Gathering');
+
     // A blank new name is rejected.
+    await tester.enterText(newNameField, '  ');
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
     await tester.pumpAndSettle();
     expect(find.text('Please enter a new event name.'), findsOneWidget);
 
-    // The current name is rejected, so a no-op repair cannot be applied.
+    // Keeping the current name is allowed: it syncs history to the event.
+    await tester.enterText(newNameField, 'Sunday Gathering');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+
+    Finder previewRow(String label, String value) => find.descendant(
+          of: find.ancestor(of: find.text(label), matching: find.byType(Row)),
+          matching: find.text(value),
+        );
+    expect(previewRow('Sessions linked to this event:', '1'), findsOneWidget);
+    expect(previewRow('Older sessions matched by name:', '0'), findsOneWidget);
+
+    // Naming the older recorded title pulls in unlinked sessions and clears
+    // the stale preview.
     await tester.enterText(
-      find.byKey(const ValueKey('bulk_event_new_name_input')),
+      find.byKey(const ValueKey('bulk_event_legacy_name_input')),
       'Sunday Service',
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('The new event name must differ from the current name.'),
-      findsOneWidget,
-    );
-
-    // Toggling the title-only option clears the previous preview.
-    await tester
-        .tap(find.byKey(const ValueKey('bulk_event_include_legacy_checkbox')));
-    await tester.pumpAndSettle();
-    await tester
-        .tap(find.byKey(const ValueKey('bulk_event_include_legacy_checkbox')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('bulk_event_new_name_input')),
-      'Sunday Gathering',
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
-    await tester.pumpAndSettle();
-
     expect(find.byKey(const ValueKey('bulk_dry_run_results_card')),
-        findsOneWidget);
-    expect(find.text('Sessions linked to this event:'), findsOneWidget);
-    expect(find.text('Older sessions matched by name:'), findsOneWidget);
+        findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('bulk_dry_run_button')));
+    await tester.pumpAndSettle();
+    expect(previewRow('Sessions linked to this event:', '1'), findsOneWidget);
+    expect(previewRow('Older sessions matched by name:', '1'), findsOneWidget);
 
     await tester
         .ensureVisible(find.byKey(const ValueKey('bulk_execute_button')));

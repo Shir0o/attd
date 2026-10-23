@@ -1187,8 +1187,8 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
   bool _updateRoster = true;
 
   String? _selectedEventId;
-  String _eventNewName = '';
-  bool _includeTitleOnlySessions = true;
+  final TextEditingController _eventNewNameController = TextEditingController();
+  String _eventLegacyName = '';
 
   BulkDryRunResult? _dryRunResult;
   EventTitleRepairPreview? _eventPreview;
@@ -1204,6 +1204,12 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
       sessionRepository: widget.sessionRepository,
     );
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _eventNewNameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -1308,23 +1314,16 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
         setState(() => _dryRunError = 'Please choose an event.');
         return;
       }
-      if (_eventNewName.trim().isEmpty) {
+      if (_eventNewNameController.text.trim().isEmpty) {
         setState(() => _dryRunError = 'Please enter a new event name.');
-        return;
-      }
-      if (_eventNewName.trim() == event.title.trim()) {
-        setState(
-          () => _dryRunError = 'The new event name must differ from the current name.',
-        );
         return;
       }
 
       try {
         final preview = await _service.previewEventTitleRename(
           eventId: event.id,
-          oldTitle: event.title,
-          newTitle: _eventNewName.trim(),
-          includeTitleOnlySessions: _includeTitleOnlySessions,
+          newTitle: _eventNewNameController.text.trim(),
+          legacyTitle: _eventLegacyName,
         );
         if (mounted) setState(() => _eventPreview = preview);
       } catch (e) {
@@ -1374,9 +1373,8 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
         final event = _selectedEvent!;
         updatedSessions = await _service.executeEventTitleRename(
           eventId: event.id,
-          oldTitle: event.title,
-          newTitle: _eventNewName.trim(),
-          includeTitleOnlySessions: _includeTitleOnlySessions,
+          newTitle: _eventNewNameController.text.trim(),
+          legacyTitle: _eventLegacyName,
         );
       }
 
@@ -1389,7 +1387,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
           _BulkMode.rename =>
             'Successfully renamed "$_sourceName" to "$_renameNewName"',
           _BulkMode.event =>
-            'Updated $updatedSessions session title${updatedSessions == 1 ? '' : 's'} for "${_eventNewName.trim()}"',
+            'Updated $updatedSessions session title${updatedSessions == 1 ? '' : 's'} for "${_eventNewNameController.text.trim()}"',
         };
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1625,6 +1623,8 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                       onChanged: (value) {
                         setState(() {
                           _selectedEventId = value;
+                          // Default to syncing history to the event's name.
+                          _eventNewNameController.text = _selectedEvent?.title ?? '';
                           _eventPreview = null;
                           _dryRunError = null;
                         });
@@ -1638,6 +1638,7 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                     const SizedBox(height: 6),
                     TextField(
                       key: const ValueKey('bulk_event_new_name_input'),
+                      controller: _eventNewNameController,
                       style: TextStyle(color: c.ink, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'New event name',
@@ -1654,53 +1655,40 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
-                      onChanged: (val) {
-                        setState(() {
-                          _eventNewName = val;
-                          _eventPreview = null;
-                        });
+                      onChanged: (_) {
+                        setState(() => _eventPreview = null);
                       },
                     ),
                     const SizedBox(height: 12),
-                    InkWell(
-                      key: const ValueKey('bulk_event_include_legacy_checkbox'),
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () {
+                    Text(
+                      'Older Recorded Name (optional):',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.ink2),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      key: const ValueKey('bulk_event_legacy_name_input'),
+                      style: TextStyle(color: c.ink, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. the event\'s previous name',
+                        hintStyle: TextStyle(color: c.ink3),
+                        helperText: 'Also updates older sessions with no event link recorded under this name',
+                        helperMaxLines: 2,
+                        helperStyle: TextStyle(color: c.ink3, fontSize: 11.5),
+                        filled: true,
+                        fillColor: c.cardSoft,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      onChanged: (val) {
                         setState(() {
-                          _includeTitleOnlySessions = !_includeTitleOnlySessions;
+                          _eventLegacyName = val;
                           _eventPreview = null;
                           _dryRunError = null;
                         });
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: _includeTitleOnlySessions,
-                                activeColor: c.primary,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _includeTitleOnlySessions = val ?? true;
-                                    _eventPreview = null;
-                                    _dryRunError = null;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Also update older sessions that only match by name',
-                                style: TextStyle(fontSize: 13, color: c.ink),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ] else ...[
                     // Source Name Input
