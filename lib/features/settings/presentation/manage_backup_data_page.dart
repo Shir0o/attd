@@ -489,46 +489,20 @@ class _ManageBackupDataPageState extends State<ManageBackupDataPage> {
                       ),
                       const SizedBox(height: 16),
                       // Search field
-                      Container(
-                        decoration: BoxDecoration(
-                          color: c.cardSoft,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: Row(
-                          children: [
-                            Icon(Icons.search, color: c.ink3, size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                style: TextStyle(color: c.ink, fontSize: 14),
-                                decoration: InputDecoration(
-                                  hintText: 'Search records, ids, fields…',
-                                  hintStyle: TextStyle(color: c.ink3),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                                ),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _searchQuery = val;
-                                  });
-                                },
-                              ),
-                            ),
-                            if (_searchQuery.isNotEmpty)
-                              GestureDetector(
-                                onTap: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                  });
-                                },
-                                child: Icon(Icons.close, color: c.ink3, size: 18),
-                              ),
-                          ],
-                        ),
+                      ConvSearchField(
+                        controller: _searchController,
+                        hintText: 'Search records, ids, fields…',
+                        onChanged: (val) {
+                          setState(() {
+                            _searchQuery = val;
+                          });
+                        },
+                        onClear: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
                       ),
                     ],
                   ),

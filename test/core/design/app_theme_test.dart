@@ -35,4 +35,12 @@ void main() {
     );
     exerciseSwitch(AppTheme.darkTheme());
   });
+
+  test('inputDecorationTheme omits focused border per the no-line rule', () {
+    for (final theme in [AppTheme.lightTheme(), AppTheme.darkTheme()]) {
+      final focused = theme.inputDecorationTheme.focusedBorder;
+      expect(focused, isA<OutlineInputBorder>());
+      expect((focused as OutlineInputBorder).borderSide, BorderSide.none);
+    }
+  });
 }

@@ -120,9 +120,9 @@ class AppTheme {
           borderRadius: AppRadii.compactR,
           borderSide: BorderSide.none,
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedBorder: const OutlineInputBorder(
           borderRadius: AppRadii.compactR,
-          borderSide: BorderSide(color: convColors.primary, width: 1.5),
+          borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
