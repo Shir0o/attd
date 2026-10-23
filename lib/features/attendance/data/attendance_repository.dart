@@ -143,17 +143,21 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
         continue;
       }
 
-      final prunedMembers = family.members.where((m) {
-        if (m.deletedAt != null && m.deletedAt!.isBefore(threshold)) {
+      final members = family.members;
+      List<Member>? prunedMembers;
+      for (var i = 0; i < members.length; i++) {
+        final member = members[i];
+        final deletedAt = member.deletedAt;
+        if (deletedAt != null && deletedAt.isBefore(threshold)) {
+          prunedMembers ??= members.sublist(0, i);
           changed = true;
-          return false;
+        } else if (prunedMembers != null) {
+          prunedMembers.add(member);
         }
-        return true;
-      }).toList();
+      }
 
-      if (prunedMembers.length != family.members.length) {
+      if (prunedMembers != null) {
         prunedFamilies.add(family.copyWith(members: prunedMembers));
-        changed = true;
       } else {
         prunedFamilies.add(family);
       }
