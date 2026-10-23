@@ -572,4 +572,59 @@ void main() {
       expect(tween, isA<MaterialRectArcTween>());
     });
   });
+
+  group('ConvSearchField', () {
+    testWidgets('renders search icon, hint, clear button, and trailing widget',
+        (tester) async {
+      final controller = TextEditingController();
+      var cleared = false;
+      String? submitted;
+
+      await tester.pumpWidget(
+        wrap(
+          StatefulBuilder(
+            builder: (context, setState) => ConvSearchField(
+              fieldKey: const Key('testSearch'),
+              clearButtonKey: const Key('testClear'),
+              controller: controller,
+              hintText: 'Search members',
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (v) => submitted = v,
+              onClear: () {
+                controller.clear();
+                cleared = true;
+                setState(() {});
+              },
+              trailing: const Text('3 MATCHES'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+      expect(find.text('Search members'), findsOneWidget);
+      expect(find.text('3 MATCHES'), findsOneWidget);
+      expect(find.byKey(const Key('testClear')), findsNothing);
+
+      final textField =
+          tester.widget<TextField>(find.byKey(const Key('testSearch')));
+      expect(textField.decoration?.border, InputBorder.none);
+      expect(textField.decoration?.enabledBorder, InputBorder.none);
+      expect(textField.decoration?.focusedBorder, InputBorder.none);
+
+      await tester.enterText(find.byKey(const Key('testSearch')), 'Ada');
+      await tester.pump();
+      expect(find.byKey(const Key('testClear')), findsOneWidget);
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(submitted, 'Ada');
+
+      await tester.tap(find.byKey(const Key('testClear')));
+      await tester.pump();
+      expect(cleared, isTrue);
+      expect(controller.text, isEmpty);
+      expect(find.byKey(const Key('testClear')), findsNothing);
+    });
+  });
 }

@@ -558,6 +558,98 @@ class ConvIconButton extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Search field — tonal cardSoft container, no focus border
+// ─────────────────────────────────────────────────────────────
+class ConvSearchField extends StatelessWidget {
+  const ConvSearchField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    this.focusNode,
+    this.fieldKey,
+    this.clearButtonKey,
+    this.autofocus = false,
+    this.textCapitalization = TextCapitalization.none,
+    this.textInputAction,
+    this.onChanged,
+    this.onSubmitted,
+    this.onClear,
+    this.trailing,
+    this.fontSize = 14,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final FocusNode? focusNode;
+  final Key? fieldKey;
+  final Key? clearButtonKey;
+  final bool autofocus;
+  final TextCapitalization textCapitalization;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onClear;
+  final Widget? trailing;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final hasText = controller.text.isNotEmpty;
+    final showClear = onClear != null && hasText;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.cardSoft,
+        borderRadius: AppRadii.compactR,
+      ),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: Icon(Icons.search_rounded, color: c.ink3, size: 20),
+          ),
+          Expanded(
+            child: TextField(
+              key: fieldKey,
+              controller: controller,
+              focusNode: focusNode,
+              autofocus: autofocus,
+              textCapitalization: textCapitalization,
+              textInputAction: textInputAction,
+              onChanged: onChanged,
+              onSubmitted: onSubmitted,
+              style: AppTypography.geist(fontSize: fontSize, color: c.ink),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                hintText: hintText,
+                hintStyle: AppTypography.geist(
+                  fontSize: fontSize,
+                  color: c.ink3,
+                ),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+            ),
+          ),
+          if (showClear)
+            IconButton(
+              key: clearButtonKey,
+              icon: Icon(Icons.clear_rounded, color: c.ink3, size: 18),
+              onPressed: onClear,
+            ),
+          if (trailing != null) trailing!,
+          if (!showClear && trailing == null) const SizedBox(width: 14),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // Pressable — press-in / pop scale feedback (ADR 0008)
 // ─────────────────────────────────────────────────────────────
 

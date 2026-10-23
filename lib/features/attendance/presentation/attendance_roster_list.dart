@@ -227,9 +227,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
                 const SizedBox(height: 12),
               ],
               if (widget.showSearch) ...[
-                _SearchField(
+                ConvSearchField(
+                  fieldKey: const Key('rosterSearchField'),
                   controller: _searchController,
-                  query: _query,
+                  hintText: 'Search by name or family',
                   onChanged: (v) =>
                       setState(() => _query = v.trim().toLowerCase()),
                   onClear: () {
@@ -703,54 +704,6 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         child: Text(
           _query.isEmpty ? 'No members to show.' : 'No matches for "$_query".',
           style: AppTypography.geist(fontSize: 14, color: c.ink2),
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({
-    required this.controller,
-    required this.query,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final String query;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.cardSoft,
-        borderRadius: AppRadii.compactR,
-      ),
-      child: TextField(
-        key: const Key('rosterSearchField'),
-        controller: controller,
-        onChanged: onChanged,
-        style: AppTypography.geist(fontSize: 14, color: c.ink),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          prefixIcon: Icon(Icons.search_rounded, color: c.ink3, size: 20),
-          hintText: 'Search by name or family',
-          hintStyle: AppTypography.geist(fontSize: 14, color: c.ink3),
-          filled: false,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          suffixIcon: query.isEmpty
-              ? null
-              : IconButton(
-                  icon: Icon(Icons.clear_rounded, color: c.ink3, size: 18),
-                  onPressed: onClear,
-                ),
         ),
       ),
     );

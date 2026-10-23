@@ -851,62 +851,42 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Widget _buildSearchRow(ConvocationColors c, bool isEventMode) {
-    return Container(
-      decoration: BoxDecoration(
-        color: c.cardSoft,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 4, 4, 4),
-      child: Row(
-        children: [
-          Icon(Icons.search, color: c.ink3, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              key: const ValueKey('member_search_field'),
-              controller: _inputController,
-              focusNode: _inputFocusNode,
-              textCapitalization: TextCapitalization.words,
-              onChanged: (_) => setState(() {}),
-              onSubmitted: _addMember,
-              style: AppTypography.geist(fontSize: 14, color: c.ink),
-              decoration: InputDecoration(
-                hintText:
-                    isEventMode ? 'Find or add to event' : 'Find or add member',
-                hintStyle: AppTypography.geist(fontSize: 14, color: c.ink3),
-                border: InputBorder.none,
-                isCollapsed: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Material(
-            color: c.primary,
+    return ConvSearchField(
+      fieldKey: const ValueKey('member_search_field'),
+      controller: _inputController,
+      focusNode: _inputFocusNode,
+      textCapitalization: TextCapitalization.words,
+      hintText: isEventMode ? 'Find or add to event' : 'Find or add member',
+      onChanged: (_) => setState(() {}),
+      onSubmitted: _addMember,
+      onClear: () {
+        _inputController.clear();
+        setState(() {});
+      },
+      trailing: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+        child: Material(
+          color: c.primary,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            key: const ValueKey('member_add_fab'),
             borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              key: const ValueKey('member_add_fab'),
-              borderRadius: BorderRadius.circular(12),
-              onTap: _isAdding
-                  ? null
-                  : () => _addMember(_inputController.text),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: _isAdding
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: c.onPrimary,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Icon(Icons.add, color: c.onPrimary, size: 18),
-              ),
+            onTap: _isAdding ? null : () => _addMember(_inputController.text),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: _isAdding
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: c.onPrimary,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Icon(Icons.add, color: c.onPrimary, size: 18),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

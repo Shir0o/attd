@@ -311,58 +311,29 @@ class MarkingSearchField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: c.cardSoft,
-              borderRadius: AppRadii.compactR,
-            ),
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 12, right: 10),
-                  child: Icon(Icons.search_rounded, color: c.ink3, size: 20),
-                ),
-                Expanded(
-                  child: TextField(
-                    key: fieldKey,
-                    controller: controller,
-                    focusNode: focusNode,
-                    autofocus: true,
-                    textInputAction: TextInputAction.done,
-                    onChanged: onChanged,
-                    onSubmitted: (_) => onSubmitted?.call(),
-                    style: AppTypography.geist(fontSize: 15, color: c.ink),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                      hintText: hintText,
-                      hintStyle:
-                          AppTypography.geist(fontSize: 15, color: c.ink3),
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
+          ConvSearchField(
+            fieldKey: fieldKey,
+            clearButtonKey: const Key('fastMarkingClear'),
+            controller: controller,
+            focusNode: focusNode,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            hintText: hintText,
+            fontSize: 15,
+            onChanged: onChanged,
+            onSubmitted: (_) => onSubmitted?.call(),
+            onClear: onClear,
+            trailing: trailingLabel == null
+                ? null
+                : Padding(
+                    padding: EdgeInsets.only(
+                      right: controller.text.isEmpty ? 12 : 4,
                     ),
-                  ),
-                ),
-                if (trailingLabel != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
                     child: Text(
                       trailingLabel!,
                       style: AppTypography.geist(fontSize: 11.5, color: c.ink3),
                     ),
                   ),
-                if (controller.text.isNotEmpty)
-                  IconButton(
-                    key: const Key('fastMarkingClear'),
-                    icon: Icon(Icons.clear_rounded, color: c.ink3, size: 18),
-                    onPressed: onClear,
-                  )
-                else
-                  const SizedBox(width: 12),
-              ],
-            ),
           ),
           if (caption != null)
             Padding(

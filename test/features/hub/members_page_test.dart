@@ -963,6 +963,17 @@ void main() {
       expect(find.text('ROSTER · 2'), findsOneWidget);
       expect(find.text('Assigned · Vazquez North'), findsOneWidget);
       expect(find.text('Not assigned · Vazquez South'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const ValueKey('member_search_field')),
+        'North',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.clear_rounded), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.clear_rounded));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.clear_rounded), findsNothing);
     });
   });
 }
