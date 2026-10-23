@@ -9,6 +9,7 @@ import 'package:attendance_tracker/features/attendance/models/marking_mode.dart'
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
+import 'package:attendance_tracker/features/sessions/domain/insights_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -242,6 +243,47 @@ void main() {
     expect(repository.events.single.title, 'Updated Event');
     expect(repository.events.single.memberIds, ['member-1']);
     expect(repository.events.single.createdAt, createdAt);
+  });
+
+  testWidgets('renaming keeps sharing and Insights settings', (tester) async {
+    final event = Event(
+      id: 'event-shared',
+      title: 'Original',
+      time: const TimeOfDay(hour: 9, minute: 30),
+      frequency: 'Weekly',
+      repeatingDays: const ['Sunday'],
+      insightsConfig: const InsightsConfig(regularThresholdPercent: 60),
+      isShared: true,
+      sharedFolderId: 'folder-1',
+      collaborators: const ['a@example.com'],
+      isReadOnly: true,
+      createdAt: DateTime(2025, 1, 1),
+    );
+    final repository = _EventRepository([event]);
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          attendanceRepository: MockAttendanceRepository(),
+          eventToEdit: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), 'Renamed');
+    await tester.tap(find.byKey(const ValueKey('save_event_button')));
+    await tester.pumpAndSettle();
+
+    final saved = repository.events.single;
+    expect(saved.title, 'Renamed');
+    expect(saved.insightsConfig?.regularThresholdPercent, 60);
+    expect(saved.isShared, isTrue);
+    expect(saved.sharedFolderId, 'folder-1');
+    expect(saved.collaborators, ['a@example.com']);
+    expect(saved.isReadOnly, isTrue);
   });
 
   testWidgets('validates event name before saving', (tester) async {
