@@ -35,8 +35,10 @@ class ActiveRosterIndex {
     // 2. Map family names for members (ignoring auto-singletons)
     for (final f in _families) {
       final familyName = f.isAutoSingleton ? null : f.displayName;
+      final familyNameLower = f.isAutoSingleton ? null : f.displayNameLowercase;
       for (final m in f.members) {
         _familyNameById[m.id] = familyName;
+        _familyNameLowercaseById[m.id] = familyNameLower;
       }
     }
 
@@ -53,9 +55,10 @@ class ActiveRosterIndex {
             likelihoodPriority[b.id] ?? unranked,
           );
           if (byOrder != 0) return byOrder;
-          return a.displayName.toLowerCase().compareTo(
-                b.displayName.toLowerCase(),
-              );
+          // Performance optimization: use precomputed lowercase display name
+          return a.displayNameLowercase.compareTo(
+            b.displayNameLowercase,
+          );
         }),
     );
 
@@ -63,6 +66,14 @@ class ActiveRosterIndex {
     _searchEntries = List.unmodifiable([
       for (final m in _likelyHereMembers)
         (member: m, familyName: _familyNameById[m.id]),
+    ]);
+
+    _internalSearchEntries = List.unmodifiable([
+      for (final m in _likelyHereMembers)
+        (
+          entry: (member: m, familyName: _familyNameById[m.id]),
+          familyNameLowercase: _familyNameLowercaseById[m.id],
+        ),
     ]);
 
     // 5. Precompute full initials index
@@ -84,12 +95,15 @@ class ActiveRosterIndex {
   final Map<String, ({String first, String last})> _initialsById = {};
   final Map<String, double?> _ratesById = {};
   final Map<String, String?> _familyNameById = {};
+  final Map<String, String?> _familyNameLowercaseById = {};
 
   /// Member id → its position in likelihood ranking (lower is higher priority).
   final Map<String, int> likelihoodPriority = {};
 
   late final List<Member> _likelyHereMembers;
   late final List<SearchEntry> _searchEntries;
+  late final List<({SearchEntry entry, String? familyNameLowercase})>
+      _internalSearchEntries;
   late final Map<String, Set<String>> _fullInitialsIndex;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -135,6 +149,30 @@ class ActiveRosterIndex {
     );
   }
 
+  /// How well [haystackLower] matches [queryLower] — **lower is better**:
+  ///
+  /// * `0` — [haystackLower] starts with the query
+  /// * `1` — a later word in [haystackLower] starts with the query (after space, hyphen, or apostrophe)
+  /// * `2` — the query appears somewhere else inside [haystackLower]
+  ///
+  /// `null` when the query does not appear at all, or when [queryLower] is blank.
+  ///
+  /// Performance optimization: expects both arguments to already be trimmed and lowercased
+  /// to eliminate redundant allocations inside search loops.
+  static int? calculateMatchRankLowercased(
+      String haystackLower, String queryLower) {
+    if (queryLower.isEmpty) return null;
+    final at = haystackLower.indexOf(queryLower);
+    if (at < 0) return null;
+    if (at == 0) return 0;
+    for (var i = at; i >= 0; i = haystackLower.indexOf(queryLower, i + 1)) {
+      if (i <= 0) continue;
+      final before = haystackLower[i - 1];
+      if (before == ' ' || before == '-' || before == "'") return 1;
+    }
+    return 2;
+  }
+
   /// How well [haystack] matches [query] — **lower is better**:
   ///
   /// * `0` — [haystack] starts with the query
@@ -145,27 +183,33 @@ class ActiveRosterIndex {
   static int? calculateMatchRank(String haystack, String query) {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return null;
-    final h = haystack.toLowerCase();
-    final at = h.indexOf(q);
-    if (at < 0) return null;
-    if (at == 0) return 0;
-    for (var i = at; i >= 0; i = h.indexOf(q, i + 1)) {
-      if (i <= 0) continue;
-      final before = h[i - 1];
-      if (before == ' ' || before == '-' || before == "'") return 1;
-    }
-    return 2;
+    return calculateMatchRankLowercased(haystack.toLowerCase(), q);
+  }
+
+  /// How well [entry] matches lowercased [queryLower].
+  /// Performance optimization: leverages `Member.displayNameLowercase` and pre-lowercased family names.
+  static int? calculateSearchRankLowercased(
+    SearchEntry entry,
+    String queryLower, {
+    String? familyNameLowercase,
+  }) {
+    final byName = calculateMatchRankLowercased(
+      entry.member.displayNameLowercase,
+      queryLower,
+    );
+    if (byName != null) return byName;
+    final famLower = familyNameLowercase ?? entry.familyName?.toLowerCase();
+    if (famLower == null) return null;
+    final byFamily = calculateMatchRankLowercased(famLower, queryLower);
+    return byFamily == null ? null : byFamily + 3;
   }
 
   /// How well [entry] matches [query] — lower is better, `null` for no match.
   /// A family-name match always ranks worse (+3) than any display-name match.
   static int? calculateSearchRank(SearchEntry entry, String query) {
-    final byName = calculateMatchRank(entry.member.displayName, query);
-    if (byName != null) return byName;
-    final familyName = entry.familyName;
-    if (familyName == null) return null;
-    final byFamily = calculateMatchRank(familyName, query);
-    return byFamily == null ? null : byFamily + 3;
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return null;
+    return calculateSearchRankLowercased(entry, q);
   }
 
   /// The [entries] matching [query], best match first.
@@ -173,12 +217,21 @@ class ActiveRosterIndex {
     Iterable<SearchEntry> entries,
     String query, {
     Map<String, int> priority = const {},
+    Map<String, String?> familyNameLowercaseById = const {},
   }) {
-    if (query.trim().isEmpty) return const [];
+    // Performance optimization: trim and lowercase query once per search call
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
 
     final scored = <({SearchEntry entry, int rank})>[];
     for (final entry in entries) {
-      final rank = calculateSearchRank(entry, query);
+      final famLower = familyNameLowercaseById[entry.member.id] ??
+          entry.familyName?.toLowerCase();
+      final rank = calculateSearchRankLowercased(
+        entry,
+        q,
+        familyNameLowercase: famLower,
+      );
       if (rank == null) continue;
       scored.add((entry: entry, rank: rank));
     }
@@ -192,9 +245,10 @@ class ActiveRosterIndex {
         if (pb == null) return -1;
         return pa.compareTo(pb);
       }
-      return a.entry.member.displayName.toLowerCase().compareTo(
-            b.entry.member.displayName.toLowerCase(),
-          );
+      // Performance optimization: use precomputed lowercase display name
+      return a.entry.member.displayNameLowercase.compareTo(
+        b.entry.member.displayNameLowercase,
+      );
     });
 
     return [for (final s in scored) s.entry];
@@ -296,11 +350,36 @@ class ActiveRosterIndex {
     int? limit,
     Map<String, int>? priority,
   }) {
-    final results = executeRankedSearch(
-      _searchEntries,
-      query,
-      priority: priority ?? likelihoodPriority,
-    );
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+
+    final prio = priority ?? likelihoodPriority;
+    final scored = <({SearchEntry entry, int rank})>[];
+    for (final item in _internalSearchEntries) {
+      final rank = calculateSearchRankLowercased(
+        item.entry,
+        q,
+        familyNameLowercase: item.familyNameLowercase,
+      );
+      if (rank == null) continue;
+      scored.add((entry: item.entry, rank: rank));
+    }
+
+    scored.sort((a, b) {
+      if (a.rank != b.rank) return a.rank.compareTo(b.rank);
+      final pa = prio[a.entry.member.id];
+      final pb = prio[b.entry.member.id];
+      if (pa != pb) {
+        if (pa == null) return 1;
+        if (pb == null) return -1;
+        return pa.compareTo(pb);
+      }
+      return a.entry.member.displayNameLowercase.compareTo(
+        b.entry.member.displayNameLowercase,
+      );
+    });
+
+    final results = [for (final s in scored) s.entry];
     if (limit != null && results.length > limit) {
       return results.sublist(0, limit);
     }
@@ -317,8 +396,9 @@ class ActiveRosterIndex {
 
   /// Whether [haystack] matches [query] (case-insensitive substring/prefix).
   bool matches(String haystack, String query) {
-    if (query.trim().isEmpty) return true;
-    return calculateMatchRank(haystack, query) != null;
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return calculateMatchRankLowercased(haystack.toLowerCase(), q) != null;
   }
 
   /// Whether the top hit in [results] matches [query] strictly better than the runner-up.
@@ -334,7 +414,16 @@ class ActiveRosterIndex {
   /// Households whose name or members match [query], ordered by best match rank.
   /// If [query] is null or empty, returns all non-empty families in the roster.
   List<Family> groupedByFamily({String? query, int? limit}) {
-    if (query == null || query.trim().isEmpty) {
+    if (query == null) {
+      final list = _families.where((f) => f.members.isNotEmpty).toList();
+      return limit != null && list.length > limit
+          ? list.sublist(0, limit)
+          : list;
+    }
+
+    // Performance optimization: trim and lowercase query once
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) {
       final list = _families.where((f) => f.members.isNotEmpty).toList();
       return limit != null && list.length > limit
           ? list.sublist(0, limit)
@@ -344,9 +433,16 @@ class ActiveRosterIndex {
     final scored = <({Family family, int rank})>[];
     for (final family in _families) {
       if (family.members.isEmpty) continue;
-      int? best = calculateMatchRank(family.displayName, query);
+      // Performance optimization: use pre-lowercased display names
+      int? best = calculateMatchRankLowercased(
+        family.displayNameLowercase,
+        q,
+      );
       for (final m in family.members) {
-        final r = calculateMatchRank(m.displayName, query);
+        final r = calculateMatchRankLowercased(
+          m.displayNameLowercase,
+          q,
+        );
         if (r != null && (best == null || r < best)) best = r;
       }
       if (best != null) {
@@ -356,9 +452,10 @@ class ActiveRosterIndex {
 
     scored.sort((a, b) {
       if (a.rank != b.rank) return a.rank.compareTo(b.rank);
-      return a.family.displayName.toLowerCase().compareTo(
-            b.family.displayName.toLowerCase(),
-          );
+      // Performance optimization: use precomputed lowercase display name
+      return a.family.displayNameLowercase.compareTo(
+        b.family.displayNameLowercase,
+      );
     });
 
     final ordered = [for (final s in scored) s.family];
