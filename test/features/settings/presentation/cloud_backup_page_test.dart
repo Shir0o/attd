@@ -351,5 +351,14 @@ void main() {
     expect(find.text('Added member · Evan Smith (Smith)'), findsOneWidget);
     expect(find.text('+2 more items changed'), findsOneWidget);
     expect(find.text('Show less'), findsOneWidget);
+
+    // Collapse back to 4 items
+    await tester.ensureVisible(find.text('Show less'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show less'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Added member · Diana Smith (Smith)'), findsNothing);
+    expect(find.text('Show 2 more changes'), findsOneWidget);
   });
 }
