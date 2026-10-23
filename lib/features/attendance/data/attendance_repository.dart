@@ -67,19 +67,21 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
   Future<List<Family>> _loadRawFamilies() async {
     if (_allFamilies != null) return List<Family>.from(_allFamilies!);
-    
+
     final file = await _file;
     if (!await file.exists()) {
       final backupFile = File('${file.path}.bak');
       if (await backupFile.exists()) {
-        _log.warning('Main families file missing, attempting recovery from backup');
+        _log.warning(
+            'Main families file missing, attempting recovery from backup');
         try {
           final backupContent = await backupFile.readAsString();
           if (backupContent.trim().isNotEmpty) {
             final decoded = jsonDecode(backupContent);
             if (decoded is List) {
               final families = decoded
-                  .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+                  .map(
+                      (entry) => Family.fromJson(entry as Map<String, dynamic>))
                   .toList();
               _allFamilies = families;
               await backupFile.copy(file.path);
@@ -87,7 +89,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
             }
           }
         } catch (backupError, backupSt) {
-          _log.error('Failed to recover families from backup file', backupError, backupSt);
+          _log.error('Failed to recover families from backup file', backupError,
+              backupSt);
         }
       }
       return [];
@@ -106,7 +109,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
       _allFamilies = families;
       return List<Family>.from(families);
     } catch (e, st) {
-      _log.error('Error loading raw families, attempting recovery from backup', e, st);
+      _log.error(
+          'Error loading raw families, attempting recovery from backup', e, st);
       final backupFile = File('${file.path}.bak');
       if (await backupFile.exists()) {
         try {
@@ -115,7 +119,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
             final decoded = jsonDecode(backupContent);
             if (decoded is List) {
               final families = decoded
-                  .map((entry) => Family.fromJson(entry as Map<String, dynamic>))
+                  .map(
+                      (entry) => Family.fromJson(entry as Map<String, dynamic>))
                   .toList();
               _allFamilies = families;
               await backupFile.copy(file.path);
@@ -124,7 +129,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
             }
           }
         } catch (backupError, backupSt) {
-          _log.error('Failed to recover families from backup file', backupError, backupSt);
+          _log.error('Failed to recover families from backup file', backupError,
+              backupSt);
         }
       }
       return [];
@@ -138,22 +144,29 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
 
     final prunedFamilies = <Family>[];
     for (final family in allFamilies) {
-      if (family.deletedAt != null && family.deletedAt!.isBefore(threshold)) {
+      final familyDeletedAt = family.deletedAt;
+      if (familyDeletedAt != null && familyDeletedAt.isBefore(threshold)) {
         changed = true;
         continue;
       }
 
-      final prunedMembers = family.members.where((m) {
-        if (m.deletedAt != null && m.deletedAt!.isBefore(threshold)) {
-          changed = true;
-          return false;
-        }
-        return true;
-      }).toList();
+      List<Member>? prunedMembers;
+      final members = family.members;
+      final membersCount = members.length;
 
-      if (prunedMembers.length != family.members.length) {
+      for (var i = 0; i < membersCount; i++) {
+        final m = members[i];
+        final memberDeletedAt = m.deletedAt;
+        if (memberDeletedAt != null && memberDeletedAt.isBefore(threshold)) {
+          prunedMembers ??= members.sublist(0, i);
+          changed = true;
+        } else if (prunedMembers != null) {
+          prunedMembers.add(m);
+        }
+      }
+
+      if (prunedMembers != null) {
         prunedFamilies.add(family.copyWith(members: prunedMembers));
-        changed = true;
       } else {
         prunedFamilies.add(family);
       }
@@ -170,8 +183,8 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final visible = all
         .where((f) => f.deletedAt == null)
         .map((f) => f.copyWith(
-          members: f.members.where((m) => m.deletedAt == null).toList(),
-        ))
+              members: f.members.where((m) => m.deletedAt == null).toList(),
+            ))
         .toList();
 
     return List<Family>.from(visible);
@@ -210,7 +223,7 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
         await backupFile.copy(file.path);
       }
     }
-    
+
     _controller.add(await fetchFamilies());
   }
 
@@ -265,18 +278,24 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final families = await _loadRawFamilies();
     final now = DateTime.now();
     Member? moving;
-    final stripped = families.map((family) {
-      if (!family.members.any((m) => m.id == memberId)) return family;
-      final remaining = <Member>[];
-      for (final m in family.members) {
-        if (m.id == memberId) {
-          moving = m;
-        } else {
-          remaining.add(m);
-        }
-      }
-      return family.copyWith(members: remaining, updatedAt: now);
-    }).where((f) => f.id == targetFamilyId || !f.isAutoSingleton || f.members.isNotEmpty).toList();
+    final stripped = families
+        .map((family) {
+          if (!family.members.any((m) => m.id == memberId)) return family;
+          final remaining = <Member>[];
+          for (final m in family.members) {
+            if (m.id == memberId) {
+              moving = m;
+            } else {
+              remaining.add(m);
+            }
+          }
+          return family.copyWith(members: remaining, updatedAt: now);
+        })
+        .where((f) =>
+            f.id == targetFamilyId ||
+            !f.isAutoSingleton ||
+            f.members.isNotEmpty)
+        .toList();
     if (moving == null) {
       throw StateError('Member $memberId not found in any family');
     }
@@ -305,18 +324,21 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final families = await _loadRawFamilies();
     final now = DateTime.now();
     Member? moving;
-    final stripped = families.map((family) {
-      if (!family.members.any((m) => m.id == memberId)) return family;
-      final remaining = <Member>[];
-      for (final m in family.members) {
-        if (m.id == memberId) {
-          moving = m;
-        } else {
-          remaining.add(m);
-        }
-      }
-      return family.copyWith(members: remaining, updatedAt: now);
-    }).where((f) => !f.isAutoSingleton || f.members.isNotEmpty).toList();
+    final stripped = families
+        .map((family) {
+          if (!family.members.any((m) => m.id == memberId)) return family;
+          final remaining = <Member>[];
+          for (final m in family.members) {
+            if (m.id == memberId) {
+              moving = m;
+            } else {
+              remaining.add(m);
+            }
+          }
+          return family.copyWith(members: remaining, updatedAt: now);
+        })
+        .where((f) => !f.isAutoSingleton || f.members.isNotEmpty)
+        .toList();
     if (moving == null) {
       throw StateError('Member $memberId not found in any family');
     }
