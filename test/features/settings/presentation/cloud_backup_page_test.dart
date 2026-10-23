@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/presentation/cloud_backup_page.dart';
@@ -263,5 +265,91 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Overwrite'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Error: Exception: overwrite failed'), findsOneWidget);
+  });
+
+  testWidgets('Overwrite local and Overwrite cloud cards render with equal height',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final service = _MockDriveService();
+    when(() => service.listCloudBackups()).thenAnswer((_) async => []);
+    when(() => service.lastSyncTime).thenReturn(null);
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    final localCard = find.ancestor(
+      of: find.text('Overwrite local'),
+      matching: find.byType(Material),
+    );
+    final cloudCard = find.ancestor(
+      of: find.text('Overwrite cloud'),
+      matching: find.byType(Material),
+    );
+
+    final localSize = tester.getSize(localCard.first);
+    final cloudSize = tester.getSize(cloudCard.first);
+    expect(localSize.height, equals(cloudSize.height));
+  });
+
+  testWidgets('displays all summary tags and expandable exact item changes on snapshot row',
+      (tester) async {
+    final service = _MockDriveService();
+    final backup = drive.File()
+      ..id = 'backup-detailed'
+      ..size = '4096'
+      ..createdTime = DateTime(2026, 10, 20, 14, 30)
+      ..description = jsonEncode({
+        'title': 'Manual Drive Sync',
+        'user': 'Tony',
+        'tags': ['+1 Sessions', '+5 Members', 'Manual'],
+        'changes': [
+          'Added session · Sunday Service (Oct 20) · 32 present, 3 absent',
+          'Added member · Alice Smith (Smith)',
+          'Added member · Bob Smith (Smith)',
+          'Added member · Charlie Smith (Smith)',
+          'Added member · Diana Smith (Smith)',
+          'Added member · Evan Smith (Smith)',
+        ],
+        'overflowChanges': 2,
+      });
+
+    when(() => service.listCloudBackups()).thenAnswer((_) async => [backup]);
+    when(() => service.lastSyncTime).thenReturn(null);
+
+    await tester.pumpWidget(
+      _wrap(CloudBackupPage(driveService: service, disableAnimations: true)),
+    );
+    await tester.pumpAndSettle();
+
+    // All tags are rendered, not just tags.first
+    expect(find.text('+1 Sessions'), findsOneWidget);
+    expect(find.text('+5 Members'), findsOneWidget);
+    expect(find.text('Manual'), findsOneWidget);
+
+    // First 4 exact item changes are visible initially
+    expect(
+      find.text('Added session · Sunday Service (Oct 20) · 32 present, 3 absent'),
+      findsOneWidget,
+    );
+    expect(find.text('Added member · Alice Smith (Smith)'), findsOneWidget);
+    expect(find.text('Added member · Diana Smith (Smith)'), findsNothing);
+    expect(find.text('Show 2 more changes'), findsOneWidget);
+
+    // Expand to see all recorded changes + overflow indicator
+    await tester.ensureVisible(find.text('Show 2 more changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show 2 more changes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Added member · Diana Smith (Smith)'), findsOneWidget);
+    expect(find.text('Added member · Evan Smith (Smith)'), findsOneWidget);
+    expect(find.text('+2 more items changed'), findsOneWidget);
+    expect(find.text('Show less'), findsOneWidget);
   });
 }

@@ -62,7 +62,15 @@ void main() {
       ];
       final remote = [
         {'id': 'session_1', 'title': 'Local'},
-        {'id': 'session_2', 'title': 'Remote'},
+        {
+          'id': 'session_2',
+          'title': 'Remote',
+          'sessionDate': '2026-10-18T10:00:00.000',
+          'records': [
+            {'status': 'present'},
+            {'status': 'absent'},
+          ],
+        },
       ];
 
       final result = driveService.testMergeJsonLists(
@@ -76,6 +84,93 @@ void main() {
       expect(stats.newSessions, 1);
       expect(stats.hasChanges, isTrue);
       expect(stats.toTags(), ['+1 Sessions']);
+      expect(
+        stats.itemChanges,
+        contains('Added session · Remote (Oct 18) · 1 present, 1 absent'),
+      );
+    });
+
+    test('Scenario: Local-only additions and updatedAt conflicts record exact item changes', () {
+      final stats = SyncStats();
+      final local = [
+        {
+          'id': 'event_1',
+          'title': 'Youth Group (Updated)',
+          'updatedAt': '2026-10-20T12:00:00Z',
+        },
+        {
+          'id': 'event_2',
+          'title': 'Bible Study',
+          'updatedAt': '2026-10-20T12:00:00Z',
+        },
+      ];
+      final remote = [
+        {
+          'id': 'event_1',
+          'title': 'Youth Group',
+          'updatedAt': '2026-10-19T12:00:00Z',
+        },
+      ];
+
+      final result = driveService.testMergeJsonLists(
+        local,
+        remote,
+        'events.json',
+        stats: stats,
+      );
+
+      expect(result.length, 2);
+      expect(stats.newEvents, 1);
+      expect(stats.updatedEvents, 1);
+      expect(stats.hasChanges, isTrue);
+      expect(
+        stats.itemChanges,
+        containsAll([
+          'Added event · Bible Study',
+          'Updated event · Youth Group (Updated)',
+        ]),
+      );
+    });
+
+    test('Scenario: SyncStats caps itemChanges and tracks overflow count', () {
+      final stats = SyncStats();
+      for (var i = 0; i < SyncStats.maxRecordedItemChanges + 5; i++) {
+        stats.addItemChange('Added member · Person $i');
+      }
+      expect(stats.itemChanges.length, SyncStats.maxRecordedItemChanges);
+      expect(stats.overflowItemChanges, 5);
+    });
+
+    test('Scenario: selectBackupsToThin enforces 10-snapshot floor, 7-day full, 8-30d daily, >30d prune', () {
+      final now = DateTime(2026, 10, 23, 12, 0);
+      final backups = <drive.File>[
+        // 10 recent backups within last 3 days (protected floor)
+        for (var i = 0; i < 10; i++)
+          drive.File()
+            ..id = 'recent_$i'
+            ..createdTime = now.subtract(Duration(hours: i * 4)),
+        // 2 backups on day 5 (within 7 days -> both kept)
+        drive.File()
+          ..id = 'day5_a'
+          ..createdTime = DateTime(2026, 10, 18, 15, 0),
+        drive.File()
+          ..id = 'day5_b'
+          ..createdTime = DateTime(2026, 10, 18, 9, 0),
+        // 2 backups on day 14 (between 7 and 30 days -> latest kept, older thinned)
+        drive.File()
+          ..id = 'day14_latest'
+          ..createdTime = DateTime(2026, 10, 9, 18, 0),
+        drive.File()
+          ..id = 'day14_older'
+          ..createdTime = DateTime(2026, 10, 9, 8, 0),
+        // 1 backup on day 45 (>30 days -> thinned)
+        drive.File()
+          ..id = 'day45_old'
+          ..createdTime = DateTime(2026, 9, 1, 12, 0),
+      ];
+
+      final toThin = DriveService.selectBackupsToThin(backups, now: now);
+      expect(toThin, ['day14_older', 'day45_old']);
     });
 
     test('Scenario: Soft-deleted remote items are not resurrected when purged locally', () {

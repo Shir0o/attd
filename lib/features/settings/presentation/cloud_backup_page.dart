@@ -448,22 +448,29 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _OverwriteButton(
-                            isCloud: false,
-                            title: 'Overwrite local',
-                            subtitle: 'Pull the cloud copy down to this device',
-                            onTap: _isOperating ? null : _overwriteLocal,
-                          ),
-                          const SizedBox(width: 10),
-                          _OverwriteButton(
-                            isCloud: true,
-                            title: 'Overwrite cloud',
-                            subtitle: 'Push this device up, replacing the cloud',
-                            onTap: _isOperating ? null : _overwriteCloud,
-                          ),
-                        ],
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _OverwriteButton(
+                              isCloud: false,
+                              title: 'Overwrite local',
+                              subtitle:
+                                  'Pull the cloud copy down to this device',
+                              onTap: _isOperating ? null : _overwriteLocal,
+                              disableAnimations: widget.disableAnimations,
+                            ),
+                            const SizedBox(width: 10),
+                            _OverwriteButton(
+                              isCloud: true,
+                              title: 'Overwrite cloud',
+                              subtitle:
+                                  'Push this device up, replacing the cloud',
+                              onTap: _isOperating ? null : _overwriteCloud,
+                              disableAnimations: widget.disableAnimations,
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 28),
                       // Snapshots timeline section
@@ -618,10 +625,9 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                 height: 124,
                 decoration: BoxDecoration(
                   color: c.cardSoft,
-                  border: Border.all(color: c.hair, width: 1.5),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: AppRadii.softR,
                 ),
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -655,10 +661,9 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                 height: 124,
                 decoration: BoxDecoration(
                   color: c.cardSoft,
-                  border: Border.all(color: c.hair, width: 1.5),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: AppRadii.softR,
                 ),
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -797,12 +802,14 @@ class _OverwriteButton extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onTap,
+    this.disableAnimations = false,
   });
 
   final bool isCloud;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final bool disableAnimations;
 
   @override
   Widget build(BuildContext context) {
@@ -812,51 +819,51 @@ class _OverwriteButton extends StatelessWidget {
         isCloud ? Icons.cloud_upload_outlined : Icons.cloud_download_outlined;
 
     return Expanded(
-      child: Material(
-        color: c.cardSoft,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              border: Border.all(color: c.hair, width: 1.5),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
+      child: ConvPressable(
+        disableAnimations: disableAnimations,
+        child: Material(
+          color: c.cardSoft,
+          borderRadius: AppRadii.softR,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: AppRadii.softR,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 22),
                   ),
-                  child: Icon(icon, color: color, size: 22),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  style: AppTypography.geist(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: c.ink,
-                    height: 1.1,
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    style: AppTypography.geist(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: c.ink,
+                      height: 1.15,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: AppTypography.geist(
-                    fontSize: 11.5,
-                    color: c.ink3,
-                    height: 1.3,
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: AppTypography.geist(
+                      fontSize: 12,
+                      color: c.ink3,
+                      height: 1.35,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -865,7 +872,7 @@ class _OverwriteButton extends StatelessWidget {
   }
 }
 
-class _VersionRow extends StatelessWidget {
+class _VersionRow extends StatefulWidget {
   const _VersionRow({
     required this.backup,
     required this.isCurrent,
@@ -883,8 +890,19 @@ class _VersionRow extends StatelessWidget {
   final String Function(DateTime) formatRelativeTime;
 
   @override
+  State<_VersionRow> createState() => _VersionRowState();
+}
+
+class _VersionRowState extends State<_VersionRow> {
+  static const int _collapsedChangeLimit = 4;
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final c = context.conv;
+    final backup = widget.backup;
+    final isCurrent = widget.isCurrent;
+    final isLast = widget.isLast;
 
     Map<String, dynamic> metadata = {};
     try {
@@ -901,15 +919,34 @@ class _VersionRow extends StatelessWidget {
         backup.size != null ? int.tryParse(backup.size!) : null;
     final sizeLabel = _formatSize(bytes);
 
-    final tags = metadata['tags'] as List?;
-    final deltaText = (tags != null && tags.isNotEmpty)
-        ? tags.first.toString()
-        : (metadata['title'] ?? 'Snapshot');
+    final rawTags = metadata['tags'] as List?;
+    final tagStrings = rawTags != null
+        ? rawTags.map((e) => e.toString()).where((s) => s.isNotEmpty).toList()
+        : <String>[];
+    final fallbackTitle = (metadata['title'] as String?) ?? 'Snapshot';
+    final displayTags =
+        tagStrings.isNotEmpty ? tagStrings : <String>[fallbackTitle];
 
-    final whenText =
-        backup.createdTime != null ? formatVersionDate(backup.createdTime!) : '';
-    final agoText =
-        backup.createdTime != null ? formatRelativeTime(backup.createdTime!) : '';
+    final rawChanges = metadata['changes'] as List?;
+    final changes = rawChanges != null
+        ? rawChanges
+            .map((e) => e.toString())
+            .where((s) => s.isNotEmpty)
+            .toList()
+        : <String>[];
+    final overflowChanges = (metadata['overflowChanges'] as num?)?.toInt() ?? 0;
+
+    final visibleChanges = _expanded || changes.length <= _collapsedChangeLimit
+        ? changes
+        : changes.sublist(0, _collapsedChangeLimit);
+    final hiddenExpandableCount = changes.length - visibleChanges.length;
+
+    final whenText = backup.createdTime != null
+        ? widget.formatVersionDate(backup.createdTime!)
+        : '';
+    final agoText = backup.createdTime != null
+        ? widget.formatRelativeTime(backup.createdTime!)
+        : '';
 
     return IntrinsicHeight(
       child: Row(
@@ -1000,47 +1037,142 @@ class _VersionRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: c.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          deltaText,
-                          style: AppTypography.geist(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w500,
-                            color: c.primary,
-                          ),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final tag in displayTags)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: c.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: AppTypography.geist(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: c.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       if (!isCurrent) ...[
-                        const Spacer(),
-                        OutlinedButton.icon(
-                          onPressed: () => onRestore(backup),
-                          icon: Icon(Icons.undo_rounded, size: 14, color: c.ink2),
-                          label: Text(
-                            'Restore',
-                            style: AppTypography.geist(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: c.ink2,
+                        const SizedBox(width: 8),
+                        Material(
+                          color: c.cardSoft,
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
+                            onTap: () => widget.onRestore(backup),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.undo_rounded,
+                                    size: 14,
+                                    color: c.ink2,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Restore',
+                                    style: AppTypography.geist(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: c.ink2,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            side: BorderSide(color: c.hair, width: 1.5),
-                            shape: const StadiumBorder(),
-                            backgroundColor: Colors.transparent,
                           ),
                         ),
                       ],
                     ],
                   ),
+                  if (visibleChanges.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: c.cardSoft,
+                        borderRadius: AppRadii.compactR,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (var i = 0; i < visibleChanges.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 4),
+                            Text(
+                              visibleChanges[i],
+                              style: AppTypography.geist(
+                                fontSize: 12,
+                                color: c.ink2,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                          if (hiddenExpandableCount > 0) ...[
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () => setState(() => _expanded = true),
+                              child: Text(
+                                'Show $hiddenExpandableCount more ${hiddenExpandableCount == 1 ? 'change' : 'changes'}',
+                                style: AppTypography.geist(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.primary,
+                                ),
+                              ),
+                            ),
+                          ] else if (_expanded &&
+                              changes.length > _collapsedChangeLimit) ...[
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () => setState(() => _expanded = false),
+                              child: Text(
+                                'Show less',
+                                style: AppTypography.geist(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if ((_expanded || hiddenExpandableCount == 0) &&
+                              overflowChanges > 0) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '+$overflowChanges more ${overflowChanges == 1 ? 'item' : 'items'} changed',
+                              style: AppTypography.geist(
+                                fontSize: 11.5,
+                                color: c.ink3,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

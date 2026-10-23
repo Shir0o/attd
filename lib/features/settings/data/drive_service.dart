@@ -94,21 +94,68 @@ bool isAuthExpiredError(Object e) {
 }
 
 class SyncStats {
+  static const int maxRecordedItemChanges = 20;
 
   int newSessions = 0;
+  int updatedSessions = 0;
+  int deletedSessions = 0;
   int newEvents = 0;
+  int updatedEvents = 0;
+  int deletedEvents = 0;
   int newMembers = 0;
+  int updatedMembers = 0;
+  int deletedMembers = 0;
   int newFamilies = 0;
+  int updatedFamilies = 0;
+  int deletedFamilies = 0;
+
+  final List<String> itemChanges = [];
+  int overflowItemChanges = 0;
+
+  void addItemChange(String description) {
+    if (itemChanges.contains(description)) return;
+    if (itemChanges.length < maxRecordedItemChanges) {
+      itemChanges.add(description);
+    } else {
+      overflowItemChanges++;
+    }
+  }
+
+  int get totalSessionChanges =>
+      newSessions + updatedSessions + deletedSessions;
+  int get totalEventChanges => newEvents + updatedEvents + deletedEvents;
+  int get totalMemberChanges => newMembers + updatedMembers + deletedMembers;
+  int get totalFamilyChanges => newFamilies + updatedFamilies + deletedFamilies;
 
   bool get hasChanges =>
-      newSessions > 0 || newEvents > 0 || newMembers > 0 || newFamilies > 0;
+      totalSessionChanges > 0 ||
+      totalEventChanges > 0 ||
+      totalMemberChanges > 0 ||
+      totalFamilyChanges > 0 ||
+      itemChanges.isNotEmpty;
 
   List<String> toTags() {
     final tags = <String>[];
-    if (newSessions > 0) tags.add('+$newSessions Sessions');
-    if (newEvents > 0) tags.add('+$newEvents Events');
-    if (newMembers > 0) tags.add('+$newMembers Members');
-    if (newFamilies > 0) tags.add('+$newFamilies Families');
+    if (newSessions > 0) {
+      tags.add('+$newSessions Sessions');
+    } else if (totalSessionChanges > 0) {
+      tags.add('$totalSessionChanges Sessions');
+    }
+    if (newEvents > 0) {
+      tags.add('+$newEvents Events');
+    } else if (totalEventChanges > 0) {
+      tags.add('$totalEventChanges Events');
+    }
+    if (newMembers > 0) {
+      tags.add('+$newMembers Members');
+    } else if (totalMemberChanges > 0) {
+      tags.add('$totalMemberChanges Members');
+    }
+    if (newFamilies > 0) {
+      tags.add('+$newFamilies Families');
+    } else if (totalFamilyChanges > 0) {
+      tags.add('$totalFamilyChanges Families');
+    }
     return tags;
   }
 }
@@ -632,6 +679,7 @@ class DriveService extends ChangeNotifier {
       // 1. Get remote files in our folder
       final remoteFiles = await _listRemoteFiles(folderId);
       final stats = SyncStats();
+      bool anyFileTransferredOrMerged = false;
 
       // 2. Process each file
       await Future.wait(
@@ -643,20 +691,35 @@ class DriveService extends ChangeNotifier {
             // Remote exists, local doesn't -> Download
             _log.info('Downloading $fileName...');
             await _downloadFile(remoteFile.id!, localFile);
+            await _recordSingleSideFileStats(
+              localFile,
+              fileName,
+              stats,
+            );
+            anyFileTransferredOrMerged = true;
           } else if (localFile.existsSync() && remoteFile == null) {
             // Local exists, remote doesn't -> Upload
             _log.info('Uploading $fileName...');
             await _uploadFile(localFile, fileName, folderId);
+            await _recordSingleSideFileStats(
+              localFile,
+              fileName,
+              stats,
+            );
+            anyFileTransferredOrMerged = true;
           } else if (localFile.existsSync() && remoteFile != null) {
             // Both exist -> MERGE data
             _log.info('Merging $fileName...');
-            await _mergeAndSyncFile(
+            final changed = await _mergeAndSyncFile(
               remoteFile.id!,
               localFile,
               folderId,
               fileName,
               stats: stats,
             );
+            if (changed) {
+              anyFileTransferredOrMerged = true;
+            }
           }
         }),
       );
@@ -669,17 +732,28 @@ class DriveService extends ChangeNotifier {
         if (eventRepository != null) eventRepository!.refresh(),
       ]);
 
-      final List<String> combinedTags = [...tags, ...stats.toTags()];
+      final bool forceSnapshot =
+          isInitialSetup || tags.contains('Restore') || tags.contains('Safety');
+      final bool shouldCreateBackup =
+          forceSnapshot || stats.hasChanges || anyFileTransferredOrMerged;
 
-      // 3. Create Cloud Backup snapshot
-      await _createCloudBackup(
-        folderId,
-        docsDir,
-        filesToSync,
-        actionTitle: actionTitle,
-        tags: combinedTags,
-        isInitialSetup: isInitialSetup,
-      );
+      if (shouldCreateBackup) {
+        final List<String> combinedTags = [...stats.toTags(), ...tags];
+
+        // 3. Create Cloud Backup snapshot
+        await _createCloudBackup(
+          folderId,
+          docsDir,
+          filesToSync,
+          actionTitle: actionTitle,
+          tags: combinedTags,
+          changes: stats.itemChanges,
+          overflowChanges: stats.overflowItemChanges,
+          isInitialSetup: isInitialSetup,
+        );
+      } else {
+        _log.info('Skipping cloud snapshot creation (no data changes detected).');
+      }
     } on drive.DetailedApiRequestError catch (e) {
       if (e.status == 403 &&
           e.message != null &&
@@ -728,6 +802,8 @@ class DriveService extends ChangeNotifier {
     List<String> filesToBackup, {
     String actionTitle = 'Snapshot',
     List<String> tags = const [],
+    List<String> changes = const [],
+    int overflowChanges = 0,
     bool isInitialSetup = false,
   }) async {
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
@@ -761,6 +837,8 @@ class DriveService extends ChangeNotifier {
         'title': actionTitle,
         'user': user,
         'tags': tags,
+        if (changes.isNotEmpty) 'changes': changes,
+        if (overflowChanges > 0) 'overflowChanges': overflowChanges,
         'isInitialSetup': isInitialSetup,
       };
 
@@ -772,6 +850,8 @@ class DriveService extends ChangeNotifier {
       await _retryDriveOperation(
         () => _driveApi!.files.create(driveFile, uploadMedia: media),
       );
+
+      await _thinCloudBackups(backupFolderId);
     } catch (e, st) {
       if (isConnectionAbortError(e)) {
         _log.warning(
@@ -790,6 +870,91 @@ class DriveService extends ChangeNotifier {
           _log.warning('Failed to delete temporary backup zip file', e);
         }
       }
+    }
+  }
+
+  static const int minProtectedBackups = 10;
+  static const int fullRetentionDays = 7;
+  static const int maxRetentionDays = 30;
+
+  /// Computes which snapshot file IDs should be trashed according to the
+  /// Snapshot Thinning retention policy:
+  /// - Always preserve the [minProtectedBackups] most recent snapshots.
+  /// - Preserve all snapshots younger than [fullRetentionDays].
+  /// - Between [fullRetentionDays] and [maxRetentionDays], preserve 1 per calendar day (latest).
+  /// - Trash snapshots older than [maxRetentionDays] (outside the protected floor).
+  @visibleForTesting
+  static List<String> selectBackupsToThin(
+    List<drive.File> backups, {
+    DateTime? now,
+  }) {
+    if (backups.length <= minProtectedBackups) return const [];
+    final referenceNow = now ?? DateTime.now();
+
+    final sorted = List<drive.File>.from(backups)
+      ..sort((a, b) {
+        final aTime = a.createdTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.createdTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+
+    final toTrash = <String>[];
+    final keptDayBuckets = <String>{};
+
+    for (var i = minProtectedBackups; i < sorted.length; i++) {
+      final file = sorted[i];
+      final id = file.id;
+      final created = file.createdTime;
+      if (id == null || created == null) continue;
+
+      final age = referenceNow.difference(created);
+      if (age < const Duration(days: fullRetentionDays)) {
+        continue;
+      } else if (age <= const Duration(days: maxRetentionDays)) {
+        final dayKey =
+            '${created.year}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}';
+        if (keptDayBuckets.add(dayKey)) {
+          // Keep the newest snapshot for this day
+          continue;
+        } else {
+          toTrash.add(id);
+        }
+      } else {
+        toTrash.add(id);
+      }
+    }
+
+    return toTrash;
+  }
+
+  Future<void> _thinCloudBackups(String backupFolderId) async {
+    try {
+      final query =
+          "'$backupFolderId' in parents and trashed = false and name contains 'attendance_snapshot_'";
+      final fileList = await _retryDriveOperation(
+        () => _driveApi!.files.list(
+          q: query,
+          $fields: 'files(id, createdTime)',
+          orderBy: 'createdTime desc',
+          pageSize: 1000,
+        ),
+      );
+      final files = fileList.files ?? const <drive.File>[];
+      final idsToTrash = selectBackupsToThin(files);
+      if (idsToTrash.isEmpty) return;
+
+      for (final id in idsToTrash) {
+        try {
+          await _retryDriveOperation(
+            () => _driveApi!.files.update(drive.File()..trashed = true, id),
+          );
+          _log.info('Thinned old cloud backup snapshot: $id');
+        } catch (e, st) {
+          _log.warning('Failed to thin old cloud backup: $id', e, st);
+        }
+      }
+    } catch (e, st) {
+      _log.warning('Snapshot thinning check failed', e, st);
     }
   }
 
@@ -964,7 +1129,90 @@ class DriveService extends ChangeNotifier {
   }
 
 
-  Future<void> _mergeAndSyncFile(
+  static const int maxHistoryVersionsPerSession = 5;
+
+  Future<void> _recordSingleSideFileStats(
+    File file,
+    String fileName,
+    SyncStats stats,
+  ) async {
+    if (fileName == 'sessions_history.json') return;
+    try {
+      final content = await file.readAsString();
+      final decoded = jsonDecode(content);
+      if (decoded is List) {
+        _mergeJsonLists(decoded, const [], fileName, stats: stats);
+      }
+    } catch (_) {}
+  }
+
+  static String _formatItemLabel(
+    Map<dynamic, dynamic> item,
+    String fileName, {
+    required String action,
+    String? parentFamilyName,
+  }) {
+    if (fileName == 'sessions.json') {
+      final title = (item['title'] as String?)?.trim();
+      final name = (title != null && title.isNotEmpty) ? title : 'Session';
+      final dateStr = item['sessionDate'] as String?;
+      final parsedDate = dateStr != null ? DateTime.tryParse(dateStr) : null;
+      final dateLabel = parsedDate != null
+          ? ' (${DateFormat('MMM d').format(parsedDate)})'
+          : '';
+      if (action == 'Deleted') {
+        return 'Deleted session · $name$dateLabel';
+      }
+      final records = item['records'];
+      if (records is List && records.isNotEmpty) {
+        int presentCount = 0;
+        int absentCount = 0;
+        for (final r in records) {
+          if (r is Map) {
+            final status = r['status'] as String?;
+            if (status == 'present' || status == 'late') {
+              presentCount++;
+            } else if (status == 'absent') {
+              absentCount++;
+            }
+          }
+        }
+        final summaryParts = <String>[
+          if (presentCount > 0) '$presentCount present',
+          if (absentCount > 0) '$absentCount absent',
+        ];
+        final markDetail = summaryParts.isNotEmpty
+            ? ' · ${summaryParts.join(', ')}'
+            : ' · ${records.length} marks';
+        return '$action session · $name$dateLabel$markDetail';
+      }
+      return '$action session · $name$dateLabel';
+    }
+    if (fileName == 'events.json') {
+      final title = (item['title'] as String?)?.trim();
+      final name = (title != null && title.isNotEmpty) ? title : 'Event';
+      return '$action event · $name';
+    }
+    if (fileName == 'families.json') {
+      final display =
+          (item['displayName'] as String? ?? item['name'] as String?)?.trim();
+      final name = (display != null && display.isNotEmpty) ? display : 'Family';
+      return '$action family · $name';
+    }
+    if (fileName == 'members' || fileName == 'members.json') {
+      final display =
+          (item['displayName'] as String? ?? item['name'] as String?)?.trim();
+      final name = (display != null && display.isNotEmpty) ? display : 'Member';
+      final suffix =
+          (parentFamilyName != null && parentFamilyName.isNotEmpty)
+          ? ' ($parentFamilyName)'
+          : '';
+      return '$action member · $name$suffix';
+    }
+    return '$action item';
+  }
+
+  Future<bool> _mergeAndSyncFile(
     String fileId,
     File localFile,
     String folderId,
@@ -1024,41 +1272,56 @@ class DriveService extends ChangeNotifier {
           );
         }
         final mergedContent = jsonEncode(mergedJson);
+        final normalizedRemoteContent = jsonEncode(remoteJson);
+        final normalizedLocalContent = jsonEncode(localJson);
 
-        // 3. Update local (atomic write)
-        final tmpFile = File('${localFile.path}.tmp');
-        await tmpFile.writeAsString(mergedContent);
-        final backupFile = File('${localFile.path}.bak');
-        if (await localFile.exists()) {
-          if (await backupFile.exists()) {
-            await backupFile.delete();
+        final bool localDiffers = mergedContent != normalizedLocalContent;
+        final bool remoteDiffers = mergedContent != normalizedRemoteContent;
+
+        if (!localDiffers && !remoteDiffers) {
+          return false;
+        }
+
+        // 3. Update local (atomic write) if needed
+        if (localDiffers) {
+          final tmpFile = File('${localFile.path}.tmp');
+          await tmpFile.writeAsString(mergedContent);
+          final backupFile = File('${localFile.path}.bak');
+          if (await localFile.exists()) {
+            if (await backupFile.exists()) {
+              await backupFile.delete();
+            }
+            await localFile.rename(backupFile.path);
           }
-          await localFile.rename(backupFile.path);
+          await tmpFile.rename(localFile.path);
         }
-        await tmpFile.rename(localFile.path);
 
-        // 4. Update remote
-        final updatedMedia = drive.Media(
-          Stream.value(utf8.encode(mergedContent)),
-          utf8.encode(mergedContent).length,
-        );
-        await _driveApi!.files.update(
-          drive.File(),
-          fileId,
-          uploadMedia: updatedMedia,
-        );
+        // 4. Update remote if needed
+        if (remoteDiffers) {
+          final updatedMedia = drive.Media(
+            Stream.value(utf8.encode(mergedContent)),
+            utf8.encode(mergedContent).length,
+          );
+          await _driveApi!.files.update(
+            drive.File(),
+            fileId,
+            uploadMedia: updatedMedia,
+          );
 
-        // Update local mod time to match remote
-        final remoteFile =
-            await _driveApi!.files.get(fileId, $fields: 'modifiedTime')
-                as drive.File;
-        if (remoteFile.modifiedTime != null) {
-          await localFile.setLastModified(remoteFile.modifiedTime!);
+          // Update local mod time to match remote
+          final remoteFile =
+              await _driveApi!.files.get(fileId, $fields: 'modifiedTime')
+                  as drive.File;
+          if (remoteFile.modifiedTime != null) {
+            await localFile.setLastModified(remoteFile.modifiedTime!);
+          }
         }
+        return !isHistoryFile;
       } else {
         // Local is corrupted? Repository recovery logic will handle this usually,
         // but here we just fallback to time-based.
         await _timeBasedSync(fileId, localFile, folderId, fileName);
+        return true;
       }
     } catch (e, st) {
       _log.warning('Sync integrity check failed for $fileName', e, st);
@@ -1070,6 +1333,7 @@ class DriveService extends ChangeNotifier {
         if (localCheck is List || localCheck is Map) {
           _log.info('Local data is healthy. Healing cloud with local copy.');
           await _updateFile(fileId, localFile);
+          return true;
         }
       } catch (localError, localStack) {
         _log.error(
@@ -1078,6 +1342,7 @@ class DriveService extends ChangeNotifier {
           localStack,
         );
       }
+      return false;
     }
   }
 
@@ -1148,7 +1413,9 @@ class DriveService extends ChangeNotifier {
       sortedVersions.sort(
         (a, b) => (b['version'] as int).compareTo(a['version'] as int),
       );
-      merged[sessionId] = sortedVersions;
+      merged[sessionId] = sortedVersions.length > maxHistoryVersionsPerSession
+          ? sortedVersions.sublist(0, maxHistoryVersionsPerSession)
+          : sortedVersions;
     }
 
     return merged;
@@ -1159,8 +1426,24 @@ class DriveService extends ChangeNotifier {
     List<dynamic> remote,
     String fileName, {
     SyncStats? stats,
+    String? parentFamilyName,
   }) {
     final Map<String, dynamic> merged = {};
+    final Map<String, Map> localById = {};
+    final Map<String, Map> remoteById = {};
+
+    for (final item in local) {
+      if (item is Map && item.containsKey('id')) {
+        localById[item['id'] as String] = item;
+      }
+    }
+    for (final item in remote) {
+      if (item is Map && item.containsKey('id')) {
+        remoteById[item['id'] as String] = item;
+      }
+    }
+
+    final Set<String> familiesAlreadyMergedMembers = {};
 
     void process(List<dynamic> list, {bool isRemote = false}) {
       for (final item in list) {
@@ -1178,6 +1461,32 @@ class DriveService extends ChangeNotifier {
               if (fileName == 'events.json') stats.newEvents++;
               if (fileName == 'families.json') stats.newFamilies++;
               if (fileName == 'members') stats.newMembers++;
+              stats.addItemChange(
+                _formatItemLabel(
+                  item,
+                  fileName,
+                  action: 'Added',
+                  parentFamilyName: parentFamilyName,
+                ),
+              );
+            } else if (!isRemote &&
+                stats != null &&
+                !remoteById.containsKey(id)) {
+              if (item['deletedAt'] == null &&
+                  (item.containsKey('updatedAt') || remote.isEmpty)) {
+                if (fileName == 'sessions.json') stats.newSessions++;
+                if (fileName == 'events.json') stats.newEvents++;
+                if (fileName == 'families.json') stats.newFamilies++;
+                if (fileName == 'members') stats.newMembers++;
+                stats.addItemChange(
+                  _formatItemLabel(
+                    item,
+                    fileName,
+                    action: 'Added',
+                    parentFamilyName: parentFamilyName,
+                  ),
+                );
+              }
             }
           } else {
             // Tie-break: Use updatedAt if available
@@ -1198,11 +1507,17 @@ class DriveService extends ChangeNotifier {
               // If same timestamp, keep existing (first-wins)
             } else if (fileName == 'families.json') {
               // Legacy families without updatedAt: merge member lists
+              familiesAlreadyMergedMembers.add(id);
+              final famName =
+                  (existing['displayName'] as String? ??
+                          existing['name'] as String?)
+                      ?.trim();
               final mergedMembers = _mergeJsonLists(
                 existing['members'] as List? ?? [],
                 current['members'] as List? ?? [],
                 'members',
                 stats: stats,
+                parentFamilyName: famName,
               );
               merged[id] = {...existing, 'members': mergedMembers};
             }
@@ -1213,6 +1528,111 @@ class DriveService extends ChangeNotifier {
 
     process(local);
     process(remote, isRemote: true);
+
+    if (stats != null) {
+      for (final entry in merged.entries) {
+        final id = entry.key;
+        final winning = entry.value as Map;
+        final lItem = localById[id];
+        final rItem = remoteById[id];
+        if (lItem != null && rItem != null) {
+          final lJson = jsonEncode(lItem);
+          final rJson = jsonEncode(rItem);
+          if (lJson != rJson) {
+            final wasDeleted =
+                lItem['deletedAt'] != null || rItem['deletedAt'] != null;
+            final isNowDeleted = winning['deletedAt'] != null;
+            final action = (isNowDeleted &&
+                    (lItem['deletedAt'] == null || rItem['deletedAt'] == null))
+                ? 'Deleted'
+                : (wasDeleted && !isNowDeleted ? 'Restored' : 'Updated');
+
+            if (fileName == 'families.json') {
+              if (!familiesAlreadyMergedMembers.contains(id)) {
+                final famName =
+                    (winning['displayName'] as String? ??
+                            winning['name'] as String?)
+                        ?.trim();
+                final lMembers = lItem['members'] as List? ?? const [];
+                final rMembers = rItem['members'] as List? ?? const [];
+                if (jsonEncode(lMembers) != jsonEncode(rMembers)) {
+                  _mergeJsonLists(
+                    lMembers,
+                    rMembers,
+                    'members',
+                    stats: stats,
+                    parentFamilyName: famName,
+                  );
+                }
+              }
+              final lWithoutMembers = Map<String, dynamic>.from(lItem)
+                ..remove('members')
+                ..remove('updatedAt');
+              final rWithoutMembers = Map<String, dynamic>.from(rItem)
+                ..remove('members')
+                ..remove('updatedAt');
+              if (jsonEncode(lWithoutMembers) != jsonEncode(rWithoutMembers)) {
+                if (action == 'Deleted') {
+                  stats.deletedFamilies++;
+                } else {
+                  stats.updatedFamilies++;
+                }
+                stats.addItemChange(
+                  _formatItemLabel(winning, fileName, action: action),
+                );
+              }
+            } else {
+              if (fileName == 'sessions.json') {
+                if (action == 'Deleted') {
+                  stats.deletedSessions++;
+                } else {
+                  stats.updatedSessions++;
+                }
+              } else if (fileName == 'events.json') {
+                if (action == 'Deleted') {
+                  stats.deletedEvents++;
+                } else {
+                  stats.updatedEvents++;
+                }
+              } else if (fileName == 'members' || fileName == 'members.json') {
+                if (action == 'Deleted') {
+                  stats.deletedMembers++;
+                } else {
+                  stats.updatedMembers++;
+                }
+              }
+              stats.addItemChange(
+                _formatItemLabel(
+                  winning,
+                  fileName,
+                  action: action,
+                  parentFamilyName: parentFamilyName,
+                ),
+              );
+            }
+          }
+        } else if (fileName == 'families.json') {
+          // New family on either local or remote — also record its initial members
+          final famName =
+              (winning['displayName'] as String? ?? winning['name'] as String?)
+                  ?.trim();
+          final members = winning['members'] as List? ?? const [];
+          for (final m in members) {
+            if (m is Map && m['deletedAt'] == null) {
+              stats.newMembers++;
+              stats.addItemChange(
+                _formatItemLabel(
+                  m,
+                  'members',
+                  action: 'Added',
+                  parentFamilyName: famName,
+                ),
+              );
+            }
+          }
+        }
+      }
+    }
 
     return merged.values.toList();
   }
