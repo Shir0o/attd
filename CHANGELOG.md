@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.16.0](https://github.com/Shir0o/attd/compare/v1.15.0...v1.16.0) (2026-10-23)
+
+
+### Features
+
+* **backup:** show snapshot item changes and thin history ([#272](https://github.com/Shir0o/attd/issues/272)) ([cd51e99](https://github.com/Shir0o/attd/commit/cd51e990addf99e237da32072854fc4a62482cf3))
+
+
+### Bug Fixes
+
+* **events:** sync session history to renamed events and keep settings on edit ([#270](https://github.com/Shir0o/attd/issues/270)) ([56ee343](https://github.com/Shir0o/attd/commit/56ee34340e10b1c9196354ad0ba95fb837aa8609))
+
 ## [1.15.0](https://github.com/Shir0o/attd/compare/v1.14.0...v1.15.0) (2026-10-23)
 
 
