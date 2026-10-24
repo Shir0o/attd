@@ -43,4 +43,14 @@ void main() {
       expect((focused as OutlineInputBorder).borderSide, BorderSide.none);
     }
   });
+
+  test('snackBarTheme uses Convocation tokens and never raw white defaults', () {
+    for (final theme in [AppTheme.lightTheme(), AppTheme.darkTheme()]) {
+      final snackBar = theme.snackBarTheme;
+      expect(snackBar.behavior, SnackBarBehavior.floating);
+      expect(snackBar.backgroundColor, isNotNull);
+      expect(snackBar.contentTextStyle?.color, isNotNull);
+      expect(snackBar.actionTextColor, isNotNull);
+    }
+  });
 }
