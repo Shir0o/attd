@@ -35,9 +35,10 @@ ResolvedDefault resolveDefault(
     }
   }
   if (statuses.length < kPatternMinSamples) return ResolvedDefault.ask;
-  final presentRatio =
-      statuses.where((s) => s == AttendanceStatus.present).length /
-          statuses.length;
+  final presentRatio = statuses
+          .where((s) => s == AttendanceStatus.present)
+          .length /
+      statuses.length;
   if (presentRatio >= kPatternThreshold) return ResolvedDefault.present;
   if (presentRatio <= 1 - kPatternThreshold) return ResolvedDefault.absent;
   return ResolvedDefault.ask;
@@ -84,7 +85,6 @@ List<Member> rankByLikelihood(
         if (rb == null) return -1;
         return rb.compareTo(ra);
       }
-      // Bolt optimization: use cached displayNameLowercase to avoid repeated string allocations
       return a.displayNameLowercase.compareTo(b.displayNameLowercase);
     });
 }

@@ -48,8 +48,9 @@ class FastMarkingRoster {
               families: families,
               recentSessions: const [],
             ),
-        likelihoodPriority =
-            index?.likelihoodPriority ?? likelihood?.order ?? const {} {
+        likelihoodPriority = index?.likelihoodPriority ??
+            likelihood?.order ??
+            const {} {
     final roster = SessionRoster(session, members);
     final display = roster.displayMembersMap.values.toList();
 
@@ -64,10 +65,7 @@ class FastMarkingRoster {
           likelihoodPriority[b.id] ?? unranked,
         );
         if (byOrder != 0) return byOrder;
-        // Bolt optimization: use cached displayNameLowercase to avoid repeated string allocations
-        return a.displayNameLowercase.compareTo(
-          b.displayNameLowercase,
-        );
+        return a.displayNameLowercase.compareTo(b.displayNameLowercase);
       });
   }
 
@@ -96,11 +94,13 @@ class FastMarkingRoster {
   String subtitleFor(Member member) => index.subtitleFor(member);
 
   /// How many of [family] are currently marked present.
-  int presentCountIn(Family family) => family.members.where(isPresent).length;
+  int presentCountIn(Family family) =>
+      family.members.where(isPresent).length;
 
   /// How many of [family] usually turn up, from their recent attendance.
-  int usualCountIn(Family family) =>
-      family.members.where((m) => (rateFor(m) ?? 0) >= 0.5).length;
+  int usualCountIn(Family family) => family.members
+      .where((m) => (rateFor(m) ?? 0) >= 0.5)
+      .length;
 
   /// Members not yet marked present, in likelihood order.
   List<Member> get unmarked =>
@@ -125,3 +125,4 @@ class FastMarkingRoster {
         : results;
   }
 }
+
