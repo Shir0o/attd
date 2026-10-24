@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/Shir0o/attd/compare/v1.16.0...v1.16.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **design:** style snackbars with convocation tokens (closes [#251](https://github.com/Shir0o/attd/issues/251)) ([#274](https://github.com/Shir0o/attd/issues/274)) ([d33528a](https://github.com/Shir0o/attd/commit/d33528a1da2d4692577bda4fc1b704af98c12193))
+
 ## [1.16.0](https://github.com/Shir0o/attd/compare/v1.15.0...v1.16.0) (2026-10-23)
 
 
