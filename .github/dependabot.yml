@@ -9,6 +9,12 @@ updates:
       flutter-dependencies:
         patterns:
           - "*"
+    ignore:
+      # google_fonts 9 migrates to material_ui, whose TextTheme is a different
+      # type from flutter/material's. Adopt it only with an app-wide migration.
+      - dependency-name: google_fonts
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /

@@ -295,10 +295,6 @@ Widget _settingsPage({
 }
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(const AuthenticationOptions());
-  });
-
   late ThemeController themeController;
 
   setUp(() async {
@@ -805,7 +801,8 @@ void main() {
     when(() => auth.isDeviceSupported()).thenAnswer((_) async => true);
     when(() => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
           authMessages: any(named: 'authMessages'),
         )).thenAnswer((_) async => true);
     when(() => auth.canCheckBiometrics).thenAnswer((_) async => true);
@@ -841,7 +838,8 @@ void main() {
     when(() => auth.isDeviceSupported()).thenAnswer((_) async => true);
     when(() => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
           authMessages: any(named: 'authMessages'),
         )).thenAnswer((_) async => false);
     final appLockController = AppLockController(prefs, auth: auth);

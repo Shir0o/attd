@@ -11,10 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _MockLocalAuth extends Mock implements LocalAuthentication {}
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(const AuthenticationOptions());
-  });
-
   Future<AppLockController> controller({
     required bool enabled,
     required LocalAuthentication auth,
@@ -45,7 +41,8 @@ void main() {
     verifyNever(
       () => auth.authenticate(
         localizedReason: any(named: 'localizedReason'),
-        options: any(named: 'options'),
+        persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+        biometricOnly: any(named: 'biometricOnly'),
       ),
     );
   });
@@ -55,7 +52,8 @@ void main() {
     when(
       () => auth.authenticate(
         localizedReason: any(named: 'localizedReason'),
-        options: any(named: 'options'),
+        persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+        biometricOnly: any(named: 'biometricOnly'),
       ),
     ).thenAnswer((_) async => false);
     final c = await controller(enabled: true, auth: auth);
@@ -74,7 +72,8 @@ void main() {
     when(
       () => auth.authenticate(
         localizedReason: any(named: 'localizedReason'),
-        options: any(named: 'options'),
+        persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+        biometricOnly: any(named: 'biometricOnly'),
       ),
     ).thenAnswer((_) async => true);
     final c = await controller(enabled: true, auth: auth);
@@ -96,7 +95,8 @@ void main() {
     when(
       () => auth.authenticate(
         localizedReason: any(named: 'localizedReason'),
-        options: any(named: 'options'),
+        persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+        biometricOnly: any(named: 'biometricOnly'),
       ),
     ).thenAnswer((_) => completer.future);
     final c = await controller(enabled: true, auth: auth);

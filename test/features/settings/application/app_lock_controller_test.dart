@@ -9,10 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _MockLocalAuth extends Mock implements LocalAuthentication {}
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(const AuthenticationOptions());
-  });
-
   group('AppLockController', () {
     late SharedPreferences prefs;
     late _MockLocalAuth auth;
@@ -41,7 +37,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => false);
 
@@ -55,7 +52,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => true);
 
@@ -83,7 +81,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => false);
 
@@ -95,7 +94,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => true);
 
@@ -112,7 +112,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => true);
 
@@ -126,7 +127,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => false);
 
@@ -141,7 +143,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) => completer.future);
 
@@ -168,7 +171,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => true);
       await c.unlock();
@@ -190,7 +194,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => true);
       await c.unlock();
@@ -244,7 +249,8 @@ void main() {
       when(
         () => auth.authenticate(
           localizedReason: any(named: 'localizedReason'),
-          options: any(named: 'options'),
+          persistAcrossBackgrounding: any(named: 'persistAcrossBackgrounding'),
+          biometricOnly: any(named: 'biometricOnly'),
         ),
       ).thenAnswer((_) async => true);
       await c.unlock();
