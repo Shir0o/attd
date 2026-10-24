@@ -171,7 +171,13 @@ class AppTheme {
 
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(borderRadius: AppRadii.compactR),
+        backgroundColor: convColors.ink,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          color: convColors.bg,
+          fontWeight: FontWeight.w500,
+        ),
+        actionTextColor: convColors.primary,
+        shape: const StadiumBorder(),
       ),
     );
   }
