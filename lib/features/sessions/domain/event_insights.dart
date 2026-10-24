@@ -367,9 +367,10 @@ class EventInsights {
     table.sort((a, b) {
       final byRate = b.rate.compareTo(a.rate);
       if (byRate != 0) return byRate;
-      return a.member.displayName.toLowerCase().compareTo(
-            b.member.displayName.toLowerCase(),
-          );
+      // Bolt optimization: use cached displayNameLowercase to avoid repeated string allocations
+      return a.member.displayNameLowercase.compareTo(
+        b.member.displayNameLowercase,
+      );
     });
 
     final lapsedList = _lapsed(
@@ -437,8 +438,7 @@ class EventInsights {
   /// desync it from the sessions it indexes.
   static List<Member> _rosterFor(Event event, List<Member> members) {
     final seen = <String>{};
-    final active =
-        members.where((m) => m.deletedAt == null && seen.add(m.id));
+    final active = members.where((m) => m.deletedAt == null && seen.add(m.id));
     if (event.memberIds.isEmpty) return active.toList();
     final ids = event.memberIds.toSet();
     return active.where((m) => ids.contains(m.id)).toList();
