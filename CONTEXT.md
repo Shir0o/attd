@@ -136,4 +136,8 @@ _Avoid_: Manual backup cleanup, unbounded history
 An explicit recovery action that unilaterally replaces either local device data with the cloud copy or the cloud copy with local device data, always preceded by a safety Cloud Snapshot.
 _Avoid_: Hard reset, blind overwrite
 
+**Coordinator Age Affirmation**:
+The explicit onboarding declaration where an operator confirms they are at least 13 years of age or an authorized adult coordinator managing attendance records, establishing compliance with COPPA boundaries before access to local roster features.
+_Avoid_: Age gate, birth-year screen, child check
+
 
