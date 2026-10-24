@@ -367,9 +367,9 @@ class EventInsights {
     table.sort((a, b) {
       final byRate = b.rate.compareTo(a.rate);
       if (byRate != 0) return byRate;
-      return a.member.displayName.toLowerCase().compareTo(
-            b.member.displayName.toLowerCase(),
-          );
+      return a.member.displayNameLowercase.compareTo(
+        b.member.displayNameLowercase,
+      );
     });
 
     final lapsedList = _lapsed(

@@ -85,6 +85,6 @@ List<Member> rankByLikelihood(
         if (rb == null) return -1;
         return rb.compareTo(ra);
       }
-      return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+      return a.displayNameLowercase.compareTo(b.displayNameLowercase);
     });
 }
