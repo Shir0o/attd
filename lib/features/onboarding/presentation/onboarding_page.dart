@@ -21,47 +21,124 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<_OnboardingSlide> _slides = const [
-    _OnboardingSlide(
-      eyebrow: '01 · Quick marking',
-      title: 'Swipe with one thumb.',
-      description: 'Right for present, left for absent. The deck handles the rest.',
-      art: OnboardingDeckArt(),
-    ),
-    _OnboardingSlide(
-      eyebrow: '02 · Session history',
-      title: 'Every Sunday, remembered.',
-      description: 'Review past sessions and watch trends settle in.',
-      art: OnboardingHistoryArt(),
-    ),
-    _OnboardingSlide(
-      eyebrow: '03 · Members & families',
-      title: 'Roll up by family.',
-      description: 'Group members into families. Smart defaults speed up the rest.',
-      art: OnboardingFamilyArt(),
-    ),
-    _OnboardingSlide(
-      eyebrow: '04 · Yours, fully.',
-      title: 'Local-first. Always yours.',
-      description:
-          'Your data stays on your device. Sync to your own Google Drive — never ours.',
-      art: OnboardingCloudArt(),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    widget.onboardingController.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant OnboardingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.onboardingController != widget.onboardingController) {
+      oldWidget.onboardingController.removeListener(_onControllerChanged);
+      widget.onboardingController.addListener(_onControllerChanged);
+    }
+  }
 
   @override
   void dispose() {
+    widget.onboardingController.removeListener(_onControllerChanged);
     _pageController.dispose();
     super.dispose();
   }
 
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _skip() {
+    _pageController.animateToPage(
+      3,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
   void _complete() {
+    if (!widget.onboardingController.coordinatorAgeAffirmed) return;
     widget.onboardingController.completeOnboarding();
+  }
+
+  List<_OnboardingSlide> _buildSlides(BuildContext context) {
+    return [
+      const _OnboardingSlide(
+        eyebrow: '01 · Quick marking',
+        title: 'Swipe with one thumb.',
+        description: 'Right for present, left for absent. The deck handles the rest.',
+        art: OnboardingDeckArt(),
+      ),
+      const _OnboardingSlide(
+        eyebrow: '02 · Session history',
+        title: 'Every Sunday, remembered.',
+        description: 'Review past sessions and watch trends settle in.',
+        art: OnboardingHistoryArt(),
+      ),
+      const _OnboardingSlide(
+        eyebrow: '03 · Members & families',
+        title: 'Roll up by family.',
+        description: 'Group members into families. Smart defaults speed up the rest.',
+        art: OnboardingFamilyArt(),
+      ),
+      _OnboardingSlide(
+        eyebrow: '04 · Yours, fully.',
+        title: 'Local-first. Always yours.',
+        description:
+            'Your data stays on your device. Sync to your own Google Drive — never ours.',
+        art: const OnboardingCloudArt(),
+        footer: _buildCoordinatorAgeAffirmation(context),
+      ),
+    ];
+  }
+
+  Widget _buildCoordinatorAgeAffirmation(BuildContext context) {
+    final c = context.conv;
+    final affirmed = widget.onboardingController.coordinatorAgeAffirmed;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.cardSoft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          widget.onboardingController.setCoordinatorAgeAffirmed(!affirmed);
+        },
+        child: Row(
+          children: [
+            Checkbox(
+              key: const ValueKey('coordinator_age_affirmation_checkbox'),
+              value: affirmed,
+              activeColor: c.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              onChanged: (val) {
+                widget.onboardingController.setCoordinatorAgeAffirmed(val ?? false);
+              },
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'I confirm that I am at least 13 years old or an authorized adult coordinator.',
+                style: AppTypography.geist(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: c.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _currentPage == _slides.length - 1;
+    final slides = _buildSlides(context);
+    final isLast = _currentPage == slides.length - 1;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -74,13 +151,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: List.generate(
-                      _slides.length,
+                      slides.length,
                       (index) => _buildPageIndicator(index),
                     ),
                   ),
                   const Spacer(),
                   TextButton(
-                    onPressed: _complete,
+                    onPressed: isLast
+                        ? (widget.onboardingController.coordinatorAgeAffirmed
+                            ? _complete
+                            : null)
+                        : _skip,
                     child: Text(isLast ? 'Get Started' : 'Skip'),
                   ),
                 ],
@@ -89,13 +170,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: _slides.length,
+                itemCount: slides.length,
                 onPageChanged: (int page) {
                   setState(() {
                     _currentPage = page;
                   });
                 },
-                itemBuilder: (context, index) => _slides[index],
+                itemBuilder: (context, index) => slides[index],
               ),
             ),
           ],
@@ -126,12 +207,14 @@ class _OnboardingSlide extends StatelessWidget {
     required this.title,
     required this.description,
     required this.art,
+    this.footer,
   });
 
   final String eyebrow;
   final String title;
   final String description;
   final Widget art;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +267,10 @@ class _OnboardingSlide extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (footer != null) ...[
+                  const SizedBox(height: 16),
+                  footer!,
+                ],
               ],
             ),
           ),
