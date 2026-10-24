@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'core/design/app_theme.dart';
 import 'data/local_session_repository.dart';
@@ -40,6 +41,7 @@ import 'core/ui/app_error_feedback.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
   
   // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
