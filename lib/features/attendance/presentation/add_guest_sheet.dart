@@ -153,7 +153,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     final suggestions = query.isEmpty
         ? <Member>[]
         : uniqueMembers
-            .where((m) => m.displayName.toLowerCase().contains(query))
+            .where((m) => m.displayNameLowercase.contains(query))
             .take(3)
             .toList();
     final firstName = _nameController.text.trim().split(RegExp(r'\s+')).first;

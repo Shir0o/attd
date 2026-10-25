@@ -53,9 +53,9 @@ class ActiveRosterIndex {
             likelihoodPriority[b.id] ?? unranked,
           );
           if (byOrder != 0) return byOrder;
-          return a.displayName.toLowerCase().compareTo(
-                b.displayName.toLowerCase(),
-              );
+          return a.displayNameLowercase.compareTo(
+            b.displayNameLowercase,
+          );
         }),
     );
 

@@ -398,7 +398,9 @@ class _RateSectionState extends State<_RateSection>
     _grow.value = 1;
     _from = [
       for (var i = 0; i < next.length; i++)
-        shown.isEmpty ? next[i] : shown[(i * shown.length / next.length).floor()],
+        shown.isEmpty
+            ? next[i]
+            : shown[(i * shown.length / next.length).floor()],
     ];
     _to = next;
     _morph.forward(from: 0);
@@ -414,7 +416,9 @@ class _RateSectionState extends State<_RateSection>
   /// The tweened heights before the first-load grow is applied.
   List<double> _shownBase() {
     final t = AppMotion.houseCurve.transform(_morph.value);
-    return [for (var i = 0; i < _to.length; i++) _from[i] + (_to[i] - _from[i]) * t];
+    return [
+      for (var i = 0; i < _to.length; i++) _from[i] + (_to[i] - _from[i]) * t
+    ];
   }
 
   /// How far bar [i] has grown from the baseline, 0–1.
@@ -882,9 +886,9 @@ class _MemberTableSection extends StatelessWidget {
     }
     if (!sortByRate) {
       rows.sort(
-        (a, b) => a.member.displayName.toLowerCase().compareTo(
-              b.member.displayName.toLowerCase(),
-            ),
+        (a, b) => a.member.displayNameLowercase.compareTo(
+          b.member.displayNameLowercase,
+        ),
       );
     }
     final shown = showAll ? rows : rows.take(_collapsedRows).toList();
