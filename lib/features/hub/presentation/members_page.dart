@@ -151,9 +151,8 @@ class _MembersPageState extends State<MembersPage> {
 
     try {
       final allMembers = _getAllMembers(_families ?? []);
-      final trimmedLower = trimmedName.toLowerCase();
       final isDuplicate = allMembers.any(
-        (m) => m.displayNameLowercase == trimmedLower,
+        (m) => m.displayNameLowercase == trimmedName.toLowerCase(),
       );
 
       if (isDuplicate) {
@@ -395,8 +394,8 @@ class _MembersPageState extends State<MembersPage> {
             Text(
               'Note: This updates future sessions. Past reports will keep the name "${member.displayName}" for accuracy.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -419,9 +418,10 @@ class _MembersPageState extends State<MembersPage> {
     if (trimmedName.isEmpty || trimmedName == member.displayName) return;
 
     final allMembers = _getAllMembers(_families!);
-    final trimmedLower = trimmedName.toLowerCase();
     final isDuplicate = allMembers.any(
-      (m) => m.id != member.id && m.displayNameLowercase == trimmedLower,
+      (m) =>
+          m.id != member.id &&
+          m.displayNameLowercase == trimmedName.toLowerCase(),
     );
 
     if (isDuplicate) {
@@ -585,11 +585,13 @@ class _MembersPageState extends State<MembersPage> {
                         if (linkedSessions.length > 3)
                           Text(
                             '... and ${linkedSessions.length - 3} more',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontStyle: FontStyle.italic,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                           ),
                       ],
                     ),
@@ -637,8 +639,9 @@ class _MembersPageState extends State<MembersPage> {
               deletedAt: now,
               updatedAt: now,
             );
-            final visibleMembers =
-                updatedMembers.where((m) => m.deletedAt == null).toList();
+            final visibleMembers = updatedMembers
+                .where((m) => m.deletedAt == null)
+                .toList();
             return f.copyWith(
               members: visibleMembers,
               updatedAt: now,
@@ -647,19 +650,21 @@ class _MembersPageState extends State<MembersPage> {
           .where((f) => f.members.isNotEmpty || f.deletedAt != null)
           .toList();
 
-      final familiesForPersistence = _families!.map((f) {
-        final index = f.members.indexWhere((m) => m.id == member.id);
-        if (index == -1) return f;
-        final updatedMembers = List<Member>.from(f.members);
-        updatedMembers[index] = member.copyWith(
-          deletedAt: now,
-          updatedAt: now,
-        );
-        return f.copyWith(
-          members: updatedMembers,
-          updatedAt: now,
-        );
-      }).toList();
+      final familiesForPersistence = _families!
+          .map((f) {
+            final index = f.members.indexWhere((m) => m.id == member.id);
+            if (index == -1) return f;
+            final updatedMembers = List<Member>.from(f.members);
+            updatedMembers[index] = member.copyWith(
+              deletedAt: now,
+              updatedAt: now,
+            );
+            return f.copyWith(
+              members: updatedMembers,
+              updatedAt: now,
+            );
+          })
+          .toList();
 
       setState(() {
         _families = updatedFamilies;
@@ -901,8 +906,9 @@ class _MembersPageState extends State<MembersPage> {
         ? _selectionIds
         : (_currentEvent?.memberIds.toSet() ?? <String>{});
 
-    List<Member> filter(List<Member> ms) =>
-        ms.where((m) => m.displayNameLowercase.contains(searchTerm)).toList();
+    List<Member> filter(List<Member> ms) => ms
+        .where((m) => m.displayNameLowercase.contains(searchTerm))
+        .toList();
 
     final children = <Widget>[];
 
@@ -1084,8 +1090,9 @@ class _MemberRow extends StatelessWidget {
         ? '?'
         : member.displayName.characters.first.toUpperCase();
 
-    final statusText =
-        isEventMode ? (isSelected ? 'Assigned' : 'Not assigned') : 'Member';
+    final statusText = isEventMode
+        ? (isSelected ? 'Assigned' : 'Not assigned')
+        : 'Member';
     final subtitleText = (familyName != null && familyName!.isNotEmpty)
         ? '$statusText · $familyName'
         : statusText;
