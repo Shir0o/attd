@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.17.0](https://github.com/Shir0o/attd/compare/v1.16.1...v1.17.0) (2026-10-25)
+
+
+### Features
+
+* **design:** bundle fonts locally & disable CDN fetching (closes [#197](https://github.com/Shir0o/attd/issues/197)) ([#280](https://github.com/Shir0o/attd/issues/280)) ([8c6664f](https://github.com/Shir0o/attd/commit/8c6664ffc26551526d2a7ccb35d008276140467e))
+* **onboarding:** add coordinator age affirmation (closes [#277](https://github.com/Shir0o/attd/issues/277)) ([#281](https://github.com/Shir0o/attd/issues/281)) ([c5a01a3](https://github.com/Shir0o/attd/commit/c5a01a3e8498b2179f6b1b22a0aca55e12ed8234))
+
+
+### Performance
+
+* cache lowercase member names in sort comparators ([#273](https://github.com/Shir0o/attd/issues/273)) ([bd5c48e](https://github.com/Shir0o/attd/commit/bd5c48e768aa12b49929ca1011a6d0e6c617b86b))
+
 ## [1.16.1](https://github.com/Shir0o/attd/compare/v1.16.0...v1.16.1) (2026-10-24)
 
 
