@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/Shir0o/attd/compare/v1.17.0...v1.18.0) (2026-10-26)
+
+
+### Features
+
+* **reminders:** add attendance reminder notifications (closes [#284](https://github.com/Shir0o/attd/issues/284)) ([#285](https://github.com/Shir0o/attd/issues/285)) ([238d336](https://github.com/Shir0o/attd/commit/238d336d590ad452879977146c336a53b8fa63ac))
+
 ## [1.17.0](https://github.com/Shir0o/attd/compare/v1.16.1...v1.17.0) (2026-10-24)
 
 
