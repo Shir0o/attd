@@ -141,3 +141,11 @@ The explicit onboarding declaration where an operator confirms they are at least
 _Avoid_: Age gate, birth-year screen, child check
 
 
+
+**Attendance Reminder**:
+A local notification scheduled to alert coordinators when attendance has not yet been marked for a scheduled event. Configured with a global toggle and a relative time offset (defaulting to 1 hour after scheduled event start time), automatically suppressed or dismissed if attendance marks already exist for that event on that date.
+_Avoid_: Push notification, attendance alarm, event ping
+
+**Reminder Offset**:
+The configurable relative duration (e.g. at start, 15m, 30m, 1h, 2h) elapsed after an event's scheduled start time before an Attendance Reminder fires.
+_Avoid_: Delay timer, notification interval

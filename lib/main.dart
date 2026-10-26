@@ -38,6 +38,8 @@ import 'core/crashlytics/crash_reporting_service.dart';
 import 'core/crashlytics/firebase_crash_reporting_service.dart';
 import 'core/crashlytics/crash_reporting_consent_dialog.dart';
 import 'core/ui/app_error_feedback.dart';
+import 'features/reminders/application/attendance_reminder_service.dart';
+import 'features/reminders/application/reminder_settings_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,12 +117,23 @@ Future<void> main() async {
     );
   }
 
+  final reminderSettingsController = ReminderSettingsController(prefs: prefs);
+  final reminderService = AttendanceReminderService(
+    settingsController: reminderSettingsController,
+    eventRepository: eventRepository,
+    sessionRepository: sessionRepository,
+  );
+  await reminderService.initialize();
+  await reminderService.syncReminders();
+
   runApp(
     AttendanceApp(
       themeController: themeController,
       onboardingController: onboardingController,
       appLockController: appLockController,
       crashReportingService: crashReportingService,
+      reminderSettingsController: reminderSettingsController,
+      reminderService: reminderService,
       driveService: driveService,
       localBackupService: localBackupService,
       googleAuthService: googleAuthService,
@@ -148,6 +161,8 @@ class AttendanceApp extends StatefulWidget {
     this.driveService,
     this.localBackupService,
     this.crashReportingService,
+    this.reminderSettingsController,
+    this.reminderService,
     this.disableAnimations = false,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository = sessionRepository ?? LocalJsonSessionRepository(),
@@ -166,6 +181,8 @@ class AttendanceApp extends StatefulWidget {
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
   final CrashReportingService? crashReportingService;
+  final ReminderSettingsController? reminderSettingsController;
+  final AttendanceReminderService? reminderService;
   final bool disableAnimations;
 
   @override
@@ -260,6 +277,7 @@ class _AttendanceAppState extends State<AttendanceApp>
       }
     } else if (state == AppLifecycleState.resumed) {
       widget.appLockController.onResumed();
+      widget.reminderService?.syncReminders();
     }
   }
 
@@ -282,6 +300,7 @@ class _AttendanceAppState extends State<AttendanceApp>
                 localBackupService: widget.localBackupService,
                 appLockController: widget.appLockController,
                 crashReportingService: widget.crashReportingService,
+                reminderSettingsController: widget.reminderSettingsController,
                 disableAnimations: widget.disableAnimations,
               );
         return MaterialApp(
