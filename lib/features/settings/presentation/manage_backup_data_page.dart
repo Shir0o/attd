@@ -1222,7 +1222,9 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
           .expand((f) => f.members)
           .where((m) => m.deletedAt == null)
           .toList()
-        ..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+        // Use precomputed lowercase display name to eliminate repeated string
+        // allocations during O(N log N) list sorting.
+        ..sort((a, b) => a.displayNameLowercase.compareTo(b.displayNameLowercase));
 
       final sesRepo = widget.sessionRepository;
       final sessions = await sesRepo.fetchAllSessions();

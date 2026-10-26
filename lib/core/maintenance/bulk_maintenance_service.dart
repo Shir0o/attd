@@ -549,9 +549,10 @@ class BulkMaintenanceService {
     final marks = b.linkedMarkCount.compareTo(a.linkedMarkCount);
     if (marks != 0) return marks;
     if (a.isLoner != b.isLoner) return a.isLoner ? 1 : -1;
-    final family = a.family.displayName
-        .toLowerCase()
-        .compareTo(b.family.displayName.toLowerCase());
+    // Use precomputed lowercase display name to eliminate repeated string allocations
+    // during O(N log N) sorting of duplicate member occurrences.
+    final family = a.family.displayNameLowercase
+        .compareTo(b.family.displayNameLowercase);
     if (family != 0) return family;
     return a.member.id.compareTo(b.member.id);
   }
