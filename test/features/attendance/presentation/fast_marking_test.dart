@@ -715,6 +715,34 @@ void main() {
       await tester.pumpAndSettle();
       expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.absent);
     });
+
+    testWidgets(
+        'navigating from initials pad to summary and toggling member updates UI and model',
+        (tester) async {
+      final h = await pumpMode(tester, MarkingMode.initialsPad);
+
+      // Finish session to navigate to summary page via pushReplacement
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Attendance Roster'), findsOneWidget);
+
+      // Find the toggle for one of the absent members, e.g. Duc Nguyen ('duc')
+      final ducToggleFinder =
+          find.byKey(const ValueKey('memberToggle_duc_Duc Nguyen'));
+      expect(ducToggleFinder, findsOneWidget);
+      expect(tester.widget<ConvToggle>(ducToggleFinder).value, isFalse);
+
+      // Tap toggle to mark present
+      await tester.tap(ducToggleFinder);
+      await tester.pumpAndSettle();
+
+      // UI should reflect present (value == true)
+      expect(tester.widget<ConvToggle>(ducToggleFinder).value, isTrue);
+
+      // Session repository should also reflect present
+      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
+    });
   });
 
   group('every surface reports into the same session', () {

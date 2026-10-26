@@ -433,6 +433,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     // re-reads the session from disk) always reflects every mark.
     _drainSaves().then((_) {
       if (!mounted) return;
+      _ownsMarkingSession = false;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => SessionSummaryPage(
