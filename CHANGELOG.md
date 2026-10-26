@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.1](https://github.com/Shir0o/attd/compare/v1.18.0...v1.18.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **attendance:** preserve marking session on push to summary ([#288](https://github.com/Shir0o/attd/issues/288)) ([3704bae](https://github.com/Shir0o/attd/commit/3704bae96f8f4557ae3da5a4f77cf2ff4ef092c9))
+
 ## [1.18.0](https://github.com/Shir0o/attd/compare/v1.17.0...v1.18.0) (2026-10-26)
 
 
