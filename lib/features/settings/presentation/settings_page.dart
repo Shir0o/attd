@@ -20,6 +20,8 @@ import '../../../data/session_repository.dart';
 import 'cloud_backup_page.dart';
 import 'cisa_sync_settings_page.dart';
 import 'manage_backup_data_page.dart';
+import '../../reminders/application/reminder_settings_controller.dart';
+import '../../reminders/presentation/reminders_settings_section.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_typography.dart';
@@ -40,6 +42,7 @@ class SettingsPage extends StatefulWidget {
     this.appLockController,
     this.backgroundSyncService,
     this.crashReportingService,
+    this.reminderSettingsController,
     this.disableAnimations = false,
   });
 
@@ -52,6 +55,7 @@ class SettingsPage extends StatefulWidget {
   final AppLockController? appLockController;
   final BackgroundSyncService? backgroundSyncService;
   final CrashReportingService? crashReportingService;
+  final ReminderSettingsController? reminderSettingsController;
   final bool disableAnimations;
 
 
@@ -249,6 +253,19 @@ class _SettingsPageState extends State<SettingsPage> {
                             _AppLockTile(controller: widget.appLockController!),
                           if (widget.crashReportingService != null)
                             _CrashReportingTile(service: widget.crashReportingService!),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // ── Reminders ─────────────────────────────────────────────
+                    if (widget.reminderSettingsController != null) ...[
+                      _SettingSection(
+                        title: 'Reminders',
+                        children: [
+                          RemindersSettingsSection(
+                            controller: widget.reminderSettingsController!,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
