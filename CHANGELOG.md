@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.18.2](https://github.com/Shir0o/attd/compare/v1.18.1...v1.18.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ci:** add explicit read-only workflow permissions (alert [#1](https://github.com/Shir0o/attd/issues/1)) ([#293](https://github.com/Shir0o/attd/issues/293)) ([4d30933](https://github.com/Shir0o/attd/commit/4d30933adfb51084e6eab5659c13720ae69f5126))
+
+
+### Performance
+
+* optimize member table sort comparator in InsightsPage ([#290](https://github.com/Shir0o/attd/issues/290)) ([6cf76e2](https://github.com/Shir0o/attd/commit/6cf76e2eef4809f7df2291b301eca02c966ff007))
+
 ## [1.18.1](https://github.com/Shir0o/attd/compare/v1.18.0...v1.18.1) (2026-10-26)
 
 
