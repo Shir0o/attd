@@ -881,9 +881,11 @@ class _MemberTableSection extends StatelessWidget {
           (nameCounts[m.member.displayName] ?? 0) + 1;
     }
     if (!sortByRate) {
+      // Use precomputed lowercase display name to eliminate repeated string allocations
+      // during O(N log N) sorting when switching sort order in InsightsPage.
       rows.sort(
-        (a, b) => a.member.displayName.toLowerCase().compareTo(
-              b.member.displayName.toLowerCase(),
+        (a, b) => a.member.displayNameLowercase.compareTo(
+              b.member.displayNameLowercase,
             ),
       );
     }
