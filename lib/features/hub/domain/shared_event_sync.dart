@@ -66,12 +66,15 @@ class SharedSlice {
         .toList();
 
     // 3. Shared Sessions JSON (filtered to event)
-    final eventSessions = sessions.where((s) {
-      if (s.eventId != null && s.eventId!.isNotEmpty) {
-        return s.eventId == event.id;
-      }
-      return s.title.trim() == event.title.trim();
-    }).map((s) => s.toJson()).toList();
+    final eventSessions = sessions
+        .where((s) {
+          if (s.eventId != null && s.eventId!.isNotEmpty) {
+            return s.eventId == event.id;
+          }
+          return s.title.trim() == event.title.trim();
+        })
+        .map((s) => s.toJson())
+        .toList();
 
     return SharedSlice(
       sharedEventJson: jsonEncode(eventMap),
@@ -114,7 +117,8 @@ class SharedSlice {
         final recordMap = <String, SessionRecord>{};
 
         // Key records by memberId, or by attendee name if guest (null memberId)
-        String recordKey(SessionRecord r) => r.memberId ?? 'guest:${r.attendee}';
+        String recordKey(SessionRecord r) =>
+            r.memberId ?? 'guest:${r.attendee}';
 
         for (final r in local.records) {
           recordMap[recordKey(r)] = r;
@@ -200,10 +204,9 @@ class SharedEventSyncCoordinator implements SharedEventSync {
   Future<void> syncSharedEvents() async {
     try {
       final sharedFolders = await _transport.discoverSharedFolders();
-      for (final folder in sharedFolders) {
-        if (folder.id.isEmpty) continue;
-        await _ingestSharedFolder(folder);
-      }
+      final validFolders =
+          sharedFolders.where((folder) => folder.id.isNotEmpty);
+      await Future.wait(validFolders.map(_ingestSharedFolder));
     } catch (e, st) {
       _log.warning('Error discovering shared events', e, st);
     }
@@ -211,15 +214,20 @@ class SharedEventSyncCoordinator implements SharedEventSync {
 
   Future<void> _ingestSharedFolder(RemoteSharedFolder folder) async {
     try {
-      final eventJson = await _transport.readFile(folder.id, SharedSlice.sharedEventFileName);
-      final rosterJson = await _transport.readFile(folder.id, SharedSlice.sharedRosterFileName);
-      final sessionsJson = await _transport.readFile(folder.id, SharedSlice.sharedSessionsFileName);
+      final eventJson =
+          await _transport.readFile(folder.id, SharedSlice.sharedEventFileName);
+      final rosterJson = await _transport.readFile(
+          folder.id, SharedSlice.sharedRosterFileName);
+      final sessionsJson = await _transport.readFile(
+          folder.id, SharedSlice.sharedSessionsFileName);
 
       if (eventJson == null || rosterJson == null) return;
 
       final eventMap = jsonDecode(eventJson) as Map<String, dynamic>;
       final rosterList = jsonDecode(rosterJson) as List<dynamic>;
-      final sessionsList = (sessionsJson != null ? jsonDecode(sessionsJson) : <dynamic>[]) as List<dynamic>;
+      final sessionsList = (sessionsJson != null
+          ? jsonDecode(sessionsJson)
+          : <dynamic>[]) as List<dynamic>;
 
       final parsedEvent = Event.fromJson(eventMap).copyWith(
         isShared: true,
@@ -267,7 +275,8 @@ class SharedEventSyncCoordinator implements SharedEventSync {
           .where((s) => s.eventId == parsedEvent.id)
           .toList();
 
-      final mergedSessions = SharedSlice.mergeSessionLists(localSessions, remoteSessions);
+      final mergedSessions =
+          SharedSlice.mergeSessionLists(localSessions, remoteSessions);
       for (final session in mergedSessions) {
         final localExisting = await _sessionRepo.findSessionById(session.id);
         if (localExisting == null) {
@@ -292,9 +301,12 @@ class SharedEventSyncCoordinator implements SharedEventSync {
     final folderId = event.sharedFolderId;
     if (folderId == null) return;
 
-    final eventJson = await _transport.readFile(folderId, SharedSlice.sharedEventFileName);
-    final rosterJson = await _transport.readFile(folderId, SharedSlice.sharedRosterFileName);
-    final sessionsJson = await _transport.readFile(folderId, SharedSlice.sharedSessionsFileName);
+    final eventJson =
+        await _transport.readFile(folderId, SharedSlice.sharedEventFileName);
+    final rosterJson =
+        await _transport.readFile(folderId, SharedSlice.sharedRosterFileName);
+    final sessionsJson =
+        await _transport.readFile(folderId, SharedSlice.sharedSessionsFileName);
 
     if (eventJson == null && rosterJson == null && sessionsJson == null) return;
 
@@ -308,7 +320,8 @@ class SharedEventSyncCoordinator implements SharedEventSync {
         .where((s) => s.eventId == event.id)
         .toList();
 
-    final mergedSessions = SharedSlice.mergeSessionLists(localSessions, remoteSessions);
+    final mergedSessions =
+        SharedSlice.mergeSessionLists(localSessions, remoteSessions);
 
     // Update local sessions
     for (final session in mergedSessions) {
@@ -335,9 +348,12 @@ class SharedEventSyncCoordinator implements SharedEventSync {
       sessions: mergedSessions,
     );
 
-    await _transport.writeFile(folderId, SharedSlice.sharedEventFileName, updatedSlice.sharedEventJson);
-    await _transport.writeFile(folderId, SharedSlice.sharedRosterFileName, updatedSlice.sharedRosterJson);
-    await _transport.writeFile(folderId, SharedSlice.sharedSessionsFileName, updatedSlice.sharedSessionsJson);
+    await _transport.writeFile(folderId, SharedSlice.sharedEventFileName,
+        updatedSlice.sharedEventJson);
+    await _transport.writeFile(folderId, SharedSlice.sharedRosterFileName,
+        updatedSlice.sharedRosterJson);
+    await _transport.writeFile(folderId, SharedSlice.sharedSessionsFileName,
+        updatedSlice.sharedSessionsJson);
   }
 
   @override
@@ -353,9 +369,12 @@ class SharedEventSyncCoordinator implements SharedEventSync {
       sessions: sessions,
     );
 
-    await _transport.writeFile(folderId, SharedSlice.sharedEventFileName, slice.sharedEventJson);
-    await _transport.writeFile(folderId, SharedSlice.sharedRosterFileName, slice.sharedRosterJson);
-    await _transport.writeFile(folderId, SharedSlice.sharedSessionsFileName, slice.sharedSessionsJson);
+    await _transport.writeFile(
+        folderId, SharedSlice.sharedEventFileName, slice.sharedEventJson);
+    await _transport.writeFile(
+        folderId, SharedSlice.sharedRosterFileName, slice.sharedRosterJson);
+    await _transport.writeFile(
+        folderId, SharedSlice.sharedSessionsFileName, slice.sharedSessionsJson);
 
     final updatedEvent = event.copyWith(
       isShared: true,
