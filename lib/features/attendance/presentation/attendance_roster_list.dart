@@ -157,7 +157,8 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     return SessionRoster(widget.session, allMembers);
   }
 
-  bool _matchesQuery(String value) => _rosterIndex.matches(value, _query);
+  bool _matchesQuery(String valueLower) =>
+      _rosterIndex.matchesLowercased(valueLower, _query);
 
   Future<void> _openMarkEveryone(
     BuildContext context,
@@ -471,12 +472,12 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         final displayed = roster.displayMembersMap[m.id];
         if (displayed == null) continue;
         if (!seen.add(displayed.id)) continue;
-        if (_matchesQuery(displayed.displayName)) {
+        if (_matchesQuery(displayed.displayNameLowercase)) {
           singletonMembers.add(displayed);
         }
         continue;
       }
-      final familyMatch = _matchesQuery(family.displayName);
+      final familyMatch = _matchesQuery(family.displayNameLowercase);
       final filteredMembers = <Member>[];
       for (final m in family.members) {
         final displayed = roster.displayMembersMap[m.id];
@@ -484,7 +485,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
         if (!seen.add(displayed.id)) {
           continue; // already shown under another family
         }
-        if (familyMatch || _matchesQuery(displayed.displayName)) {
+        if (familyMatch || _matchesQuery(displayed.displayNameLowercase)) {
           filteredMembers.add(displayed);
         }
       }
@@ -558,7 +559,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     }
 
     final visitorMatches =
-        visitors.where((v) => _matchesQuery(v.displayName)).toList();
+        visitors.where((v) => _matchesQuery(v.displayNameLowercase)).toList();
     if (visitorMatches.isNotEmpty) {
       children.add(
         const Padding(
@@ -623,7 +624,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     allDisplayed.sort((a, b) => a.displayName.compareTo(b.displayName));
 
     final filtered =
-        allDisplayed.where((m) => _matchesQuery(m.displayName)).toList();
+        allDisplayed.where((m) => _matchesQuery(m.displayNameLowercase)).toList();
     final present = filtered
         .where((m) => roster.getStatus(m) == AttendanceStatus.present)
         .toList();

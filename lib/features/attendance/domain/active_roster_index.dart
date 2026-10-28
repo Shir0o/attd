@@ -348,8 +348,21 @@ class ActiveRosterIndex {
 
   /// Whether [haystack] matches [query] (case-insensitive substring/prefix).
   bool matches(String haystack, String query) {
-    if (query.trim().isEmpty) return true;
-    return calculateMatchRank(haystack, query) != null;
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return true;
+    return calculateMatchRankLowercased(haystack.toLowerCase(), cleanQuery) !=
+        null;
+  }
+
+  /// Whether pre-lowercased [haystackLower] matches [cleanQueryLower].
+  ///
+  /// Safely trims and lowercases [cleanQueryLower] while remaining zero-allocation
+  /// when [cleanQueryLower] is already pre-trimmed and lowercased.
+  bool matchesLowercased(String haystackLower, String cleanQueryLower) {
+    final q = cleanQueryLower.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return calculateMatchRankLowercased(haystackLower.toLowerCase(), q) !=
+        null;
   }
 
   /// Whether the top hit in [results] matches [query] strictly better than the runner-up.
