@@ -1723,8 +1723,10 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                             .contains(textEditingValue.text.toLowerCase()));
                       },
                       onSelected: (val) {
+                        final valLower = val.toLowerCase();
                         final match = _rosterMembers.cast<Member?>().firstWhere(
-                              (m) => m?.displayName.toLowerCase() == val.toLowerCase(),
+                              // Use precomputed displayNameLowercase to avoid redundant lowercasing in lookups
+                              (m) => m?.displayNameLowercase == valLower,
                               orElse: () => null,
                             );
                         setState(() {
@@ -1751,8 +1753,10 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           ),
                           onChanged: (val) {
+                            final valLower = val.trim().toLowerCase();
                             final match = _rosterMembers.cast<Member?>().firstWhere(
-                                  (m) => m?.displayName.toLowerCase() == val.trim().toLowerCase(),
+                                  // Use precomputed displayNameLowercase to avoid redundant lowercasing in lookups
+                                  (m) => m?.displayNameLowercase == valLower,
                                   orElse: () => null,
                                 );
                             setState(() {
@@ -1782,8 +1786,10 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                               .contains(textEditingValue.text.toLowerCase()));
                         },
                         onSelected: (val) {
+                          final valLower = val.toLowerCase();
                           final match = _rosterMembers.cast<Member?>().firstWhere(
-                                (m) => m?.displayName.toLowerCase() == val.toLowerCase(),
+                                // Use precomputed displayNameLowercase to avoid redundant lowercasing in lookups
+                                (m) => m?.displayNameLowercase == valLower,
                                 orElse: () => null,
                               );
                           setState(() {
@@ -1810,8 +1816,10 @@ class _BulkMaintenanceModalState extends State<_BulkMaintenanceModal> {
                               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             ),
                             onChanged: (val) {
+                              final valLower = val.trim().toLowerCase();
                               final match = _rosterMembers.cast<Member?>().firstWhere(
-                                    (m) => m?.displayName.toLowerCase() == val.trim().toLowerCase(),
+                                    // Use precomputed displayNameLowercase to avoid redundant lowercasing in lookups
+                                    (m) => m?.displayNameLowercase == valLower,
                                     orElse: () => null,
                                   );
                               setState(() {
