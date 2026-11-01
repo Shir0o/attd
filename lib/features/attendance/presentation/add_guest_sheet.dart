@@ -150,10 +150,12 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     }
 
     final query = _nameController.text.toLowerCase().trim();
+    // Use precomputed displayNameLowercase to eliminate repeated string
+    // allocations on every keystroke during member directory suggestion filtering.
     final suggestions = query.isEmpty
         ? <Member>[]
         : uniqueMembers
-            .where((m) => m.displayName.toLowerCase().contains(query))
+            .where((m) => m.displayNameLowercase.contains(query))
             .take(3)
             .toList();
     final firstName = _nameController.text.trim().split(RegExp(r'\s+')).first;
