@@ -150,10 +150,13 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     }
 
     final query = _nameController.text.toLowerCase().trim();
+    // BOLT OPTIMIZATION: Use precomputed `displayNameLowercase` on `Member`
+    // instead of calling `.toLowerCase()` in the `.where` predicate on each keystroke
+    // to eliminate redundant string allocations and GC pressure during typing.
     final suggestions = query.isEmpty
         ? <Member>[]
         : uniqueMembers
-            .where((m) => m.displayName.toLowerCase().contains(query))
+            .where((m) => m.displayNameLowercase.contains(query))
             .take(3)
             .toList();
     final firstName = _nameController.text.trim().split(RegExp(r'\s+')).first;
