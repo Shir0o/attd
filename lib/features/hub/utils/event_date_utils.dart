@@ -43,6 +43,16 @@ DateTime calculateTargetDate(Event event, DateTime now) {
   return getLastSupposedOccurrence(event, now);
 }
 
+/// Steps [days] calendar days from [day], keeping local midnight.
+///
+/// [DateTime.add] and [DateTime.subtract] move by an absolute duration, so a
+/// whole-day step across a daylight-saving boundary lands on 01:00 or 23:00.
+/// Comparing that against a session date (which is local midnight) then makes a
+/// recorded occurrence look like it has not been recorded. Calendar arithmetic
+/// (`DateTime(y, m, d + n)`) keeps the date and the midnight.
+DateTime _addCalendarDays(DateTime day, int days) =>
+    DateTime(day.year, day.month, day.day + days);
+
 /// Finds the next date an event is supposed to occur, on or after today.
 ///
 /// For repeating events, today only counts if its scheduled time hasn't passed
@@ -80,7 +90,7 @@ DateTime getNextOccurrence(Event event, DateTime now) {
   }
 
   for (int i = 1; i <= 7; i++) {
-    final next = today.add(Duration(days: i));
+    final next = _addCalendarDays(today, i);
     if (eventWeekdays.contains(next.weekday)) {
       return next;
     }
@@ -131,7 +141,7 @@ DateTime getLastSupposedOccurrence(Event event, DateTime now) {
   );
 
   for (int i = 1; i <= 7; i++) {
-    final prev = today.subtract(Duration(days: i));
+    final prev = _addCalendarDays(today, -i);
     if (eventWeekdays.contains(prev.weekday)) {
       // Don't suggest an occurrence before the event was even created
       if (prev.isBefore(creationDate)) {

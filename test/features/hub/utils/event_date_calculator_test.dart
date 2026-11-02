@@ -246,4 +246,57 @@ void main() {
       expect(getNextOccurrence(event, now), DateTime(2023, 10, 27));
     });
   });
+
+  group('day arithmetic across daylight-saving transitions', () {
+    // Dates are compared with local-midnight session dates on the Hub. Stepping
+    // whole days with `Duration(days: n)` moves by 24 absolute hours, which
+    // lands on 01:00 after a fall-back and 23:00 after a spring-forward, so a
+    // recorded session reads as "not taken" and tapping starts a new session.
+    // Calendar arithmetic (`DateTime(y, m, d + n)`) keeps local midnight.
+
+    test('getLastSupposedOccurrence stays at midnight after fall-back', () {
+      // 2026-11-01 was the US fall-back; the previous Sunday is 2026-11-01.
+      final now = DateTime(2026, 11, 2, 11, 42); // Monday
+      final event = Event(
+        id: 'dst-fall',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 9, minute: 30),
+        frequency: 'Weekly',
+        repeatingDays: ['Sunday'],
+        createdAt: DateTime(2026, 9, 1),
+      );
+
+      expect(getLastSupposedOccurrence(event, now), DateTime(2026, 11, 1));
+    });
+
+    test('getLastSupposedOccurrence stays at midnight after spring-forward',
+        () {
+      // 2026-03-08 was the US spring-forward; the previous Sunday is 2026-03-08.
+      final now = DateTime(2026, 3, 9, 11, 0); // Monday
+      final event = Event(
+        id: 'dst-spring',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 9, minute: 30),
+        frequency: 'Weekly',
+        repeatingDays: ['Sunday'],
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      expect(getLastSupposedOccurrence(event, now), DateTime(2026, 3, 8));
+    });
+
+    test('getNextOccurrence stays at midnight across spring-forward', () {
+      final now = DateTime(2026, 3, 7, 10, 0); // Saturday
+      final event = Event(
+        id: 'dst-spring-next',
+        title: 'Monday Service',
+        time: const TimeOfDay(hour: 9, minute: 30),
+        frequency: 'Weekly',
+        repeatingDays: ['Monday'],
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      expect(getNextOccurrence(event, now), DateTime(2026, 3, 9));
+    });
+  });
 }
