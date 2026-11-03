@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.18.3](https://github.com/Shir0o/attd/compare/v1.18.2...v1.18.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* **hub:** keep recorded status across DST transitions ([#303](https://github.com/Shir0o/attd/issues/303)) ([927f93b](https://github.com/Shir0o/attd/commit/927f93b6a248881bed7b8fcbf61325dd35f8f4e0))
+
+
+### Performance
+
+* optimize roster search matching using cached lowercase names ([#295](https://github.com/Shir0o/attd/issues/295)) ([74d5de9](https://github.com/Shir0o/attd/commit/74d5de92f3a5fe593674e33c71915764d05ff7fc))
+
 ## [1.18.2](https://github.com/Shir0o/attd/compare/v1.18.1...v1.18.2) (2026-10-27)
 
 
