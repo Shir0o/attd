@@ -150,10 +150,12 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     }
 
     final query = _nameController.text.toLowerCase().trim();
+    // Optimization: Use precomputed displayNameLowercase to avoid redundant
+    // string allocations and lowercasing inside the suggestions filter loop.
     final suggestions = query.isEmpty
         ? <Member>[]
         : uniqueMembers
-            .where((m) => m.displayName.toLowerCase().contains(query))
+            .where((m) => m.displayNameLowercase.contains(query))
             .take(3)
             .toList();
     final firstName = _nameController.text.trim().split(RegExp(r'\s+')).first;
