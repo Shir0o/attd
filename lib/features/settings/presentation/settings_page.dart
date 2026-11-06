@@ -8,6 +8,7 @@ import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/google_sheets_service.dart';
 import '../data/cisa_sync_service.dart';
+import '../application/developer_unlock.dart';
 import '../data/background_sync_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
@@ -73,6 +74,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isInitialLoading = true;
   bool _isOperating = false;
   bool _dataModified = false;
+  bool _devUnlocked = false;
+  final _developerUnlock = DeveloperUnlock();
 
   @override
   void initState() {
@@ -104,8 +107,10 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!widget.disableAnimations) {
       await Future.delayed(const Duration(milliseconds: 800));
     }
+    final devUnlocked = await _developerUnlock.isUnlocked();
     if (!mounted) return;
     setState(() {
+      _devUnlocked = devUnlocked;
       _sheetsUrlController.text = prefs.getString('googleSheetsUrl') ?? '';
       _cisaUrlController.text =
           prefs.getString(CisaSyncService.keyCisaSyncUrl) ?? '';
@@ -113,6 +118,29 @@ class _SettingsPageState extends State<SettingsPage> {
           prefs.getString(CisaSyncService.keyCisaSyncToken) ?? '';
       _isInitialLoading = false;
     });
+  }
+
+  /// Seven taps on the version number in About unlock the integration
+  /// settings for this install (issue: hide attd/bnpb/cisa plumbing).
+  Future<void> _handleVersionTap() async {
+    if (_devUnlocked) return;
+    final remaining = await _developerUnlock.registerTap();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    if (remaining == 0) {
+      setState(() => _devUnlocked = true);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Developer options unlocked')),
+      );
+    } else if (remaining <= 3) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('$remaining more…'),
+          duration: const Duration(milliseconds: 900),
+        ),
+      );
+    }
   }
 
   Future<void> _saveGoogleSheetsUrl(String url) async {
@@ -607,8 +635,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           sheetsUrlController: _sheetsUrlController,
                           onSave: _saveGoogleSheetsUrl,
                         ),
-                        _SettingRow(
-                          key: const ValueKey('cisa_campus_tracker_tile'),
+                        if (_devUnlocked)
+                          _SettingRow(
+                            key: const ValueKey('cisa_campus_tracker_tile'),
                           icon: Icons.sync_alt,
                           title: 'CISA Campus Tracker',
                           subtitle: 'Configure attendance sync to CISA Campus Work Tracker',
@@ -1025,15 +1054,19 @@ class _SettingsPageState extends State<SettingsPage> {
                                                 ),
                                               ),
                                               Center(
-                                                child: Text(
-                                                  'Version 1.2.0+13',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.copyWith(
-                                                        color: colorScheme
-                                                            .onSurfaceVariant,
-                                                      ),
+                                                child: GestureDetector(
+                                                  behavior: HitTestBehavior.opaque,
+                                                  onTap: _handleVersionTap,
+                                                  child: Text(
+                                                    'Version 1.2.0+13',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          color: colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                  ),
                                                 ),
                                               ),
                                               const SizedBox(height: 32),

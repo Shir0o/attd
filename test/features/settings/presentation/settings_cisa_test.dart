@@ -2,6 +2,7 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
+import 'package:attendance_tracker/features/settings/application/developer_unlock.dart';
 import 'package:attendance_tracker/features/settings/data/cisa_sync_service.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/local_backup_service.dart';
@@ -108,6 +109,30 @@ class _FakeDriveService extends ChangeNotifier implements DriveService {
 
 class _MockLocalBackupService extends Mock implements LocalBackupService {}
 
+Future<void> pumpSettings(WidgetTester tester) async {
+  final prefs = await SharedPreferences.getInstance();
+  await tester.pumpWidget(
+    MaterialApp(
+      home: SettingsPage(
+        themeController: ThemeController(prefs),
+        driveService: _FakeDriveService(),
+        localBackupService: _MockLocalBackupService(),
+        attendanceRepository: _MockAttendanceRepository(),
+        eventRepository: _MockEventRepository(),
+        sessionRepository: _MockSessionRepository(),
+        disableAnimations: true,
+      ),
+    ),
+  );
+  // The page loads its integration settings through two awaits (prefs, then
+  // the developer-unlock flag), which can resolve after the first settle.
+  for (var i = 0; i < 20; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (find.byKey(const ValueKey('content')).evaluate().isNotEmpty) break;
+  }
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -115,6 +140,9 @@ void main() {
     SharedPreferences.setMockInitialValues({
       CisaSyncService.keyCisaSyncUrl: 'https://cisa.example.org/api/intake',
       CisaSyncService.keyCisaSyncToken: 'existing-secret-token',
+      // The integration settings sit behind the version tap; this test is
+      // about the settings screen itself.
+      DeveloperUnlock.prefsKey: true,
     });
 
     final driveService = _FakeDriveService();
@@ -139,7 +167,7 @@ void main() {
 
     await tester.dragUntilVisible(
       find.byKey(const ValueKey('cisa_campus_tracker_tile')),
-      find.byType(ListView),
+      find.byKey(const ValueKey('content')),
       const Offset(0, -400),
     );
     await tester.pumpAndSettle();
@@ -166,5 +194,49 @@ void main() {
 
     expect(prefs.getString(CisaSyncService.keyCisaSyncUrl), 'https://cisa.updated.org/webhook');
     expect(prefs.getString(CisaSyncService.keyCisaSyncToken), 'new-token-456');
+  });
+
+  testWidgets('hides the CISA integration until the version number is tapped seven times', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await pumpSettings(tester);
+
+    expect(find.byKey(const ValueKey('cisa_campus_tracker_tile')), findsNothing);
+
+    await tester.dragUntilVisible(
+      find.text('About'),
+      find.byType(ListView),
+      const Offset(0, -400),
+    );
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+
+    final version = find.text('Version 1.2.0+13').last;
+    for (var tap = 0; tap < 7; tap++) {
+      await tester.tap(version);
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(DeveloperUnlock.prefsKey), isTrue);
+    expect(find.text('Developer options unlocked'), findsOneWidget);
+
+    // Close the About sheet and find the row that was just revealed.
+    Navigator.of(tester.element(find.text('Version 1.2.0+13').last)).pop();
+    await tester.pumpAndSettle();
+
+    // The row is above About, so scroll back up before looking for it.
+    await tester.drag(
+      find.byKey(const ValueKey('content')),
+      const Offset(0, 4000),
+    );
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.byKey(const ValueKey('cisa_campus_tracker_tile')),
+      find.byKey(const ValueKey('content')),
+      const Offset(0, -400),
+    );
+    expect(find.byKey(const ValueKey('cisa_campus_tracker_tile')), findsOneWidget);
   });
 }
