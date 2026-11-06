@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.19.0](https://github.com/Shir0o/attd/compare/v1.18.3...v1.19.0) (2026-11-06)
+
+
+### Features
+
+* **settings:** hide the CISA integration behind a version tap ([#308](https://github.com/Shir0o/attd/issues/308)) ([731b83e](https://github.com/Shir0o/attd/commit/731b83ed3d90f9a57be63386ff2ee4aa4945149e))
+
+
+### Performance
+
+* use cached displayNameLowercase in add member sheet filtering ([#298](https://github.com/Shir0o/attd/issues/298)) ([43de1d4](https://github.com/Shir0o/attd/commit/43de1d44b6420561b1a7f6de4e0770e569a922a6))
+
 ## [1.18.3](https://github.com/Shir0o/attd/compare/v1.18.2...v1.18.3) (2026-11-03)
 
 
