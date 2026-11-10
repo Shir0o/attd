@@ -1446,6 +1446,7 @@ class _HeroEventCardState extends State<_HeroEventCard>
                           size: 32,
                           iconSize: 20,
                           color: c.ink2,
+                          tooltip: 'Event options',
                           onPressed: widget.onMenuTap,
                         ),
                       ],
@@ -1667,10 +1668,9 @@ class _HeroAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.conv;
     if (status.taken) {
-      return ConvPill(
+      return const ConvPill(
         label: 'Taken',
-        leading: const Icon(Icons.check),
-        onTap: onTap,
+        leading: Icon(Icons.check),
       );
     }
     return Material(
@@ -1728,51 +1728,54 @@ class _InsightsSliver extends StatelessWidget {
       button: true,
       label: 'View insights: $rate percent over '
           '${points.length} sessions, $lapsed lapsed',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Row(
-            children: [
-              SizedBox(
-                height: 16,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    for (var i = 0; i < spark.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 2),
-                      Container(
-                        width: 4,
-                        height: (4 + 12 * spark[i].rate).clamp(4, 16).toDouble(),
-                        decoration: BoxDecoration(
-                          color: c.primary.withValues(
-                            alpha: i == spark.length - 1 ? 1 : 0.35,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  height: 16,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      for (var i = 0; i < spark.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 2),
+                        Container(
+                          width: 4,
+                          height: (4 + 12 * spark[i].rate).clamp(4, 16).toDouble(),
+                          decoration: BoxDecoration(
+                            color: c.primary.withValues(
+                              alpha: i == spark.length - 1 ? 1 : 0.35,
+                            ),
+                            borderRadius: BorderRadius.circular(1),
                           ),
-                          borderRadius: BorderRadius.circular(1),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  lapsed == 0
-                      ? '$rate% over ${points.length} sessions'
-                      : '$rate% over ${points.length} sessions · $lapsed lapsed',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.geist(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: c.primary,
                   ),
                 ),
-              ),
-              Icon(Icons.chevron_right, size: 16, color: c.primary),
-            ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    lapsed == 0
+                        ? '$rate% over ${points.length} sessions'
+                        : '$rate% over ${points.length} sessions · $lapsed lapsed',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.geist(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: c.primary,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 16, color: c.primary),
+              ],
+            ),
           ),
         ),
       ),
@@ -1885,6 +1888,7 @@ class _EventRow extends StatelessWidget {
             size: 32,
             iconSize: 20,
             color: c.ink4,
+            tooltip: 'Event options',
             onPressed: onMenuTap,
           ),
         ],
@@ -2018,6 +2022,7 @@ class _TodayRow extends StatelessWidget {
               size: 32,
               iconSize: 20,
               color: c.ink4,
+              tooltip: 'Event options',
               onPressed: onMenuTap,
             ),
           ],

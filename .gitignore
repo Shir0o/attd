@@ -91,5 +91,8 @@ docs/design-handoff/
 # workflow from the PLAY_SUPPLY_JSON_KEY secret. Never commit it.
 fastlane/play-supply-credentials.json
 
+# Local headless audit goldens (prevent Linux CI pixel diffs)
+/test/goldens/
+
 # Agent Configuration (Local Only)
 GEMINI.md
