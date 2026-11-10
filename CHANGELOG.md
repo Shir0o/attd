@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.20.0](https://github.com/Shir0o/attd/compare/v1.19.0...v1.20.0) (2026-11-10)
+
+
+### Features
+
+* **reminders:** request notification permissions ([#309](https://github.com/Shir0o/attd/issues/309)) ([#310](https://github.com/Shir0o/attd/issues/310)) ([f897ded](https://github.com/Shir0o/attd/commit/f897dedf1e55d8ce8250a6d3d5c79ac10ca15283))
+
+
+### Bug Fixes
+
+* **ui:** enforce 48dp min tap target and tooltips on icon buttons ([#315](https://github.com/Shir0o/attd/issues/315)) ([4ded6c0](https://github.com/Shir0o/attd/commit/4ded6c057095bd24b7e666b39c4ba1887b19243f))
+
 ## [1.19.0](https://github.com/Shir0o/attd/compare/v1.18.3...v1.19.0) (2026-11-06)
 
 
