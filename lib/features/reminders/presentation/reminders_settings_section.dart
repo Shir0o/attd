@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_primitives.dart';
 import '../../../core/design/widgets/conv_theme.dart';
+import '../application/attendance_reminder_service.dart';
 import '../application/reminder_settings_controller.dart';
 import '../domain/reminder_offset_preset.dart';
 
@@ -11,9 +12,11 @@ class RemindersSettingsSection extends StatelessWidget {
   const RemindersSettingsSection({
     super.key,
     required this.controller,
+    this.reminderService,
   });
 
   final ReminderSettingsController controller;
+  final AttendanceReminderService? reminderService;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +76,16 @@ class RemindersSettingsSection extends StatelessWidget {
                       ),
                       ConvToggle(
                         value: controller.enabled,
-                        onChanged: (val) => controller.setEnabled(val),
+                        onChanged: (val) async {
+                          if (val) {
+                            final granted = await reminderService?.requestPermissions() ?? true;
+                            if (!granted) {
+                              return;
+                            }
+                          }
+                          await controller.setEnabled(val);
+                          await reminderService?.syncReminders();
+                        },
                       ),
                     ],
                   ),
@@ -148,9 +160,10 @@ class RemindersSettingsSection extends StatelessWidget {
                                   child: Text(preset.label),
                                 );
                               }).toList(),
-                              onChanged: (preset) {
+                              onChanged: (preset) async {
                                 if (preset != null) {
-                                  controller.setOffset(preset);
+                                  await controller.setOffset(preset);
+                                  await reminderService?.syncReminders();
                                 }
                               },
                             ),

@@ -6,6 +6,7 @@ import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
+import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
 import '../data/event_repository.dart';
 import '../domain/shared_event_sync.dart';
@@ -24,6 +25,7 @@ class HubPage extends StatefulWidget {
     this.appLockController,
     this.crashReportingService,
     this.reminderSettingsController,
+    this.reminderService,
     this.disableAnimations = false,
   });
 
@@ -37,6 +39,7 @@ class HubPage extends StatefulWidget {
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
+  final AttendanceReminderService? reminderService;
   final bool disableAnimations;
 
   @override
@@ -57,6 +60,7 @@ class _HubPageState extends State<HubPage> {
       appLockController: widget.appLockController,
       crashReportingService: widget.crashReportingService,
       reminderSettingsController: widget.reminderSettingsController,
+      reminderService: widget.reminderService,
       disableAnimations: widget.disableAnimations,
     );
   }

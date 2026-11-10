@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../../data/session.dart';
 import '../../../data/session_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
@@ -64,6 +66,7 @@ class AttendanceReminderService {
   final EventRepository _eventRepository;
   final SessionRepository _sessionRepository;
   tz.Location? _localLocation;
+  StreamSubscription<List<Session>>? _sessionsSubscription;
 
   static const String notificationChannelId = 'attendance_reminders';
   static const String notificationChannelName = 'Attendance Reminders';
@@ -102,6 +105,55 @@ class AttendanceReminderService {
         }
       },
     );
+
+    _sessionsSubscription ??= _sessionRepository.streamSessions().listen((_) {
+      syncReminders();
+    });
+  }
+
+  /// Disposes active subscriptions.
+  void dispose() {
+    _sessionsSubscription?.cancel();
+    _sessionsSubscription = null;
+  }
+
+  /// Requests notification permissions on platforms that require runtime authorization
+  /// (e.g. Android 13+ POST_NOTIFICATIONS, iOS/macOS Darwin user notifications).
+  ///
+  /// Returns `true` if permissions were granted or already available, or `false` if denied.
+  Future<bool> requestPermissions() async {
+    try {
+      final android = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final granted = await android.requestNotificationsPermission();
+        return granted ?? false;
+      }
+
+      final ios = _notifications.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        final granted = await ios.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return granted ?? false;
+      }
+
+      final macos = _notifications.resolvePlatformSpecificImplementation<
+          MacOSFlutterLocalNotificationsPlugin>();
+      if (macos != null) {
+        final granted = await macos.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return granted ?? false;
+      }
+    } catch (_) {}
+
+    return true;
   }
 
   /// Computes a stable 31-bit positive int notification ID for an event and date.
