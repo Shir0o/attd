@@ -36,6 +36,7 @@ import '../../sessions/presentation/insights_page.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
+import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
 import '../data/event_sharing_service.dart';
 import '../data/google_drive_shared_event_transport.dart';
@@ -54,6 +55,7 @@ class HubAttendanceView extends StatefulWidget {
     this.appLockController,
     this.crashReportingService,
     this.reminderSettingsController,
+    this.reminderService,
     this.disableAnimations = false,
   });
 
@@ -67,6 +69,7 @@ class HubAttendanceView extends StatefulWidget {
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
+  final AttendanceReminderService? reminderService;
   final bool disableAnimations;
 
   @override
@@ -572,6 +575,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           appLockController: widget.appLockController,
           crashReportingService: widget.crashReportingService,
           reminderSettingsController: widget.reminderSettingsController,
+          reminderService: widget.reminderService,
           disableAnimations: widget.disableAnimations,
         ),
       ),

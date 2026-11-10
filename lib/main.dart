@@ -301,6 +301,7 @@ class _AttendanceAppState extends State<AttendanceApp>
                 appLockController: widget.appLockController,
                 crashReportingService: widget.crashReportingService,
                 reminderSettingsController: widget.reminderSettingsController,
+                reminderService: widget.reminderService,
                 disableAnimations: widget.disableAnimations,
               );
         return MaterialApp(

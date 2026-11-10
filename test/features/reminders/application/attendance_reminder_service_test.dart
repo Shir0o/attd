@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,12 @@ import 'package:attendance_tracker/features/reminders/domain/reminder_offset_pre
 class MockFlutterLocalNotificationsPlugin extends Mock
     implements FlutterLocalNotificationsPlugin {}
 
+class MockAndroidFlutterLocalNotificationsPlugin extends Mock
+    implements AndroidFlutterLocalNotificationsPlugin {}
+
+class MockIOSFlutterLocalNotificationsPlugin extends Mock
+    implements IOSFlutterLocalNotificationsPlugin {}
+
 class MockEventRepository extends Mock implements EventRepository {}
 
 class MockSessionRepository extends Mock implements SessionRepository {}
@@ -26,6 +34,9 @@ class MockSessionRepository extends Mock implements SessionRepository {}
 void main() {
   setUpAll(() {
     tz.initializeTimeZones();
+    registerFallbackValue(
+      const InitializationSettings(),
+    );
     registerFallbackValue(
       const NotificationDetails(),
     );
@@ -212,6 +223,87 @@ void main() {
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             payload: any(named: 'payload'),
           )).called(1);
+    });
+
+    test('requestPermissions delegates to android implementation when present', () async {
+      final mockAndroid = MockAndroidFlutterLocalNotificationsPlugin();
+      when(() => mockNotifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>())
+          .thenReturn(mockAndroid);
+      when(() => mockNotifications.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>())
+          .thenReturn(null);
+      when(() => mockAndroid.requestNotificationsPermission())
+          .thenAnswer((_) async => true);
+
+      final service = AttendanceReminderService(
+        notificationsPlugin: mockNotifications,
+        settingsController: settingsController,
+        eventRepository: mockEventRepo,
+        sessionRepository: mockSessionRepo,
+      );
+
+      final granted = await service.requestPermissions();
+      expect(granted, isTrue);
+      verify(() => mockAndroid.requestNotificationsPermission()).called(1);
+    });
+
+    test('requestPermissions delegates to iOS implementation when present', () async {
+      final mockIOS = MockIOSFlutterLocalNotificationsPlugin();
+      when(() => mockNotifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>())
+          .thenReturn(null);
+      when(() => mockNotifications.resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>())
+          .thenReturn(mockIOS);
+      when(() => mockIOS.requestPermissions(
+            alert: any(named: 'alert'),
+            badge: any(named: 'badge'),
+            sound: any(named: 'sound'),
+          )).thenAnswer((_) async => true);
+
+      final service = AttendanceReminderService(
+        notificationsPlugin: mockNotifications,
+        settingsController: settingsController,
+        eventRepository: mockEventRepo,
+        sessionRepository: mockSessionRepo,
+      );
+
+      final granted = await service.requestPermissions();
+      expect(granted, isTrue);
+      verify(() => mockIOS.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          )).called(1);
+    });
+
+    test('initialize subscribes to streamSessions and triggers syncReminders on change', () async {
+      final sessionController = StreamController<List<Session>>.broadcast();
+      when(() => mockSessionRepo.streamSessions())
+          .thenAnswer((_) => sessionController.stream);
+      when(() => mockNotifications.initialize(
+            settings: any(named: 'settings'),
+            onDidReceiveNotificationResponse:
+                any(named: 'onDidReceiveNotificationResponse'),
+          )).thenAnswer((_) async => true);
+
+      final service = AttendanceReminderService(
+        notificationsPlugin: mockNotifications,
+        settingsController: settingsController,
+        eventRepository: mockEventRepo,
+        sessionRepository: mockSessionRepo,
+      );
+
+      await service.initialize();
+
+      // Controller is disabled by default, syncReminders calls cancelAll()
+      sessionController.add([]);
+      await Future<void>.delayed(Duration.zero);
+
+      verify(() => mockNotifications.cancelAll()).called(1);
+      service.dispose();
+      await sessionController.close();
     });
   });
 }

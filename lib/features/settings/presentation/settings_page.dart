@@ -21,6 +21,7 @@ import '../../../data/session_repository.dart';
 import 'cloud_backup_page.dart';
 import 'cisa_sync_settings_page.dart';
 import 'manage_backup_data_page.dart';
+import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
 import '../../reminders/presentation/reminders_settings_section.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
@@ -44,6 +45,7 @@ class SettingsPage extends StatefulWidget {
     this.backgroundSyncService,
     this.crashReportingService,
     this.reminderSettingsController,
+    this.reminderService,
     this.disableAnimations = false,
   });
 
@@ -57,6 +59,7 @@ class SettingsPage extends StatefulWidget {
   final BackgroundSyncService? backgroundSyncService;
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
+  final AttendanceReminderService? reminderService;
   final bool disableAnimations;
 
 
@@ -293,6 +296,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         children: [
                           RemindersSettingsSection(
                             controller: widget.reminderSettingsController!,
+                            reminderService: widget.reminderService,
                           ),
                         ],
                       ),
