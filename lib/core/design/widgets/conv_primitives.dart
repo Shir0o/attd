@@ -520,7 +520,7 @@ class ConvEyebrow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Icon button (40×40 round)
+// Icon button (40×40 round, min 48×48 interactive tap target)
 // ─────────────────────────────────────────────────────────────
 class ConvIconButton extends StatelessWidget {
   const ConvIconButton({
@@ -530,6 +530,7 @@ class ConvIconButton extends StatelessWidget {
     this.size = 40,
     this.color,
     this.iconSize = 22,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -537,23 +538,37 @@ class ConvIconButton extends StatelessWidget {
   final double size;
   final double iconSize;
   final Color? color;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    return SizedBox(
-      width: size,
-      height: size,
+    final interactiveSize =
+        size < kMinInteractiveDimension ? kMinInteractiveDimension : size;
+    Widget button = SizedBox(
+      width: interactiveSize,
+      height: interactiveSize,
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          child: Icon(icon, size: iconSize, color: color ?? c.ink),
+          child: Center(
+            child: Icon(icon, size: iconSize, color: color ?? c.ink),
+          ),
         ),
       ),
     );
+
+    if (tooltip != null) {
+      button = Tooltip(
+        message: tooltip!,
+        child: button,
+      );
+    }
+
+    return button;
   }
 }
 
