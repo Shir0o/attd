@@ -89,7 +89,12 @@ void main() {
     ]);
   });
 
-  Future<void> pumpHub(WidgetTester tester) async {
+  Future<void> pumpHub(
+    WidgetTester tester, {
+    List<Session>? history,
+  }) async {
+    final sessions = history ?? _history();
+    sessionRepo.setSessions(sessions);
     tester.view.physicalSize = const Size(1200, 3000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -108,7 +113,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    sessionRepo.emit(_history());
+    sessionRepo.emit(sessions);
     eventRepo.emit([_event()]);
     await tester.pumpAndSettle();
   }
@@ -117,6 +122,14 @@ void main() {
     await pumpHub(tester);
 
     expect(find.textContaining('over 8 sessions'), findsWidgets);
+  });
+
+  testWidgets('a single tracked session is described in the singular',
+      (tester) async {
+    await pumpHub(tester, history: _history().take(1).toList());
+
+    expect(find.textContaining('over 1 session'), findsWidgets);
+    expect(find.textContaining('over 1 sessions'), findsNothing);
   });
 
   testWidgets('tapping the sliver opens Insights for that event',

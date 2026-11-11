@@ -259,6 +259,45 @@ void main() {
     expect(find.text('REGULARS'), findsOneWidget);
   });
 
+  testWidgets('ConvEyebrow defaults to one non-wrapping, ellipsised line', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrap(const ConvEyebrow('regulars')));
+    final text = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(ConvEyebrow),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(text.maxLines, 1);
+    expect(text.softWrap, isFalse);
+    expect(text.overflow, TextOverflow.ellipsis);
+  });
+
+  testWidgets('ConvEyebrow forwards maxLines, softWrap and overflow overrides', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        const ConvEyebrow(
+          'regulars',
+          maxLines: 3,
+          softWrap: true,
+          overflow: TextOverflow.clip,
+        ),
+      ),
+    );
+    final text = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(ConvEyebrow),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(text.maxLines, 3);
+    expect(text.softWrap, isTrue);
+    expect(text.overflow, TextOverflow.clip);
+  });
+
   group('motionEnabled', () {
     Future<bool> read(
       WidgetTester tester, {
