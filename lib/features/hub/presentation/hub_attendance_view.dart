@@ -1512,9 +1512,11 @@ class _HeroEventCardState extends State<_HeroEventCard>
                             color: c.ink,
                           ),
                         ),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: _LastWeekStat(stat: widget.lastStat),
                         ),
+                        const SizedBox(width: 16),
                         _HeroAction(
                           status: widget.status,
                           onTap: widget.onTap,
@@ -1603,7 +1605,11 @@ class _HeroStat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        ConvEyebrow(label),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: ConvEyebrow(label),
+        ),
         const SizedBox(height: 2),
         Text(value,
             style: AppTypography.displayNumber(fontSize: 28, color: color)),
@@ -1626,7 +1632,11 @@ class _LastWeekStat extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const ConvEyebrow('Last week'),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: const ConvEyebrow('Last week'),
+          ),
           const SizedBox(height: 2),
           Text('—',
               style: AppTypography.displayNumber(fontSize: 28, color: c.ink3)),
@@ -1638,7 +1648,11 @@ class _LastWeekStat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const ConvEyebrow('Last week'),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: const ConvEyebrow('Last week'),
+        ),
         const SizedBox(height: 2),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -1721,13 +1735,14 @@ class _InsightsSliver extends StatelessWidget {
 
     final lapsed = insights.lapsed.length;
     final points = insights.points;
+    final sessionNoun = points.length == 1 ? 'session' : 'sessions';
     final spark =
         points.length <= 6 ? points : points.sublist(points.length - 6);
 
     return Semantics(
       button: true,
       label: 'View insights: $rate percent over '
-          '${points.length} sessions, $lapsed lapsed',
+          '${points.length} $sessionNoun, $lapsed lapsed',
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 48),
         child: InkWell(
@@ -1762,8 +1777,8 @@ class _InsightsSliver extends StatelessWidget {
                 Expanded(
                   child: Text(
                     lapsed == 0
-                        ? '$rate% over ${points.length} sessions'
-                        : '$rate% over ${points.length} sessions · $lapsed lapsed',
+                        ? '$rate% over ${points.length} $sessionNoun'
+                        : '$rate% over ${points.length} $sessionNoun · $lapsed lapsed',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.geist(

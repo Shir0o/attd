@@ -500,21 +500,32 @@ class ConvFab extends StatelessWidget {
 // Eyebrow text helper
 // ─────────────────────────────────────────────────────────────
 class ConvEyebrow extends StatelessWidget {
-  const ConvEyebrow(this.text, {super.key, this.color, this.fontSize = 11});
+  const ConvEyebrow(
+    this.text, {
+    super.key,
+    this.color,
+    this.fontSize = 11,
+    this.maxLines = 1,
+    this.softWrap = false,
+    this.overflow = TextOverflow.ellipsis,
+  });
 
   final String text;
   final Color? color;
   final double fontSize;
+  final int? maxLines;
+  final bool? softWrap;
+  final TextOverflow? overflow;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
     return Text(
       text.toUpperCase(),
-      style: AppTypography.eyebrow(
-        color: color ?? c.ink3,
-        fontSize: fontSize,
-      ),
+      maxLines: maxLines,
+      softWrap: softWrap,
+      overflow: overflow,
+      style: AppTypography.eyebrow(color: color ?? c.ink3, fontSize: fontSize),
     );
   }
 }
