@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.1](https://github.com/Shir0o/attd/compare/v1.20.0...v1.20.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ui:** prevent eyebrow mid-word wrap and pluralize insights sessions ([#316](https://github.com/Shir0o/attd/issues/316)) ([c9b82fd](https://github.com/Shir0o/attd/commit/c9b82fdd0f9ea7d734db337a1fc0ec2d22c625c5))
+
 ## [1.20.0](https://github.com/Shir0o/attd/compare/v1.19.0...v1.20.0) (2026-11-10)
 
 
