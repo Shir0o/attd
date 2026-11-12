@@ -213,12 +213,14 @@ class ConvDayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.conv;
     final bg = active ? c.primary : c.cardSoft;
-    final fg = active ? c.onPrimary : c.ink3;
-    return Material(
+    final fg = active ? c.onPrimary : c.ink2;
+    final chip = Material(
       color: bg,
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
+        // The interactive wrapper below owns the semantics (48x48 tap target).
+        excludeFromSemantics: true,
         onTap: onTap,
         child: SizedBox(
           width: size,
@@ -234,6 +236,23 @@ class ConvDayChip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+    if (onTap == null) {
+      return chip;
+    }
+    // Keep the small visual chip but expose a >=48px hit area so it meets the
+    // Android minimum tap target.
+    final target = size < kMinInteractiveDimension
+        ? kMinInteractiveDimension
+        : size;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: target,
+        height: target,
+        child: Center(child: chip),
       ),
     );
   }
