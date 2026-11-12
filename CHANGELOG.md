@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.2](https://github.com/Shir0o/attd/compare/v1.20.1...v1.20.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ui:** ensure weekday chips meet 48dp tap target and WCAG contrast ([#318](https://github.com/Shir0o/attd/issues/318)) ([596395b](https://github.com/Shir0o/attd/commit/596395bf5d89799e4b6425a4e40ca513ea4c6db7))
+
 ## [1.20.1](https://github.com/Shir0o/attd/compare/v1.20.0...v1.20.1) (2026-11-11)
 
 
