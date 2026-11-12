@@ -517,8 +517,10 @@ class _AddEventPageState extends State<AddEventPage> {
         ] else ...[
           ConvEyebrow('Repeats on'),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Wrap so the 48px tap targets still fit on narrow (320px) screens.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runSpacing: 4,
             children: List.generate(_daysOfWeek.length, (i) {
               final dayName = _daysOfWeek[i];
               final letter = _dayLetters[i];
