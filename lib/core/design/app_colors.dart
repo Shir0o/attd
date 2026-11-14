@@ -29,6 +29,13 @@ class AppColors {
   static const Color coral = Color(0xFFE5754D);
   static const Color coralWash = Color(0xFFF4E2D7);
 
+  /// Destructive ink for light surfaces — 4.5:1+ on every light surface in the
+  /// ladder, so "Delete" affordances stay legible where [coral] does not.
+  static const Color lightDanger = Color(0xFFBA1A1A);
+
+  /// Destructive ink for dark surfaces.
+  static const Color darkDanger = Color(0xFFFFB4AB);
+
   /// Clay — warm secondary used for "low confidence" / "review" affordances.
   static const Color clay = Color(0xFFDBA572);
   static const Color clayDeep = Color(0xFFB47744);
@@ -42,7 +49,7 @@ class AppColors {
   static const Color lightCardSoft = Color(0xFFEFE9F2);
   static const Color lightInk = Color(0xFF2A2333);
   static const Color lightInk2 = Color(0xFF524A5A);
-  static const Color lightInk3 = Color(0xFF837C8A);
+  static const Color lightInk3 = Color(0xFF655E6D);
   static const Color lightInk4 = Color(0xFFB5B0BC);
   static const Color lightHair = Color(0xFFD8D3DC);
 
@@ -89,52 +96,52 @@ class AppColors {
 
   // ── ColorSchemes ─────────────────────────────────────────────────────
   static ColorScheme get lightColorScheme => ColorScheme.fromSeed(
-    seedColor: seed,
-    brightness: Brightness.light,
-  ).copyWith(
-    primary: primary,
-    onPrimary: onPrimary,
-    primaryContainer: violetSoft,
-    secondary: clayDeep,
-    onSecondary: Colors.white,
-    tertiary: const Color(0xFF376B21),
-    onTertiary: Colors.white,
-    error: coral,
-    onError: Colors.white,
-    surface: lightBg,
-    onSurface: lightInk,
-    onSurfaceVariant: lightInk2,
-    surfaceContainerLowest: lightCard,
-    surfaceContainerLow: lightCardSoft,
-    surfaceContainer: lightBg2,
-    surfaceContainerHigh: lightBg3,
-    surfaceContainerHighest: const Color(0xFFE0D9E5),
-    outlineVariant: lightHair,
-    surfaceTint: primary,
-  );
+        seedColor: seed,
+        brightness: Brightness.light,
+      ).copyWith(
+        primary: primary,
+        onPrimary: onPrimary,
+        primaryContainer: violetSoft,
+        secondary: clayDeep,
+        onSecondary: Colors.white,
+        tertiary: const Color(0xFF376B21),
+        onTertiary: Colors.white,
+        error: coral,
+        onError: Colors.white,
+        surface: lightBg,
+        onSurface: lightInk,
+        onSurfaceVariant: lightInk2,
+        surfaceContainerLowest: lightCard,
+        surfaceContainerLow: lightCardSoft,
+        surfaceContainer: lightBg2,
+        surfaceContainerHigh: lightBg3,
+        surfaceContainerHighest: const Color(0xFFE0D9E5),
+        outlineVariant: lightHair,
+        surfaceTint: primary,
+      );
 
   static ColorScheme get darkColorScheme => ColorScheme.fromSeed(
-    seedColor: seed,
-    brightness: Brightness.dark,
-  ).copyWith(
-    primary: darkPrimary,
-    onPrimary: darkOnPrimary,
-    primaryContainer: violetDeep,
-    secondary: clay,
-    onSecondary: Colors.black,
-    error: darkAbsent,
-    onError: Colors.black,
-    surface: darkBg,
-    onSurface: darkInk,
-    onSurfaceVariant: darkInk2,
-    surfaceContainerLowest: darkBg,
-    surfaceContainerLow: darkCard,
-    surfaceContainer: darkBg2,
-    surfaceContainerHigh: darkBg3,
-    surfaceContainerHighest: darkCardSoft,
-    outlineVariant: darkHair,
-    surfaceTint: darkPrimary,
-  );
+        seedColor: seed,
+        brightness: Brightness.dark,
+      ).copyWith(
+        primary: darkPrimary,
+        onPrimary: darkOnPrimary,
+        primaryContainer: violetDeep,
+        secondary: clay,
+        onSecondary: Colors.black,
+        error: darkAbsent,
+        onError: Colors.black,
+        surface: darkBg,
+        onSurface: darkInk,
+        onSurfaceVariant: darkInk2,
+        surfaceContainerLowest: darkBg,
+        surfaceContainerLow: darkCard,
+        surfaceContainer: darkBg2,
+        surfaceContainerHigh: darkBg3,
+        surfaceContainerHighest: darkCardSoft,
+        outlineVariant: darkHair,
+        surfaceTint: darkPrimary,
+      );
 }
 
 /// Extension on [ColorScheme] exposing the Convocation-specific roles
@@ -159,6 +166,7 @@ class ConvocationColors extends ThemeExtension<ConvocationColors> {
     required this.onPrimary,
     required this.present,
     required this.absent,
+    required this.danger,
     required this.clayDeep,
   });
 
@@ -176,6 +184,7 @@ class ConvocationColors extends ThemeExtension<ConvocationColors> {
   final Color onPrimary;
   final Color present;
   final Color absent;
+  final Color danger;
   final Color clayDeep;
 
   static const ConvocationColors light = ConvocationColors(
@@ -193,6 +202,7 @@ class ConvocationColors extends ThemeExtension<ConvocationColors> {
     onPrimary: AppColors.onPrimary,
     present: AppColors.primary,
     absent: AppColors.coral,
+    danger: AppColors.lightDanger,
     clayDeep: AppColors.clayDeep,
   );
 
@@ -211,6 +221,7 @@ class ConvocationColors extends ThemeExtension<ConvocationColors> {
     onPrimary: AppColors.darkOnPrimary,
     present: AppColors.darkPresent,
     absent: AppColors.darkAbsent,
+    danger: AppColors.darkDanger,
     clayDeep: AppColors.clay,
   );
 
@@ -230,24 +241,27 @@ class ConvocationColors extends ThemeExtension<ConvocationColors> {
     Color? onPrimary,
     Color? present,
     Color? absent,
+    Color? danger,
     Color? clayDeep,
-  }) => ConvocationColors(
-    bg: bg ?? this.bg,
-    bg2: bg2 ?? this.bg2,
-    bg3: bg3 ?? this.bg3,
-    card: card ?? this.card,
-    cardSoft: cardSoft ?? this.cardSoft,
-    ink: ink ?? this.ink,
-    ink2: ink2 ?? this.ink2,
-    ink3: ink3 ?? this.ink3,
-    ink4: ink4 ?? this.ink4,
-    hair: hair ?? this.hair,
-    primary: primary ?? this.primary,
-    onPrimary: onPrimary ?? this.onPrimary,
-    present: present ?? this.present,
-    absent: absent ?? this.absent,
-    clayDeep: clayDeep ?? this.clayDeep,
-  );
+  }) =>
+      ConvocationColors(
+        bg: bg ?? this.bg,
+        bg2: bg2 ?? this.bg2,
+        bg3: bg3 ?? this.bg3,
+        card: card ?? this.card,
+        cardSoft: cardSoft ?? this.cardSoft,
+        ink: ink ?? this.ink,
+        ink2: ink2 ?? this.ink2,
+        ink3: ink3 ?? this.ink3,
+        ink4: ink4 ?? this.ink4,
+        hair: hair ?? this.hair,
+        primary: primary ?? this.primary,
+        onPrimary: onPrimary ?? this.onPrimary,
+        present: present ?? this.present,
+        absent: absent ?? this.absent,
+        danger: danger ?? this.danger,
+        clayDeep: clayDeep ?? this.clayDeep,
+      );
 
   @override
   ConvocationColors lerp(ThemeExtension<ConvocationColors>? other, double t) {
@@ -267,6 +281,7 @@ class ConvocationColors extends ThemeExtension<ConvocationColors> {
       onPrimary: Color.lerp(onPrimary, other.onPrimary, t)!,
       present: Color.lerp(present, other.present, t)!,
       absent: Color.lerp(absent, other.absent, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
       clayDeep: Color.lerp(clayDeep, other.clayDeep, t)!,
     );
   }
