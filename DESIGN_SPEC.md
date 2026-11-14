@@ -17,6 +17,7 @@ All values are sRGB approximations of the OKLCH tokens in `attd/project/app.css`
 | `present` | `= primary` | `#C2B5DA` | Present semantic — avatars, stamp, summary numerals |
 | `absent` | `#E5754D` (coral) | `#EAA585` | Absent semantic — stamp, avatar, summary numerals |
 | `clayDeep` | `#B47744` | `#DBA572` | Review / medium-confidence cues |
+| `danger` | `#BA1A1A` | `#FFB4AB` | Destructive actions (delete) — ≥4.5:1 on the light surface ladder |
 
 ### Surface ladder
 `bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the rule between paired stat tiles on Insights).
