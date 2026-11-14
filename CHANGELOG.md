@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.3](https://github.com/Shir0o/attd/compare/v1.20.2...v1.20.3) (2026-11-14)
+
+
+### Bug Fixes
+
+* **ui:** resolve WCAG AA contrast on ink3 and destructive actions ([#320](https://github.com/Shir0o/attd/issues/320)) ([fc38ef8](https://github.com/Shir0o/attd/commit/fc38ef8e51ff3d345d74000dd4860e0f47566a21))
+
 ## [1.20.2](https://github.com/Shir0o/attd/compare/v1.20.1...v1.20.2) (2026-11-12)
 
 
