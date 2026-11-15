@@ -340,6 +340,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (context) => SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -660,7 +661,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 ],
               ),
               SliverPadding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                 sliver: _isLoading
                     ? SliverList(
                         key: const ValueKey('hub_skeleton'),
