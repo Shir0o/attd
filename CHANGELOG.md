@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.4](https://github.com/Shir0o/attd/compare/v1.20.3...v1.20.4) (2026-11-15)
+
+
+### Bug Fixes
+
+* **ui:** add fab scroll clearance and event menu drag handle ([#323](https://github.com/Shir0o/attd/issues/323)) ([ae80e4c](https://github.com/Shir0o/attd/commit/ae80e4cf237e8bc2d8a7f0e269911c9690cbda5a))
+
 ## [1.20.3](https://github.com/Shir0o/attd/compare/v1.20.2...v1.20.3) (2026-11-14)
 
 
