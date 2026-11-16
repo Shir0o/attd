@@ -237,9 +237,7 @@ class _PushCountObserver extends NavigatorObserver {
 
 class FakeLocalBackupService extends LocalBackupService {
   bool backupCalled = false;
-  bool exportCalled = false;
   bool throwOnBackup = false;
-  bool throwOnExport = false;
 
   @override
   Future<void> createBackup() async {
@@ -247,14 +245,6 @@ class FakeLocalBackupService extends LocalBackupService {
       throw StateError('backup failed');
     }
     backupCalled = true;
-  }
-
-  @override
-  Future<void> exportData() async {
-    if (throwOnExport) {
-      throw StateError('export failed');
-    }
-    exportCalled = true;
   }
 }
 
@@ -388,16 +378,10 @@ void main() {
       const Offset(0, -300),
     );
     expect(find.text('Backup to Local Storage'), findsOneWidget);
-    await tester.dragUntilVisible(
-      find.text('Enable Report Export'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    expect(find.text('Enable Report Export'), findsOneWidget);
-    expect(find.text('Export Report'), findsNothing);
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-    expect(find.text('Export Report'), findsOneWidget);
+    // Report export moved to the History page; Settings has no report rows.
+    expect(find.text('Enable Report Export', skipOffstage: false), findsNothing);
+    expect(find.text('Advanced Reporting', skipOffstage: false), findsNothing);
+    expect(find.text('Export Report', skipOffstage: false), findsNothing);
   });
 
   testWidgets('SettingsPage toggles Drive Sync', (tester) async {
@@ -459,7 +443,7 @@ void main() {
     verify(() => backgroundSync.cancelSync()).called(1);
   });
 
-  testWidgets('SettingsPage calls backup and export', (tester) async {
+  testWidgets('SettingsPage calls backup', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
@@ -490,20 +474,6 @@ void main() {
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pump();
     expect(localBackupService.backupCalled, isTrue);
-
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('Export Report'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    await tester.ensureVisible(find.text('Export Report'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Export Report'));
-    await tester.pump();
-    expect(localBackupService.exportCalled, isTrue);
   });
 
   testWidgets('SettingsPage shows about dialog on version tap', (tester) async {
@@ -561,12 +531,10 @@ void main() {
     expect(prefs.getInt('theme_mode'), ThemeMode.dark.index);
   });
 
-  testWidgets('SettingsPage shows backup and export failure snackbars', (
+  testWidgets('SettingsPage shows backup failure snackbar', (
     tester,
   ) async {
-    final localBackupService = FakeLocalBackupService()
-      ..throwOnBackup = true
-      ..throwOnExport = true;
+    final localBackupService = FakeLocalBackupService()..throwOnBackup = true;
 
     await tester.pumpWidget(
       _settingsPage(
@@ -587,26 +555,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Backup failed: Bad state: backup failed'),
-        findsOneWidget);
-
-    ScaffoldMessenger.of(tester.element(find.byType(SettingsPage)))
-        .hideCurrentSnackBar();
-    await tester.pumpAndSettle();
-
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('Export Report'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    await tester.ensureVisible(find.text('Export Report'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Export Report'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Export failed: Bad state: export failed'),
         findsOneWidget);
   });
 
@@ -629,7 +577,7 @@ void main() {
     expect(find.text('Backup to Local Storage'), findsOneWidget);
   });
 
-  testWidgets('SettingsPage opens manage backup data (when unlocked) and advanced reporting', (
+  testWidgets('SettingsPage opens manage backup data when unlocked', (
     tester,
   ) async {
     final prefs = await SharedPreferences.getInstance();
@@ -648,24 +596,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Storage inspector'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
-
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('Advanced Reporting'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    await tester.ensureVisible(find.text('Advanced Reporting'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Advanced Reporting'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Export reports'), findsOneWidget);
   });
 
   testWidgets('signIn failure shows snackbar', (tester) async {

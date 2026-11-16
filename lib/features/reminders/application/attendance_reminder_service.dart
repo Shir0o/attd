@@ -162,11 +162,14 @@ class AttendanceReminderService {
     return key.hashCode.abs() & 0x7FFFFFFF;
   }
 
-  /// Calculates the scheduled notification time for an event on a given date with an offset.
+  /// How long after a session's scheduled start the reminder fires.
+  static const Duration reminderDelay = Duration(hours: 1);
+
+  /// Calculates the scheduled notification time for an event on a given date:
+  /// [reminderDelay] after the scheduled start.
   DateTime calculateReminderTime({
     required Event event,
     required DateTime targetDate,
-    required Duration offset,
   }) {
     final eventStart = DateTime(
       targetDate.year,
@@ -175,7 +178,7 @@ class AttendanceReminderService {
       event.time.hour,
       event.time.minute,
     );
-    return eventStart.add(offset);
+    return eventStart.add(reminderDelay);
   }
 
   /// Cancels an existing notification for a specific event and session date.
@@ -197,8 +200,6 @@ class AttendanceReminderService {
     final events = await _eventRepository.fetchAllEvents();
     final activeEvents = events.where((e) => e.deletedAt == null).toList();
     final allSessions = await _sessionRepository.fetchAllSessions();
-
-    final offset = _settingsController.offset.duration;
 
     for (final event in activeEvents) {
       // Find the next occurrence on or after today
@@ -226,7 +227,6 @@ class AttendanceReminderService {
       final scheduledReminderTime = calculateReminderTime(
         event: event,
         targetDate: sessionDate,
-        offset: offset,
       );
 
       // Only schedule if the reminder time is in the future
