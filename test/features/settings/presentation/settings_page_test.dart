@@ -838,21 +838,21 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Manage Families tile navigates', (tester) async {
+  testWidgets('Settings has no Manage Families row', (tester) async {
     await tester.pumpWidget(_settingsPage(themeController: themeController));
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('Manage Families'),
+      find.text('Manage Members'),
       find.byType(ListView),
       const Offset(0, -200),
     );
-    await tester.ensureVisible(find.text('Manage Families'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Manage Families'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    expect(find.text('Manage Members'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('manage_families_tile'), skipOffstage: false),
+      findsNothing,
+    );
+    expect(find.text('Manage Families', skipOffstage: false), findsNothing);
   });
 
   testWidgets('Copy Apps Script Boilerplate triggers snackbar', (tester) async {

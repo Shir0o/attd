@@ -280,23 +280,6 @@ void main() {
       await expectUsable(tester);
       await maybeExpectGolden(tester, 'step_manage_members');
 
-      // Back to Settings.
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      // ── Settings → Manage Families ────────────────────────────────────
-      final familiesTile = find.byKey(const ValueKey('manage_families_tile'));
-      await tester.scrollUntilVisible(
-        familiesTile,
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(familiesTile);
-      await tester.pumpAndSettle();
-      expect(find.text('Manage Families'), findsWidgets);
-      await expectUsable(tester);
-      await maybeExpectGolden(tester, 'step_manage_families');
-
       // Back to Settings, then back to the Hub.
       await tester.pageBack();
       await tester.pumpAndSettle();
