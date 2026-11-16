@@ -4,6 +4,7 @@ import 'package:attendance_tracker/data/local_session_repository.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/hub/data/local_event_repository.dart';
 import 'package:attendance_tracker/features/onboarding/application/onboarding_controller.dart';
+import 'package:attendance_tracker/features/settings/application/developer_unlock.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/main.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +28,11 @@ Future<Widget> createTestApp(Directory tempDir,
   final storagePath = tempDir.path;
 
   // Initialize SharedPreferences with onboarding completed
-  SharedPreferences.setMockInitialValues({'onboarding_completed': false});
+  // Developer options are unlocked so flows can reach Manage Backup Data.
+  SharedPreferences.setMockInitialValues({
+    'onboarding_completed': false,
+    DeveloperUnlock.prefsKey: true,
+  });
   final prefs = await SharedPreferences.getInstance();
   final themeController = ThemeController(prefs);
   final onboardingController = OnboardingController(prefs);

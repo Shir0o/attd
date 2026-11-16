@@ -94,10 +94,6 @@ class _FakeDriveService extends ChangeNotifier implements DriveService {
   @override
   bool isDriveSyncEnabled = false;
   @override
-  bool isBackgroundSyncEnabled = true;
-  @override
-  bool isBackgroundSyncWifiOnly = true;
-  @override
   DateTime? lastBackgroundSyncTime;
   @override
   String? lastBackgroundSyncStatus;
@@ -208,6 +204,9 @@ void main() {
       find.byType(ListView),
       const Offset(0, -400),
     );
+    // The trimmed Settings list can stop with About at the very bottom edge.
+    await tester.ensureVisible(find.text('About'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
 
