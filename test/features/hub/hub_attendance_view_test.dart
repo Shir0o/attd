@@ -288,23 +288,6 @@ void main() {
     expect(find.text('Nothing on the calendar yet.'), findsOneWidget);
   });
 
-  testWidgets('deleting an event from the action menu calls repository', (
-    tester,
-  ) async {
-    await pumpView(tester);
-    eventRepository.emit([todayEvent()]);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete Event'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete').last);
-    await tester.pumpAndSettle();
-
-    expect(eventRepository.deletedEventIds, ['event-1']);
-  });
-
   testWidgets('start attendance with no event members opens member management',
       (
     tester,
@@ -369,23 +352,7 @@ void main() {
     expect(find.text('Attendance Mode'), findsNothing);
     expect(find.text('Fast Marking Mode'), findsNothing);
     expect(find.byKey(const Key('eventMenuFastMarkingMode')), findsNothing);
-    // Insights is gone too; the rest of the menu is untouched.
     expect(find.text('View Insights'), findsNothing);
-    expect(find.text('Manage Members'), findsOneWidget);
-  });
-
-  testWidgets('action menu: Manage Members navigates to members page',
-      (tester) async {
-    await pumpView(tester);
-    eventRepository.emit([todayEvent()]);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Manage Members'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Manage Event Members'), findsOneWidget);
   });
 
   testWidgets('action menu: View History navigates to event history',
@@ -414,22 +381,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('EDIT EVENT'), findsOneWidget); // app bar title
-  });
-
-  testWidgets('action menu: cancelling delete keeps the event',
-      (tester) async {
-    await pumpView(tester);
-    eventRepository.emit([todayEvent()]);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete Event'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(eventRepository.deletedEventIds, isEmpty);
   });
 
   testWidgets('renders a one-time event with its formatted date', (tester) async {
@@ -1022,14 +973,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify read-only menu restrictions
-    expect(find.text('Manage Members'), findsNothing);
     expect(find.text('Edit Event'), findsNothing);
-    expect(find.text('Delete Event'), findsNothing);
     expect(find.text('Share Event'), findsNothing);
     expect(find.text('View History'), findsOneWidget);
   });
 
-  testWidgets('owner event menu displays Share Event, Edit, and Delete options',
+  testWidgets('owner event menu displays exactly Edit, Share and History',
       (tester) async {
     final event = todayEvent().copyWith(
       isShared: false,
@@ -1045,10 +994,18 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify owner menu options
-    expect(find.text('Manage Members'), findsOneWidget);
     expect(find.text('Share Event'), findsOneWidget);
     expect(find.text('Edit Event'), findsOneWidget);
-    expect(find.text('Delete Event'), findsOneWidget);
+    expect(find.text('View History'), findsOneWidget);
+    expect(find.text('Manage Members'), findsNothing);
+    expect(find.text('Delete Event'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(ListTile),
+      ),
+      findsNWidgets(3),
+    );
 
     // Tap Share Event when drive is not signed in shows SnackBar
     await tester.tap(find.text('Share Event'));

@@ -315,25 +315,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             children: [
               if (!event.isReadOnly) ...[
                 ListTile(
-                  leading: const Icon(Icons.people_outline),
-                  title: const Text('Manage Members'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MembersPage(
-                          event: event,
-                          attendanceRepository: widget.attendanceRepository,
-                          eventRepository: widget.eventRepository,
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                      ),
-                    );
-                    _refreshData();
-                  },
-                ),
-                ListTile(
                   leading: const Icon(Icons.share_outlined),
                   title: const Text('Share Event'),
                   onTap: () async {
@@ -401,42 +382,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       ),
                     );
                     _refreshData();
-                  },
-                ),
-                ListTile(
-                  leading: Icon(
-                    Icons.delete_outline,
-                    color: context.conv.danger,
-                  ),
-                  title: Text(
-                    'Delete Event',
-                    style: TextStyle(color: context.conv.danger),
-                  ),
-                  onTap: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Event'),
-                        content: Text(
-                            'Are you sure you want to delete "${event.title}"?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text('Delete',
-                                style: TextStyle(color: context.conv.danger)),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirmed == true) {
-                      await widget.eventRepository.deleteEvent(event.id);
-                      if (mounted) Navigator.pop(context);
-                    }
                   },
                 ),
               ],
