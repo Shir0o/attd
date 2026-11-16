@@ -296,8 +296,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final member =
         await _addAttendee(name, isPresent, isGuest, existingMember);
     if (!mounted) return member;
-    // A newcomer has no history, so their tile lands at the bottom of the
-    // Likely here grid, often off-screen; confirm it happened.
+    // A newcomer's tile sorts in alphabetically with everyone, often
+    // off-screen; confirm it happened.
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     // A fresh key per snackbar: the previous one may still be animating out.
@@ -305,8 +305,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        // On Likely here, park it above the Add someone pill so a second
-        // add needn't wait; elsewhere this is null (the theme's inset).
+        // Park it above the Add someone pill so a second add needn't wait.
         margin: LikelyHereView.snackBarMarginAbove(_addSomeoneSource),
         content: Text(
           '${name.trim()} added · Here',
@@ -317,12 +316,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     return member;
   }
 
-  /// Opens the add sheet. With [morphFrom] (the Likely here "Add someone"
-  /// pill) the sheet grows out of that control and a submit flies the control
-  /// used to where the person landed; every other opener keeps the plain
-  /// slide-up sheet and no flight.
+  /// Opens the add sheet. It grows out of [morphFrom] (the "Add someone"
+  /// pill) and a submit flies the control used to where the person landed.
   Future<void> _showAddMemberSheet({
-    GlobalKey<ConvMorphSourceState>? morphFrom,
+    required GlobalKey<ConvMorphSourceState> morphFrom,
   }) async {
     Future<Member>? added;
     String? addedName;
@@ -339,26 +336,17 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           },
           disableAnimations: widget.disableAnimations,
         );
-    if (morphFrom != null) {
-      // Submits pop with an AddMemberSheetResult (the control used and its
-      // rect) as the sheet starts to slide away.
-      final result = await showConvMorphSheet<AddMemberSheetResult>(
-        context: context,
-        source: morphFrom,
-        builder: sheet,
-        disableAnimations: widget.disableAnimations,
-      );
-      if (result != null && added != null && mounted) {
-        await _flyToLanding(result, added!, addedName!);
-      }
-      return;
-    }
-    showModalBottomSheet(
+    // Submits pop with an AddMemberSheetResult (the control used and its
+    // rect) as the sheet starts to slide away.
+    final result = await showConvMorphSheet<AddMemberSheetResult>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      source: morphFrom,
       builder: sheet,
+      disableAnimations: widget.disableAnimations,
     );
+    if (result != null && added != null && mounted) {
+      await _flyToLanding(result, added!, addedName!);
+    }
   }
 
   /// Last "added · Here" snackbar's text, for finding where it landed.
