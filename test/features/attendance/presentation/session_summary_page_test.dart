@@ -204,6 +204,19 @@ class MockEventRepository extends EventRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
+/// Opens a roster row's "more" menu and picks [action] (Edit name or
+/// Remove from session) — the visible replacement for the old row swipes.
+Future<void> openRowAction(
+  WidgetTester tester,
+  String name,
+  String action,
+) async {
+  await tester.tap(find.byTooltip('More actions for $name').first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(action));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('SessionSummaryPage renders correct stats and members', (
     WidgetTester tester,
@@ -425,8 +438,8 @@ void main() {
     // Alice is absent
     expect(find.text('Alice'), findsOneWidget);
 
-    // Swipe left to remove
-    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    // Open the row menu to remove
+    await openRowAction(tester, 'Alice', 'Remove from session');
     await tester.pumpAndSettle();
 
     // Verify confirmation dialog title
@@ -482,8 +495,8 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Swipe right to edit
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    // Open the row menu to edit
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
 
     // Check dialog
@@ -1056,14 +1069,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // Open edit dialog and cancel -> returns null
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('Alice'), findsOneWidget);
 
     // Open edit dialog, clear text, save -> empty path early-return
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), '');
     await tester.tap(find.text('Save'));
@@ -1071,7 +1084,7 @@ void main() {
     expect(find.text('Alice'), findsOneWidget);
 
     // Open edit dialog, keep same name, save -> unchanged early-return
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
@@ -1114,7 +1127,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bob'), findsOneWidget);
-    await tester.drag(find.text('Bob'), const Offset(500, 0));
+    await openRowAction(tester, 'Bob', 'Edit name');
     await tester.pumpAndSettle();
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Bobby');
     await tester.tap(find.text('Save'));
@@ -1158,7 +1171,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.drag(find.text('Bob'), const Offset(-500, 0));
+    await openRowAction(tester, 'Bob', 'Remove from session');
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, 'Remove'));
     await tester.pumpAndSettle();
@@ -1197,7 +1210,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    await openRowAction(tester, 'Alice', 'Remove from session');
     await tester.pumpAndSettle();
     expect(find.text('Remove from Report'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
@@ -2112,8 +2125,8 @@ void main() {
     expect(find.text('Zoe Alvarez'), findsOneWidget);
     expect(find.text('Sunday, March 1, 2026'), findsOneWidget);
 
-    // Swipe left to remove guest
-    await tester.drag(find.text('Zoe Alvarez'), const Offset(-500, 0));
+    // Open the row menu to remove guest
+    await openRowAction(tester, 'Zoe Alvarez', 'Remove from session');
     await tester.pumpAndSettle();
 
     expect(find.text('Remove from Report'), findsOneWidget);
@@ -2172,8 +2185,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Swipe left to remove the visible Zoe Alvarez
-    await tester.drag(find.text('Zoe Alvarez').first, const Offset(-500, 0));
+    // Open the row menu to remove the visible Zoe Alvarez
+    await openRowAction(tester, 'Zoe Alvarez', 'Remove from session');
     await tester.pumpAndSettle();
 
     expect(find.text('Remove from Report'), findsOneWidget);

@@ -786,98 +786,76 @@ class _MemberRow extends StatelessWidget {
             value: isPresent,
             onChanged: onToggle,
           ),
+          if (onEdit != null || onRemove != null)
+            _MoreActionsButton(
+              member: member,
+              onEdit: onEdit,
+              onRemove: onRemove,
+            ),
         ],
       ),
     );
 
-    final inner = Padding(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: tile,
     );
-
-    if (onEdit == null && onRemove == null) return inner;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Dismissible(
-        key: ValueKey('dismiss_${member.id}_${member.displayName}'),
-        direction: onEdit != null && onRemove != null
-            ? DismissDirection.horizontal
-            : (onEdit != null
-                ? DismissDirection.startToEnd
-                : DismissDirection.endToStart),
-        background: onEdit != null
-            ? _swipeBackground(
-                context,
-                'Edit Name',
-                c.clayDeep,
-                Icons.edit_outlined,
-                true,
-              )
-            : null,
-        secondaryBackground: onRemove != null
-            ? _swipeBackground(
-                context,
-                'Remove',
-                c.absent,
-                Icons.remove_circle_outline,
-                false,
-              )
-            : null,
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd && onEdit != null) {
-            onEdit!(member);
-          } else if (direction == DismissDirection.endToStart &&
-              onRemove != null) {
-            onRemove!(member);
-          }
-          return false;
-        },
-        child: tile,
-      ),
-    );
   }
+}
 
-  Widget _swipeBackground(
-    BuildContext context,
-    String label,
-    Color color,
-    IconData icon,
-    bool isStart,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: AppRadii.compactR,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: isStart
-            ? [
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ]
-            : [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(icon, color: Colors.white),
-              ],
-      ),
+enum _RowAction { edit, remove }
+
+/// The visible per-row "more" control: a 48dp target that opens a small menu
+/// with Edit name and Remove from session (the destructive one in danger ink).
+class _MoreActionsButton extends StatelessWidget {
+  const _MoreActionsButton({
+    required this.member,
+    this.onEdit,
+    this.onRemove,
+  });
+
+  final Member member;
+  final void Function(Member)? onEdit;
+  final void Function(Member)? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.conv;
+    final label = 'More actions for ${member.displayName}';
+    return PopupMenuButton<_RowAction>(
+      key: ValueKey('memberMore_${member.id}_${member.displayName}'),
+      tooltip: label,
+      icon: Icon(Icons.more_vert, color: c.ink2),
+      iconSize: 24,
+      padding: const EdgeInsets.all(12),
+      color: c.card,
+      shape: RoundedRectangleBorder(borderRadius: AppRadii.compactR),
+      onSelected: (action) {
+        switch (action) {
+          case _RowAction.edit:
+            onEdit?.call(member);
+          case _RowAction.remove:
+            onRemove?.call(member);
+        }
+      },
+      itemBuilder: (context) => [
+        if (onEdit != null)
+          PopupMenuItem(
+            value: _RowAction.edit,
+            child: Text(
+              'Edit name',
+              style: AppTypography.geist(fontSize: 15, color: c.ink),
+            ),
+          ),
+        if (onRemove != null)
+          PopupMenuItem(
+            value: _RowAction.remove,
+            child: Text(
+              'Remove from session',
+              style: AppTypography.geist(fontSize: 15, color: c.danger),
+            ),
+          ),
+      ],
     );
   }
 }

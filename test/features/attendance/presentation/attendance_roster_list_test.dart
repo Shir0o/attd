@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/app_colors.dart';
 import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -524,6 +525,84 @@ void main() {
     // The word "late" rides the row subtitle, so meaning is never only an
     // icon.
     expect(find.text('Marked present · late'), findsOneWidget);
+  });
+
+  group('per-row more actions', () {
+    Future<void> pumpWithActions(
+      WidgetTester tester, {
+      required List<String> edited,
+      required List<String> removed,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 800,
+              child: AttendanceRosterList(
+                session: sessionWith(members: [alice, bob]),
+                families: [smiths],
+                disableAnimations: true,
+                onToggle: (m, p) async {},
+                onEdit: (m) => edited.add(m.id),
+                onRemove: (m) => removed.add(m.id),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    final moreAlice = find.byTooltip('More actions for Alice');
+
+    testWidgets('each row has a 48dp control labelled with the name',
+        (tester) async {
+      await pumpWithActions(tester, edited: [], removed: []);
+      expect(moreAlice, findsOneWidget);
+      expect(find.byTooltip('More actions for Bob'), findsOneWidget);
+      final size = tester.getSize(moreAlice);
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+    });
+
+    testWidgets('Edit name calls onEdit for that member', (tester) async {
+      final edited = <String>[];
+      await pumpWithActions(tester, edited: edited, removed: []);
+      await tester.tap(moreAlice);
+      await tester.pumpAndSettle();
+      expect(find.text('Edit name'), findsOneWidget);
+      expect(find.text('Remove from session'), findsOneWidget);
+      await tester.tap(find.text('Edit name'));
+      await tester.pumpAndSettle();
+      expect(edited, ['a']);
+    });
+
+    testWidgets('Remove from session calls onRemove, in danger ink',
+        (tester) async {
+      final removed = <String>[];
+      await pumpWithActions(tester, edited: [], removed: removed);
+      await tester.tap(moreAlice);
+      await tester.pumpAndSettle();
+      final remove = tester.widget<Text>(find.text('Remove from session'));
+      expect(remove.style?.color, ConvocationColors.light.danger);
+      await tester.tap(find.text('Remove from session'));
+      await tester.pumpAndSettle();
+      expect(removed, ['a']);
+    });
+
+    testWidgets('rows are not swipeable and no control without callbacks',
+        (tester) async {
+      await pumpWithActions(tester, edited: [], removed: []);
+      expect(find.byType(Dismissible), findsNothing);
+
+      await pumpRoster(
+        tester,
+        session: sessionWith(members: [alice]),
+        families: [smiths],
+        toggleLog: <ToggleCall>[],
+      );
+      expect(find.byTooltip('More actions for Alice'), findsNothing);
+    });
   });
 
   testWidgets('the skeleton crossfades into the roster after 800 ms (#222 M7)',
