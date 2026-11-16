@@ -88,5 +88,15 @@ void main() {
       });
       expect(fromJson.title, 'Json Trim');
     });
+
+    test('a late-flagged record round-trips through JSON unchanged', () {
+      final late = session.copyWith(records: [record.copyWith(isLate: true)]);
+      final json = late.toJson();
+      expect((json['records'] as List).single['isLate'], isTrue);
+      final restored = Session.fromJson(json);
+      expect(restored.records.single.isLate, isTrue);
+      expect(restored.records.single.status, AttendanceStatus.present);
+      expect(restored.toJson(), json);
+    });
   });
 }
