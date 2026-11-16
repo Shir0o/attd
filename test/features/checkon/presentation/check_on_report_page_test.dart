@@ -119,6 +119,19 @@ void main() {
     expect(find.text('Bob'), findsOneWidget);
   });
 
+  testWidgets('the filter falls back to All when its event goes away',
+      (tester) async {
+    final repo = await _pump(tester, twoEvents: true);
+    await tester.tap(find.widgetWithText(InkWell, 'Prayer').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Bob'), findsNothing);
+
+    repo.emit([repo.events.first]);
+    await tester.pumpAndSettle();
+    expect(find.text('Bob'), findsOneWidget);
+    expect(find.text('All'), findsNothing);
+  });
+
   testWidgets('ticking drops the person to the bottom, dimmed; un-tick undoes',
       (tester) async {
     final semantics = tester.ensureSemantics();

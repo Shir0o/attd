@@ -28,6 +28,12 @@ class FakeCheckOnEventRepository extends EventRepository {
     yield* _changes.stream;
   }
 
+  /// Replaces the list, as if another screen changed the events.
+  void emit(List<Event> next) {
+    events = [...next];
+    _changes.add([...events]);
+  }
+
   @override
   Future<void> updateEvent(Event event) async {
     updated.add(event);
