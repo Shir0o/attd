@@ -207,7 +207,6 @@ class _LikelyHereViewState extends State<LikelyHereView> {
     final roster = widget.roster;
 
     // Stable A to Z order; marking never shuffles it.
-    final unmarked = roster.unmarked;
     final ordered = _ordered;
     final firstIndex = <String, int>{};
     for (var i = 0; i < ordered.length; i++) {
@@ -219,132 +218,100 @@ class _LikelyHereViewState extends State<LikelyHereView> {
         : firstIndex.keys.firstOrNull;
     final scrubbing = _scrubbing;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const ConvEyebrow('Likely here'),
-              const SizedBox(width: 12),
-              // Expanded, not a Spacer + bare Text: the eyebrow's wide letter
-              // spacing plus this caption is more than a phone's width.
-              Expanded(
-                child: Text(
-                  '${unmarked.length} left',
-                  key: const Key('likelyHereRemaining'),
-                  // ink3, not ink4: small caption text needs WCAG AA.
-                  style: AppTypography.geist(fontSize: 11.5, color: c.ink3),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
+        Positioned.fill(
+          child: ordered.isEmpty
+              ? Center(
+                  child: Text(
+                    'Nobody on this roster yet.',
+                    style: AppTypography.geist(fontSize: 14, color: c.ink3),
+                  ),
+                )
+              : GridView.builder(
+                  controller: _scroll,
+                  // The side paddings are the scrub gutter (left) and
+                  // the letter strip (right), so neither covers a tile.
+                  // Bottom padding clears the floating pill so the last
+                  // row can scroll out from under it.
+                  padding: const EdgeInsets.fromLTRB(
+                    _gutterWidth,
+                    0,
+                    _stripWidth,
+                    96,
+                  ),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _columns,
+                    mainAxisExtent: _tileExtent,
+                    crossAxisSpacing: _tileSpacing,
+                    mainAxisSpacing: _tileSpacing,
+                  ),
+                  itemCount: ordered.length,
+                  itemBuilder: (context, i) => _LikelyChip(
+                    key: LikelyHereView._chipKey(ordered[i].id),
+                    member: ordered[i],
+                    index: roster.index,
+                    isPresent: roster.isPresent(ordered[i]),
+                    onTap: () => _toggle(ordered[i]),
+                    disableAnimations: widget.disableAnimations,
+                  ),
                 ),
+        ),
+        if (firstIndex.isNotEmpty) ...[
+          // Left gutter: the same scrub as the strip, invisible.
+          // Vertical drags only, so horizontal edge swipes (system
+          // back) pass through, and taps on it do nothing.
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _gutterWidth,
+            child: LayoutBuilder(
+              builder: (context, box) => GestureDetector(
+                key: const Key('likelyHereLetterGutter'),
+                behavior: HitTestBehavior.opaque,
+                excludeFromSemantics: true,
+                onVerticalDragStart: (d) =>
+                    _scrubAt(d.localPosition.dy, box.maxHeight),
+                onVerticalDragUpdate: (d) =>
+                    _scrubAt(d.localPosition.dy, box.maxHeight),
+                onVerticalDragEnd: (_) => _endScrub(),
+                onVerticalDragCancel: _endScrub,
               ),
-            ],
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: _stripWidth,
+            child: _LetterStrip(
+              letters: firstIndex.keys.toList(growable: false),
+              current: current!,
+              onScrub: _scrubAt,
+              onEnd: _endScrub,
+              onStep: _step,
+            ),
+          ),
+        ],
+        Positioned(
+          // Beside the strip, not on it.
+          right: firstIndex.isEmpty ? 16 : _stripWidth + 4,
+          bottom: LikelyHereView.addSomeoneInset,
+          child: _AddSomeonePill(
+            sourceKey: widget.addSomeoneKey,
+            onTap: widget.onAddGuest,
+            disableAnimations: widget.disableAnimations,
           ),
         ),
-        Expanded(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: ordered.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Nobody on this roster yet.',
-                          style:
-                              AppTypography.geist(fontSize: 14, color: c.ink3),
-                        ),
-                      )
-                    : GridView.builder(
-                        controller: _scroll,
-                        // The side paddings are the scrub gutter (left) and
-                        // the letter strip (right), so neither covers a tile.
-                        // Bottom padding clears the floating pill so the last
-                        // row can scroll out from under it.
-                        padding: const EdgeInsets.fromLTRB(
-                          _gutterWidth,
-                          0,
-                          _stripWidth,
-                          96,
-                        ),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: _columns,
-                          mainAxisExtent: _tileExtent,
-                          crossAxisSpacing: _tileSpacing,
-                          mainAxisSpacing: _tileSpacing,
-                        ),
-                        itemCount: ordered.length,
-                        itemBuilder: (context, i) => _LikelyChip(
-                          key: LikelyHereView._chipKey(ordered[i].id),
-                          member: ordered[i],
-                          index: roster.index,
-                          isPresent: roster.isPresent(ordered[i]),
-                          onTap: () => _toggle(ordered[i]),
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                      ),
+        if (scrubbing != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: Center(child: _LetterBubble(letter: scrubbing)),
               ),
-              if (firstIndex.isNotEmpty) ...[
-                // Left gutter: the same scrub as the strip, invisible.
-                // Vertical drags only, so horizontal edge swipes (system
-                // back) pass through, and taps on it do nothing.
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: _gutterWidth,
-                  child: LayoutBuilder(
-                    builder: (context, box) => GestureDetector(
-                      key: const Key('likelyHereLetterGutter'),
-                      behavior: HitTestBehavior.opaque,
-                      excludeFromSemantics: true,
-                      onVerticalDragStart: (d) =>
-                          _scrubAt(d.localPosition.dy, box.maxHeight),
-                      onVerticalDragUpdate: (d) =>
-                          _scrubAt(d.localPosition.dy, box.maxHeight),
-                      onVerticalDragEnd: (_) => _endScrub(),
-                      onVerticalDragCancel: _endScrub,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: _stripWidth,
-                  child: _LetterStrip(
-                    letters: firstIndex.keys.toList(growable: false),
-                    current: current!,
-                    onScrub: _scrubAt,
-                    onEnd: _endScrub,
-                    onStep: _step,
-                  ),
-                ),
-              ],
-              Positioned(
-                // Beside the strip, not on it.
-                right: firstIndex.isEmpty ? 16 : _stripWidth + 4,
-                bottom: LikelyHereView.addSomeoneInset,
-                child: _AddSomeonePill(
-                  sourceKey: widget.addSomeoneKey,
-                  onTap: widget.onAddGuest,
-                  disableAnimations: widget.disableAnimations,
-                ),
-              ),
-              if (scrubbing != null)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: ExcludeSemantics(
-                      child: Center(child: _LetterBubble(letter: scrubbing)),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
       ],
     );
   }

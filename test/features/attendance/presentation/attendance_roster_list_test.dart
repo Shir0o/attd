@@ -1,5 +1,4 @@
 import 'package:attendance_tracker/core/design/app_shimmer.dart';
-import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
@@ -527,72 +526,6 @@ void main() {
     expect(find.text('Marked present · late'), findsOneWidget);
   });
 
-  group('Confirm CTA press feedback', () {
-    Future<void> pumpConfirm(
-      WidgetTester tester, {
-      bool disableAnimations = false,
-    }) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              height: 800,
-              child: AttendanceRosterList(
-                session: sessionWith(
-                  members: [alice, bob],
-                  seedStatus: AttendanceStatus.present,
-                ),
-                families: [smiths],
-                initialGrouping: RosterGrouping.byFamily,
-                confirmMode: true,
-                onConfirm: () {},
-                disableAnimations: disableAnimations,
-                onToggle: (m, p) async {},
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-    }
-
-    Finder scaleTransform() => find.descendant(
-      of: find.byType(ConvPressable),
-      matching: find.byType(Transform),
-    );
-
-    testWidgets('presses in while held when motion is on', (tester) async {
-      await pumpConfirm(tester);
-      final cta = find.byKey(const Key('rosterConfirmButton'));
-      final gesture = await tester.startGesture(tester.getCenter(cta));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 110));
-      expect(
-        tester.widget<Transform>(scaleTransform().first).transform.entry(0, 0),
-        closeTo(0.97, 0.001),
-      );
-      await gesture.up();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('separates from the list by tone, not a border', (tester) async {
-      await pumpConfirm(tester);
-      final bar = tester.widget<Container>(
-        find.byKey(const Key('rosterConfirmBar')),
-      );
-      final decoration = bar.decoration! as BoxDecoration;
-      expect(decoration.border, isNull);
-      final c = tester.element(find.byKey(const Key('rosterConfirmBar'))).conv;
-      expect(decoration.color, c.bg2);
-    });
-
-    testWidgets('does not scale when motion is disabled', (tester) async {
-      await pumpConfirm(tester, disableAnimations: true);
-      expect(find.byType(ConvPressable), findsOneWidget);
-      expect(scaleTransform(), findsNothing);
-    });
-  });
-
   testWidgets('the skeleton crossfades into the roster after 800 ms (#222 M7)',
       (tester) async {
     await tester.pumpWidget(
@@ -642,70 +575,6 @@ void main() {
         );
         expect(find.text('VISITORS / OTHERS'), findsOneWidget);
         expect(tester.takeException(), isNull);
-      });
-    }
-  });
-
-  group('grouping row at large text', () {
-    final pill = find.byKey(const Key('rosterMarkAllPresent'));
-    final label = find.text('Grouped by family');
-
-    Future<List<BulkMarkChoice>> pumpPreset(
-      WidgetTester tester,
-      double scale, {
-      double width = 390,
-    }) async {
-      tester.view.physicalSize = Size(width, 844);
-      tester.view.devicePixelRatio = 1;
-      tester.platformDispatcher.textScaleFactorTestValue = scale;
-      addTearDown(tester.view.reset);
-      addTearDown(tester.platformDispatcher.clearAllTestValues);
-      final marked = <BulkMarkChoice>[];
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AttendanceRosterList(
-              session: sessionWith(members: [alice, bob]),
-              families: [smiths],
-              showGroupingToggle: false,
-              showGroupingPreset: true,
-              showSearch: false,
-              disableAnimations: true,
-              onToggle: (_, __) async {},
-              onMarkAll: (choice) async => marked.add(choice),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      return marked;
-    }
-
-    testWidgets('label and All present share one line when they fit',
-        (tester) async {
-      // The test font is wider than the app's, so give it a wider screen.
-      await pumpPreset(tester, 1.0, width: 600);
-      expect(tester.takeException(), isNull);
-      expect(
-        tester.getCenter(pill).dy,
-        closeTo(tester.getCenter(label).dy, 1),
-      );
-      expect(tester.getRect(pill).right, closeTo(600 - 16, 0.5));
-    });
-
-    for (final scale in [1.3, 2.0]) {
-      testWidgets('All present drops below the label at ${scale}x text',
-          (tester) async {
-        final marked = await pumpPreset(tester, scale);
-        expect(tester.takeException(), isNull);
-        expect(
-          tester.getRect(pill).top,
-          greaterThanOrEqualTo(tester.getRect(label).bottom),
-        );
-        expect(tester.getRect(pill).right, lessThanOrEqualTo(390 - 16));
-        expect(tester.getRect(label).right, lessThanOrEqualTo(390 - 16));
-        await tester.tap(pill);
-        expect(marked, [BulkMarkChoice.present]);
       });
     }
   });

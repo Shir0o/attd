@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
+import 'package:attendance_tracker/features/attendance/presentation/fast_marking/likely_here_view.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 
 import '../utils/test_utils.dart';
@@ -10,79 +10,42 @@ class AttendanceRobot {
 
   final WidgetTester tester;
 
-  /// Selects the speed-swipe deck.
-  ///
-  /// A session now opens on the event's fast marking mode (Likely here by
-  /// default), so anything that drives the deck has to ask for it first. A
-  /// no-op when the deck is already showing, or when the event has fast
-  /// marking off and the deck is the entry view.
-  Future<void> useDeck() async {
-    print('DEBUG: useDeck');
-    if (find.byType(SwipeableCard).evaluate().isNotEmpty) return;
-    final deckSegment = find.text('Deck');
-    await tester.pumpUntilFound(deckSegment);
-    await tester.tap(deckSegment);
-    await tester.pumpAndSettle();
-    await tester.pumpUntilFound(find.byType(SwipeableCard));
+  /// Every name tile on the marking grid, A to Z.
+  Finder get _tiles => find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('likelyHereChip_'),
+      );
+
+  /// Waits for the marking grid, which is the only way to take attendance.
+  Future<void> waitForGrid() async {
+    print('DEBUG: waitForGrid');
+    await tester.pumpUntilFound(find.byType(LikelyHereView));
+    await tester.pumpUntilFound(_tiles.first);
   }
 
-  Future<void> verifyCardName(String name) async {
-    print('DEBUG: verifyCardName($name)');
+  Future<void> verifyName(String name) async {
+    print('DEBUG: verifyName($name)');
     final finder = find.text(name);
     await tester.pumpUntilFound(finder);
     expect(finder, findsWidgets);
   }
 
-  Future<void> markPresent() async {
-    print('DEBUG: markPresent');
-    final finder = find.byKey(const Key('presentButton'));
-    if (finder.evaluate().isNotEmpty) {
-      await tester.tap(finder);
-    } else {
-      await swipePresent();
-    }
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> markAbsent() async {
-    print('DEBUG: markAbsent');
-    final finder = find.byKey(const Key('absentButton'));
-    if (finder.evaluate().isNotEmpty) {
-      await tester.tap(finder);
-    } else {
-      await swipeAbsent();
-    }
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> swipePresent() async => swipeRight();
-  Future<void> swipeAbsent() async => swipeLeft();
-
-  Future<void> undo() async {
-    print('DEBUG: undo');
-    final finder = find.byKey(const Key('undoButton'));
-    await tester.pumpUntilFound(finder);
-    await tester.tap(finder);
+  /// Taps the [index]th tile (A to Z) to mark that person present, or to take
+  /// the mark back off.
+  Future<void> toggleTile(int index) async {
+    print('DEBUG: toggleTile($index)');
+    final tile = _tiles.at(index);
+    await tester.ensureVisible(tile);
+    await tester.tap(tile);
     await tester.pumpAndSettle();
   }
 
   Future<void> addGuest(String name, {bool isPresent = true}) async {
     print('DEBUG: addGuest($name)');
-    // "Add guest" was relocated out of the header: a ghost button below the
-    // deck actions, and a dashed row at the end of the roster list. Use
-    // whichever surface is currently showing.
-    final deckButton = find.byKey(const Key('deckAddGuestButton'));
-    final listRow = find.byKey(const Key('rosterAddGuestRow'));
-    await tester.pumpUntilFound(
-      find.byWidgetPredicate(
-        (w) => w.key == const Key('deckAddGuestButton') ||
-            w.key == const Key('rosterAddGuestRow'),
-      ),
-    );
-    final addTarget =
-        deckButton.evaluate().isNotEmpty ? deckButton : listRow;
-    await tester.ensureVisible(addTarget);
-    await tester.tap(addTarget);
+    final pill = find.byKey(const Key('likelyHereAddGuest'));
+    await tester.pumpUntilFound(pill);
+    await tester.tap(pill);
     await tester.pumpAndSettle();
 
     final nameField = find.byType(TextField);
@@ -92,36 +55,10 @@ class AttendanceRobot {
     final submitButton = find.byKey(const Key('addSheetAddToRoster'));
     await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
-    
+
     // Wait for bottom sheet to close
     await tester.pumpAndSettle();
-    await tester.pumpUntilAbsent(find.text('Add someone'));
-  }
-
-  Future<void> swipeRight() async {
-    print('DEBUG: swipeRight');
-    final cardFinder = find.byType(SwipeableCard);
-    await tester.drag(cardFinder, const Offset(500, 0));
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> swipeLeft() async {
-    print('DEBUG: swipeLeft');
-    final cardFinder = find.byType(SwipeableCard);
-    await tester.drag(cardFinder, const Offset(-500, 0));
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> verifyDeckComplete() async {
-    print('DEBUG: verifyDeckComplete');
-    // It could be the button or we already navigated to Summary
-    final finder = find.byWidgetPredicate((widget) => 
-        (widget is Text && widget.data == 'Finalize Report') ||
-        (widget is SessionSummaryPage)
-    );
-    await tester.pumpUntilFound(finder);
+    await tester.pumpUntilAbsent(find.byKey(const Key('addSheetNameField')));
   }
 
   Future<void> verifyMemberStatus(String memberName, String status) async {
@@ -140,21 +77,22 @@ class AttendanceRobot {
       messenger.clearSnackBars();
       await tester.pump(const Duration(milliseconds: 500));
     }
-    
+
     // Check if we are already on summary page
     if (find.byType(SessionSummaryPage).evaluate().isNotEmpty) {
-        print('DEBUG: Already on SessionSummaryPage, skipping tap');
-        return;
+      print('DEBUG: Already on SessionSummaryPage, skipping tap');
+      return;
     }
 
-    // Wait for "Finalize Report" button
-    final buttonFinder = find.text('Finalize Report');
-    await tester.pumpUntilFound(buttonFinder);
-    
-    print('DEBUG: Tapping Finalize Report button');
-    await tester.tap(buttonFinder);
+    // Done saves the marks and opens the summary.
+    final done = find.byKey(const Key('finishSessionButton'));
+    await tester.pumpUntilFound(done);
+
+    print('DEBUG: Tapping Done');
+    await tester.tap(done);
     await tester.pumpAndSettle();
-    
+    await tester.pumpUntilFound(find.byType(SessionSummaryPage));
+
     // Extra pump for SessionSummaryPage skeleton
     await tester.pump(const Duration(milliseconds: 1000));
     print('DEBUG: finishSession completed');
