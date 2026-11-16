@@ -11,13 +11,12 @@ import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
-import 'package:attendance_tracker/features/sessions/presentation/insights_page.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 
 import '../../../helpers/mocks.dart';
 
-/// The Hub is the only way into Insights, so these cover the entry itself:
-/// the sliver on the event card and the menu item beside View History.
+/// Insights was removed in favour of "Who to check on": the event card has no
+/// attendance-rate strip and the event menu has no View Insights item.
 DateTime _week(int i) => DateTime(2026, 1, 7).add(Duration(days: 7 * i));
 
 final _alice = Member(id: 'm1', displayName: 'Alice Okonkwo');
@@ -59,9 +58,8 @@ List<Session> _history() => [
             SessionRecord(
               memberId: 'm2',
               attendee: 'Bob Castellanos',
-              status: i.isEven
-                  ? AttendanceStatus.present
-                  : AttendanceStatus.absent,
+              status:
+                  i.isEven ? AttendanceStatus.present : AttendanceStatus.absent,
               recordedAt: _week(i),
               recordedBy: 'user',
             ),
@@ -118,47 +116,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('the event card carries an insights sliver', (tester) async {
+  testWidgets('the event card has no attendance-rate strip', (tester) async {
     await pumpHub(tester);
 
-    expect(find.textContaining('over 8 sessions'), findsWidgets);
+    expect(find.text('Wednesday Study'), findsWidgets);
+    expect(find.textContaining('over 8 sessions'), findsNothing);
+    expect(find.textContaining('% over'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('View insights')), findsNothing);
   });
 
-  testWidgets('a single tracked session is described in the singular',
-      (tester) async {
-    await pumpHub(tester, history: _history().take(1).toList());
-
-    expect(find.textContaining('over 1 session'), findsWidgets);
-    expect(find.textContaining('over 1 sessions'), findsNothing);
-  });
-
-  testWidgets('tapping the sliver opens Insights for that event',
-      (tester) async {
-    await pumpHub(tester);
-
-    final sliver = find.textContaining('over 8 sessions').first;
-    await tester.ensureVisible(sliver);
-    await tester.pumpAndSettle();
-    await tester.tap(sliver);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(InsightsPage), findsOneWidget);
-    expect(find.text('INSIGHTS'), findsOneWidget);
-  });
-
-  testWidgets('the event menu offers View Insights beside View History',
+  testWidgets('the event menu has View History but no View Insights',
       (tester) async {
     await pumpHub(tester);
 
     await tester.tap(find.byIcon(Icons.more_vert).first);
     await tester.pumpAndSettle();
 
-    expect(find.text('View Insights'), findsOneWidget);
     expect(find.text('View History'), findsOneWidget);
-
-    await tester.tap(find.text('View Insights'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(InsightsPage), findsOneWidget);
+    expect(find.text('View Insights'), findsNothing);
+    expect(find.byIcon(Icons.insights_outlined), findsNothing);
   });
 }
