@@ -296,7 +296,7 @@ bool _cameTo(Session session, Member member, bool matchByName) {
 }
 
 /// Live roster members, one per id. An empty roster on the event means
-/// everyone, as for Insights and marking.
+/// everyone, as for marking.
 List<Member> _rosterFor(Event event, List<Member> members) {
   final seen = <String>{};
   final active = members.where((m) => m.deletedAt == null && seen.add(m.id));
