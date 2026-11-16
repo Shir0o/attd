@@ -13,12 +13,8 @@ import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
-import '../utils/bulk_attendance.dart';
 
 final _log = AppLogger('AttendanceMarkingSession');
-
-/// Result of applying bulk smart defaults across a marking session.
-typedef BulkSmartResult = ({List<SessionRecord> records, int resolved});
 
 /// The in-process domain module and state coordinator governing active
 /// attendance recording, optimistic persistence serialization, undo history,
@@ -276,133 +272,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
       isPresent ? AttendanceStatus.present : AttendanceStatus.absent,
       actor: actor,
     );
-  }
-
-  /// Toggles the present-but-late flag on [member]'s existing present record.
-  Future<void> toggleLate(Member member, {String? actor}) async {
-    final cleanId = cleanMemberId(member.isVisitor ? null : member.id);
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-
-    SessionRecord? target;
-    var targetIndex = -1;
-    for (var i = 0; i < updatedRecords.length; i++) {
-      final r = updatedRecords[i];
-      final rCleanId = cleanMemberId(r.memberId);
-      final byId = cleanId != null && rCleanId == cleanId;
-      final byName = rCleanId == null && r.attendee == member.displayName;
-      if (byId || byName) {
-        target = r;
-        targetIndex = i;
-        if (byId) break; // member-keyed record wins over a name match
-      }
-    }
-    if (target == null || targetIndex < 0) return;
-
-    _pushUndoState();
-    final updatedRecord = target.copyWith(
-      isLate: !target.isLate,
-      recordedAt: DateTime.now(),
-      recordedBy: actor ?? _defaultActor,
-    );
-    updatedRecords[targetIndex] = updatedRecord;
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: DateTime.now(),
-    );
-
-    _currentSession = updatedSession;
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-  }
-
-  /// Marks every member of [family] present or absent in a single atomic snapshot.
-  Future<void> markFamily(
-    Family family,
-    bool isPresent, {
-    String? actor,
-  }) async {
-    _pushUndoState();
-    final now = DateTime.now();
-    final status =
-        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-
-    for (final m in family.members) {
-      final mid = cleanMemberId(m.isVisitor ? null : m.id);
-      updatedRecords.removeWhere((r) => _matchesRecord(
-            r,
-            memberId: mid,
-            attendeeName: m.displayName,
-          ));
-      updatedRecords.add(SessionRecord(
-        memberId: mid,
-        attendee: m.displayName,
-        status: status,
-        recordedAt: now,
-        recordedBy: actor ?? _defaultActor,
-      ));
-    }
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-
-    _currentSession = updatedSession;
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-  }
-
-  /// Marks all specified [members] present or absent in a single atomic snapshot.
-  Future<void> markAll(
-    List<Member> members, {
-    required bool present,
-    String? actor,
-  }) async {
-    _pushUndoState();
-    final now = DateTime.now();
-    final updatedRecords = applyBulkRecords(
-      previousRecords: _currentSession.records,
-      members: members,
-      present: present,
-      recordedAt: now,
-    );
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-
-    _currentSession = updatedSession;
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-  }
-
-  /// Applies smart defaults based on recent attendance history.
-  Future<BulkSmartResult> markAllSmart({
-    required List<Member> members,
-    required List<Session> recentSessions,
-    String? actor,
-  }) async {
-    _pushUndoState();
-    final now = DateTime.now();
-    final result = applyBulkSmartRecords(
-      previousRecords: _currentSession.records,
-      members: members,
-      recentSessions: recentSessions,
-      recordedAt: now,
-    );
-
-    final updatedSession = _currentSession.copyWith(
-      records: result.records,
-      updatedAt: now,
-    );
-
-    _currentSession = updatedSession;
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-    return result;
   }
 
   /// Writes an explicit absent record for every roster member who has no

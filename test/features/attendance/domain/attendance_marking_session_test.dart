@@ -358,28 +358,6 @@ void main() {
       );
     });
 
-    test('toggleLate flips isLate without dropping status and resolves both members and guests', () async {
-      final markingSession = AttendanceMarkingSession(
-        session: baseSession,
-        baseMembers: [memberA, memberB],
-        sessionRepository: sessionRepo,
-      );
-
-      expect(markingSession.isLate(memberA), isFalse);
-      await markingSession.toggleLate(memberA);
-      expect(markingSession.isLate(memberA), isTrue);
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-
-      await markingSession.toggleLate(memberA);
-      expect(markingSession.isLate(memberA), isFalse);
-
-      // Now add a guest and toggle late
-      final guest = await markingSession.addGuest('Visitor Dave');
-      expect(markingSession.isLate(guest), isFalse);
-      await markingSession.toggleLate(guest);
-      expect(markingSession.isLate(guest), isTrue);
-    });
-
     test('addGuest records mark with null memberId without modifying Event or Directory', () async {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
@@ -519,47 +497,6 @@ void main() {
             .status,
         AttendanceStatus.absent,
       );
-    });
-
-    test('markFamily updates all members as a single atomic snapshot', () async {
-      final family = Family(
-        id: 'fam-ab',
-        displayName: 'Test Household',
-        members: [memberA, memberB],
-      );
-
-      final markingSession = AttendanceMarkingSession(
-        session: baseSession,
-        baseMembers: [memberA, memberB],
-        families: [family],
-        sessionRepository: sessionRepo,
-      );
-
-      await markingSession.markFamily(family, true);
-      await markingSession.drain();
-
-      expect(sessionRepo.savedSnapshots.length, 1);
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.present);
-
-      // Undo family mark
-      await markingSession.undo();
-      await markingSession.drain();
-
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
-    });
-
-    test('markAll marks every given member in one snapshot', () async {
-      final markingSession = AttendanceMarkingSession(
-        session: baseSession,
-        baseMembers: [memberA, memberB],
-        sessionRepository: sessionRepo,
-      );
-
-      await markingSession.markAll([memberA, memberB], present: false);
-      expect(markingSession.getStatus(memberA), AttendanceStatus.absent);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
     });
 
     test('editMemberName and removeMemberFromSession update records properly', () async {
