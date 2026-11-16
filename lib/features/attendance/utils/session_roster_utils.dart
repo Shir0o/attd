@@ -1,10 +1,7 @@
 import '../../../data/session.dart';
 import '../../../data/session_record.dart';
-import '../domain/active_roster_index.dart';
 import '../models/attendance_status.dart';
 import '../models/member.dart';
-
-export '../domain/active_roster_index.dart' show SearchEntry;
 
 class SessionRoster {
   final Map<String, SessionRecord> recordByMemberId = {};
@@ -113,49 +110,3 @@ class SessionRoster {
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fast-marking search helpers (Delegating to ActiveRosterIndex)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// How well [haystack] matches [query] — **lower is better**:
-///
-/// * `0` — [haystack] starts with the query
-/// * `1` — a later word in [haystack] starts with the query
-/// * `2` — the query appears somewhere else inside [haystack]
-///
-/// `null` when the query does not appear at all, and for a blank query.
-int? matchRank(String haystack, String query) =>
-    ActiveRosterIndex.calculateMatchRank(haystack, query);
-
-/// The last whitespace-separated token of [displayName], or the whole name if
-/// single-token. Returns an empty string for blank input.
-String memberLastName(String displayName) =>
-    ActiveRosterIndex.extractLastName(displayName);
-
-/// All whitespace-separated tokens except the last of [displayName], or the
-/// whole name if single-token. Returns an empty string for blank input.
-String memberGivenName(String displayName) =>
-    ActiveRosterIndex.extractGivenName(displayName);
-
-/// The first-name and surname initials of [displayName].
-({String first, String last}) nameInitials(String displayName) =>
-    ActiveRosterIndex.extractInitials(displayName);
-
-/// First-name initial → the surname initials available under it.
-Map<String, Set<String>> initialsIndex(Iterable<Member> members) =>
-    ActiveRosterIndex(members: members.toList()).initialsIndex();
-
-/// How well one [entry] matches [query] — lower is better, `null` for no
-/// match. A family-name match always ranks worse than any display-name match.
-int? searchRank(SearchEntry entry, String query) =>
-    ActiveRosterIndex.calculateSearchRank(entry, query);
-
-/// The [entries] matching [query], best match first.
-List<SearchEntry> rankedSearch(
-  Iterable<SearchEntry> entries,
-  String query, {
-  Map<String, int> priority = const {},
-}) =>
-    ActiveRosterIndex.executeRankedSearch(entries, query, priority: priority);
-

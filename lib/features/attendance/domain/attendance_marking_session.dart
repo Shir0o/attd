@@ -13,12 +13,8 @@ import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
 import '../models/family.dart';
 import '../models/member.dart';
-import '../utils/bulk_attendance.dart';
 
 final _log = AppLogger('AttendanceMarkingSession');
-
-/// Result of applying bulk smart defaults across a marking session.
-typedef BulkSmartResult = ({List<SessionRecord> records, int resolved});
 
 /// The in-process domain module and state coordinator governing active
 /// attendance recording, optimistic persistence serialization, undo history,
@@ -44,8 +40,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     if (families != null && families.isNotEmpty) {
       _baseFamilies = List.from(families);
     }
-    _snapshotBaseline(_currentSession);
-    _updateTouchedTracking(_currentSession);
 
     if (streamUpdates) {
       if (_attendanceRepository != null) {
@@ -80,12 +74,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
 
   final List<Session> _undoStack = [];
   static const int _maxUndoDepth = 50;
-
-  final Map<String, AttendanceStatus> _baselineStatus = {};
-  late final List<SessionRecord> _baselineRecords;
-
-  final Set<String> _touchedMemberIds = {};
-  final Set<String> _touchedMemberNames = {};
 
   Future<void> _saveQueue = Future.value();
   final StreamController<Object> _saveErrorController =
@@ -132,40 +120,21 @@ class AttendanceMarkingSession extends ChangeNotifier {
     ];
   }
 
-  /// Initial preseed baseline status map for confirm mode diff tracking.
-  Map<String, AttendanceStatus> get baselineStatus =>
-      Map.unmodifiable(_baselineStatus);
-
   /// Whether an undo action is available.
   bool get canUndo => _undoStack.isNotEmpty;
 
   /// Depth of the undo stack.
   int get undoDepth => _undoStack.length;
 
-  /// Whether the user has made any non-preseed marks in this session.
-  bool get hasUserEdits =>
-      _touchedMemberIds.isNotEmpty || _touchedMemberNames.isNotEmpty;
-
-  /// Set of member IDs touched by user edits in this session.
-  Set<String> get touchedMemberIds => Set.unmodifiable(_touchedMemberIds);
-
-  /// Set of attendee names touched by user edits in this session.
-  Set<String> get touchedMemberNames => Set.unmodifiable(_touchedMemberNames);
+  /// Whether anyone has been marked in this session. A new session starts with
+  /// no records, so this is false until the first mark.
+  bool get hasUserEdits => _currentSession.records.isNotEmpty;
 
   /// Stream of save errors emitted during background writes.
   Stream<Object> get saveErrors => _saveErrorController.stream;
 
   /// Future of all currently enqueued background writes.
   Future<void> get pendingSaves => _saveQueue;
-
-  /// Count of members whose current status differs from their baseline preseed.
-  int get changedCount {
-    var count = 0;
-    for (final m in _sessionMembers) {
-      if (isChanged(m)) count++;
-    }
-    return count;
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Identity Resolution Helpers
@@ -232,39 +201,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     return findRecordFor(member)?.isLate ?? false;
   }
 
-  /// Returns the baseline preseed status for [member], if one was recorded.
-  AttendanceStatus? baselineFor(Member member) {
-    final cleanId = cleanMemberId(member.isVisitor ? null : member.id);
-    if (cleanId != null && _baselineStatus.containsKey(cleanId)) {
-      return _baselineStatus[cleanId];
-    }
-    return _baselineStatus[member.displayName];
-  }
-
-  /// Returns whether [member]'s current status differs from their preseed baseline.
-  bool isChanged(Member member) {
-    final baseline = baselineFor(member);
-    if (baseline == null) return false;
-    return getStatus(member) != baseline;
-  }
-
-  /// Returns whether [member] has been explicitly touched by a user action.
-  bool isTouched(Member member) {
-    final cleanId = cleanMemberId(member.isVisitor ? null : member.id);
-    if (cleanId != null && _touchedMemberIds.contains(cleanId)) {
-      return true;
-    }
-    return _touchedMemberNames.contains(member.displayName);
-  }
-
-  /// Resolves the family containing [member], if any.
-  Family? familyForMember(Member member) {
-    for (final f in sessionFamilies) {
-      if (f.members.any((m) => m.id == member.id)) return f;
-    }
-    return null;
-  }
-
   // ─────────────────────────────────────────────────────────────────────────
   // Marking Mutations
   // ─────────────────────────────────────────────────────────────────────────
@@ -321,7 +257,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -339,149 +274,43 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
   }
 
-  /// Toggles the present-but-late flag on [member]'s existing present record.
-  Future<void> toggleLate(Member member, {String? actor}) async {
-    final cleanId = cleanMemberId(member.isVisitor ? null : member.id);
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-
-    SessionRecord? target;
-    var targetIndex = -1;
-    for (var i = 0; i < updatedRecords.length; i++) {
-      final r = updatedRecords[i];
-      final rCleanId = cleanMemberId(r.memberId);
-      final byId = cleanId != null && rCleanId == cleanId;
-      final byName = rCleanId == null && r.attendee == member.displayName;
-      if (byId || byName) {
-        target = r;
-        targetIndex = i;
-        if (byId) break; // member-keyed record wins over a name match
-      }
+  /// Writes an explicit absent record for every roster member who has no
+  /// record yet, so a finished session holds one record per roster member.
+  /// Guests and members excluded from the session are skipped, existing records
+  /// are never touched, and nothing is written when no one is missing. Called
+  /// when the session is finished, not at start, so [hasUserEdits] still means
+  /// "the user marked something" while it is being filled in.
+  Future<void> recordAbsencesForUnmarked({
+    String recordedBy = 'System (Preseed)',
+  }) async {
+    final excluded = _currentSession.excludedMemberIds.toSet();
+    final seen = <String>{};
+    final missing = <Member>[];
+    for (final m in _sessionMembers) {
+      final id = m.id.trim();
+      if (isGuestMember(m) || excluded.contains(id) || !seen.add(id)) continue;
+      if (findRecordFor(m) == null) missing.add(m);
     }
-    if (target == null || targetIndex < 0) return;
+    if (missing.isEmpty) return;
 
-    _pushUndoState();
-    final updatedRecord = target.copyWith(
-      isLate: !target.isLate,
-      recordedAt: DateTime.now(),
-      recordedBy: actor ?? _defaultActor,
-    );
-    updatedRecords[targetIndex] = updatedRecord;
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: DateTime.now(),
-    );
-
-    _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-  }
-
-  /// Marks every member of [family] present or absent in a single atomic snapshot.
-  Future<void> markFamily(
-    Family family,
-    bool isPresent, {
-    String? actor,
-  }) async {
-    _pushUndoState();
     final now = DateTime.now();
-    final status =
-        isPresent ? AttendanceStatus.present : AttendanceStatus.absent;
-    final updatedRecords = List<SessionRecord>.from(_currentSession.records);
-
-    for (final m in family.members) {
-      final mid = cleanMemberId(m.isVisitor ? null : m.id);
-      updatedRecords.removeWhere((r) => _matchesRecord(
-            r,
-            memberId: mid,
-            attendeeName: m.displayName,
-          ));
-      updatedRecords.add(SessionRecord(
-        memberId: mid,
-        attendee: m.displayName,
-        status: status,
-        recordedAt: now,
-        recordedBy: actor ?? _defaultActor,
-      ));
-    }
-
     final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
+      records: [
+        ..._currentSession.records,
+        for (final m in missing)
+          SessionRecord(
+            memberId: m.id,
+            attendee: m.displayName,
+            status: AttendanceStatus.absent,
+            recordedAt: now,
+            recordedBy: recordedBy,
+          ),
+      ],
       updatedAt: now,
     );
-
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-  }
-
-  /// Marks all specified [members] present or absent in a single atomic snapshot.
-  Future<void> markAll(
-    List<Member> members, {
-    required bool present,
-    String? actor,
-  }) async {
-    _pushUndoState();
-    final now = DateTime.now();
-    final updatedRecords = applyBulkRecords(
-      previousRecords: _currentSession.records,
-      members: members,
-      present: present,
-      recordedAt: now,
-    );
-
-    final updatedSession = _currentSession.copyWith(
-      records: updatedRecords,
-      updatedAt: now,
-    );
-
-    _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-  }
-
-  /// Applies smart defaults based on recent attendance history.
-  Future<BulkSmartResult> markAllSmart({
-    required List<Member> members,
-    required List<Session> recentSessions,
-    String? actor,
-  }) async {
-    _pushUndoState();
-    final now = DateTime.now();
-    final result = applyBulkSmartRecords(
-      previousRecords: _currentSession.records,
-      members: members,
-      recentSessions: recentSessions,
-      recordedAt: now,
-    );
-
-    final updatedSession = _currentSession.copyWith(
-      records: result.records,
-      updatedAt: now,
-    );
-
-    _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
-    return result;
-  }
-
-  /// Restores every member to their initial preseed status baseline.
-  Future<void> resetToBaseline({String? actor}) async {
-    _pushUndoState();
-    final restored = _currentSession.copyWith(
-      records: _baselineRecords,
-      updatedAt: DateTime.now(),
-    );
-
-    _currentSession = restored;
-    _updateTouchedTracking(_currentSession);
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
+    await _enqueueSave(_currentSession);
   }
 
   /// Restores records from a previously saved snapshot.
@@ -496,7 +325,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = restored;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -633,7 +461,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -677,7 +504,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -700,7 +526,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
 
     final previousSession = _undoStack.removeLast();
     _currentSession = previousSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
     return _currentSession;
@@ -750,7 +575,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
         (newer.currentVersion == _currentSession.currentVersion &&
             newer.updatedAt.isAfter(_currentSession.updatedAt))) {
       _currentSession = newer;
-      _updateTouchedTracking(_currentSession);
       notifyListeners();
     }
   }
@@ -777,30 +601,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
       }
     }
     notifyListeners();
-  }
-
-  void _snapshotBaseline(Session session) {
-    _baselineRecords = List.unmodifiable(session.records);
-    _baselineStatus.clear();
-    for (final r in session.records) {
-      final cleanId = cleanMemberId(r.memberId);
-      final key = cleanId ?? r.attendee;
-      _baselineStatus[key] = r.status;
-    }
-  }
-
-  void _updateTouchedTracking(Session session) {
-    _touchedMemberIds.clear();
-    _touchedMemberNames.clear();
-    for (final r in session.records) {
-      if (r.recordedBy != 'System (Preseed)') {
-        final cleanId = cleanMemberId(r.memberId);
-        if (cleanId != null) {
-          _touchedMemberIds.add(cleanId);
-        }
-        _touchedMemberNames.add(r.attendee);
-      }
-    }
   }
 
   @override

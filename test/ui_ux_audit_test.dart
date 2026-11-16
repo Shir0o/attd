@@ -307,28 +307,18 @@ void main() {
       expect(find.text('Today'), findsOneWidget);
       await expectUsable(tester);
 
-      // ── Hub → event options sheet → Fast Marking Mode dialog ──────────
+      // ── Hub → event options sheet ──────────────────────────────────────
       final eventMenu = find.byTooltip('Event options').first;
       await tester.tap(eventMenu);
       await tester.pumpAndSettle();
-      expect(find.text('Fast Marking Mode'), findsOneWidget);
+      expect(find.text('Fast Marking Mode'), findsNothing);
+      expect(find.text('Delete Event'), findsOneWidget);
       // The destructive "Delete Event" row uses `context.conv.danger`.
       await expectUsable(tester);
       await maybeExpectGolden(tester, 'step_event_options_sheet');
 
-      await tester.tap(find.byKey(const Key('eventMenuFastMarkingMode')));
-      await tester.pumpAndSettle();
-      expect(
-        find.text(
-          'Choose the fast marking surface shown alongside Deck and List during attendance.',
-        ),
-        findsOneWidget,
-      );
-      await expectUsable(tester);
-      await maybeExpectGolden(tester, 'step_fast_marking_mode_sheet');
-
-      // Save closes the sheet without changing the seeded event.
-      await tester.tap(find.byKey(const Key('markingModeConfirmButton')));
+      // Dismiss the sheet by tapping the scrim.
+      await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
       expect(find.text('Today'), findsOneWidget);
 

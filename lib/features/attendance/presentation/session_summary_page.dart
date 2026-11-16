@@ -16,7 +16,6 @@ import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
-import 'mark_everyone_sheet.dart';
 
 class SessionSummaryPage extends StatefulWidget {
   const SessionSummaryPage({
@@ -287,70 +286,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     await _markingSession.toggleMember(member, isPresent, actor: 'User');
   }
 
-  Future<void> _toggleFamilyAttendance(Family family, bool isPresent) async {
-    await _markingSession.markFamily(family, isPresent, actor: 'User');
-  }
-
-  Future<void> _markAllAttendance(BulkMarkChoice choice) async {
-    final allMembers = _displayFamilies.expand((f) => f.members).toList();
-
-    final String summary;
-    if (choice == BulkMarkChoice.smart) {
-      final recentSessions = await _loadRecentSessions();
-      final result = await _markingSession.markAllSmart(
-        members: allMembers,
-        recentSessions: recentSessions,
-        actor: 'User',
-      );
-      summary = result.resolved == 0
-          ? 'No members had enough history for a smart guess.'
-          : 'Applied smart defaults to ${result.resolved} '
-              '${result.resolved == 1 ? 'member' : 'members'}.';
-    } else {
-      final present = choice == BulkMarkChoice.present;
-      await _markingSession.markAll(
-        allMembers,
-        present: present,
-        actor: 'User',
-      );
-      summary = 'Marked ${allMembers.length} '
-          '${allMembers.length == 1 ? 'member' : 'members'} '
-          '${present ? 'present' : 'absent'}.';
-    }
-
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 6),
-        content: Text(summary),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => _markingSession.undo(actor: 'User'),
-        ),
-      ),
-    );
-  }
-
-  /// Loads past sessions (newest-first, excluding the current one) for the
-  /// smart-defaults bulk action.
-  Future<List<Session>> _loadRecentSessions() async {
-    try {
-      final all = await widget.sessionRepository.loadSessions();
-      final sorted = all.toList()
-        ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-      return sorted.where((s) => s.id != _currentSession.id).toList();
-    } catch (e) {
-      debugPrint('Error loading session history for smart defaults: $e');
-      return const [];
-    }
-  }
-
-  Future<void> _toggleLate(Member member) async {
-    await _markingSession.toggleLate(member, actor: 'User');
-  }
-
   Future<void> _editMemberName(Member member) async {
     final controller = TextEditingController(text: member.displayName);
 
@@ -427,30 +362,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         ),
       );
     }
-  }
-
-  void _showHistoryInfo() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.history, color: Colors.blue),
-            SizedBox(width: 12),
-            Text('Historical Snapshot'),
-          ],
-        ),
-        content: const Text(
-          'This report is a historical snapshot. It shows the names and status of people exactly as they were recorded on this day.\n\nChanges made in the global "Manage Members" settings will not affect this past report to ensure data integrity.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _deleteSession() async {
@@ -549,12 +460,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
               color: colorScheme.primary,
             ),
           IconButton(
-            tooltip: 'View data policy',
-            onPressed: _showHistoryInfo,
-            icon: const Icon(Icons.info_outline),
-            color: colorScheme.onSurfaceVariant,
-          ),
-          IconButton(
             tooltip: 'Add attendee',
             onPressed: _showAddMemberSheet,
             icon: const Icon(Icons.person_add),
@@ -634,12 +539,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                 session: _currentSession,
                 families: _displayFamilies,
                 onToggle: _toggleAttendance,
-                onFamilyToggle: _toggleFamilyAttendance,
-                onMarkAll: _markAllAttendance,
-                onToggleLate: _toggleLate,
                 onEdit: _editMemberName,
                 onRemove: _removeMemberFromSession,
-                initialGrouping: RosterGrouping.byStatus,
                 disableAnimations: widget.disableAnimations,
               ),
             ),

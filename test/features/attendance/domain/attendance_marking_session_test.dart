@@ -222,20 +222,36 @@ void main() {
             attendee: 'Alice Adams',
             status: AttendanceStatus.present,
             recordedAt: DateTime(2026, 10, 14, 9, 0),
-            recordedBy: 'System (Preseed)',
+            recordedBy: 'User',
           ),
           SessionRecord(
             memberId: 'm2',
             attendee: 'Bob Brown',
             status: AttendanceStatus.absent,
             recordedAt: DateTime(2026, 10, 14, 9, 0),
-            recordedBy: 'System (Preseed)',
+            recordedBy: 'User',
           ),
         ],
       );
     });
 
-    test('initializes baseline status and preseed records correctly', () {
+    test('a new session starts with nobody marked', () async {
+      final fresh = baseSession.copyWith(records: const []);
+      final markingSession = AttendanceMarkingSession(
+        session: fresh,
+        baseMembers: [memberA, memberB],
+        sessionRepository: sessionRepo,
+      );
+
+      expect(markingSession.hasUserEdits, isFalse);
+      expect(markingSession.getStatus(memberA), AttendanceStatus.absent);
+      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
+
+      await markingSession.markMember(memberA, AttendanceStatus.present);
+      expect(markingSession.hasUserEdits, isTrue);
+    });
+
+    test('initializes with the session records and nothing to undo', () {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
         baseMembers: [memberA, memberB],
@@ -249,17 +265,9 @@ void main() {
       expect(markingSession.session.id, 'session-100');
       expect(markingSession.sessionMembers.length, 2);
       expect(markingSession.sessionFamilies.length, 2);
-      expect(markingSession.baselineStatus['m1'], AttendanceStatus.present);
-      expect(markingSession.baselineStatus['m2'], AttendanceStatus.absent);
-      expect(markingSession.baselineFor(memberA), AttendanceStatus.present);
-      expect(markingSession.baselineFor(memberB), AttendanceStatus.absent);
-
-      // Preseeded records do not count as user edits
-      expect(markingSession.isTouched(memberA), isFalse);
-      expect(markingSession.isTouched(memberB), isFalse);
-      expect(markingSession.hasUserEdits, isFalse);
+      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
+      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
       expect(markingSession.canUndo, isFalse);
-      expect(markingSession.changedCount, 0);
     });
 
     test('optimistic marking updates state immediately and enqueues background save', () async {
@@ -281,10 +289,7 @@ void main() {
 
       expect(notified, isTrue);
       expect(markingSession.getStatus(memberB), AttendanceStatus.present);
-      expect(markingSession.isTouched(memberB), isTrue);
       expect(markingSession.hasUserEdits, isTrue);
-      expect(markingSession.isChanged(memberB), isTrue);
-      expect(markingSession.changedCount, 1);
       expect(markingSession.canUndo, isTrue);
 
       // Await pending saves
@@ -351,28 +356,6 @@ void main() {
             .status,
         AttendanceStatus.present,
       );
-    });
-
-    test('toggleLate flips isLate without dropping status and resolves both members and guests', () async {
-      final markingSession = AttendanceMarkingSession(
-        session: baseSession,
-        baseMembers: [memberA, memberB],
-        sessionRepository: sessionRepo,
-      );
-
-      expect(markingSession.isLate(memberA), isFalse);
-      await markingSession.toggleLate(memberA);
-      expect(markingSession.isLate(memberA), isTrue);
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-
-      await markingSession.toggleLate(memberA);
-      expect(markingSession.isLate(memberA), isFalse);
-
-      // Now add a guest and toggle late
-      final guest = await markingSession.addGuest('Visitor Dave');
-      expect(markingSession.isLate(guest), isFalse);
-      await markingSession.toggleLate(guest);
-      expect(markingSession.isLate(guest), isTrue);
     });
 
     test('addGuest records mark with null memberId without modifying Event or Directory', () async {
@@ -516,53 +499,6 @@ void main() {
       );
     });
 
-    test('markFamily updates all members as a single atomic snapshot', () async {
-      final family = Family(
-        id: 'fam-ab',
-        displayName: 'Test Household',
-        members: [memberA, memberB],
-      );
-
-      final markingSession = AttendanceMarkingSession(
-        session: baseSession,
-        baseMembers: [memberA, memberB],
-        families: [family],
-        sessionRepository: sessionRepo,
-      );
-
-      await markingSession.markFamily(family, true);
-      await markingSession.drain();
-
-      expect(sessionRepo.savedSnapshots.length, 1);
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.present);
-
-      // Undo family mark
-      await markingSession.undo();
-      await markingSession.drain();
-
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
-    });
-
-    test('markAll and resetToBaseline execute atomically', () async {
-      final markingSession = AttendanceMarkingSession(
-        session: baseSession,
-        baseMembers: [memberA, memberB],
-        sessionRepository: sessionRepo,
-      );
-
-      await markingSession.markAll([memberA, memberB], present: false);
-      expect(markingSession.getStatus(memberA), AttendanceStatus.absent);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
-      expect(markingSession.changedCount, 1); // memberA changed from present to absent
-
-      await markingSession.resetToBaseline();
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
-      expect(markingSession.changedCount, 0);
-    });
-
     test('editMemberName and removeMemberFromSession update records properly', () async {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
@@ -620,6 +556,93 @@ void main() {
       expect(receivedError, isA<StateError>());
       await sub.cancel();
       markingSession.dispose();
+    });
+  });
+
+  group('recordAbsencesForUnmarked', () {
+    late _FakeSessionRepository repo;
+    late Session base;
+    final a = Member(id: 'm1', displayName: 'Alice');
+    final b = Member(id: 'm2', displayName: 'Bob');
+    final c = Member(id: 'm3', displayName: 'Cara');
+
+    setUp(() {
+      repo = _FakeSessionRepository();
+      base = Session(
+        id: 's',
+        title: 'T',
+        sessionDate: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        createdBy: 'User',
+        currentVersion: 1,
+        records: const [],
+      );
+    });
+
+    AttendanceMarkingSession build(List<Member> members, {Session? session}) =>
+        AttendanceMarkingSession(
+          session: session ?? base,
+          baseMembers: members,
+          sessionRepository: repo,
+        );
+
+    test('fills only missing members and leaves existing records unchanged',
+        () async {
+      final s = build([a, b, c]);
+      await s.markMember(a, AttendanceStatus.present, isLate: true);
+      final before = s.findRecordFor(a)!;
+
+      await s.recordAbsencesForUnmarked();
+
+      expect(s.session.records, hasLength(3));
+      expect(s.findRecordFor(a), before);
+      for (final m in [b, c]) {
+        final r = s.findRecordFor(m)!;
+        expect(r.status, AttendanceStatus.absent);
+        expect(r.memberId, m.id);
+        expect(r.attendee, m.displayName);
+        expect(r.recordedBy, 'System (Preseed)');
+      }
+      expect(repo.savedSnapshots.last.records, hasLength(3));
+      s.dispose();
+    });
+
+    test('is idempotent', () async {
+      final s = build([a, b]);
+      await s.recordAbsencesForUnmarked();
+      final saves = repo.savedSnapshots.length;
+      await s.recordAbsencesForUnmarked();
+      expect(s.session.records, hasLength(2));
+      expect(repo.savedSnapshots.length, saves);
+      s.dispose();
+    });
+
+    test('counts a member listed under two families once', () async {
+      final s = build([a, b, a]);
+      await s.recordAbsencesForUnmarked();
+      expect(s.session.records.where((r) => r.memberId == 'm1'), hasLength(1));
+      expect(s.session.records, hasLength(2));
+      s.dispose();
+    });
+
+    test('skips guests and excluded members', () async {
+      final guest = Member(id: '', displayName: 'Walk-in', isVisitor: true);
+      final s = build(
+        [a, b, guest],
+        session: base.copyWith(excludedMemberIds: ['m2']),
+      );
+      await s.recordAbsencesForUnmarked();
+      expect(s.session.records.map((r) => r.memberId), ['m1']);
+      s.dispose();
+    });
+
+    test('does not count as user edits until called, and writes nothing at start',
+        () {
+      final s = build([a, b]);
+      expect(s.hasUserEdits, isFalse);
+      expect(repo.savedSnapshots, isEmpty);
+      s.dispose();
     });
   });
 }

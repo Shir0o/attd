@@ -99,20 +99,15 @@ void main() {
 
       await hub.tapEventCard('Youth Group Attendance');
       await tester.pump(const Duration(milliseconds: 1500));
-      await attendance.useDeck();
-      await attendance.verifyCardName('Alex Rivera');
-      await capture('09_attendance_deck_first_card');
+      await attendance.waitForGrid();
+      await attendance.verifyName('Alex');
+      await capture('09_attendance_grid');
 
-      await attendance.swipePresent();
-      await attendance.verifyCardName('Jordan Lee');
-      await capture('10_attendance_deck_next_card');
-
-      await attendance.swipeAbsent();
-      await attendance.verifyCardName('Taylor Kim');
-      await attendance.swipePresent();
-      await attendance.verifyCardName('Morgan Patel');
-      await attendance.swipePresent();
-      await attendance.verifyDeckComplete();
+      // A to Z: Alex, Jordan, Morgan, Taylor. Taylor stays absent.
+      await attendance.toggleTile(0);
+      await attendance.toggleTile(1);
+      await capture('10_attendance_grid_marking');
+      await attendance.toggleTile(2);
       await capture('11_attendance_complete');
 
       await attendance.finishSession();

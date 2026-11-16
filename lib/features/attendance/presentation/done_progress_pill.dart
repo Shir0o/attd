@@ -10,8 +10,6 @@ import '../../../core/design/widgets/conv_widgets.dart';
 /// [ConvProgressFill] as the session progresses (replacing the thin bar), and
 /// the label turns on-primary wherever the fill passes under it. When
 /// everyone is accounted for it is fully violet and one glow ring fades out.
-/// In [solid] mode (confirm lists, which keep their two-tone bar) it is simply
-/// violet with an on-primary label.
 ///
 /// All motion (the fill easing, the glow) is skipped when [motionEnabled] is
 /// false, leaving the same end states.
@@ -21,7 +19,6 @@ class DoneProgressPill extends StatefulWidget {
     required this.progress,
     required this.complete,
     required this.onPressed,
-    this.solid = false,
     this.disableAnimations = false,
   });
 
@@ -32,9 +29,6 @@ class DoneProgressPill extends StatefulWidget {
   final bool complete;
 
   final VoidCallback onPressed;
-
-  /// Solid violet with no progress fill (confirm mode).
-  final bool solid;
 
   final bool disableAnimations;
 
@@ -58,7 +52,6 @@ class _DoneProgressPillState extends State<DoneProgressPill>
     // One glow per completion: only on the transition, never on a rebuild.
     if (!old.complete &&
         widget.complete &&
-        !widget.solid &&
         motionEnabled(context, disableAnimations: widget.disableAnimations)) {
       _glow.forward(from: 0);
     }
@@ -89,25 +82,24 @@ class _DoneProgressPillState extends State<DoneProgressPill>
       context,
       disableAnimations: widget.disableAnimations,
     );
-    final filled = widget.solid || widget.complete;
+    final filled = widget.complete;
     final fraction = widget.complete ? 1.0 : widget.progress.clamp(0.0, 1.0);
     final wash = Color.alphaBlend(c.primary.withValues(alpha: 0.14), c.card);
 
     final pill = Material(
-      color: widget.solid ? c.primary : wash,
+      color: wash,
       shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          if (!widget.solid)
-            Positioned.fill(
-              child: ConvProgressFill(
-                key: const Key('doneProgressFill'),
-                fraction: fraction,
-                color: c.primary,
-                disableAnimations: widget.disableAnimations,
-              ),
+          Positioned.fill(
+            child: ConvProgressFill(
+              key: const Key('doneProgressFill'),
+              fraction: fraction,
+              color: c.primary,
+              disableAnimations: widget.disableAnimations,
             ),
+          ),
           // The label colour flips where the fill passes under it: an
           // on-primary copy to the left of the fill's edge, ink to the right.
           if (filled)

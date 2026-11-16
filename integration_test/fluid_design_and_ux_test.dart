@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter/material.dart';
 
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/presentation/fast_marking/likely_here_view.dart';
 
 import 'utils/test_utils.dart';
@@ -164,11 +163,9 @@ void main() {
       await members.addMember('Alice Morph');
       await hub.goBack();
 
-      // All absent opens on Likely here, which carries the Add someone pill.
-      await hub.tapEventCardWithMode(
-        'Morph Event',
-        AttendanceStartMode.allAbsent,
-      );
+      // A new session opens on the name grid, which carries the Add someone
+      // pill.
+      await hub.tapEventCard('Morph Event');
       await tester.pumpUntilFound(find.byType(LikelyHereView));
       final pill = find.byKey(const Key('likelyHereAddGuest'));
       final nameField = find.byKey(const Key('addSheetNameField'));

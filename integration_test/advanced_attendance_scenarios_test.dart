@@ -58,43 +58,20 @@ void main() {
       await tester.pumpAndSettle();
       await tester.takeScreenshot(binding, 'adv_04_attendance_start');
 
-      // 4. Test Undo functionality
-      print('DEBUG: Testing Undo');
-      await attendance.useDeck();
-      await tester.pumpUntilFound(find.text('Regular Member 1'));
-      await attendance.markPresent();
-      
-      // We should now see Member 2
-      await tester.pumpUntilFound(find.text('Regular Member 2'));
+      // 4. Mark someone on the grid
+      await attendance.waitForGrid();
+      await attendance.toggleTile(0); // Regular Member 1
       await tester.takeScreenshot(binding, 'adv_05_marked_member_1');
-      
-      // Undo
-      await attendance.undo();
-      await tester.pumpUntilFound(find.text('Regular Member 1'));
-      await tester.takeScreenshot(binding, 'adv_06_after_undo');
-      print('DEBUG: Undo successful');
 
       // 5. Test Guest Handling
       print('DEBUG: Testing Guest addition');
-      await attendance.markPresent(); // Mark Member 1 again
-      await tester.pumpUntilFound(find.text('Regular Member 2'));
       await attendance.addGuest('Guest Visitor');
       await tester.pump(const Duration(milliseconds: 500));
       await tester.takeScreenshot(binding, 'adv_07_guest_input');
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
-      
-      await tester.pumpUntilFound(find.text('Regular Member 2'));
-      await tester.takeScreenshot(binding, 'adv_08_deck_with_guest_added');
-      await attendance.markAbsent();
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 1));
-      
-      // Now we should be at completion
-      await tester.pump(const Duration(milliseconds: 1000));
-      await attendance.verifyDeckComplete();
-      await tester.takeScreenshot(binding, 'adv_09_deck_complete');
-      
+      await tester.takeScreenshot(binding, 'adv_08_grid_with_guest_added');
+
       // Verify guest is in summary (if summary is shown or by finishing and checking history)
       await attendance.finishSession();
       await tester.takeScreenshot(binding, 'adv_10_session_summary_with_guest');
