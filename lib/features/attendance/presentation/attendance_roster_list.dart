@@ -103,7 +103,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   ActiveRosterIndex _buildIndex() {
     final allMembers =
         widget.families.expand((f) => f.members).toList(growable: false);
-    return ActiveRosterIndex(members: allMembers, families: widget.families);
+    return ActiveRosterIndex(members: allMembers);
   }
 
   @override

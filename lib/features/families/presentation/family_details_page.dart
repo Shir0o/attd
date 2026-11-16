@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../attendance/data/attendance_repository.dart';
-import '../../attendance/models/attendance_status.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 
@@ -189,7 +188,6 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
         id: 'member-${const Uuid().v4()}',
         displayName: name,
         isVisitor: false,
-        defaultStatus: AttendanceStatus.absent,
       );
       try {
         final updated = await widget.repository.addMember(_family.id, member);

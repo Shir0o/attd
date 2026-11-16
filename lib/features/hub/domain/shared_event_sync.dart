@@ -46,11 +46,6 @@ class SharedSlice {
       'oneTimeDate': event.oneTimeDate?.toIso8601String(),
       'repeatingDays': event.repeatingDays,
       'memberIds': event.memberIds,
-      if (event.defaultAttendanceStartMode != null)
-        'defaultAttendanceStartMode': event.defaultAttendanceStartMode!.name,
-      if (event.rosterGrouping != null)
-        'rosterGrouping': event.rosterGrouping!.name,
-      if (event.markingMode != null) 'markingMode': event.markingMode!.name,
       'createdAt': event.createdAt.toIso8601String(),
       'updatedAt': event.updatedAt.toIso8601String(),
     };

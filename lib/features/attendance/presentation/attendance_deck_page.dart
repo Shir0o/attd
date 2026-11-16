@@ -7,8 +7,6 @@ import '../../../../data/session.dart';
 import '../../../../data/session_repository.dart';
 import '../domain/active_roster_index.dart';
 import '../domain/attendance_marking_session.dart';
-import '../models/attendance_start_mode.dart';
-import '../models/marking_mode.dart';
 import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
@@ -17,7 +15,6 @@ import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
-import 'attendance_roster_list.dart';
 import 'fast_marking/fast_marking_model.dart';
 import 'fast_marking/likely_here_view.dart';
 import 'session_summary_page.dart';
@@ -35,10 +32,6 @@ class AttendanceDeckPage extends StatefulWidget {
     this.event,
     this.driveService,
     this.disableAnimations = false,
-    this.initialListMode = false,
-    this.startMode,
-    this.rosterGrouping,
-    this.markingMode,
     this.deleteOnCancel = false,
     this.markingSession,
   });
@@ -54,26 +47,11 @@ class AttendanceDeckPage extends StatefulWidget {
   final DriveService? driveService;
   final bool disableAnimations;
 
-  /// Ignored: the page always opens on the name grid. Callers still pass it;
-  /// it goes away with the start modes.
-  final bool initialListMode;
-
-  /// Ignored: a pre-marked session simply shows its marked people on the grid.
-  /// Callers still pass it; it goes away with the start modes.
-  final AttendanceStartMode? startMode;
-
-  /// Ignored: the in-session List is gone. Callers still pass it; it goes away
-  /// with the roster-grouping preset.
-  final RosterGrouping? rosterGrouping;
-
-  /// Ignored: the grid is the only marking surface. Callers still pass it; it
-  /// goes away with the fast marking modes.
-  final MarkingMode? markingMode;
-
   /// When true, abandoning the page (Cancel / system back) discards the
-  /// session. Only set for *freshly created* preseeded sessions whose records
-  /// are throwaway until confirmed — never for resuming an existing session,
-  /// where backing out must preserve already-saved records.
+  /// session if nothing was marked, and asks Save-as-is vs Discard once
+  /// something has been. Only set for *freshly created* sessions, which start
+  /// with nobody marked — never for resuming an existing session, where backing
+  /// out must preserve already-saved records.
   final bool deleteOnCancel;
 
   @override
@@ -99,23 +77,16 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   /// The Likely here "Add someone" pill, which the add sheet grows out of.
   final _addSomeoneSource = GlobalKey<ConvMorphSourceState>();
 
-  /// Cached active roster index for [_sessionMembers] and [_sessionFamilies].
-  /// Rebuilt only when the roster changes, never on the rebuild that follows
-  /// each mark.
+  /// Cached active roster index for [_sessionMembers]. Rebuilt only when the
+  /// roster changes, never on the rebuild that follows each mark.
   ActiveRosterIndex? _activeRosterIndex;
   int _indexMembersLength = 0;
-  int _indexFamiliesLength = 0;
 
   ActiveRosterIndex get _memoisedActiveRosterIndex {
     if (_activeRosterIndex == null ||
-        _indexMembersLength != _sessionMembers.length ||
-        _indexFamiliesLength != _sessionFamilies.length) {
+        _indexMembersLength != _sessionMembers.length) {
       _indexMembersLength = _sessionMembers.length;
-      _indexFamiliesLength = _sessionFamilies.length;
-      _activeRosterIndex = ActiveRosterIndex(
-        members: _sessionMembers,
-        families: _sessionFamilies,
-      );
+      _activeRosterIndex = ActiveRosterIndex(members: _sessionMembers);
     }
     return _activeRosterIndex!;
   }
@@ -439,14 +410,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     final roster = FastMarkingRoster(
       session: _currentSession,
       members: _sessionMembers,
-      families: _sessionFamilies,
       index: _memoisedActiveRosterIndex,
     );
 
     // Confirming the session uses pushReplacement (grid → summary), so the
     // page is only ever *popped* when the user cancels — via the X button
     // or system back. For a freshly created session ([deleteOnCancel]):
-    //   - untouched → discard silently (a phantom preseeded session, nothing to
+    //   - untouched → discard silently (a phantom empty session, nothing to
     //     keep);
     //   - already marked → intercept the pop and ask Save-as-is vs Discard.
     // Resuming an existing session never sets the flag, so backing out always
@@ -486,7 +456,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   Widget _buildHeader(FastMarkingRoster roster) {
     final c = context.conv;
-    final total = roster.members.length;
+    final total = roster.alphabetical.length;
     // Everyone shown as marked counts, however they got that way (tapped now,
     // pre-marked at the start, or recorded in a past session). "Left" is the
     // grid's own meaning: people not marked present yet.

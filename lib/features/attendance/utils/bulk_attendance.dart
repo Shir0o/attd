@@ -8,8 +8,7 @@ import 'member_default_resolver.dart';
 /// single status. Records belonging to members *not* in [members] are kept
 /// verbatim so unrelated visitors aren't clobbered.
 ///
-/// The same helper is used by the deck list-mode and the session summary's
-/// "Mark everyone present/absent" actions so their behavior stays in sync.
+/// Used by the session summary's "Mark everyone present/absent" actions.
 List<SessionRecord> applyBulkRecords({
   required List<SessionRecord> previousRecords,
   required Iterable<Member> members,

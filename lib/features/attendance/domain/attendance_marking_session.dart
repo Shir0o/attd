@@ -44,8 +44,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     if (families != null && families.isNotEmpty) {
       _baseFamilies = List.from(families);
     }
-    _snapshotBaseline(_currentSession);
-    _updateTouchedTracking(_currentSession);
 
     if (streamUpdates) {
       if (_attendanceRepository != null) {
@@ -80,12 +78,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
 
   final List<Session> _undoStack = [];
   static const int _maxUndoDepth = 50;
-
-  final Map<String, AttendanceStatus> _baselineStatus = {};
-  late final List<SessionRecord> _baselineRecords;
-
-  final Set<String> _touchedMemberIds = {};
-  final Set<String> _touchedMemberNames = {};
 
   Future<void> _saveQueue = Future.value();
   final StreamController<Object> _saveErrorController =
@@ -132,40 +124,21 @@ class AttendanceMarkingSession extends ChangeNotifier {
     ];
   }
 
-  /// Initial preseed baseline status map for confirm mode diff tracking.
-  Map<String, AttendanceStatus> get baselineStatus =>
-      Map.unmodifiable(_baselineStatus);
-
   /// Whether an undo action is available.
   bool get canUndo => _undoStack.isNotEmpty;
 
   /// Depth of the undo stack.
   int get undoDepth => _undoStack.length;
 
-  /// Whether the user has made any non-preseed marks in this session.
-  bool get hasUserEdits =>
-      _touchedMemberIds.isNotEmpty || _touchedMemberNames.isNotEmpty;
-
-  /// Set of member IDs touched by user edits in this session.
-  Set<String> get touchedMemberIds => Set.unmodifiable(_touchedMemberIds);
-
-  /// Set of attendee names touched by user edits in this session.
-  Set<String> get touchedMemberNames => Set.unmodifiable(_touchedMemberNames);
+  /// Whether anyone has been marked in this session. A new session starts with
+  /// no records, so this is false until the first mark.
+  bool get hasUserEdits => _currentSession.records.isNotEmpty;
 
   /// Stream of save errors emitted during background writes.
   Stream<Object> get saveErrors => _saveErrorController.stream;
 
   /// Future of all currently enqueued background writes.
   Future<void> get pendingSaves => _saveQueue;
-
-  /// Count of members whose current status differs from their baseline preseed.
-  int get changedCount {
-    var count = 0;
-    for (final m in _sessionMembers) {
-      if (isChanged(m)) count++;
-    }
-    return count;
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Identity Resolution Helpers
@@ -232,39 +205,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     return findRecordFor(member)?.isLate ?? false;
   }
 
-  /// Returns the baseline preseed status for [member], if one was recorded.
-  AttendanceStatus? baselineFor(Member member) {
-    final cleanId = cleanMemberId(member.isVisitor ? null : member.id);
-    if (cleanId != null && _baselineStatus.containsKey(cleanId)) {
-      return _baselineStatus[cleanId];
-    }
-    return _baselineStatus[member.displayName];
-  }
-
-  /// Returns whether [member]'s current status differs from their preseed baseline.
-  bool isChanged(Member member) {
-    final baseline = baselineFor(member);
-    if (baseline == null) return false;
-    return getStatus(member) != baseline;
-  }
-
-  /// Returns whether [member] has been explicitly touched by a user action.
-  bool isTouched(Member member) {
-    final cleanId = cleanMemberId(member.isVisitor ? null : member.id);
-    if (cleanId != null && _touchedMemberIds.contains(cleanId)) {
-      return true;
-    }
-    return _touchedMemberNames.contains(member.displayName);
-  }
-
-  /// Resolves the family containing [member], if any.
-  Family? familyForMember(Member member) {
-    for (final f in sessionFamilies) {
-      if (f.members.any((m) => m.id == member.id)) return f;
-    }
-    return null;
-  }
-
   // ─────────────────────────────────────────────────────────────────────────
   // Marking Mutations
   // ─────────────────────────────────────────────────────────────────────────
@@ -321,7 +261,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -373,7 +312,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -412,7 +350,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -438,7 +375,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -464,24 +400,9 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
     return result;
-  }
-
-  /// Restores every member to their initial preseed status baseline.
-  Future<void> resetToBaseline({String? actor}) async {
-    _pushUndoState();
-    final restored = _currentSession.copyWith(
-      records: _baselineRecords,
-      updatedAt: DateTime.now(),
-    );
-
-    _currentSession = restored;
-    _updateTouchedTracking(_currentSession);
-    notifyListeners();
-    await _enqueueSave(_currentSession, actor: actor);
   }
 
   /// Restores records from a previously saved snapshot.
@@ -496,7 +417,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = restored;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -633,7 +553,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -677,7 +596,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     );
 
     _currentSession = updatedSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
   }
@@ -700,7 +618,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
 
     final previousSession = _undoStack.removeLast();
     _currentSession = previousSession;
-    _updateTouchedTracking(_currentSession);
     notifyListeners();
     await _enqueueSave(_currentSession, actor: actor);
     return _currentSession;
@@ -750,7 +667,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
         (newer.currentVersion == _currentSession.currentVersion &&
             newer.updatedAt.isAfter(_currentSession.updatedAt))) {
       _currentSession = newer;
-      _updateTouchedTracking(_currentSession);
       notifyListeners();
     }
   }
@@ -777,30 +693,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
       }
     }
     notifyListeners();
-  }
-
-  void _snapshotBaseline(Session session) {
-    _baselineRecords = List.unmodifiable(session.records);
-    _baselineStatus.clear();
-    for (final r in session.records) {
-      final cleanId = cleanMemberId(r.memberId);
-      final key = cleanId ?? r.attendee;
-      _baselineStatus[key] = r.status;
-    }
-  }
-
-  void _updateTouchedTracking(Session session) {
-    _touchedMemberIds.clear();
-    _touchedMemberNames.clear();
-    for (final r in session.records) {
-      if (r.recordedBy != 'System (Preseed)') {
-        final cleanId = cleanMemberId(r.memberId);
-        if (cleanId != null) {
-          _touchedMemberIds.add(cleanId);
-        }
-        _touchedMemberNames.add(r.attendee);
-      }
-    }
   }
 
   @override
