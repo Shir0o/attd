@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 
 import '../utils/test_utils.dart';
 
@@ -48,31 +47,7 @@ class HubRobot {
     await tester.pumpUntilFound(find.text(title));
   }
 
-  /// Taps an event card and selects a specific start mode in the picker.
-  Future<void> tapEventCardWithMode(
-    String title,
-    AttendanceStartMode mode,
-  ) async {
-    print('DEBUG: tapEventCardWithMode($title, ${mode.name})');
-    await tapEventCard(title, autoConfirmStartMode: false);
-
-    final tile = find.byKey(ValueKey('start_mode_${mode.name}'));
-    await tester.pumpUntilFound(tile);
-    await tester.ensureVisible(tile);
-    await tester.tap(tile);
-    await tester.pump(const Duration(milliseconds: 200));
-
-    final confirm = find.byKey(const Key('startModeConfirmButton'));
-    await tester.tap(confirm);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> tapEventCard(
-    String title, {
-    bool autoConfirmStartMode = true,
-  }) async {
+  Future<void> tapEventCard(String title) async {
     print('DEBUG: tapEventCard($title)');
     final textFinder = find.text(title).last;
     await tester.pumpUntilFound(textFinder);
@@ -100,30 +75,6 @@ class HubRobot {
     
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1500));
-
-    // The first time attendance is taken for an event, a one-time "Group
-    // roster by" prompt appears before the start-mode picker. Confirm its
-    // default so the flow proceeds.
-    final groupingButton = find.byKey(const Key('groupingConfirmButton'));
-    if (groupingButton.evaluate().isNotEmpty) {
-      print('DEBUG: grouping preset prompt present, confirming');
-      await tester.tap(groupingButton);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 800));
-      await tester.pumpAndSettle();
-    }
-
-    // Starting a new session opens the "Start mode" picker. Auto-confirm
-    // the default so existing scenarios that expected an immediate jump
-    // into attendance continue to work.
-    final startModeButton = find.byKey(const Key('startModeConfirmButton'));
-    if (autoConfirmStartMode && startModeButton.evaluate().isNotEmpty) {
-      print('DEBUG: start mode picker present, confirming');
-      await tester.tap(startModeButton);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 800));
-      await tester.pumpAndSettle();
-    }
   }
 
   Future<void> tapEventMenu(String title) async {

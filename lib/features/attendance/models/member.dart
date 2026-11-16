@@ -1,5 +1,3 @@
-import 'attendance_status.dart';
-
 import 'label_assignments.dart';
 
 class Member {
@@ -8,7 +6,6 @@ class Member {
   final String canonicalName;
   final String? mergedIntoMemberId;
   final bool isVisitor;
-  final AttendanceStatus defaultStatus;
   final LabelAssignments labels;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -22,7 +19,6 @@ class Member {
     String? canonicalName,
     this.mergedIntoMemberId,
     this.isVisitor = false,
-    this.defaultStatus = AttendanceStatus.absent,
     LabelAssignments? labels,
     DateTime? updatedAt,
     this.deletedAt,
@@ -37,7 +33,6 @@ class Member {
     String? canonicalName,
     String? mergedIntoMemberId,
     bool? isVisitor,
-    AttendanceStatus? defaultStatus,
     LabelAssignments? labels,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -49,7 +44,6 @@ class Member {
       canonicalName: (canonicalName ?? this.canonicalName).trim(),
       mergedIntoMemberId: mergedIntoMemberId ?? this.mergedIntoMemberId,
       isVisitor: isVisitor ?? this.isVisitor,
-      defaultStatus: defaultStatus ?? this.defaultStatus,
       labels: labels ?? this.labels,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
@@ -63,10 +57,6 @@ class Member {
       canonicalName: (json['canonicalName'] as String?)?.trim(),
       mergedIntoMemberId: json['mergedIntoMemberId'] as String?,
       isVisitor: json['isVisitor'] as bool? ?? false,
-      defaultStatus: AttendanceStatus.values.firstWhere(
-        (status) => status.name == json['defaultStatus'],
-        orElse: () => AttendanceStatus.absent,
-      ),
       labels: LabelAssignments.fromJson(
         json['labels'] as Map<String, dynamic>?,
       ),
@@ -86,7 +76,6 @@ class Member {
       'canonicalName': canonicalName,
       'mergedIntoMemberId': mergedIntoMemberId,
       'isVisitor': isVisitor,
-      'defaultStatus': defaultStatus.name,
       'labels': labels.toJson(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),

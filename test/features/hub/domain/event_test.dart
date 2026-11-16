@@ -1,7 +1,4 @@
-import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
-import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -88,24 +85,40 @@ void main() {
       expect(fromJson.title, 'Json Trim');
     });
 
-    test('toJson and fromJson handle defaultAttendanceStartMode and rosterGrouping', () {
-      final eventWithPresets = Event(
+    test('old JSON carrying the removed preset keys still loads, and they are dropped', () {
+      final json = Event(
         id: 'event-presets',
         title: 'Preset Event',
         time: const TimeOfDay(hour: 11, minute: 0),
         frequency: 'Weekly',
-        defaultAttendanceStartMode: AttendanceStartMode.allAbsent,
-        rosterGrouping: RosterGrouping.byFamily,
         createdAt: now,
-      );
-
-      final json = eventWithPresets.toJson();
-      expect(json['defaultAttendanceStartMode'], 'allAbsent');
-      expect(json['rosterGrouping'], 'byFamily');
+      ).toJson()
+        ..['defaultAttendanceStartMode'] = 'allPresent'
+        ..['rosterGrouping'] = 'byFamily'
+        ..['markingMode'] = 'rapidEntry';
 
       final fromJson = Event.fromJson(json);
-      expect(fromJson.defaultAttendanceStartMode, AttendanceStartMode.allAbsent);
-      expect(fromJson.rosterGrouping, RosterGrouping.byFamily);
+      expect(fromJson.id, 'event-presets');
+      expect(fromJson.title, 'Preset Event');
+
+      final rewritten = fromJson.toJson();
+      expect(rewritten.containsKey('defaultAttendanceStartMode'), isFalse);
+      expect(rewritten.containsKey('rosterGrouping'), isFalse);
+      expect(rewritten.containsKey('markingMode'), isFalse);
+    });
+
+    test('unrecognised values under the removed keys are ignored too', () {
+      final json = Event(
+        id: 'e2',
+        title: 'Odd',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: now,
+      ).toJson()
+        ..['markingMode'] = 'teleportation'
+        ..['rosterGrouping'] = 42;
+
+      expect(() => Event.fromJson(json), returnsNormally);
     });
 
     test('copyWith works correctly', () {
@@ -175,69 +188,6 @@ void main() {
       expect(updated.isShared, isFalse);
       expect(updated.collaborators, isEmpty);
       expect(updated.isReadOnly, isFalse);
-    });
-  });
-
-  group('Event markingMode', () {
-    final now = DateTime(2026, 1, 1);
-
-    Event base({MarkingMode? mode}) => Event(
-          id: 'e1',
-          title: 'Sunday Service',
-          time: const TimeOfDay(hour: 9, minute: 0),
-          frequency: 'Weekly',
-          markingMode: mode,
-          createdAt: now,
-        );
-
-    test('resolves to the default when never chosen', () {
-      expect(base().markingMode, isNull);
-      expect(base().resolvedMarkingMode, kDefaultMarkingMode);
-    });
-
-    test('resolves to the chosen mode once set', () {
-      expect(
-        base(mode: MarkingMode.households).resolvedMarkingMode,
-        MarkingMode.households,
-      );
-    });
-
-    test('an explicit "off" is kept rather than defaulted away', () {
-      expect(
-        base(mode: MarkingMode.none).resolvedMarkingMode,
-        MarkingMode.none,
-      );
-    });
-
-    test('round-trips through JSON', () {
-      for (final mode in MarkingMode.values) {
-        final parsed = Event.fromJson(base(mode: mode).toJson());
-        expect(parsed.markingMode, mode, reason: mode.name);
-      }
-    });
-
-    test('omits the key entirely when never chosen', () {
-      expect(base().toJson().containsKey('markingMode'), isFalse);
-    });
-
-    test('an event saved before this feature parses as unchosen', () {
-      final legacy = base().toJson()..remove('markingMode');
-      expect(Event.fromJson(legacy).markingMode, isNull);
-      expect(Event.fromJson(legacy).resolvedMarkingMode, kDefaultMarkingMode);
-    });
-
-    test('an unrecognised stored value parses as unchosen', () {
-      final json = base().toJson()..['markingMode'] = 'teleportation';
-      expect(Event.fromJson(json).markingMode, isNull);
-    });
-
-    test('copyWith carries the mode through and can change it', () {
-      final event = base(mode: MarkingMode.rapidEntry);
-      expect(event.copyWith().markingMode, MarkingMode.rapidEntry);
-      expect(
-        event.copyWith(markingMode: MarkingMode.initialsPad).markingMode,
-        MarkingMode.initialsPad,
-      );
     });
   });
 }

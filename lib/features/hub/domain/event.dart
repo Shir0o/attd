@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/enum_by_name.dart';
-import '../../attendance/models/attendance_start_mode.dart';
-import '../../attendance/models/marking_mode.dart';
-import '../../attendance/models/roster_grouping.dart';
 import '../../sessions/domain/insights_config.dart';
 
 class Event {
@@ -15,22 +11,10 @@ class Event {
   final List<String>
       repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final List<String> memberIds; // Members associated with this event
-  final AttendanceStartMode? defaultAttendanceStartMode;
-
-  /// Per-event preset for how the marking roster groups (status vs family).
-  /// `null` means the user has not chosen yet — the first time attendance is
-  /// taken they are asked (defaulting to status), and the choice is saved here.
-  final RosterGrouping? rosterGrouping;
-
-  /// Per-event preset for which fast marking surface the session offers beside
-  /// the Deck and the List. `null` means never chosen — [resolvedMarkingMode]
-  /// falls back to [kDefaultMarkingMode] rather than prompting, so existing
-  /// events pick up the default without an extra step.
-  final MarkingMode? markingMode;
 
   /// Per-event Insights presets: viewing range, Regular and Lapsed thresholds,
   /// and which sections show. `null` means nothing has been chosen and the
-  /// defaults apply, exactly as for [markingMode]. See ADR 0007.
+  /// defaults apply. See ADR 0007.
   final InsightsConfig? insightsConfig;
 
   final bool isShared;
@@ -49,9 +33,6 @@ class Event {
     this.oneTimeDate,
     this.repeatingDays = const [],
     this.memberIds = const [],
-    this.defaultAttendanceStartMode,
-    this.rosterGrouping,
-    this.markingMode,
     this.insightsConfig,
     this.isShared = false,
     this.sharedFolderId,
@@ -62,10 +43,6 @@ class Event {
     this.deletedAt,
   })  : title = title.trim(),
         updatedAt = updatedAt ?? createdAt;
-
-  /// The fast marking mode this event actually uses, applying the default when
-  /// none has been chosen.
-  MarkingMode get resolvedMarkingMode => markingMode ?? kDefaultMarkingMode;
 
   /// The Insights presets this event actually uses, applying defaults when
   /// nothing has been chosen.
@@ -81,10 +58,6 @@ class Event {
       'oneTimeDate': oneTimeDate?.toIso8601String(),
       'repeatingDays': repeatingDays,
       'memberIds': memberIds,
-      if (defaultAttendanceStartMode != null)
-        'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
-      if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
-      if (markingMode != null) 'markingMode': markingMode!.name,
       if (insightsConfig != null) ...insightsConfig!.toJson(),
       if (isShared) 'isShared': isShared,
       if (sharedFolderId != null) 'sharedFolderId': sharedFolderId,
@@ -104,9 +77,6 @@ class Event {
     DateTime? oneTimeDate,
     List<String>? repeatingDays,
     List<String>? memberIds,
-    AttendanceStartMode? defaultAttendanceStartMode,
-    RosterGrouping? rosterGrouping,
-    MarkingMode? markingMode,
     InsightsConfig? insightsConfig,
     bool? isShared,
     String? sharedFolderId,
@@ -125,10 +95,6 @@ class Event {
       oneTimeDate: oneTimeDate ?? this.oneTimeDate,
       repeatingDays: repeatingDays ?? this.repeatingDays,
       memberIds: memberIds ?? this.memberIds,
-      defaultAttendanceStartMode:
-          defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
-      rosterGrouping: rosterGrouping ?? this.rosterGrouping,
-      markingMode: markingMode ?? this.markingMode,
       insightsConfig: insightsConfig ?? this.insightsConfig,
       isShared: isShared ?? this.isShared,
       sharedFolderId: sharedFolderId ?? this.sharedFolderId,
@@ -142,18 +108,6 @@ class Event {
 
   factory Event.fromJson(Map<String, dynamic> json) {
     final timeParts = (json['time'] as String).split(':');
-    final startMode = enumByNameOrNull(
-      AttendanceStartMode.values,
-      json['defaultAttendanceStartMode'] as String?,
-    );
-    final grouping = enumByNameOrNull(
-      RosterGrouping.values,
-      json['rosterGrouping'] as String?,
-    );
-    final mode = enumByNameOrNull(
-      MarkingMode.values,
-      json['markingMode'] as String?,
-    );
     final insights = InsightsConfig.fromJson(json);
     return Event(
       id: json['id'] as String,
@@ -174,9 +128,6 @@ class Event {
               ?.map((e) => e as String)
               .toList() ??
           [],
-      defaultAttendanceStartMode: startMode,
-      rosterGrouping: grouping,
-      markingMode: mode,
       insightsConfig: insights.isEmpty ? null : insights,
       isShared: json['isShared'] as bool? ?? false,
       sharedFolderId: json['sharedFolderId'] as String?,

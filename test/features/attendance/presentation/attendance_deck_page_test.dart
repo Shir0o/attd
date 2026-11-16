@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
-import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
-import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -222,10 +219,6 @@ Future<void> _pumpPage(
   required List<Member> members,
   required MockSessionRepository sessions,
   List<Family>? families,
-  MarkingMode? markingMode,
-  AttendanceStartMode? startMode,
-  bool initialListMode = false,
-  RosterGrouping? rosterGrouping,
   MockAttendanceRepository? attendance,
   MockEventRepository? events,
   Event? event,
@@ -240,10 +233,6 @@ Future<void> _pumpPage(
         attendanceRepository: attendance ?? MockAttendanceRepository(),
         eventRepository: events ?? MockEventRepository(),
         event: event,
-        markingMode: markingMode,
-        startMode: startMode,
-        initialListMode: initialListMode,
-        rosterGrouping: rosterGrouping,
         disableAnimations: true,
       ),
     ),
@@ -354,17 +343,13 @@ void main() {
   });
 
   group('the page is always the grid', () {
-    testWidgets('whatever mode, start mode or list flag the caller passes',
+    testWidgets('it is the grid, with no list, switch or confirm step',
         (tester) async {
       await _pumpPage(
         tester,
         session: _session(),
         members: [alice, bob],
         sessions: MockSessionRepository(),
-        markingMode: MarkingMode.rapidEntry,
-        startMode: AttendanceStartMode.allPresent,
-        initialListMode: true,
-        rosterGrouping: RosterGrouping.byFamily,
       );
 
       expect(_chip('a'), findsOneWidget);
@@ -383,7 +368,6 @@ void main() {
         session: _session(),
         members: const [],
         sessions: MockSessionRepository(),
-        markingMode: MarkingMode.none,
       );
 
       expect(find.text('Nobody on this roster yet.'), findsOneWidget);
@@ -391,23 +375,36 @@ void main() {
     });
   });
 
-  group('pre-marked sessions', () {
-    testWidgets('a preseeded session shows its present people as marked',
+  group('what the grid shows at the start', () {
+    testWidgets('a new session starts with nobody marked', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice, bob, charlie],
+        sessions: MockSessionRepository(),
+      );
+
+      for (final id in ['a', 'b', 'c']) {
+        expect(_isMarked(tester, _chip(id)), isFalse, reason: id);
+      }
+      expect(_headerPresent('0'), findsOneWidget);
+      expect(_headerLeft('3 left'), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('a session with some people recorded shows them as marked',
         (tester) async {
       final semantics = tester.ensureSemantics();
       await _pumpPage(
         tester,
         session: _session(records: [
-          _record(alice, AttendanceStatus.present,
-              by: 'System (Preseed - Smart)'),
+          _record(alice, AttendanceStatus.present),
           // Bob is left blank (no record).
-          _record(charlie, AttendanceStatus.absent,
-              by: 'System (Preseed - Smart)'),
+          _record(charlie, AttendanceStatus.absent),
         ]),
         members: [alice, bob, charlie],
         sessions: MockSessionRepository(),
-        startMode: AttendanceStartMode.perMemberDefault,
-        initialListMode: true,
       );
 
       expect(_isMarked(tester, _chip('a')), isTrue);
@@ -440,14 +437,14 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('marking on top of the preseed keeps the others untouched',
+    testWidgets('marking one person leaves the others as they were',
         (tester) async {
       final repo = MockSessionRepository();
       await _pumpPage(
         tester,
         session: _session(records: [
-          _record(alice, AttendanceStatus.present, by: 'System (Preseed)'),
-          _record(charlie, AttendanceStatus.absent, by: 'System (Preseed)'),
+          _record(alice, AttendanceStatus.present),
+          _record(charlie, AttendanceStatus.absent),
         ]),
         members: [alice, bob, charlie],
         sessions: repo,
@@ -481,8 +478,8 @@ void main() {
       await _pumpPage(
         tester,
         session: _session(records: [
-          _record(kevin, AttendanceStatus.present, by: 'System (Preseed)'),
-          _record(tony, AttendanceStatus.present, by: 'System (Preseed)'),
+          _record(kevin, AttendanceStatus.present),
+          _record(tony, AttendanceStatus.present),
         ]),
         // Mirrors the hub, which flattens the event's families.
         members: families.expand((f) => f.members).toList(),
@@ -504,8 +501,8 @@ void main() {
       await _pumpPage(
         tester,
         session: _session(records: [
-          _record(kevin, AttendanceStatus.present, by: 'System (Preseed)'),
-          _record(tony, AttendanceStatus.present, by: 'System (Preseed)'),
+          _record(kevin, AttendanceStatus.present),
+          _record(tony, AttendanceStatus.present),
         ]),
         members: families.expand((f) => f.members).toList(),
         families: families,
@@ -534,7 +531,9 @@ void main() {
 
       expect(find.byType(SessionSummaryPage), findsOneWidget);
       expect(find.text('Test Session'), findsOneWidget);
-      expect(repo.savedSessions.last.records.single.status,
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(2));
+      expect(saved.firstWhere((r) => r.memberId == 'a').status,
           AttendanceStatus.present);
     });
 
@@ -562,6 +561,34 @@ void main() {
 
       expect(repo.savedSessions, hasLength(1));
       expect(find.byType(SessionSummaryPage), findsOneWidget);
+    });
+
+    testWidgets('Done records everyone left unmarked as absent',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        for (var i = 1; i <= 5; i++) Member(id: 'x$i', displayName: 'P$i'),
+      ];
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: members,
+        sessions: repo,
+      );
+
+      await tester.tap(_chip('x1'));
+      await tester.pumpAndSettle();
+      await tester.tap(_chip('x2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(5));
+      expect(
+          saved.where((r) => r.status == AttendanceStatus.present), hasLength(2));
+      expect(
+          saved.where((r) => r.status == AttendanceStatus.absent), hasLength(3));
     });
 
     testWidgets('the grid does not finish by itself when everyone is marked',
@@ -683,9 +710,9 @@ void main() {
   });
 
   group('keep-vs-discard on exit', () {
-    // A session as it exists when the page opens from a bulk default: every
-    // member is pre-marked present by the preseed, none touched by the user.
-    Session allPresentSession(List<Member> members) => Session(
+    // A session as it exists when the page opens from the hub: just created,
+    // so nobody is marked yet.
+    Session freshSession(List<Member> members) => Session(
           id: 'keep-1',
           eventId: 'e1',
           title: 'Sunday Service',
@@ -694,16 +721,7 @@ void main() {
           updatedAt: DateTime.now(),
           createdBy: 'User',
           currentVersion: 1,
-          records: [
-            for (final m in members)
-              SessionRecord(
-                memberId: m.id,
-                attendee: m.displayName,
-                status: AttendanceStatus.present,
-                recordedAt: DateTime.now(),
-                recordedBy: 'System (Preseed)',
-              ),
-          ],
+          records: const [],
         );
 
     // Pushes the page on top of a base route so that popping it actually pops
@@ -724,7 +742,7 @@ void main() {
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => AttendanceDeckPage(
-                        session: allPresentSession(members),
+                        session: freshSession(members),
                         deleteOnCancel: deleteOnCancel,
                         members: members,
                         sessionRepository: repo,
@@ -750,7 +768,7 @@ void main() {
       Member(id: '2', displayName: 'Eve'),
     ];
 
-    testWidgets('cancelling the page (X) discards the session',
+    testWidgets('cancelling an untouched new session discards it silently',
         (tester) async {
       final repo = MockSessionRepository();
       await pumpPagePushed(tester, repo: repo, members: members);
@@ -759,6 +777,38 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets('cancelling an untouched session shows no prompt and saves nothing',
+        (tester) async {
+      final repo = MockSessionRepository();
+      await pumpPagePushed(tester, repo: repo, members: members);
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save as is'), findsNothing);
+      expect(repo.savedSessions, isEmpty);
+      expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets('Save as is also records the unmarked as absent',
+        (tester) async {
+      final repo = MockSessionRepository();
+      await pumpPagePushed(tester, repo: repo, members: members);
+
+      await tester.tap(_chip('1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save as is'));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(2));
+      expect(saved.firstWhere((r) => r.memberId == '2').status,
+          AttendanceStatus.absent);
+      expect(repo.deleteCalls, isEmpty);
     });
 
     testWidgets('cancelling a resumed session (deleteOnCancel: false) keeps it',
@@ -784,7 +834,7 @@ void main() {
       final repo = MockSessionRepository();
       await pumpPagePushed(tester, repo: repo, members: members);
 
-      // Make a real edit: toggle Dan off.
+      // Make a real edit: mark Dan.
       await tester.tap(_chip('1'));
       await tester.pumpAndSettle();
 
@@ -837,7 +887,7 @@ void main() {
       expect(repo.deleteCalls, isEmpty);
     });
 
-    testWidgets('finishing a pre-marked session keeps it', (tester) async {
+    testWidgets('finishing a session keeps it', (tester) async {
       final repo = MockSessionRepository();
       await pumpPagePushed(tester, repo: repo, members: members);
 
