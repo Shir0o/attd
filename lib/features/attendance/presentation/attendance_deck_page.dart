@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/design/app_typography.dart';
 import '../../../../core/design/widgets/conv_widgets.dart';
 import '../../../../data/session.dart';
-import '../../../../data/session_record.dart';
 import '../../../../data/session_repository.dart';
 import '../domain/active_roster_index.dart';
 import '../domain/attendance_marking_session.dart';
 import '../models/attendance_start_mode.dart';
-import '../models/attendance_status.dart';
 import '../models/marking_mode.dart';
 import '../models/family.dart';
 import '../models/member.dart';
@@ -22,7 +20,6 @@ import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
 import 'fast_marking/fast_marking_model.dart';
 import 'fast_marking/likely_here_view.dart';
-import 'mark_everyone_sheet.dart';
 import 'session_summary_page.dart';
 import 'done_progress_pill.dart';
 
@@ -57,28 +54,23 @@ class AttendanceDeckPage extends StatefulWidget {
   final DriveService? driveService;
   final bool disableAnimations;
 
-  /// When true, the page opens in the roster List view instead of the
-  /// speed-swipe deck. Used for "all present" / smart start modes where the
-  /// user toggles exceptions rather than swiping every member.
+  /// Ignored: the page always opens on the name grid. Callers still pass it;
+  /// it goes away with the start modes.
   final bool initialListMode;
 
-  /// How the session was started. When the user picked a bulk default
-  /// (all-present / smart) the List opens in *confirm mode* — everyone arrives
-  /// pre-marked, the user fixes exceptions and taps a sticky Confirm button.
-  /// `null` or [AttendanceStartMode.allAbsent] is the plain mark-from-scratch
-  /// flow (deck + tap-to-mark list).
+  /// Ignored: a pre-marked session simply shows its marked people on the grid.
+  /// Callers still pass it; it goes away with the start modes.
   final AttendanceStartMode? startMode;
 
-  /// The event's roster-grouping preset (status vs family). Drives how the
-  /// in-session List groups people. Defaults to by-status when unset.
+  /// Ignored: the in-session List is gone. Callers still pass it; it goes away
+  /// with the roster-grouping preset.
   final RosterGrouping? rosterGrouping;
 
-  /// The event's fast-marking preset — which surface fills the third segment
-  /// beside Deck and List. `null` resolves to [kDefaultMarkingMode]; passing
-  /// [MarkingMode.none] leaves the session with Deck and List alone.
+  /// Ignored: the grid is the only marking surface. Callers still pass it; it
+  /// goes away with the fast marking modes.
   final MarkingMode? markingMode;
 
-  /// When true, abandoning the deck (Cancel / system back) discards the
+  /// When true, abandoning the page (Cancel / system back) discards the
   /// session. Only set for *freshly created* preseeded sessions whose records
   /// are throwaway until confirmed — never for resuming an existing session,
   /// where backing out must preserve already-saved records.
@@ -101,50 +93,32 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   Session get _currentSession => _markingSession.session;
   List<Member> get _sessionMembers => _markingSession.sessionMembers;
   List<Family> get _sessionFamilies => _markingSession.sessionFamilies;
-  Map<String, AttendanceStatus> get _baselineStatus => _markingSession.baselineStatus;
-  AttendanceStatus? _baselineFor(Member m) => _markingSession.baselineFor(m);
-  bool _isMemberTouched(Member member) => _markingSession.isTouched(member);
   bool get _hasUserEdits => _markingSession.hasUserEdits;
   Future<void> _drainSaves() => _markingSession.drain();
 
   /// The Likely here "Add someone" pill, which the add sheet grows out of.
   final _addSomeoneSource = GlobalKey<ConvMorphSourceState>();
 
-  /// Past sessions (newest-first) backing the likelihood ordering and the
-  /// "% recently" line the fast surfaces show. Loaded in the background;
-  /// until it arrives the surfaces simply fall back to alphabetical order.
-  List<Session> _recentSessions = const [];
-
-  /// Cached active roster index for [_sessionMembers], [_sessionFamilies], and [_recentSessions].
-  /// Rebuilt only when the history arrives or roster changes, never on the rebuild that follows each mark.
+  /// Cached active roster index for [_sessionMembers] and [_sessionFamilies].
+  /// Rebuilt only when the roster changes, never on the rebuild that follows
+  /// each mark.
   ActiveRosterIndex? _activeRosterIndex;
-  List<Session>? _indexSessionsFrom;
   int _indexMembersLength = 0;
   int _indexFamiliesLength = 0;
 
   ActiveRosterIndex get _memoisedActiveRosterIndex {
     if (_activeRosterIndex == null ||
-        !identical(_indexSessionsFrom, _recentSessions) ||
         _indexMembersLength != _sessionMembers.length ||
         _indexFamiliesLength != _sessionFamilies.length) {
-      _indexSessionsFrom = _recentSessions;
       _indexMembersLength = _sessionMembers.length;
       _indexFamiliesLength = _sessionFamilies.length;
       _activeRosterIndex = ActiveRosterIndex(
         members: _sessionMembers,
         families: _sessionFamilies,
-        recentSessions: _recentSessions,
       );
     }
     return _activeRosterIndex!;
   }
-
-  /// True when the List opened from a bulk default (all-present / smart): the
-  /// user confirms exceptions rather than marking from scratch.
-  bool get _confirmMode =>
-      widget.initialListMode &&
-      (widget.startMode == AttendanceStartMode.allPresent ||
-          widget.startMode == AttendanceStartMode.perMemberDefault);
 
   /// Cancel (X / system back) on a freshly created session that the user has
   /// already marked: ask whether to keep those marks or throw the session away,
@@ -173,7 +147,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         ],
       ),
     );
-    if (choice == null || !mounted) return; // dismissed → stay on the deck
+    if (choice == null || !mounted) return; // dismissed → stay on the grid
     if (choice == 'discard') {
       await _markingSession.discardSession(actor: 'System (Cleanup)');
     }
@@ -283,16 +257,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     return resolved;
   }
 
-  Future<void> _bulkRecordFamily(Family family, bool present) async {
-    await _markingSession.markFamily(family, present);
-  }
-
-  Future<void> _toggleMemberFromList(Member member, bool isPresent) async {
+  Future<void> _toggleMember(Member member, bool isPresent) async {
     await _markingSession.toggleMember(member, isPresent);
-  }
-
-  Future<void> _toggleFamilyFromList(Family family, bool isPresent) async {
-    await _bulkRecordFamily(family, isPresent);
   }
 
   void _finishAndNavigate() {
@@ -478,78 +444,19 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
   }
 
-  /// Roll-up of the current marking state used by the header tally and the
-  /// progress bar. `decided*` count only members the user has actually touched
-  /// (deck semantics: 0·0·N at the start). `status*` count every current
-  /// record incl. the preseed (confirm-mode semantics: everyone pre-marked).
-  ({
-    int decidedPresent,
-    int decidedAbsent,
-    int statusPresent,
-    int statusAbsent,
-    int remaining,
-    int changed,
-  }) _tally() {
-    final byId = <String, SessionRecord>{};
-    final byName = <String, SessionRecord>{};
-    for (final r in _currentSession.records) {
-      if (r.memberId != null && r.memberId!.trim().isNotEmpty) {
-        byId[r.memberId!] = r;
-      } else {
-        // Name fallback is for id-less records only (as in SessionRoster), so
-        // a namesake's record can't mark another member present.
-        byName[r.attendee] = r;
-      }
-    }
-    var decidedPresent = 0,
-        decidedAbsent = 0,
-        statusPresent = 0,
-        statusAbsent = 0,
-        touched = 0,
-        changed = 0;
-    // A member listed under two families arrives twice; count them once, as
-    // the List (keyed by id) does.
-    final seenIds = <String>{};
-    final members = [
-      for (final m in _sessionMembers)
-        if (m.id.isEmpty || seenIds.add(m.id)) m,
-    ];
-    for (final m in members) {
-      final r = byId[m.id] ?? byName[m.displayName];
-      final isTouched = _isMemberTouched(m);
-      if (isTouched) touched++;
-      if (r != null) {
-        if (r.status == AttendanceStatus.present) {
-          statusPresent++;
-          if (isTouched) decidedPresent++;
-        } else {
-          statusAbsent++;
-          if (isTouched) decidedAbsent++;
-        }
-      }
-      // Only members with a known preseed baseline can be "changed" — keeps
-      // this in sync with AttendanceRosterList._isChanged (guests with no
-      // baseline must not inflate the count).
-      final baseline = _baselineFor(m);
-      if (baseline != null && r?.status != baseline) changed++;
-    }
-    return (
-      decidedPresent: decidedPresent,
-      decidedAbsent: decidedAbsent,
-      statusPresent: statusPresent,
-      statusAbsent: statusAbsent,
-      remaining: members.length - touched,
-      changed: changed,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final roster = FastMarkingRoster(
+      session: _currentSession,
+      members: _sessionMembers,
+      families: _sessionFamilies,
+      index: _memoisedActiveRosterIndex,
+    );
 
-    // Confirming the session uses pushReplacement (deck → summary), so the
-    // deck route is only ever *popped* when the user cancels — via the X button
+    // Confirming the session uses pushReplacement (grid → summary), so the
+    // page is only ever *popped* when the user cancels — via the X button
     // or system back. For a freshly created session ([deleteOnCancel]):
     //   - untouched → discard silently (a phantom preseeded session, nothing to
     //     keep);
@@ -580,10 +487,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         body: SafeArea(
           child: Column(
             children: [
-              _buildHeader(colorScheme),
-              Expanded(
-                child: _buildGrid(),
-              ),
+              _buildHeader(roster),
+              Expanded(child: _buildGrid(roster)),
             ],
           ),
         ),
@@ -591,20 +496,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme) {
+  Widget _buildHeader(FastMarkingRoster roster) {
     final c = context.conv;
-    final t = _tally();
-    final total = _sessionMembers.length;
-
-    // Tally numbers + tail differ by surface. Confirm mode (bulk default) shows
-    // the live present/absent split and a "N changed" tail; deck/manual shows
-    // only decisions made so far and "N left".
-    final present = _confirmMode ? t.statusPresent : t.decidedPresent;
-    final absent = _confirmMode ? t.statusAbsent : t.decidedAbsent;
-    final tailCount = _confirmMode ? t.changed : t.remaining;
-    final tailSuffix = _confirmMode ? ' changed' : ' left';
-    // Share of the Event Roster decided so far (deck semantics).
-    final progress = total == 0 ? 0.0 : (total - t.remaining) / total;
+    final total = roster.members.length;
+    // Everyone shown as marked counts, however they got that way (tapped now,
+    // pre-marked at the start, or recorded in a past session). "Left" is the
+    // grid's own meaning: people not marked present yet.
+    final left = roster.unmarked.length;
+    final present = total - left;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -656,20 +555,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                             ),
                             const Text(' · '),
                             ConvRollingNumber(
-                              key: const Key('headerTallyAbsent'),
-                              value: absent,
-                              disableAnimations: widget.disableAnimations,
-                              style: AppTypography.geist(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: c.absent,
-                              ),
-                            ),
-                            const Text(' · '),
-                            ConvRollingNumber(
                               key: const Key('headerTallyTail'),
-                              value: tailCount,
-                              suffix: tailSuffix,
+                              value: left,
+                              suffix: ' left',
                               disableAnimations: widget.disableAnimations,
                               style: AppTypography.geist(
                                 fontSize: 12,
@@ -688,49 +576,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                 padding: const EdgeInsets.only(right: 8),
                 child: DoneProgressPill(
                   key: const Key('finishSessionButton'),
-                  progress: progress,
-                  complete: total > 0 && t.remaining == 0,
-                  solid: _confirmMode,
+                  progress: total == 0 ? 0.0 : present / total,
+                  complete: total > 0 && left == 0,
                   onPressed: () => _finishAndNavigate(),
                   disableAnimations: widget.disableAnimations,
                 ),
               ),
             ],
-          ),
-        ),
-        // Confirm mode keeps its contained bar. While marking, Done itself
-        // carries the progress (M6).
-        if (_confirmMode)
-        // Single present fill on the deck, two-tone present/absent split
-        // elsewhere. Fills ease to new values (M5).
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: SizedBox(
-              height: 4,
-              child: total == 0
-                  ? ColoredBox(color: c.cardSoft)
-                  : Stack(
-                      children: [
-                        Positioned.fill(child: ColoredBox(color: c.cardSoft)),
-                        // The absent fill runs under the present one, so
-                        // only its own share past the present fill shows.
-                        ConvProgressFill(
-                          key: const Key('headerProgressAbsent'),
-                          fraction: (present + absent) / total,
-                          color: c.absent,
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                        ConvProgressFill(
-                          key: const Key('headerProgressPresent'),
-                          fraction: present / total,
-                          color: c.present,
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                      ],
-                    ),
-            ),
           ),
         ),
       ],
@@ -739,109 +591,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   /// The marking surface: the name grid, whatever the event's stored marking
   /// mode says. It writes through the same per-member callback every mark uses.
-  Widget _buildGrid() {
-    final roster = FastMarkingRoster(
-      session: _currentSession,
-      members: _sessionMembers,
-      families: _sessionFamilies,
-      index: _memoisedActiveRosterIndex,
-    );
+  Widget _buildGrid(FastMarkingRoster roster) {
     return LikelyHereView(
       roster: roster,
-      onToggle: _toggleMemberFromList,
+      onToggle: _toggleMember,
       onAddGuest: () => _showAddMemberSheet(morphFrom: _addSomeoneSource),
       addSomeoneKey: _addSomeoneSource,
       disableAnimations: widget.disableAnimations,
     );
-  }
-
-  Widget _buildListBody() {
-    final grouping = widget.rosterGrouping ?? RosterGrouping.byStatus;
-    return AttendanceRosterList(
-      session: _currentSession,
-      families: _sessionFamilies,
-      onToggle: _toggleMemberFromList,
-      onFamilyToggle: _toggleFamilyFromList,
-      onMarkAll: _markAllAttendance,
-      // Grouping is a per-event preset now (set in the editor / asked once),
-      // not a live in-session toggle — show a read-only indicator instead.
-      initialGrouping: grouping,
-      showGroupingToggle: false,
-      showGroupingPreset: true,
-      disableAnimations: widget.disableAnimations,
-      // The session tally now lives in the deck-style header above, so the
-      // roster needn't repeat the Present/Absent/Total stat chips.
-      confirmMode: _confirmMode,
-      smartStart: widget.startMode == AttendanceStartMode.perMemberDefault,
-      baselineStatus: _confirmMode ? _baselineStatus : null,
-      onConfirm: _confirmMode ? _finishAndNavigate : null,
-      onReset: _confirmMode ? _resetToPreseed : null,
-      onAddGuest: _showAddMemberSheet,
-    );
-  }
-
-  /// Confirm-mode "Reset" — restore every member to the status they arrived
-  /// with (the preseed captured at entry).
-  Future<void> _resetToPreseed() async {
-    await _markingSession.resetToBaseline();
-  }
-
-  Future<void> _markAllAttendance(BulkMarkChoice choice) async {
-    final allMembers =
-        _sessionFamilies.expand((f) => f.members).toList(growable: false);
-
-    final String summary;
-    if (choice == BulkMarkChoice.smart) {
-      final recentSessions = await _loadRecentSessions();
-      final result = await _markingSession.markAllSmart(
-        members: allMembers,
-        recentSessions: recentSessions,
-      );
-      summary = result.resolved == 0
-          ? 'No members had enough history for a smart guess.'
-          : 'Applied smart defaults to ${result.resolved} '
-              '${result.resolved == 1 ? 'member' : 'members'}.';
-    } else {
-      final present = choice == BulkMarkChoice.present;
-      await _markingSession.markAll(allMembers, present: present);
-      summary = 'Marked ${allMembers.length} '
-          '${allMembers.length == 1 ? 'member' : 'members'} '
-          '${present ? 'present' : 'absent'}.';
-    }
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 6),
-        content: Text(summary),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () => _markingSession.undo(),
-        ),
-      ),
-    );
-  }
-
-  /// Loads past sessions (newest-first, excluding the current one) for the
-  /// smart-defaults bulk action.
-  Future<List<Session>> _loadRecentSessions() async {
-    try {
-      final all = await widget.sessionRepository.loadSessions();
-      final sorted = all.toList()
-        ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-      return sorted.where((s) => s.id != _currentSession.id).toList();
-    } catch (e) {
-      debugPrint('Error loading session history for smart defaults: $e');
-      return const [];
-    }
-  }
-
-  /// Warms [_recentSessions] for the fast marking surfaces without blocking
-  /// the first frame.
-  Future<void> _primeRecentSessions() async {
-    final sessions = await _loadRecentSessions();
-    if (!mounted) return;
-    setState(() => _recentSessions = sessions);
   }
 }
