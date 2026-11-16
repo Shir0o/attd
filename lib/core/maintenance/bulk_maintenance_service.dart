@@ -443,7 +443,7 @@ class BulkMaintenanceService {
     return changed;
   }
 
-  /// Matches a session to an event the same way history and Insights do: by
+  /// Matches a session to an event the same way history does: by
   /// event id when present, otherwise by recorded title. A session linked to a
   /// different event is never touched, even when the title matches.
   EventTitleMatch? _matchEventTitle(

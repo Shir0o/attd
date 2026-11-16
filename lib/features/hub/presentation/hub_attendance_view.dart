@@ -30,9 +30,7 @@ import '../../settings/data/drive_service.dart';
 import '../../settings/data/local_backup_service.dart';
 import 'members_page.dart';
 import 'add_event_page.dart';
-import '../../sessions/domain/event_insights.dart';
 import '../../sessions/presentation/event_history_page.dart';
-import '../../sessions/presentation/insights_page.dart';
 import '../../../core/crashlytics/crash_reporting_service.dart';
 import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
@@ -41,6 +39,8 @@ import '../../reminders/application/reminder_settings_controller.dart';
 import '../data/event_sharing_service.dart';
 import '../data/google_drive_shared_event_transport.dart';
 import 'share_event_sheet.dart';
+import '../../checkon/presentation/check_on_hub_card.dart';
+import '../../checkon/presentation/check_on_report_page.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -110,7 +110,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         setState(() {
           _events = events;
           _sessions = sessions;
-          _insightsCache.clear();
         });
 
         // Mandatory skeleton duration (800ms)
@@ -169,7 +168,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         _families = families;
         _members = families.expand((f) => f.members).toList();
         _sessions = sessions;
-        _insightsCache.clear();
       });
       debugPrint(
           'DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
@@ -206,43 +204,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     return isToday;
   }
 
-  /// Insights per event, memoised for one build pass.
-  ///
-  /// The computation walks every session against the roster, so recomputing it
-  /// inside the list builder would repeat that work per card on every rebuild.
-  /// Cleared whenever the underlying data changes.
-  final Map<String, EventInsights> _insightsCache = {};
-
-  /// Insights for one event, from the single shared computation — the Hub
-  /// sliver and the Insights page must never derive the rate separately.
-  EventInsights _insightsFor(Event event) {
-    return _insightsCache.putIfAbsent(
-      event.id,
-      () => EventInsights.from(
-        event: event,
-        sessions: _sessions,
-        members: _members,
-        families: _families,
-      ),
-    );
-  }
-
-  Future<void> _openInsights(Event event) async {
-    await Navigator.push(
+  void _openCheckOnReport() {
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InsightsPage(
-          event: event,
-          sessions: _sessions,
-          members: _members,
-          families: _families,
+        builder: (context) => CheckOnReportPage(
           eventRepository: widget.eventRepository,
           sessionRepository: widget.sessionRepository,
+          attendanceRepository: widget.attendanceRepository,
           disableAnimations: widget.disableAnimations,
         ),
       ),
     );
-    _refreshData();
   }
 
   List<Session> _sessionsForEvent(Event event) => _sessions.where((s) {
@@ -459,14 +432,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 ),
               ],
               ListTile(
-                leading: const Icon(Icons.insights_outlined),
-                title: const Text('View Insights'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _openInsights(event);
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.history),
                 title: const Text('View History'),
                 onTap: () async {
@@ -660,6 +625,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ),
                 ],
               ),
+              if (!_isLoading && _events.isNotEmpty && _members.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: CheckOnHubCard(
+                      events: _events,
+                      members: _members,
+                      sessions: _sessions,
+                      onOpenReport: _openCheckOnReport,
+                    ),
+                  ),
+                ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                 sliver: _isLoading
@@ -842,13 +819,8 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       );
       hero = currentHero;
 
-      final heroInsights = _insightsFor(currentHero);
       children.add(
         _HeroEventCard(
-          insightsSliver: _InsightsSliver(
-            insights: heroInsights,
-            onTap: () => _openInsights(currentHero),
-          ),
           event: currentHero,
           isToday: true,
           status: _statusFor(currentHero),
@@ -883,7 +855,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           ),
         );
         for (final event in alsoToday) {
-          final ins = _insightsFor(event);
           children.add(
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -893,10 +864,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                 expected: event.memberIds.length,
                 onTap: () => _handleEventTap(event),
                 onMenuTap: () => _showEventMenu(context, event),
-                insightsSliver: _InsightsSliver(
-                  insights: ins,
-                  onTap: () => _openInsights(event),
-                ),
               ),
             ),
           );
@@ -926,7 +893,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       );
       for (final event in otherEvents) {
-        final ins = _insightsFor(event);
         children.add(
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
@@ -936,10 +902,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               status: _statusFor(event),
               onTap: () => _handleEventTap(event),
               onMenuTap: () => _showEventMenu(context, event),
-              insightsSliver: _InsightsSliver(
-                insights: ins,
-                onTap: () => _openInsights(event),
-              ),
             ),
           ),
         );
@@ -1323,7 +1285,6 @@ class _HeroEventCard extends StatefulWidget {
     required this.lastStat,
     required this.onTap,
     required this.onMenuTap,
-    this.insightsSliver,
     this.disableAnimations = false,
   });
 
@@ -1334,7 +1295,6 @@ class _HeroEventCard extends StatefulWidget {
   final ({int present, int total})? lastStat;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
-  final Widget? insightsSliver;
   final bool disableAnimations;
 
   @override
@@ -1531,7 +1491,6 @@ class _HeroEventCardState extends State<_HeroEventCard>
                         ),
                       ],
                     ),
-                    if (widget.insightsSliver != null) widget.insightsSliver!,
                   ],
                 ),
               ),
@@ -1724,89 +1683,6 @@ class _HeroAction extends StatelessWidget {
   }
 }
 
-/// Compact Insights strip under a Hub event card: the event's attendance rate
-/// and how many people have lapsed.
-///
-/// Fed by the same [EventInsights] the Insights page renders, never a separate
-/// calculation, so the Hub and the page cannot disagree about the rate.
-class _InsightsSliver extends StatelessWidget {
-  const _InsightsSliver({required this.insights, required this.onTap});
-
-  final EventInsights insights;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    final rate = insights.averageRatePercent;
-    if (rate == null) return const SizedBox.shrink();
-
-    final lapsed = insights.lapsed.length;
-    final points = insights.points;
-    final sessionNoun = points.length == 1 ? 'session' : 'sessions';
-    final spark =
-        points.length <= 6 ? points : points.sublist(points.length - 6);
-
-    return Semantics(
-      button: true,
-      label: 'View insights: $rate percent over '
-          '${points.length} $sessionNoun, $lapsed lapsed',
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                SizedBox(
-                  height: 16,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (var i = 0; i < spark.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 2),
-                        Container(
-                          width: 4,
-                          height:
-                              (4 + 12 * spark[i].rate).clamp(4, 16).toDouble(),
-                          decoration: BoxDecoration(
-                            color: c.primary.withValues(
-                              alpha: i == spark.length - 1 ? 1 : 0.35,
-                            ),
-                            borderRadius: BorderRadius.circular(1),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    lapsed == 0
-                        ? '$rate% over ${points.length} $sessionNoun'
-                        : '$rate% over ${points.length} $sessionNoun · $lapsed lapsed',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.geist(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: c.primary,
-                    ),
-                  ),
-                ),
-                Icon(Icons.chevron_right, size: 16, color: c.primary),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Compact "Upcoming" row — date numeral, name, time, and status chip.
 class _EventRow extends StatelessWidget {
   const _EventRow({
@@ -1815,7 +1691,6 @@ class _EventRow extends StatelessWidget {
     required this.status,
     required this.onTap,
     required this.onMenuTap,
-    this.insightsSliver,
   });
 
   final Event event;
@@ -1823,7 +1698,6 @@ class _EventRow extends StatelessWidget {
   final _EventStatus status;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
-  final Widget? insightsSliver;
 
   @override
   Widget build(BuildContext context) {
@@ -1917,7 +1791,6 @@ class _EventRow extends StatelessWidget {
               ),
             ],
           ),
-          if (insightsSliver != null) insightsSliver!,
         ],
       ),
     );
@@ -1933,7 +1806,6 @@ class _TodayRow extends StatelessWidget {
     required this.expected,
     required this.onTap,
     required this.onMenuTap,
-    this.insightsSliver,
   });
 
   final Event event;
@@ -1941,7 +1813,6 @@ class _TodayRow extends StatelessWidget {
   final int expected;
   final VoidCallback onTap;
   final VoidCallback onMenuTap;
-  final Widget? insightsSliver;
 
   @override
   Widget build(BuildContext context) {
@@ -2051,7 +1922,6 @@ class _TodayRow extends StatelessWidget {
                 ),
               ],
             ),
-            if (insightsSliver != null) insightsSliver!,
           ],
         ),
       ),

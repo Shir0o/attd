@@ -4,7 +4,7 @@ import '../../../core/utils/enum_by_name.dart';
 import '../../attendance/models/attendance_start_mode.dart';
 import '../../attendance/models/marking_mode.dart';
 import '../../attendance/models/roster_grouping.dart';
-import '../../sessions/domain/insights_config.dart';
+import '../../checkon/domain/check_on_follow_up.dart';
 
 class Event {
   final String id;
@@ -28,10 +28,12 @@ class Event {
   /// events pick up the default without an extra step.
   final MarkingMode? markingMode;
 
-  /// Per-event Insights presets: viewing range, Regular and Lapsed thresholds,
-  /// and which sections show. `null` means nothing has been chosen and the
-  /// defaults apply, exactly as for [markingMode]. See ADR 0007.
-  final InsightsConfig? insightsConfig;
+  /// "Who to check on" ticks: member id -> the flag and last-present day the
+  /// owner followed up on. See [CheckOnFollowUp].
+  final Map<String, CheckOnFollowUp> checkOnFollowUps;
+
+  /// Members the owner chose to stop flagging on this event.
+  final Set<String> checkOnStopFlagging;
 
   final bool isShared;
   final String? sharedFolderId;
@@ -52,7 +54,8 @@ class Event {
     this.defaultAttendanceStartMode,
     this.rosterGrouping,
     this.markingMode,
-    this.insightsConfig,
+    this.checkOnFollowUps = const {},
+    this.checkOnStopFlagging = const {},
     this.isShared = false,
     this.sharedFolderId,
     this.collaborators = const [],
@@ -67,11 +70,6 @@ class Event {
   /// none has been chosen.
   MarkingMode get resolvedMarkingMode => markingMode ?? kDefaultMarkingMode;
 
-  /// The Insights presets this event actually uses, applying defaults when
-  /// nothing has been chosen.
-  InsightsConfig get resolvedInsightsConfig =>
-      insightsConfig ?? const InsightsConfig();
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -85,7 +83,14 @@ class Event {
         'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
       if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
       if (markingMode != null) 'markingMode': markingMode!.name,
-      if (insightsConfig != null) ...insightsConfig!.toJson(),
+      // Discrete keys: the Drive merge is last-write-wins per event, so each
+      // answer stays its own field.
+      if (checkOnFollowUps.isNotEmpty)
+        'checkOnFollowUps': {
+          for (final e in checkOnFollowUps.entries) e.key: e.value.toJson(),
+        },
+      if (checkOnStopFlagging.isNotEmpty)
+        'checkOnStopFlagging': checkOnStopFlagging.toList()..sort(),
       if (isShared) 'isShared': isShared,
       if (sharedFolderId != null) 'sharedFolderId': sharedFolderId,
       if (collaborators.isNotEmpty) 'collaborators': collaborators,
@@ -107,7 +112,8 @@ class Event {
     AttendanceStartMode? defaultAttendanceStartMode,
     RosterGrouping? rosterGrouping,
     MarkingMode? markingMode,
-    InsightsConfig? insightsConfig,
+    Map<String, CheckOnFollowUp>? checkOnFollowUps,
+    Set<String>? checkOnStopFlagging,
     bool? isShared,
     String? sharedFolderId,
     List<String>? collaborators,
@@ -129,7 +135,8 @@ class Event {
           defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
       rosterGrouping: rosterGrouping ?? this.rosterGrouping,
       markingMode: markingMode ?? this.markingMode,
-      insightsConfig: insightsConfig ?? this.insightsConfig,
+      checkOnFollowUps: checkOnFollowUps ?? this.checkOnFollowUps,
+      checkOnStopFlagging: checkOnStopFlagging ?? this.checkOnStopFlagging,
       isShared: isShared ?? this.isShared,
       sharedFolderId: sharedFolderId ?? this.sharedFolderId,
       collaborators: collaborators ?? this.collaborators,
@@ -154,7 +161,14 @@ class Event {
       MarkingMode.values,
       json['markingMode'] as String?,
     );
-    final insights = InsightsConfig.fromJson(json);
+    final followUps = <String, CheckOnFollowUp>{};
+    final rawFollowUps = json['checkOnFollowUps'];
+    if (rawFollowUps is Map) {
+      for (final e in rawFollowUps.entries) {
+        final tick = CheckOnFollowUp.tryFromJson(e.value);
+        if (e.key is String && tick != null) followUps[e.key as String] = tick;
+      }
+    }
     return Event(
       id: json['id'] as String,
       title: (json['title'] as String).trim(),
@@ -177,7 +191,11 @@ class Event {
       defaultAttendanceStartMode: startMode,
       rosterGrouping: grouping,
       markingMode: mode,
-      insightsConfig: insights.isEmpty ? null : insights,
+      checkOnFollowUps: followUps,
+      checkOnStopFlagging: {
+        for (final id in json['checkOnStopFlagging'] as List<dynamic>? ?? [])
+          if (id is String) id,
+      },
       isShared: json['isShared'] as bool? ?? false,
       sharedFolderId: json['sharedFolderId'] as String?,
       collaborators: (json['collaborators'] as List<dynamic>?)
