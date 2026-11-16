@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:attendance_tracker/features/checkon/domain/check_on_follow_up.dart';
 import 'package:attendance_tracker/features/hub/data/local_event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:flutter/material.dart';
@@ -369,6 +370,32 @@ void main() {
       expect(mainFile.existsSync(), isTrue);
       // Clean up the directory created at tmp path so it doesn't block other tests
       await tempDirVar.delete(recursive: true);
+    });
+
+    test('Who to check on answers survive a restart', () async {
+      final event = Event(
+        id: 'e1',
+        title: 'Study',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      await repository.createEvent(event);
+      await repository.updateEvent(event.copyWith(
+        checkOnFollowUps: {
+          'm1': CheckOnFollowUp(
+            flag: 'goneQuiet',
+            lastPresent: DateTime(2026, 3, 4),
+          ),
+        },
+        checkOnStopFlagging: {'m2'},
+      ));
+
+      final reopened = LocalJsonEventRepository(storagePath: tempDir.path);
+      final loaded = (await reopened.fetchAllEvents()).single;
+      expect(loaded.checkOnFollowUps['m1']!.flag, 'goneQuiet');
+      expect(loaded.checkOnFollowUps['m1']!.lastPresent, DateTime(2026, 3, 4));
+      expect(loaded.checkOnStopFlagging, {'m2'});
     });
   });
 }

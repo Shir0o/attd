@@ -374,6 +374,7 @@ void main() {
       time: const TimeOfDay(hour: 10, minute: 0),
       frequency: 'Weekly',
       repeatingDays: ['Monday'],
+      checkOnStopFlagging: const {'m9'},
       createdAt: DateTime.now(),
     );
     mockEventRepo.event = event;
@@ -396,6 +397,8 @@ void main() {
 
     expect(mockEventRepo.updatedEvents, hasLength(1));
     expect(mockEventRepo.updatedEvents.single.memberIds, ['1']);
+    // A roster change must not drop the event's Who to check on choices.
+    expect(mockEventRepo.updatedEvents.single.checkOnStopFlagging, {'m9'});
     expect(find.text('1 / 1'), findsOneWidget);
   });
 
