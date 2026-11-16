@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:attendance_tracker/features/checkon/domain/check_on_follow_up.dart';
 import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -8,7 +9,6 @@ import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
-import 'package:attendance_tracker/features/sessions/domain/insights_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -244,14 +244,17 @@ void main() {
     expect(repository.events.single.createdAt, createdAt);
   });
 
-  testWidgets('renaming keeps sharing and Insights settings', (tester) async {
+  testWidgets('renaming keeps sharing and Who to check on settings', (tester) async {
     final event = Event(
       id: 'event-shared',
       title: 'Original',
       time: const TimeOfDay(hour: 9, minute: 30),
       frequency: 'Weekly',
       repeatingDays: const ['Sunday'],
-      insightsConfig: const InsightsConfig(regularThresholdPercent: 60),
+      checkOnFollowUps: {
+        'm1': CheckOnFollowUp(flag: 'goneQuiet', lastPresent: DateTime(2025, 2, 3)),
+      },
+      checkOnStopFlagging: const {'m2'},
       isShared: true,
       sharedFolderId: 'folder-1',
       collaborators: const ['a@example.com'],
@@ -278,7 +281,8 @@ void main() {
 
     final saved = repository.events.single;
     expect(saved.title, 'Renamed');
-    expect(saved.insightsConfig?.regularThresholdPercent, 60);
+    expect(saved.checkOnFollowUps['m1']?.flag, 'goneQuiet');
+    expect(saved.checkOnStopFlagging, {'m2'});
     expect(saved.isShared, isTrue);
     expect(saved.sharedFolderId, 'folder-1');
     expect(saved.collaborators, ['a@example.com']);

@@ -369,8 +369,8 @@ void main() {
     expect(find.text('Attendance Mode'), findsNothing);
     expect(find.text('Fast Marking Mode'), findsNothing);
     expect(find.byKey(const Key('eventMenuFastMarkingMode')), findsNothing);
-    // The rest of the menu is untouched.
-    expect(find.text('View Insights'), findsOneWidget);
+    // Insights is gone too; the rest of the menu is untouched.
+    expect(find.text('View Insights'), findsNothing);
     expect(find.text('Manage Members'), findsOneWidget);
   });
 

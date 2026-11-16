@@ -190,4 +190,59 @@ void main() {
       expect(updated.isReadOnly, isFalse);
     });
   });
+  group('Event with legacy Insights keys', () {
+    // Insights and its per-event presets were removed. Local files, Drive
+    // backups and shared slices written before then still carry the keys; they
+    // must load and be ignored.
+    final legacy = <String, dynamic>{
+      'id': 'e1',
+      'title': 'Wednesday Study',
+      'time': '19:0',
+      'frequency': 'Weekly',
+      'createdAt': '2026-01-01T00:00:00.000',
+      'insightsRange': 'year',
+      'insightsRegularThresholdPercent': 60,
+      'insightsRegularWindow': 12,
+      'insightsLapsedConsecutiveMisses': 2,
+      'insightsLapsedMinimumPriorSessions': 6,
+      'insightsVisibleSections': ['rateOverTime', 'notASection'],
+    };
+
+    test('loads without error and keeps its other fields', () {
+      final event = Event.fromJson(Map<String, dynamic>.of(legacy));
+
+      expect(event.id, 'e1');
+      expect(event.title, 'Wednesday Study');
+      expect(event.frequency, 'Weekly');
+    });
+
+    test('malformed legacy values are ignored too', () {
+      final event = Event.fromJson({
+        ...legacy,
+        'insightsRegularThresholdPercent': 'sixty',
+        'insightsVisibleSections': 'regulars',
+      });
+
+      expect(event.id, 'e1');
+    });
+
+    test('does not write the keys back out', () {
+      final json = Event.fromJson(Map<String, dynamic>.of(legacy)).toJson();
+
+      expect(json.keys.where((k) => k.startsWith('insights')), isEmpty);
+    });
+
+    test('leaves the check-on fields untouched', () {
+      final event = Event.fromJson({
+        ...legacy,
+        'checkOnStopFlagging': ['m2'],
+        'checkOnFollowUps': {
+          'm1': {'flag': 'goneQuiet', 'lastPresent': '2026-02-03'},
+        },
+      });
+
+      expect(event.checkOnStopFlagging, {'m2'});
+      expect(event.checkOnFollowUps.keys, ['m1']);
+    });
+  });
 }

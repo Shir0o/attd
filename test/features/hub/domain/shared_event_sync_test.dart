@@ -388,6 +388,47 @@ void main() {
       )).called(1);
     });
 
+    test('syncSharedEvents ignores legacy Insights keys in an old slice', () async {
+      transport.seedFolder(
+        folderId: 'folder-old',
+        name: 'ev-old',
+        isSharedWithMe: true,
+        files: {
+          SharedSlice.sharedEventFileName: jsonEncode({
+            'id': 'ev-old',
+            'title': 'Old Slice',
+            'time': '14:00',
+            'frequency': 'Weekly',
+            'createdAt': '2026-09-21T10:00:00.000Z',
+            'insightsRange': 'year',
+            'insightsRegularThresholdPercent': 60,
+            'insightsVisibleSections': ['rateOverTime'],
+          }),
+          SharedSlice.sharedRosterFileName: jsonEncode([]),
+          SharedSlice.sharedSessionsFileName: jsonEncode([]),
+        },
+      );
+
+      when(() => mockEventRepo.findEventById('ev-old')).thenAnswer((_) async => null);
+      when(() => mockEventRepo.createEvent(any())).thenAnswer((_) async {});
+      when(() => mockAttendanceRepo.fetchFamilies()).thenAnswer((_) async => []);
+      when(() => mockAttendanceRepo.addFamily(any())).thenAnswer(
+        (_) async => Family(id: 'fam-old', displayName: 'Old Slice Roster', members: []),
+      );
+      when(() => mockSessionRepo.loadSessions()).thenAnswer((_) async => []);
+
+      await syncCoordinator.syncSharedEvents();
+
+      verify(() => mockEventRepo.createEvent(
+        any(that: predicate<Event>((e) =>
+          e.id == 'ev-old' &&
+          e.title == 'Old Slice' &&
+          e.isShared == true &&
+          e.toJson().keys.every((k) => !k.startsWith('insights'))
+        )),
+      )).called(1);
+    });
+
     test('syncSharedEvents updates existing event and snapshots existing session', () async {
       final eventContent = jsonEncode({
         'id': 'ev-existing-1',

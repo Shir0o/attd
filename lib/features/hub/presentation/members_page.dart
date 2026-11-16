@@ -706,16 +706,9 @@ class _MembersPageState extends State<MembersPage> {
       updatedMemberIds.remove(member.id);
     }
 
-    final updatedEvent = Event(
-      id: _currentEvent!.id,
-      title: _currentEvent!.title,
-      time: _currentEvent!.time,
-      frequency: _currentEvent!.frequency,
-      oneTimeDate: _currentEvent!.oneTimeDate,
-      repeatingDays: _currentEvent!.repeatingDays,
-      memberIds: updatedMemberIds,
-      createdAt: _currentEvent!.createdAt,
-    );
+    // copyWith, not a fresh Event: the event's other fields (such as the
+    // "Who to check on" ticks) must survive a roster change.
+    final updatedEvent = _currentEvent!.copyWith(memberIds: updatedMemberIds);
 
     setState(() {
       _currentEvent = updatedEvent;

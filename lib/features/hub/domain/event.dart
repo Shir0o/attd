@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../sessions/domain/insights_config.dart';
+import '../../checkon/domain/check_on_follow_up.dart';
 
 class Event {
   final String id;
@@ -12,10 +12,12 @@ class Event {
       repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final List<String> memberIds; // Members associated with this event
 
-  /// Per-event Insights presets: viewing range, Regular and Lapsed thresholds,
-  /// and which sections show. `null` means nothing has been chosen and the
-  /// defaults apply. See ADR 0007.
-  final InsightsConfig? insightsConfig;
+  /// "Who to check on" ticks: member id -> the flag and last-present day the
+  /// owner followed up on. See [CheckOnFollowUp].
+  final Map<String, CheckOnFollowUp> checkOnFollowUps;
+
+  /// Members the owner chose to stop flagging on this event.
+  final Set<String> checkOnStopFlagging;
 
   final bool isShared;
   final String? sharedFolderId;
@@ -33,7 +35,8 @@ class Event {
     this.oneTimeDate,
     this.repeatingDays = const [],
     this.memberIds = const [],
-    this.insightsConfig,
+    this.checkOnFollowUps = const {},
+    this.checkOnStopFlagging = const {},
     this.isShared = false,
     this.sharedFolderId,
     this.collaborators = const [],
@@ -44,10 +47,6 @@ class Event {
   })  : title = title.trim(),
         updatedAt = updatedAt ?? createdAt;
 
-  /// The Insights presets this event actually uses, applying defaults when
-  /// nothing has been chosen.
-  InsightsConfig get resolvedInsightsConfig =>
-      insightsConfig ?? const InsightsConfig();
 
   Map<String, dynamic> toJson() {
     return {
@@ -58,7 +57,14 @@ class Event {
       'oneTimeDate': oneTimeDate?.toIso8601String(),
       'repeatingDays': repeatingDays,
       'memberIds': memberIds,
-      if (insightsConfig != null) ...insightsConfig!.toJson(),
+      // Discrete keys: the Drive merge is last-write-wins per event, so each
+      // answer stays its own field.
+      if (checkOnFollowUps.isNotEmpty)
+        'checkOnFollowUps': {
+          for (final e in checkOnFollowUps.entries) e.key: e.value.toJson(),
+        },
+      if (checkOnStopFlagging.isNotEmpty)
+        'checkOnStopFlagging': checkOnStopFlagging.toList()..sort(),
       if (isShared) 'isShared': isShared,
       if (sharedFolderId != null) 'sharedFolderId': sharedFolderId,
       if (collaborators.isNotEmpty) 'collaborators': collaborators,
@@ -77,7 +83,8 @@ class Event {
     DateTime? oneTimeDate,
     List<String>? repeatingDays,
     List<String>? memberIds,
-    InsightsConfig? insightsConfig,
+    Map<String, CheckOnFollowUp>? checkOnFollowUps,
+    Set<String>? checkOnStopFlagging,
     bool? isShared,
     String? sharedFolderId,
     List<String>? collaborators,
@@ -95,7 +102,8 @@ class Event {
       oneTimeDate: oneTimeDate ?? this.oneTimeDate,
       repeatingDays: repeatingDays ?? this.repeatingDays,
       memberIds: memberIds ?? this.memberIds,
-      insightsConfig: insightsConfig ?? this.insightsConfig,
+      checkOnFollowUps: checkOnFollowUps ?? this.checkOnFollowUps,
+      checkOnStopFlagging: checkOnStopFlagging ?? this.checkOnStopFlagging,
       isShared: isShared ?? this.isShared,
       sharedFolderId: sharedFolderId ?? this.sharedFolderId,
       collaborators: collaborators ?? this.collaborators,
@@ -108,7 +116,14 @@ class Event {
 
   factory Event.fromJson(Map<String, dynamic> json) {
     final timeParts = (json['time'] as String).split(':');
-    final insights = InsightsConfig.fromJson(json);
+    final followUps = <String, CheckOnFollowUp>{};
+    final rawFollowUps = json['checkOnFollowUps'];
+    if (rawFollowUps is Map) {
+      for (final e in rawFollowUps.entries) {
+        final tick = CheckOnFollowUp.tryFromJson(e.value);
+        if (e.key is String && tick != null) followUps[e.key as String] = tick;
+      }
+    }
     return Event(
       id: json['id'] as String,
       title: (json['title'] as String).trim(),
@@ -128,7 +143,11 @@ class Event {
               ?.map((e) => e as String)
               .toList() ??
           [],
-      insightsConfig: insights.isEmpty ? null : insights,
+      checkOnFollowUps: followUps,
+      checkOnStopFlagging: {
+        for (final id in json['checkOnStopFlagging'] as List<dynamic>? ?? [])
+          if (id is String) id,
+      },
       isShared: json['isShared'] as bool? ?? false,
       sharedFolderId: json['sharedFolderId'] as String?,
       collaborators: (json['collaborators'] as List<dynamic>?)

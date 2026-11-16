@@ -7,6 +7,7 @@ import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
+import '../../checkon/presentation/check_on_summary_line.dart';
 import '../../settings/application/developer_unlock.dart';
 import '../../settings/data/cisa_sync_service.dart';
 import '../../settings/data/drive_service.dart';
@@ -503,6 +504,19 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (_currentEvent != null &&
+                      widget.eventRepository != null &&
+                      widget.attendanceRepository != null)
+                    CheckOnSummaryLine(
+                      event: _currentEvent!,
+                      session: _currentSession,
+                      members:
+                          _allMembers.isNotEmpty ? _allMembers : widget.members,
+                      sessionRepository: widget.sessionRepository,
+                      eventRepository: widget.eventRepository!,
+                      attendanceRepository: widget.attendanceRepository!,
+                      disableAnimations: widget.disableAnimations,
+                    ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

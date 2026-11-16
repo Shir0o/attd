@@ -230,7 +230,8 @@ class _AddEventPageState extends State<AddEventPage> {
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
         memberIds: _selectedMemberIds.toList(),
         // Fields this form does not edit must survive the save.
-        insightsConfig: widget.eventToEdit?.insightsConfig,
+        checkOnFollowUps: widget.eventToEdit?.checkOnFollowUps ?? const {},
+        checkOnStopFlagging: widget.eventToEdit?.checkOnStopFlagging ?? const {},
         isShared: widget.eventToEdit?.isShared ?? false,
         sharedFolderId: widget.eventToEdit?.sharedFolderId,
         collaborators: widget.eventToEdit?.collaborators ?? const [],
