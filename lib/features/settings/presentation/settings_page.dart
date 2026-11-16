@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../reports/report_export_page.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/google_sheets_service.dart';
@@ -96,6 +95,9 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
   }
+
+  BackgroundSyncService get _backgroundSync =>
+      widget.backgroundSyncService ?? BackgroundSyncService();
 
   void _markDataModified() {
     if (!_dataModified) {
@@ -389,6 +391,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                                   null) {
                                                 await widget.driveService
                                                     .setDriveSyncEnabled(true);
+                                                // Auto-sync is always on while
+                                                // signed in.
+                                                await _backgroundSync
+                                                    .registerPeriodicSync();
                                               }
                                             } catch (e) {
                                               scaffoldMessenger.showSnackBar(
@@ -435,6 +441,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                                     () async {
                                                       await widget.driveService
                                                           .signOut();
+                                                      await _backgroundSync
+                                                          .cancelSync();
                                                     },
                                                   );
                                                 }
@@ -562,52 +570,15 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         if (isSignedIn) ...[
                           _SettingRow(
+                            key: const ValueKey('auto_sync_status_tile'),
                             icon: Icons.autorenew,
-                            title: 'Background Auto-Sync',
+                            title: 'Auto-Sync',
                             subtitle: _formatLastBackgroundSync(
                               widget.driveService.lastBackgroundSyncTime,
                               widget.driveService.lastBackgroundSyncStatus,
                             ),
-                            trailing: Switch(
-                              value: widget.driveService.isBackgroundSyncEnabled,
-                              onChanged: (val) async {
-                                await widget.driveService
-                                    .setBackgroundSyncEnabled(val);
-                                final bgService = widget.backgroundSyncService ??
-                                    BackgroundSyncService();
-                                if (val) {
-                                  await bgService.registerPeriodicSync(
-                                    wifiOnly: widget.driveService
-                                        .isBackgroundSyncWifiOnly,
-                                  );
-                                } else {
-                                  await bgService.cancelSync();
-                                }
-                              },
-                            ),
+                            showChevron: false,
                           ),
-                          if (widget.driveService.isBackgroundSyncEnabled) ...[
-                            _SettingRow(
-                              icon: Icons.wifi,
-                              title: 'Require Wi-Fi',
-                              subtitle:
-                                  'Only auto-sync when connected to Wi-Fi',
-                              trailing: Switch(
-                                value: widget
-                                    .driveService.isBackgroundSyncWifiOnly,
-                                onChanged: (val) async {
-                                  await widget.driveService
-                                      .setBackgroundSyncWifiOnly(val);
-                                  final bgService =
-                                      widget.backgroundSyncService ??
-                                          BackgroundSyncService();
-                                  await bgService.registerPeriodicSync(
-                                    wifiOnly: val,
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
                           _SettingRow(
                             icon: Icons.history,
                             title: 'Version history',
@@ -705,25 +676,26 @@ class _SettingsPageState extends State<SettingsPage> {
                             }
                           },
                         ),
-                        _SettingRow(
-                          key: const ValueKey('manage_backup_data_tile'),
-                          icon: Icons.cleaning_services,
-                          title: 'Manage Backup Data',
-                          subtitle: 'Clean up hidden or orphaned records',
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ManageBackupDataPage(
-                                  attendanceRepository:
-                                      widget.attendanceRepository,
-                                  eventRepository: widget.eventRepository,
-                                  sessionRepository: widget.sessionRepository,
+                        if (_devUnlocked)
+                          _SettingRow(
+                            key: const ValueKey('manage_backup_data_tile'),
+                            icon: Icons.cleaning_services,
+                            title: 'Manage Backup Data',
+                            subtitle: 'Clean up hidden or orphaned records',
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ManageBackupDataPage(
+                                    attendanceRepository:
+                                        widget.attendanceRepository,
+                                    eventRepository: widget.eventRepository,
+                                    sessionRepository: widget.sessionRepository,
+                                  ),
                                 ),
-                              ),
-                            );
-                            _markDataModified();
-                          },
-                        ),
+                              );
+                              _markDataModified();
+                            },
+                          ),
                         _SettingRow(
                           icon: Icons.save,
                           title: 'Backup to Local Storage',
@@ -740,69 +712,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               );
                             }
-                          },
-                        ),
-                        ListenableBuilder(
-                          listenable: widget.themeController,
-                          builder: (context, _) {
-                            final isReportExportEnabled =
-                                widget.themeController.isReportExportEnabled;
-                            return Column(
-                              children: [
-                                _SettingRow(
-                                  key: const ValueKey(
-                                    'enable_report_export_tile',
-                                  ),
-                                  icon: Icons.ios_share,
-                                  title: 'Enable Report Export',
-                                  subtitle: 'Show export and reporting options',
-                                  showChevron: false,
-                                  trailing: Switch(
-                                    value: isReportExportEnabled,
-                                    onChanged: (val) {
-                                      widget.themeController
-                                          .updateReportExportEnabled(val);
-                                    },
-                                  ),
-                                ),
-                                if (isReportExportEnabled) ...[
-                                  _SettingRow(
-                                    icon: Icons.summarize,
-                                    title: 'Advanced Reporting',
-                                    subtitle: 'Filter and export custom reports',
-                                    onTap: () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ReportExportPage(
-                                            sessionRepository:
-                                                widget.sessionRepository,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  _SettingRow(
-                                    icon: Icons.file_download_outlined,
-                                    title: 'Export Report',
-                                    subtitle: 'Download CSV',
-                                    onTap: () async {
-                                      final scaffoldMessenger =
-                                          ScaffoldMessenger.of(context);
-                                      try {
-                                        await widget.localBackupService
-                                            .exportData();
-                                      } catch (e) {
-                                        scaffoldMessenger.showSnackBar(
-                                          SnackBar(
-                                            content: Text('Export failed: $e'),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ],
-                            );
                           },
                         ),
                       ],

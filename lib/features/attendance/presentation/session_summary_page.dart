@@ -7,6 +7,7 @@ import '../../../../data/session_repository.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
+import '../../settings/application/developer_unlock.dart';
 import '../../settings/data/cisa_sync_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../domain/attendance_marking_session.dart';
@@ -54,6 +55,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   late bool _ownsMarkingSession;
   late final CisaSyncService _cisaSyncService;
   bool _isSyncingCisa = false;
+  bool _devUnlocked = false;
   List<Member> _allMembers = [];
   List<Family> _allFamilies = [];
   Event? _currentEvent;
@@ -74,6 +76,10 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
     _currentSession = widget.session;
     _currentEvent = widget.event;
     _cisaSyncService = widget.cisaSyncService ?? CisaSyncService();
+    // The CISA button is a developer option, hidden until unlocked.
+    DeveloperUnlock().isUnlocked().then((unlocked) {
+      if (unlocked && mounted) setState(() => _devUnlocked = true);
+    });
     if (widget.markingSession != null) {
       _markingSession = widget.markingSession!;
       _ownsMarkingSession = false;
@@ -436,22 +442,23 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           onPressed: () => Navigator.of(context).pop(_currentSession),
         ),
         actions: [
-          IconButton(
-            key: const ValueKey('sync_cisa_button'),
-            tooltip: 'Sync to CISA Gathering',
-            onPressed: _isSyncingCisa ? null : _syncToCisa,
-            icon: _isSyncingCisa
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colorScheme.primary,
-                    ),
-                  )
-                : const Icon(Icons.cloud_upload_outlined),
-            color: colorScheme.primary,
-          ),
+          if (_devUnlocked)
+            IconButton(
+              key: const ValueKey('sync_cisa_button'),
+              tooltip: 'Sync to CISA Gathering',
+              onPressed: _isSyncingCisa ? null : _syncToCisa,
+              icon: _isSyncingCisa
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.primary,
+                      ),
+                    )
+                  : const Icon(Icons.cloud_upload_outlined),
+              color: colorScheme.primary,
+            ),
           IconButton(
             tooltip: 'Add attendee',
             onPressed: _showAddMemberSheet,

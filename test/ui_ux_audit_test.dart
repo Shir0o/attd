@@ -40,12 +40,6 @@ class _FakeDriveService extends ChangeNotifier implements DriveService {
   bool isDriveSyncEnabled = false;
 
   @override
-  bool isBackgroundSyncEnabled = true;
-
-  @override
-  bool isBackgroundSyncWifiOnly = true;
-
-  @override
   DateTime? lastBackgroundSyncTime;
 
   @override
