@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/enum_by_name.dart';
-import '../../attendance/models/attendance_start_mode.dart';
-import '../../attendance/models/marking_mode.dart';
-import '../../attendance/models/roster_grouping.dart';
 import '../../checkon/domain/check_on_follow_up.dart';
 
 class Event {
@@ -15,18 +11,6 @@ class Event {
   final List<String>
       repeatingDays; // For repeating events (e.g., ['Monday', 'Wednesday'])
   final List<String> memberIds; // Members associated with this event
-  final AttendanceStartMode? defaultAttendanceStartMode;
-
-  /// Per-event preset for how the marking roster groups (status vs family).
-  /// `null` means the user has not chosen yet — the first time attendance is
-  /// taken they are asked (defaulting to status), and the choice is saved here.
-  final RosterGrouping? rosterGrouping;
-
-  /// Per-event preset for which fast marking surface the session offers beside
-  /// the Deck and the List. `null` means never chosen — [resolvedMarkingMode]
-  /// falls back to [kDefaultMarkingMode] rather than prompting, so existing
-  /// events pick up the default without an extra step.
-  final MarkingMode? markingMode;
 
   /// "Who to check on" ticks: member id -> the flag and last-present day the
   /// owner followed up on. See [CheckOnFollowUp].
@@ -51,9 +35,6 @@ class Event {
     this.oneTimeDate,
     this.repeatingDays = const [],
     this.memberIds = const [],
-    this.defaultAttendanceStartMode,
-    this.rosterGrouping,
-    this.markingMode,
     this.checkOnFollowUps = const {},
     this.checkOnStopFlagging = const {},
     this.isShared = false,
@@ -66,9 +47,6 @@ class Event {
   })  : title = title.trim(),
         updatedAt = updatedAt ?? createdAt;
 
-  /// The fast marking mode this event actually uses, applying the default when
-  /// none has been chosen.
-  MarkingMode get resolvedMarkingMode => markingMode ?? kDefaultMarkingMode;
 
   Map<String, dynamic> toJson() {
     return {
@@ -79,10 +57,6 @@ class Event {
       'oneTimeDate': oneTimeDate?.toIso8601String(),
       'repeatingDays': repeatingDays,
       'memberIds': memberIds,
-      if (defaultAttendanceStartMode != null)
-        'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
-      if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
-      if (markingMode != null) 'markingMode': markingMode!.name,
       // Discrete keys: the Drive merge is last-write-wins per event, so each
       // answer stays its own field.
       if (checkOnFollowUps.isNotEmpty)
@@ -109,9 +83,6 @@ class Event {
     DateTime? oneTimeDate,
     List<String>? repeatingDays,
     List<String>? memberIds,
-    AttendanceStartMode? defaultAttendanceStartMode,
-    RosterGrouping? rosterGrouping,
-    MarkingMode? markingMode,
     Map<String, CheckOnFollowUp>? checkOnFollowUps,
     Set<String>? checkOnStopFlagging,
     bool? isShared,
@@ -131,10 +102,6 @@ class Event {
       oneTimeDate: oneTimeDate ?? this.oneTimeDate,
       repeatingDays: repeatingDays ?? this.repeatingDays,
       memberIds: memberIds ?? this.memberIds,
-      defaultAttendanceStartMode:
-          defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
-      rosterGrouping: rosterGrouping ?? this.rosterGrouping,
-      markingMode: markingMode ?? this.markingMode,
       checkOnFollowUps: checkOnFollowUps ?? this.checkOnFollowUps,
       checkOnStopFlagging: checkOnStopFlagging ?? this.checkOnStopFlagging,
       isShared: isShared ?? this.isShared,
@@ -149,18 +116,6 @@ class Event {
 
   factory Event.fromJson(Map<String, dynamic> json) {
     final timeParts = (json['time'] as String).split(':');
-    final startMode = enumByNameOrNull(
-      AttendanceStartMode.values,
-      json['defaultAttendanceStartMode'] as String?,
-    );
-    final grouping = enumByNameOrNull(
-      RosterGrouping.values,
-      json['rosterGrouping'] as String?,
-    );
-    final mode = enumByNameOrNull(
-      MarkingMode.values,
-      json['markingMode'] as String?,
-    );
     final followUps = <String, CheckOnFollowUp>{};
     final rawFollowUps = json['checkOnFollowUps'];
     if (rawFollowUps is Map) {
@@ -188,9 +143,6 @@ class Event {
               ?.map((e) => e as String)
               .toList() ??
           [],
-      defaultAttendanceStartMode: startMode,
-      rosterGrouping: grouping,
-      markingMode: mode,
       checkOnFollowUps: followUps,
       checkOnStopFlagging: {
         for (final id in json['checkOnStopFlagging'] as List<dynamic>? ?? [])

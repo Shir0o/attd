@@ -204,6 +204,19 @@ class MockEventRepository extends EventRepository {
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 }
 
+/// Opens a roster row's "more" menu and picks [action] (Edit name or
+/// Remove from session) — the visible replacement for the old row swipes.
+Future<void> openRowAction(
+  WidgetTester tester,
+  String name,
+  String action,
+) async {
+  await tester.tap(find.byTooltip('More actions for $name').first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(action));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('SessionSummaryPage renders correct stats and members', (
     WidgetTester tester,
@@ -425,8 +438,8 @@ void main() {
     // Alice is absent
     expect(find.text('Alice'), findsOneWidget);
 
-    // Swipe left to remove
-    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    // Open the row menu to remove
+    await openRowAction(tester, 'Alice', 'Remove from session');
     await tester.pumpAndSettle();
 
     // Verify confirmation dialog title
@@ -482,8 +495,8 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Swipe right to edit
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    // Open the row menu to edit
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
 
     // Check dialog
@@ -983,15 +996,24 @@ void main() {
     expect(popped?.id, 's1');
   });
 
-  testWidgets('SessionSummaryPage info button shows the data policy dialog', (
-    WidgetTester tester,
-  ) async {
+  testWidgets(
+      'SessionSummaryPage has no info icon, bulk marking, grouping toggle or swipe',
+      (WidgetTester tester) async {
     final mockRepo = MockSessionRepository();
     final session = Session(
       id: 's1',
       title: 'Test Session',
       sessionDate: DateTime(2023, 10, 27),
-      records: [],
+      records: [
+        SessionRecord(
+          memberId: '1',
+          attendee: 'Alice',
+          status: AttendanceStatus.present,
+          recordedAt: DateTime.now(),
+          recordedBy: 'User',
+          isLate: true,
+        ),
+      ],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       createdBy: 'User',
@@ -1002,7 +1024,7 @@ void main() {
       MaterialApp(
         home: SessionSummaryPage(
           session: session,
-          members: const [],
+          members: [Member(id: '1', displayName: 'Alice')],
           sessionRepository: mockRepo,
           disableAnimations: true,
         ),
@@ -1010,13 +1032,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('View data policy'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Historical Snapshot'), findsOneWidget);
-    await tester.tap(find.text('Got it'));
-    await tester.pumpAndSettle();
-    expect(find.text('Historical Snapshot'), findsNothing);
+    expect(find.byTooltip('View data policy'), findsNothing);
+    expect(find.byIcon(Icons.info_outline), findsNothing);
+    expect(find.byKey(const Key('rosterMarkAllMenu')), findsNothing);
+    expect(find.byKey(const Key('rosterGroupingToggle')), findsNothing);
+    expect(find.byType(Dismissible), findsNothing);
+    expect(find.byKey(const ValueKey('memberLate_1')), findsNothing);
+    // A late-flagged record still reads as a plain present row.
+    expect(find.text('Marked present'), findsOneWidget);
+    // Kept: search, Add attendee, Delete session, the more control.
+    expect(find.byKey(const Key('rosterSearchField')), findsOneWidget);
+    expect(find.byTooltip('Add attendee'), findsOneWidget);
+    expect(find.byTooltip('Delete session'), findsOneWidget);
+    expect(find.byTooltip('More actions for Alice'), findsOneWidget);
   });
 
   testWidgets('SessionSummaryPage edit member with empty/unchanged name is a no-op', (
@@ -1056,14 +1084,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // Open edit dialog and cancel -> returns null
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('Alice'), findsOneWidget);
 
     // Open edit dialog, clear text, save -> empty path early-return
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), '');
     await tester.tap(find.text('Save'));
@@ -1071,7 +1099,7 @@ void main() {
     expect(find.text('Alice'), findsOneWidget);
 
     // Open edit dialog, keep same name, save -> unchanged early-return
-    await tester.drag(find.text('Alice'), const Offset(500, 0));
+    await openRowAction(tester, 'Alice', 'Edit name');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
@@ -1114,7 +1142,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bob'), findsOneWidget);
-    await tester.drag(find.text('Bob'), const Offset(500, 0));
+    await openRowAction(tester, 'Bob', 'Edit name');
     await tester.pumpAndSettle();
     await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.key != const Key('rosterSearchField')), 'Bobby');
     await tester.tap(find.text('Save'));
@@ -1158,7 +1186,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.drag(find.text('Bob'), const Offset(-500, 0));
+    await openRowAction(tester, 'Bob', 'Remove from session');
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, 'Remove'));
     await tester.pumpAndSettle();
@@ -1197,7 +1225,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.drag(find.text('Alice'), const Offset(-500, 0));
+    await openRowAction(tester, 'Alice', 'Remove from session');
     await tester.pumpAndSettle();
     expect(find.text('Remove from Report'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
@@ -1450,121 +1478,6 @@ void main() {
   });
 
   testWidgets(
-    'SessionSummaryPage family toggle marks the whole family at once',
-    (tester) async {
-      final mockRepo = MockSessionRepository();
-      final mockAttendanceRepo = MockAttendanceRepository();
-      final alice = Member(id: '1', displayName: 'Alice');
-      final bob = Member(id: '2', displayName: 'Bob');
-      mockAttendanceRepo.setFamilies([
-        Family(id: 'f1', displayName: 'Smith', members: [alice, bob]),
-      ]);
-      final now = DateTime(2026, 5, 24);
-      final session = Session(
-        id: 's1',
-        title: 'Test',
-        sessionDate: now,
-        records: const [],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'User',
-      );
-      mockRepo.addSession(session);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SessionSummaryPage(
-            session: session,
-            members: [alice, bob],
-            sessionRepository: mockRepo,
-            attendanceRepository: mockAttendanceRepo,
-            disableAnimations: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Default grouping is byStatus; switch to byFamily to access the header.
-      await tester.tap(find.text('By family'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const ValueKey('familyAllPresent_f1')));
-      await tester.pumpAndSettle();
-
-      final saved = await mockRepo.findSessionById('s1');
-      expect(saved!.records.length, 2);
-      expect(
-        saved.records.every((r) => r.status == AttendanceStatus.present),
-        isTrue,
-      );
-    },
-  );
-
-  testWidgets(
-    'SessionSummaryPage mark-all overrides records and shows undo snackbar',
-    (tester) async {
-      final mockRepo = MockSessionRepository();
-      final mockAttendanceRepo = MockAttendanceRepository();
-      final alice = Member(id: '1', displayName: 'Alice');
-      final bob = Member(id: '2', displayName: 'Bob');
-      mockAttendanceRepo.setFamilies([
-        Family(id: 'f1', displayName: 'Smith', members: [alice, bob]),
-      ]);
-      final now = DateTime(2026, 5, 24);
-      final session = Session(
-        id: 's1',
-        title: 'Test',
-        sessionDate: now,
-        records: [
-          SessionRecord(
-            memberId: '1',
-            attendee: 'Alice',
-            status: AttendanceStatus.absent,
-            recordedAt: now,
-            recordedBy: 'User',
-          ),
-        ],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: 'User',
-      );
-      mockRepo.addSession(session);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SessionSummaryPage(
-            session: session,
-            members: [alice, bob],
-            sessionRepository: mockRepo,
-            attendanceRepository: mockAttendanceRepo,
-            disableAnimations: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('markEveryonePresent')));
-      await tester.pumpAndSettle();
-
-      final saved = await mockRepo.findSessionById('s1');
-      expect(saved!.records.every((r) => r.status == AttendanceStatus.present),
-          isTrue);
-      expect(saved.records.first.recordedBy, 'User (Bulk)');
-
-      // Snackbar with Undo is visible.
-      expect(find.text('Undo'), findsOneWidget);
-      await tester.tap(find.text('Undo'));
-      await tester.pumpAndSettle();
-
-      final restored = await mockRepo.findSessionById('s1');
-      expect(restored!.records.single.memberId, '1');
-      expect(restored.records.single.status, AttendanceStatus.absent);
-    },
-  );
-
-  testWidgets(
     'SessionSummaryPage tapping Regulars and Trends cards opens detail pages',
     (WidgetTester tester) async {
       final mockRepo = MockSessionRepository();
@@ -1617,165 +1530,6 @@ void main() {
       expect(find.text('ABSENT'), findsNothing);
     },
   );
-
-  testWidgets('SessionSummaryPage late affordance flags a present member late',
-      (WidgetTester tester) async {
-    final mockRepo = MockSessionRepository();
-    final mockAttendanceRepo = MockAttendanceRepository();
-    final member1 = Member(id: '1', displayName: 'Alice');
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        SessionRecord(
-          memberId: '1',
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: [member1],
-          sessionRepository: mockRepo,
-          attendanceRepository: mockAttendanceRepo,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Tap the late affordance on Alice's row.
-    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
-    await tester.pumpAndSettle();
-
-    // Persisted record now carries the flag.
-    final updated = await mockRepo.findSessionById('s1');
-    expect(updated?.records.single.isLate, isTrue);
-    expect(updated?.records.single.status, AttendanceStatus.present);
-
-    // Row subtitle gains the word "late".
-    expect(find.text('Marked present · late'), findsOneWidget);
-
-
-    // Tapping again clears the flag.
-    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
-    await tester.pumpAndSettle();
-    final cleared = await mockRepo.findSessionById('s1');
-    expect(cleared?.records.single.isLate, isFalse);
-    expect(find.text('Marked present · late'), findsNothing);
-  });
-
-  testWidgets(
-      'SessionSummaryPage late toggle flips a record with no memberId',
-      (WidgetTester tester) async {
-    // A present record stored without a memberId (legacy/Drive-restored or
-    // guest data) resolves through the visitor-name index on read — the
-    // write path must mirror it or the dot is a silent no-op.
-    final mockRepo = MockSessionRepository();
-    final member1 = Member(id: '1', displayName: 'Alice');
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        SessionRecord(
-          memberId: null,
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: [member1],
-          sessionRepository: mockRepo,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // The affordance lights up via the visitor-name index.
-    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
-    expect(find.text('Marked present · late'), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
-    await tester.pumpAndSettle();
-
-    // The name-keyed record was actually flipped.
-    final updated = await mockRepo.findSessionById('s1');
-    expect(updated?.records.single.isLate, isTrue);
-  });
-
-  testWidgets('SessionSummaryPage absent rows have no late affordance',
-      (WidgetTester tester) async {
-    final mockRepo = MockSessionRepository();
-    final member1 = Member(id: '1', displayName: 'Alice');
-    final member2 = Member(id: '2', displayName: 'Bob');
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        SessionRecord(
-          memberId: '1',
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-        SessionRecord(
-          memberId: '2',
-          attendee: 'Bob',
-          status: AttendanceStatus.absent,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: [member1, member2],
-          sessionRepository: mockRepo,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
-    expect(find.byKey(const ValueKey('memberLate_2')), findsNothing);
-  });
 
   testWidgets(
       'SessionSummaryPage flipping a late member to absent drops the flag',
@@ -1834,163 +1588,6 @@ void main() {
     final restored = (await mockRepo.findSessionById('s1'))?.records.single;
     expect(restored?.status, AttendanceStatus.present);
     expect(restored?.isLate, isFalse);
-  });
-
-  testWidgets(
-      'SessionSummaryPage mark-everyone-present clears existing late flags',
-      (WidgetTester tester) async {
-    final mockRepo = MockSessionRepository();
-    final member1 = Member(id: '1', displayName: 'Alice');
-    final member2 = Member(id: '2', displayName: 'Bob');
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        SessionRecord(
-          memberId: '1',
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-          isLate: true,
-        ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: [member1, member2],
-          sessionRepository: mockRepo,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('rosterMarkAllMenu')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('markEveryonePresent')));
-    await tester.pumpAndSettle();
-
-    final records = (await mockRepo.findSessionById('s1'))?.records ?? [];
-    expect(
-        records,
-        everyElement(
-          predicate<SessionRecord>((r) => r.isLate == false),
-        ));
-    expect(find.text('1 LATE'), findsNothing);
-  });
-
-  testWidgets(
-      'SessionSummaryPage late capsule counts multiple late members',
-      (WidgetTester tester) async {
-    final mockRepo = MockSessionRepository();
-    final members = [
-      Member(id: '1', displayName: 'Alice'),
-      Member(id: '2', displayName: 'Bob'),
-      Member(id: '3', displayName: 'Carol'),
-    ];
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        for (final m in members)
-          SessionRecord(
-            memberId: m.id,
-            attendee: m.displayName,
-            status: AttendanceStatus.present,
-            recordedAt: DateTime.now(),
-            recordedBy: 'User',
-          ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: members,
-          sessionRepository: mockRepo,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('memberLate_1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('memberLate_2')));
-    await tester.pumpAndSettle();
-
-    // Both rows carry the late subtitle; flagging never changes a status.
-    expect(find.text('Marked present · late'), findsNWidgets(2));
-  });
-
-  testWidgets('SessionSummaryPage late affordance present under both groupings',
-      (WidgetTester tester) async {
-    final mockRepo = MockSessionRepository();
-    final member1 = Member(id: '1', displayName: 'Alice');
-    final member2 = Member(id: '2', displayName: 'Bob');
-
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime(2023, 10, 27),
-      records: [
-        SessionRecord(
-          memberId: '1',
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-        SessionRecord(
-          memberId: '2',
-          attendee: 'Bob',
-          status: AttendanceStatus.absent,
-          recordedAt: DateTime.now(),
-          recordedBy: 'User',
-        ),
-      ],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-    );
-    mockRepo.addSession(session);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SessionSummaryPage(
-          session: session,
-          members: [member1, member2],
-          sessionRepository: mockRepo,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // By-status (initial grouping of the summary roster).
-    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
-
-    // Switch to by-family.
-    await tester.tap(find.text('By family'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('memberLate_1')), findsOneWidget);
   });
 
   testWidgets('SessionSummaryPage adding an excluded member restores them from excludedMemberIds and updates version', (
@@ -2112,8 +1709,8 @@ void main() {
     expect(find.text('Zoe Alvarez'), findsOneWidget);
     expect(find.text('Sunday, March 1, 2026'), findsOneWidget);
 
-    // Swipe left to remove guest
-    await tester.drag(find.text('Zoe Alvarez'), const Offset(-500, 0));
+    // Open the row menu to remove guest
+    await openRowAction(tester, 'Zoe Alvarez', 'Remove from session');
     await tester.pumpAndSettle();
 
     expect(find.text('Remove from Report'), findsOneWidget);
@@ -2172,8 +1769,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Swipe left to remove the visible Zoe Alvarez
-    await tester.drag(find.text('Zoe Alvarez').first, const Offset(-500, 0));
+    // Open the row menu to remove the visible Zoe Alvarez
+    await openRowAction(tester, 'Zoe Alvarez', 'Remove from session');
     await tester.pumpAndSettle();
 
     expect(find.text('Remove from Report'), findsOneWidget);

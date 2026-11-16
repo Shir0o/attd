@@ -49,8 +49,7 @@ bool _membersMatch(List<Member> next, List<Member> previous) {
     final b = previous[i];
     if (a.id != b.id ||
         a.displayName != b.displayName ||
-        a.isVisitor != b.isVisitor ||
-        a.defaultStatus != b.defaultStatus) {
+        a.isVisitor != b.isVisitor) {
       return false;
     }
   }

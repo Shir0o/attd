@@ -1,4 +1,3 @@
-import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/utils/name_corrections.dart';
@@ -15,7 +14,6 @@ void main() {
           Member(
             id: 'mem-2',
             displayName: 'A. Kim',
-            defaultStatus: AttendanceStatus.present,
           ),
         ],
       ),
@@ -88,7 +86,6 @@ void main() {
             id: 'mem-1',
             displayName: 'John S.',
             isVisitor: true,
-            defaultStatus: AttendanceStatus.absent,
           ),
         ],
       ),
@@ -102,6 +99,5 @@ void main() {
 
     expect(result.first.members[0].displayName, 'John Smith');
     expect(result.first.members[0].isVisitor, isTrue);
-    expect(result.first.members[0].defaultStatus, AttendanceStatus.absent);
   });
 }

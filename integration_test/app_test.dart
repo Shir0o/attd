@@ -177,22 +177,16 @@ void main() {
 
       // 8. User completes the session
       print('DEBUG: Step 8 - Complete session');
-      // All 3 members should be in the deck
-      await attendance.useDeck();
-      await attendance.verifyCardName('Alice');
-      await tester.takeScreenshot(binding, '10e_attendance_deck_card_1');
-      await attendance.swipePresent();
-
-      await attendance.verifyCardName('Bob');
-      await tester.takeScreenshot(binding, '10f_attendance_deck_card_2');
-      await attendance.swipeAbsent();
-
-      await attendance.verifyCardName('Charlie');
-      await tester.takeScreenshot(binding, '10g_attendance_deck_card_3');
-      await attendance.swipePresent();
-
-      await attendance.verifyDeckComplete();
-      await tester.takeScreenshot(binding, '11_deck_complete');
+      // All 3 members should be on the grid, A to Z
+      await attendance.waitForGrid();
+      await attendance.verifyName('Alice');
+      await attendance.verifyName('Bob');
+      await attendance.verifyName('Charlie');
+      await tester.takeScreenshot(binding, '10e_attendance_grid');
+      await attendance.toggleTile(0); // Alice present
+      await tester.takeScreenshot(binding, '10f_attendance_grid_one_marked');
+      await attendance.toggleTile(2); // Charlie present; Bob stays absent
+      await tester.takeScreenshot(binding, '11_grid_complete');
 
       await attendance.finishSession();
       await tester.pump(const Duration(milliseconds: 1000));

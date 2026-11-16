@@ -7,8 +7,6 @@ import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
-import '../../attendance/models/marking_mode.dart';
-import '../../attendance/models/roster_grouping.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 import 'members_page.dart';
@@ -40,8 +38,6 @@ class _AddEventPageState extends State<AddEventPage> {
   late String _frequency;
   late DateTime _selectedDate;
   late Set<String> _selectedDays;
-  late RosterGrouping _grouping;
-  late MarkingMode _markingMode;
   late Set<String> _selectedMemberIds;
   bool _isLoading = true;
   final List<String> _linkedSessions = [];
@@ -77,15 +73,11 @@ class _AddEventPageState extends State<AddEventPage> {
       _frequency = event.frequency;
       _selectedDate = event.oneTimeDate ?? DateTime.now();
       _selectedDays = event.repeatingDays.toSet();
-      _grouping = event.rosterGrouping ?? RosterGrouping.byStatus;
-      _markingMode = event.resolvedMarkingMode;
       _selectedMemberIds = event.memberIds.toSet();
     } else {
       _nameController = TextEditingController();
       _selectedTime = const TimeOfDay(hour: 10, minute: 0);
       _frequency = 'Weekly';
-      _grouping = RosterGrouping.byStatus;
-      _markingMode = kDefaultMarkingMode;
       _selectedMemberIds = <String>{};
       final now = DateTime.now();
       _selectedDate = DateTime(now.year, now.month, now.day);
@@ -237,10 +229,6 @@ class _AddEventPageState extends State<AddEventPage> {
         oneTimeDate: _frequency == 'One-time' ? _selectedDate : null,
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
         memberIds: _selectedMemberIds.toList(),
-        defaultAttendanceStartMode:
-            widget.eventToEdit?.defaultAttendanceStartMode,
-        rosterGrouping: _grouping,
-        markingMode: _markingMode,
         // Fields this form does not edit must survive the save.
         checkOnFollowUps: widget.eventToEdit?.checkOnFollowUps ?? const {},
         checkOnStopFlagging: widget.eventToEdit?.checkOnStopFlagging ?? const {},
@@ -582,115 +570,6 @@ class _AddEventPageState extends State<AddEventPage> {
             ],
           ),
         ),
-
-        const SizedBox(height: 22),
-
-        // Grouping preset — how the marking roster sorts during a session.
-        // A per-event default (also asked once on first attendance), not a
-        // live in-session toggle.
-        const ConvEyebrow('Group roster by'),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _GroupingCard(
-                icon: Icons.checklist_rounded,
-                label: 'Status',
-                hint: 'Present · Absent',
-                active: _grouping == RosterGrouping.byStatus,
-                onTap: () =>
-                    setState(() => _grouping = RosterGrouping.byStatus),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _GroupingCard(
-                icon: Icons.groups_outlined,
-                label: 'Family',
-                hint: 'Households together',
-                active: _grouping == RosterGrouping.byFamily,
-                onTap: () =>
-                    setState(() => _grouping = RosterGrouping.byFamily),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Text(
-          'Sets how people are grouped while you take attendance.',
-          style: AppTypography.geist(fontSize: 12, color: c.ink3),
-        ),
-
-        const SizedBox(height: 22),
-
-        // Fast marking preset — which surface fills the third segment beside
-        // Deck and List during a session. Five options, so a dropdown rather
-        // than the two-up cards above.
-        const ConvEyebrow('Fast marking mode'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: c.cardSoft,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<MarkingMode>(
-              key: const Key('markingModeDropdown'),
-              value: _markingMode,
-              isExpanded: true,
-              borderRadius: BorderRadius.circular(14),
-              icon: Icon(Icons.expand_more_rounded, color: c.ink3),
-              style: AppTypography.geist(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: c.ink,
-              ),
-              // Two-line items so each option carries the "best when" line;
-              // the closed button shows the label alone.
-              itemHeight: 68,
-              selectedItemBuilder: (context) => [
-                for (final mode in MarkingMode.values)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(mode.label),
-                  ),
-              ],
-              items: [
-                for (final mode in MarkingMode.values)
-                  DropdownMenuItem(
-                    key: Key('markingMode_${mode.name}'),
-                    value: mode,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(mode.label),
-                        const SizedBox(height: 2),
-                        Text(
-                          mode.hint,
-                          style: AppTypography.geist(
-                            fontSize: 11.5,
-                            color: c.ink3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-              onChanged: (mode) {
-                if (mode != null) setState(() => _markingMode = mode);
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 9),
-        Text(
-          _markingMode.hint,
-          style: AppTypography.geist(fontSize: 12, color: c.ink3),
-        ),
       ],
     );
   }
@@ -861,73 +740,6 @@ class _NameField extends StatelessWidget {
         }
         return null;
       },
-    );
-  }
-}
-
-/// One of the two "Group roster by" preset option cards in the event editor.
-class _GroupingCard extends StatelessWidget {
-  const _GroupingCard({
-    required this.icon,
-    required this.label,
-    required this.hint,
-    required this.active,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String hint;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return Material(
-      color: active
-          ? Color.alphaBlend(c.primary.withValues(alpha: 0.08), c.cardSoft)
-          : c.cardSoft,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: active ? c.primary : Colors.transparent,
-              width: 1.5,
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, size: 18, color: active ? c.primary : c.ink3),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: AppTypography.geist(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: c.ink,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Text(
-                hint,
-                style: AppTypography.geist(fontSize: 11.5, color: c.ink3),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

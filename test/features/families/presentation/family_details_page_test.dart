@@ -1,5 +1,4 @@
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
-import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/families/presentation/family_details_page.dart';
@@ -108,7 +107,6 @@ void main() {
           id: 'member-2',
           displayName: 'Bob Guest',
           isVisitor: true,
-          defaultStatus: AttendanceStatus.present,
         ),
       ],
     );

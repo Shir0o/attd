@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/design/app_shimmer.dart';
 import '../../../core/design/app_theme.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
@@ -13,6 +14,8 @@ import '../../attendance/presentation/session_summary_page.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/models/attendance_status.dart';
 import '../../attendance/utils/session_roster_utils.dart';
+import '../../reports/report_export_service.dart';
+import '../../reports/report_models.dart';
 import '../../settings/data/drive_service.dart';
 import '../../../core/design/widgets/skeleton_switcher.dart';
 
@@ -25,6 +28,8 @@ class EventHistoryPage extends StatefulWidget {
     required this.eventRepository,
     this.driveService,
     this.disableAnimations = false,
+    this.reportExportService,
+    this.shareFile,
   });
 
   final Event event;
@@ -33,6 +38,12 @@ class EventHistoryPage extends StatefulWidget {
   final EventRepository eventRepository;
   final DriveService? driveService;
   final bool disableAnimations;
+
+  /// Defaults to a [ReportExportService] over [sessionRepository].
+  final ReportExportService? reportExportService;
+
+  /// Hands the exported file to the user; defaults to the system share sheet.
+  final Future<void> Function(String path)? shareFile;
 
   @override
   State<EventHistoryPage> createState() => _EventHistoryPageState();
@@ -73,6 +84,31 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
     if (remaining > Duration.zero && !widget.disableAnimations) {
       await Future.delayed(remaining);
+    }
+  }
+
+  /// Exports every session of this event as CSV and shares the file.
+  Future<void> _exportCsv() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final service = widget.reportExportService ??
+          ReportExportService(sessionRepository: widget.sessionRepository);
+      final result = await service.exportReport(
+        ReportRequest(
+          startDate: DateTime(1970),
+          endDate: DateTime(9999),
+          format: ReportFormat.csv,
+          selectedEventTitles: [widget.event.title],
+        ),
+      );
+      final share = widget.shareFile ??
+          (path) => Share.shareXFiles(
+                [XFile(path)],
+                text: '${widget.event.title.trim()} attendance (CSV)',
+              );
+      await share(result.filePath);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 
@@ -145,6 +181,17 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            key: const ValueKey('export_csv_button'),
+            tooltip: 'Export CSV',
+            icon: Icon(
+              Icons.file_download_outlined,
+              color: colorScheme.onSurface,
+            ),
+            onPressed: _exportCsv,
+          ),
+        ],
       ),
       body: RepaintBoundary(
         child: FutureBuilder<void>(
@@ -520,7 +567,6 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
             eventRepository: widget.eventRepository,
             event: widget.event,
             disableAnimations: widget.disableAnimations,
-            markingMode: widget.event.markingMode,
           ),
         ),
       );

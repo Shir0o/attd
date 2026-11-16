@@ -15,12 +15,6 @@ import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
-import '../../attendance/models/attendance_start_mode.dart';
-import '../../attendance/presentation/grouping_preset_picker.dart';
-import '../../attendance/presentation/fast_marking_mode_picker.dart';
-import '../../attendance/presentation/start_mode_picker.dart';
-import '../../attendance/models/marking_mode.dart';
-import '../../attendance/utils/session_preseed.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/event_repository.dart';
@@ -364,70 +358,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                       sessionRepository: widget.sessionRepository,
                     );
                     _refreshData();
-                  },
-                ),
-              ],
-              if (!event.isReadOnly) ...[
-                ListTile(
-                  leading: const Icon(Icons.tune),
-                  title: const Text('Attendance Mode'),
-                  subtitle: Text(
-                    event.defaultAttendanceStartMode?.label ?? 'Not set',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final pickedMode = await showStartModePicker(
-                      context,
-                      initial: event.defaultAttendanceStartMode,
-                      title: 'Attendance Mode',
-                      confirmLabel: 'Save',
-                    );
-                    if (pickedMode != null &&
-                        pickedMode != event.defaultAttendanceStartMode) {
-                      final updatedEvent = event.copyWith(
-                        defaultAttendanceStartMode: pickedMode,
-                        updatedAt: DateTime.now(),
-                      );
-                      try {
-                        await widget.eventRepository.updateEvent(updatedEvent);
-                      } catch (e) {
-                        debugPrint('Error saving start mode preference: $e');
-                      }
-                      _refreshData();
-                    }
-                  },
-                ),
-                ListTile(
-                  key: const Key('eventMenuFastMarkingMode'),
-                  leading: const Icon(Icons.bolt_outlined),
-                  title: const Text('Fast Marking Mode'),
-                  subtitle: Text(
-                    event.markingMode?.label ?? kDefaultMarkingMode.label,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final picked = await showFastMarkingModePicker(
-                      context,
-                      initial: event.markingMode,
-                    );
-                    if (picked != null && picked != event.markingMode) {
-                      final updatedEvent = event.copyWith(
-                        markingMode: picked,
-                        updatedAt: DateTime.now(),
-                      );
-                      try {
-                        await widget.eventRepository.updateEvent(updatedEvent);
-                      } catch (e) {
-                        debugPrint('Error saving fast marking mode: $e');
-                      }
-                      _refreshData();
-                    }
                   },
                 ),
               ],
@@ -964,25 +894,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       return;
     }
 
-    // First time taking attendance for this event: ask how to group the
-    // roster. The choice is saved on the event and inherited next time; it can
-    // be changed later in the event editor ("Group roster by").
-    if (event.rosterGrouping == null) {
-      final picked = await showGroupingPresetPicker(context);
-      if (picked == null) return;
-      if (!context.mounted) return;
-      event = event.copyWith(
-        rosterGrouping: picked,
-        updatedAt: DateTime.now(),
-      );
-      try {
-        await widget.eventRepository.updateEvent(event);
-      } catch (e) {
-        debugPrint('Error saving grouping preset: $e');
-      }
-      if (!context.mounted) return;
-    }
-
     final sessionFamilies = _familiesForEvent(event);
 
     if (foundSession != null) {
@@ -1005,56 +916,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       );
     } else {
-      AttendanceStartMode? pickedMode = event.defaultAttendanceStartMode;
-
-      if (pickedMode == null) {
-        pickedMode = await showStartModePicker(
-          context,
-          initial: AttendanceStartMode.allAbsent,
-        );
-        if (pickedMode == null) return;
-        if (!context.mounted) return;
-
-        event = event.copyWith(
-          defaultAttendanceStartMode: pickedMode,
-          updatedAt: DateTime.now(),
-        );
-        try {
-          await widget.eventRepository.updateEvent(event);
-        } catch (e) {
-          debugPrint('Error saving start mode preference: $e');
-        }
-        if (!context.mounted) return;
-      }
-
-      List<Session> recentSessions = const [];
-      if (pickedMode == AttendanceStartMode.perMemberDefault) {
-        try {
-          final all = await widget.sessionRepository.loadSessions();
-          all.sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
-          recentSessions = all;
-        } catch (e) {
-          debugPrint('Error loading session history: $e');
-        }
-        if (!context.mounted) return;
-      }
-
-      final preseed = buildPreseededRecords(
-        members: sessionMembers,
-        mode: pickedMode,
-        recordedAt: DateTime.now(),
-        recentSessions: recentSessions,
-        recordedBy: pickedMode == AttendanceStartMode.perMemberDefault
-            ? 'System (Preseed - Smart)'
-            : 'System (Preseed)',
-      );
-
       final session = await widget.sessionRepository.createSession(
         title: event.title,
         eventId: event.id,
         sessionDate: targetDate,
         actor: 'User',
-        records: preseed,
+        records: const [],
       );
 
       if (!context.mounted) return;
@@ -1072,13 +939,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             event: event,
             driveService: widget.driveService,
             disableAnimations: widget.disableAnimations,
-            // "All present" and smart defaults open directly in the roster
-            // List view so the user toggles exceptions; "all absent" keeps
-            // the speed-swipe deck.
-            initialListMode: pickedMode != AttendanceStartMode.allAbsent,
-            startMode: pickedMode,
-            rosterGrouping: event.rosterGrouping,
-            markingMode: event.markingMode,
           ),
         ),
       );

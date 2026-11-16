@@ -4,12 +4,9 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
-import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
-import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/data/in_memory_shared_event_transport.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
@@ -44,9 +41,6 @@ void main() {
         frequency: 'Weekly',
         repeatingDays: ['Sunday'],
         memberIds: ['m1', 'm2'],
-        defaultAttendanceStartMode: AttendanceStartMode.allPresent,
-        rosterGrouping: RosterGrouping.byStatus,
-        markingMode: MarkingMode.likelyHere,
         createdAt: now,
       );
 
@@ -107,9 +101,9 @@ void main() {
       final eventMap = jsonDecode(slice.sharedEventJson) as Map<String, dynamic>;
       expect(eventMap['id'], 'ev-test');
       expect(eventMap['title'], 'Sunday Service');
-      expect(eventMap['defaultAttendanceStartMode'], 'allPresent');
-      expect(eventMap['rosterGrouping'], 'byStatus');
-      expect(eventMap['markingMode'], 'likelyHere');
+      expect(eventMap.containsKey('defaultAttendanceStartMode'), isFalse);
+      expect(eventMap.containsKey('rosterGrouping'), isFalse);
+      expect(eventMap.containsKey('markingMode'), isFalse);
       expect(eventMap['memberIds'], ['m1', 'm2']);
 
       final rosterList = jsonDecode(slice.sharedRosterJson) as List<dynamic>;
@@ -126,6 +120,26 @@ void main() {
       expect(sessionsList.length, 1);
       final sMap = sessionsList.first as Map<String, dynamic>;
       expect(sMap['records'].length, 2);
+    });
+
+    test('a shared event file written with the removed preset keys still loads', () {
+      final legacy = {
+        'id': 'ev-old',
+        'title': 'Old Share',
+        'time': '9:30',
+        'frequency': 'Weekly',
+        'repeatingDays': ['Sunday'],
+        'memberIds': ['m1'],
+        'defaultAttendanceStartMode': 'allPresent',
+        'rosterGrouping': 'byFamily',
+        'markingMode': 'rapidEntry',
+        'createdAt': now.toIso8601String(),
+        'updatedAt': now.toIso8601String(),
+      };
+
+      final event = Event.fromJson(legacy);
+      expect(event.id, 'ev-old');
+      expect(event.memberIds, ['m1']);
     });
 
     test('mergeRecords applies presence precedence over absent', () {

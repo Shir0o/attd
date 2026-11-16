@@ -276,8 +276,6 @@ class DriveService extends ChangeNotifier {
   static const String _backupFolderName = 'Backups';
   static const String _syncEnabledKey = 'drive_sync_enabled';
   static const String _lastSyncTimeKey = 'drive_last_sync_time';
-  static const String backgroundSyncEnabledKey = 'background_sync_enabled';
-  static const String backgroundSyncWifiOnlyKey = 'background_sync_wifi_only';
   static const String lastBackgroundSyncTimeKey = 'last_background_sync_time';
   static const String lastBackgroundSyncStatusKey = 'last_background_sync_status';
 
@@ -287,8 +285,6 @@ class DriveService extends ChangeNotifier {
     defaultValue: 0,
   );
 
-  bool _isBackgroundSyncEnabled = true;
-  bool _isBackgroundSyncWifiOnly = true;
   DateTime? _lastBackgroundSyncTime;
   String? _lastBackgroundSyncStatus;
 
@@ -296,8 +292,6 @@ class DriveService extends ChangeNotifier {
   DateTime? get lastSyncTime => _lastSyncTime;
   GoogleSignInAccount? get currentUser => _currentUser;
   bool get isDriveSyncEnabled => _isDriveSyncEnabled;
-  bool get isBackgroundSyncEnabled => _isBackgroundSyncEnabled;
-  bool get isBackgroundSyncWifiOnly => _isBackgroundSyncWifiOnly;
   DateTime? get lastBackgroundSyncTime => _lastBackgroundSyncTime;
   String? get lastBackgroundSyncStatus => _lastBackgroundSyncStatus;
   drive.DriveApi? get driveApi => _driveApi;
@@ -332,25 +326,9 @@ class DriveService extends ChangeNotifier {
     }
   }
 
-  Future<void> setBackgroundSyncEnabled(bool enabled) async {
-    _isBackgroundSyncEnabled = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(backgroundSyncEnabledKey, enabled);
-    notifyListeners();
-  }
-
-  Future<void> setBackgroundSyncWifiOnly(bool wifiOnly) async {
-    _isBackgroundSyncWifiOnly = wifiOnly;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(backgroundSyncWifiOnlyKey, wifiOnly);
-    notifyListeners();
-  }
-
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _isDriveSyncEnabled = prefs.getBool(_syncEnabledKey) ?? false;
-    _isBackgroundSyncEnabled = prefs.getBool(backgroundSyncEnabledKey) ?? true;
-    _isBackgroundSyncWifiOnly = prefs.getBool(backgroundSyncWifiOnlyKey) ?? true;
 
     final lastSyncStr = prefs.getString(_lastSyncTimeKey);
     if (lastSyncStr != null) {
@@ -780,7 +758,7 @@ class DriveService extends ChangeNotifier {
         _log.warning('Sync interrupted by network/app backgrounding', e, st);
         if (onSyncInterrupted != null) {
           await onSyncInterrupted!.call();
-        } else if (backgroundSyncService != null && isBackgroundSyncEnabled) {
+        } else if (backgroundSyncService != null) {
           await backgroundSyncService!.enqueueImmediateOneOffSync();
         }
         throw SyncInterruptedException(

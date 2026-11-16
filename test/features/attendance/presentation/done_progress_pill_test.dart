@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 Widget _host(
   double progress, {
   bool complete = false,
-  bool solid = false,
   bool systemReduceMotion = false,
   VoidCallback? onPressed,
 }) {
@@ -23,7 +22,6 @@ Widget _host(
           key: const Key('pill'),
           progress: progress,
           complete: complete,
-          solid: solid,
           onPressed: onPressed ?? () {},
         ),
       ),
@@ -82,14 +80,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byKey(doneGlowKey), findsNothing);
     expect(tester.getSize(fill).width, closeTo(w, 0.01));
-  });
-
-  testWidgets('solid mode has no fill and no glow', (tester) async {
-    await tester.pumpWidget(_host(0.3, solid: true));
-    expect(find.byKey(const Key('doneProgressFill')), findsNothing);
-    await tester.pumpWidget(_host(1, complete: true, solid: true));
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byKey(doneGlowKey), findsNothing);
   });
 
   testWidgets('tapping calls onPressed', (tester) async {
