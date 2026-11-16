@@ -405,6 +405,45 @@ class AttendanceMarkingSession extends ChangeNotifier {
     return result;
   }
 
+  /// Writes an explicit absent record for every roster member who has no
+  /// record yet, so a finished session holds one record per roster member.
+  /// Guests and members excluded from the session are skipped, existing records
+  /// are never touched, and nothing is written when no one is missing. Called
+  /// when the session is finished, not at start, so [hasUserEdits] still means
+  /// "the user marked something" while it is being filled in.
+  Future<void> recordAbsencesForUnmarked({
+    String recordedBy = 'System (Preseed)',
+  }) async {
+    final excluded = _currentSession.excludedMemberIds.toSet();
+    final seen = <String>{};
+    final missing = <Member>[];
+    for (final m in _sessionMembers) {
+      final id = m.id.trim();
+      if (isGuestMember(m) || excluded.contains(id) || !seen.add(id)) continue;
+      if (findRecordFor(m) == null) missing.add(m);
+    }
+    if (missing.isEmpty) return;
+
+    final now = DateTime.now();
+    final updatedSession = _currentSession.copyWith(
+      records: [
+        ..._currentSession.records,
+        for (final m in missing)
+          SessionRecord(
+            memberId: m.id,
+            attendee: m.displayName,
+            status: AttendanceStatus.absent,
+            recordedAt: now,
+            recordedBy: recordedBy,
+          ),
+      ],
+      updatedAt: now,
+    );
+    _currentSession = updatedSession;
+    notifyListeners();
+    await _enqueueSave(_currentSession);
+  }
+
   /// Restores records from a previously saved snapshot.
   Future<void> restoreRecords(
     List<SessionRecord> previousRecords, {

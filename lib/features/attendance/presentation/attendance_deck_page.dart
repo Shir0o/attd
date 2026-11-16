@@ -121,6 +121,9 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     if (choice == null || !mounted) return; // dismissed → stay on the grid
     if (choice == 'discard') {
       await _markingSession.discardSession(actor: 'System (Cleanup)');
+    } else {
+      await _markingSession.recordAbsencesForUnmarked();
+      await _drainSaves();
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -234,8 +237,12 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   void _finishAndNavigate() {
     // Flush any in-flight background writes first so the summary (which
-    // re-reads the session from disk) always reflects every mark.
-    _drainSaves().then((_) {
+    // re-reads the session from disk) always reflects every mark. Anyone left
+    // unmarked is recorded absent so the saved session is complete.
+    _markingSession
+        .recordAbsencesForUnmarked()
+        .then((_) => _drainSaves())
+        .then((_) {
       if (!mounted) return;
       _ownsMarkingSession = false;
       Navigator.of(context).pushReplacement(

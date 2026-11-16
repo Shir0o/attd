@@ -621,4 +621,91 @@ void main() {
       markingSession.dispose();
     });
   });
+
+  group('recordAbsencesForUnmarked', () {
+    late _FakeSessionRepository repo;
+    late Session base;
+    final a = Member(id: 'm1', displayName: 'Alice');
+    final b = Member(id: 'm2', displayName: 'Bob');
+    final c = Member(id: 'm3', displayName: 'Cara');
+
+    setUp(() {
+      repo = _FakeSessionRepository();
+      base = Session(
+        id: 's',
+        title: 'T',
+        sessionDate: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+        createdBy: 'User',
+        currentVersion: 1,
+        records: const [],
+      );
+    });
+
+    AttendanceMarkingSession build(List<Member> members, {Session? session}) =>
+        AttendanceMarkingSession(
+          session: session ?? base,
+          baseMembers: members,
+          sessionRepository: repo,
+        );
+
+    test('fills only missing members and leaves existing records unchanged',
+        () async {
+      final s = build([a, b, c]);
+      await s.markMember(a, AttendanceStatus.present, isLate: true);
+      final before = s.findRecordFor(a)!;
+
+      await s.recordAbsencesForUnmarked();
+
+      expect(s.session.records, hasLength(3));
+      expect(s.findRecordFor(a), before);
+      for (final m in [b, c]) {
+        final r = s.findRecordFor(m)!;
+        expect(r.status, AttendanceStatus.absent);
+        expect(r.memberId, m.id);
+        expect(r.attendee, m.displayName);
+        expect(r.recordedBy, 'System (Preseed)');
+      }
+      expect(repo.savedSnapshots.last.records, hasLength(3));
+      s.dispose();
+    });
+
+    test('is idempotent', () async {
+      final s = build([a, b]);
+      await s.recordAbsencesForUnmarked();
+      final saves = repo.savedSnapshots.length;
+      await s.recordAbsencesForUnmarked();
+      expect(s.session.records, hasLength(2));
+      expect(repo.savedSnapshots.length, saves);
+      s.dispose();
+    });
+
+    test('counts a member listed under two families once', () async {
+      final s = build([a, b, a]);
+      await s.recordAbsencesForUnmarked();
+      expect(s.session.records.where((r) => r.memberId == 'm1'), hasLength(1));
+      expect(s.session.records, hasLength(2));
+      s.dispose();
+    });
+
+    test('skips guests and excluded members', () async {
+      final guest = Member(id: '', displayName: 'Walk-in', isVisitor: true);
+      final s = build(
+        [a, b, guest],
+        session: base.copyWith(excludedMemberIds: ['m2']),
+      );
+      await s.recordAbsencesForUnmarked();
+      expect(s.session.records.map((r) => r.memberId), ['m1']);
+      s.dispose();
+    });
+
+    test('does not count as user edits until called, and writes nothing at start',
+        () {
+      final s = build([a, b]);
+      expect(s.hasUserEdits, isFalse);
+      expect(repo.savedSnapshots, isEmpty);
+      s.dispose();
+    });
+  });
 }

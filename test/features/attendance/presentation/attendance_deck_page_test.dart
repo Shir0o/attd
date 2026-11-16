@@ -531,7 +531,9 @@ void main() {
 
       expect(find.byType(SessionSummaryPage), findsOneWidget);
       expect(find.text('Test Session'), findsOneWidget);
-      expect(repo.savedSessions.last.records.single.status,
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(2));
+      expect(saved.firstWhere((r) => r.memberId == 'a').status,
           AttendanceStatus.present);
     });
 
@@ -559,6 +561,34 @@ void main() {
 
       expect(repo.savedSessions, hasLength(1));
       expect(find.byType(SessionSummaryPage), findsOneWidget);
+    });
+
+    testWidgets('Done records everyone left unmarked as absent',
+        (tester) async {
+      final repo = MockSessionRepository();
+      final members = [
+        for (var i = 1; i <= 5; i++) Member(id: 'x$i', displayName: 'P$i'),
+      ];
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: members,
+        sessions: repo,
+      );
+
+      await tester.tap(_chip('x1'));
+      await tester.pumpAndSettle();
+      await tester.tap(_chip('x2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(5));
+      expect(
+          saved.where((r) => r.status == AttendanceStatus.present), hasLength(2));
+      expect(
+          saved.where((r) => r.status == AttendanceStatus.absent), hasLength(3));
     });
 
     testWidgets('the grid does not finish by itself when everyone is marked',
@@ -747,6 +777,38 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets('cancelling an untouched session shows no prompt and saves nothing',
+        (tester) async {
+      final repo = MockSessionRepository();
+      await pumpPagePushed(tester, repo: repo, members: members);
+
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save as is'), findsNothing);
+      expect(repo.savedSessions, isEmpty);
+      expect(repo.deleteCalls, contains('keep-1'));
+    });
+
+    testWidgets('Save as is also records the unmarked as absent',
+        (tester) async {
+      final repo = MockSessionRepository();
+      await pumpPagePushed(tester, repo: repo, members: members);
+
+      await tester.tap(_chip('1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save as is'));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(2));
+      expect(saved.firstWhere((r) => r.memberId == '2').status,
+          AttendanceStatus.absent);
+      expect(repo.deleteCalls, isEmpty);
     });
 
     testWidgets('cancelling a resumed session (deleteOnCancel: false) keeps it',
