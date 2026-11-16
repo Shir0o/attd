@@ -41,6 +41,8 @@ import '../../reminders/application/reminder_settings_controller.dart';
 import '../data/event_sharing_service.dart';
 import '../data/google_drive_shared_event_transport.dart';
 import 'share_event_sheet.dart';
+import '../../checkon/presentation/check_on_hub_card.dart';
+import '../../checkon/presentation/check_on_report_page.dart';
 
 class HubAttendanceView extends StatefulWidget {
   const HubAttendanceView({
@@ -223,6 +225,20 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         sessions: _sessions,
         members: _members,
         families: _families,
+      ),
+    );
+  }
+
+  void _openCheckOnReport() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckOnReportPage(
+          eventRepository: widget.eventRepository,
+          sessionRepository: widget.sessionRepository,
+          attendanceRepository: widget.attendanceRepository,
+          disableAnimations: widget.disableAnimations,
+        ),
       ),
     );
   }
@@ -660,6 +676,18 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ),
                 ],
               ),
+              if (!_isLoading && _events.isNotEmpty && _members.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: CheckOnHubCard(
+                      events: _events,
+                      members: _members,
+                      sessions: _sessions,
+                      onOpenReport: _openCheckOnReport,
+                    ),
+                  ),
+                ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                 sliver: _isLoading

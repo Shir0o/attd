@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:attendance_tracker/core/design/app_colors.dart';
 import 'package:attendance_tracker/features/checkon/domain/check_on.dart';
 import 'package:attendance_tracker/features/checkon/presentation/check_on_report_page.dart';
 import 'package:attendance_tracker/features/checkon/presentation/check_on_widgets.dart';
@@ -293,7 +294,10 @@ void main() {
     final repo = FakeCheckOnEventRepository([checkOnEvent()]);
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData(brightness: Brightness.dark),
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          extensions: const [ConvocationColors.dark],
+        ),
         home: CheckOnReportPage(
           eventRepository: repo,
           sessionRepository: FakeCheckOnSessionRepository(
