@@ -67,7 +67,19 @@ class FastMarkingRoster {
         if (byOrder != 0) return byOrder;
         return a.displayNameLowercase.compareTo(b.displayNameLowercase);
       });
+    alphabetical = List.unmodifiable(
+      [...this.members]..sort((a, b) {
+          final byName =
+              a.displayNameLowercase.compareTo(b.displayNameLowercase);
+          if (byName != 0) return byName;
+          return SessionRoster.keyFor(a).compareTo(SessionRoster.keyFor(b));
+        }),
+    );
   }
+
+  /// The same people as [members], A to Z by display name ignoring case, for
+  /// the name grid. Guests and visitors on the session sort in with everyone.
+  late final List<Member> alphabetical;
 
   /// The active roster index backing query and search structures.
   final ActiveRosterIndex index;

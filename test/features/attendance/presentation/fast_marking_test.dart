@@ -1,3 +1,4 @@
+import 'package:attendance_tracker/core/design/app_colors.dart';
 import 'package:attendance_tracker/core/design/app_theme.dart';
 import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/data/session.dart';
@@ -13,6 +14,7 @@ import 'package:attendance_tracker/features/attendance/presentation/done_progres
 import 'package:attendance_tracker/features/attendance/presentation/fast_marking/fast_marking_shared.dart';
 import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../helpers/mocks.dart';
@@ -371,27 +373,75 @@ void main() {
   });
 
   group('likely here', () {
-    testWidgets('orders the grid by recent attendance, most frequent first',
+    List<String> chipOrder(WidgetTester tester) => tester
+        .widgetList<Widget>(
+          find.byWidgetPredicate(
+            (w) =>
+                w.key is ValueKey<String> &&
+                (w.key! as ValueKey<String>).value.startsWith(
+                      'likelyHereChip_',
+                    ),
+          ),
+        )
+        .map((w) => (w.key! as ValueKey<String>).value)
+        .toList();
+
+    testWidgets('orders the grid alphabetically, ignoring attendance history',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere, withHistory: true);
 
-      final chips = tester
-          .widgetList<Widget>(
-            find.byWidgetPredicate(
-              (w) =>
-                  w.key is ValueKey<String> &&
-                  (w.key! as ValueKey<String>).value.startsWith(
-                        'likelyHereChip_',
-                      ),
-            ),
-          )
-          .map((w) => (w.key! as ValueKey<String>).value)
-          .toList();
-      // Duc attended all four, Bao half, An none, Sam has no history.
-      expect(chips.take(3).toList(), [
-        'likelyHereChip_duc',
-        'likelyHereChip_bao',
+      // Duc attended all four and An none, but the grid is A to Z.
+      expect(chipOrder(tester), [
         'likelyHereChip_an',
+        'likelyHereChip_bao',
+        'likelyHereChip_duc',
+        'likelyHereChip_sam',
+      ]);
+    });
+
+    testWidgets('alphabetical order ignores case', (tester) async {
+      await pumpMode(
+        tester,
+        MarkingMode.likelyHere,
+        families: [
+          Family(
+            id: 'f-mixed',
+            displayName: 'Mixed',
+            isAutoSingleton: true,
+            members: [
+              Member(id: 'zed', displayName: 'Zed Ash'),
+              Member(id: 'amy', displayName: 'amy Lowe'),
+              Member(id: 'ben', displayName: 'Ben Cole'),
+            ],
+          ),
+        ],
+      );
+
+      expect(chipOrder(tester), [
+        'likelyHereChip_amy',
+        'likelyHereChip_ben',
+        'likelyHereChip_zed',
+      ]);
+    });
+
+    testWidgets('a guest added this session sorts in with everyone',
+        (tester) async {
+      await pumpMode(tester, MarkingMode.likelyHere);
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('addSheetNameField')),
+        'Cara Visitor',
+      );
+      await tester.tap(find.byKey(const Key('addSheetMarkGuest')));
+      await tester.pumpAndSettle();
+
+      expect(chipOrder(tester), [
+        'likelyHereChip_an',
+        'likelyHereChip_bao',
+        'likelyHereChip_visitor_Cara Visitor',
+        'likelyHereChip_duc',
+        'likelyHereChip_sam',
       ]);
     });
 
@@ -416,11 +466,285 @@ void main() {
     testWidgets('the remaining count drops as people are marked',
         (tester) async {
       await pumpMode(tester, MarkingMode.likelyHere);
-      expect(find.text('4 left · most frequent first'), findsOneWidget);
+      const caption = Key('likelyHereRemaining');
+      expect(tester.widget<Text>(find.byKey(caption)).data, '4 left');
 
       await tester.tap(find.byKey(const Key('likelyHereChip_bao')));
       await tester.pumpAndSettle();
-      expect(find.text('3 left · most frequent first'), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(caption)).data, '3 left');
+    });
+
+    testWidgets(
+        'a marked tile keeps its text, drops the "Here" label, and reads as '
+        'selected', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpMode(tester, MarkingMode.likelyHere);
+      const chip = Key('likelyHereChip_bao');
+      expect(
+        tester.getSemantics(find.byKey(chip)),
+        containsSemantics(label: 'Bao Nguyen', isSelected: false),
+      );
+
+      await tester.tap(find.byKey(chip));
+      await tester.pumpAndSettle();
+
+      final tile = find.byKey(chip);
+      expect(find.descendant(of: tile, matching: find.text('Bao')),
+          findsOneWidget);
+      expect(find.descendant(of: tile, matching: find.text('NGUYEN')),
+          findsOneWidget);
+      expect(find.descendant(of: tile, matching: find.text('Here')),
+          findsNothing);
+      expect(find.descendant(of: tile, matching: find.byIcon(Icons.check_rounded)),
+          findsNothing);
+      expect(
+        tester.getSemantics(tile),
+        containsSemantics(
+          label: 'Bao Nguyen',
+          isSelected: true,
+          isButton: true,
+          hasTapAction: true,
+        ),
+      );
+      semantics.dispose();
+    });
+
+    for (final dark in [false, true]) {
+      testWidgets(
+          'the given name is the headline in full-strength ink '
+          '(${dark ? 'dark' : 'light'})', (tester) async {
+        await pumpMode(
+          tester,
+          MarkingMode.likelyHere,
+          theme: dark ? AppTheme.darkTheme() : AppTheme.lightTheme(),
+        );
+        final ink =
+            dark ? ConvocationColors.dark.ink : ConvocationColors.light.ink;
+        final name = tester.widget<Text>(find.text('Bao'));
+        final surname = tester.widget<Text>(find.text('NGUYEN').first);
+        expect(name.style!.color, ink);
+        expect(name.style!.fontSize, greaterThanOrEqualTo(16));
+        expect(name.style!.fontWeight, FontWeight.w600);
+        expect(surname.style!.fontSize, lessThan(name.style!.fontSize!));
+        expect(surname.overflow, TextOverflow.ellipsis);
+      });
+    }
+
+    testWidgets('a long given name is never truncated', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpMode(
+        tester,
+        MarkingMode.likelyHere,
+        families: [
+          Family(
+            id: 'f-long',
+            displayName: 'Long',
+            isAutoSingleton: true,
+            members: [
+              Member(
+                id: 'long',
+                displayName: 'Maximiliana-Alexandrina Featherstonehaugh',
+              ),
+              Member(id: 'kai', displayName: 'Kai Wong'),
+            ],
+          ),
+        ],
+      );
+
+      const given = 'Maximiliana-Alexandrina';
+      final text = tester.widget<Text>(find.text(given));
+      expect(text.overflow, isNot(TextOverflow.ellipsis));
+      expect(text.maxLines, isNull);
+      expect(text.softWrap, isTrue);
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(given));
+      expect(paragraph.didExceedMaxLines, isFalse);
+      // It wrapped rather than shrinking past legibility, and stays inside its
+      // tile.
+      final lineHeight = paragraph.text.style!.fontSize!;
+      expect(paragraph.size.height, greaterThan(lineHeight * 1.5));
+      final tile = tester.getRect(find.byKey(const Key('likelyHereChip_long')));
+      final name = tester.getRect(find.text(given));
+      expect(tile.contains(name.topLeft), isTrue);
+      expect(tile.contains(name.bottomRight - const Offset(0.5, 0.5)), isTrue);
+
+      // A short name keeps the full headline size on one line.
+      final kai = tester.widget<Text>(find.text('Kai'));
+      expect(kai.maxLines, 1);
+      expect(kai.style!.fontSize, 16);
+    });
+
+    group('letter strip', () {
+      // Two people for each of A to T; nobody starts with U to Z.
+      const letters = 'ABCDEFGHIJKLMNOPQRST';
+      final crowd = [
+        Family(
+          id: 'f-crowd',
+          displayName: 'Crowd',
+          isAutoSingleton: true,
+          members: [
+            for (final l in letters.split(''))
+              for (var i = 0; i < 2; i++)
+                Member(id: '$l$i', displayName: '${l}ra$i Smith'),
+          ],
+        ),
+      ];
+      const strip = Key('likelyHereLetterStrip');
+      Key letter(String l) => Key('likelyHereLetter_$l');
+      final grid = find.byType(GridView);
+
+      testWidgets('lists only the letters some name starts with',
+          (tester) async {
+        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        expect(find.byKey(strip), findsOneWidget);
+        for (final l in letters.split('')) {
+          expect(find.byKey(letter(l)), findsOneWidget);
+        }
+        expect(find.byKey(letter('U')), findsNothing);
+        expect(find.byKey(letter('Z')), findsNothing);
+        // Sized to fit: the last letter is laid out inside the strip.
+        final stripRect = tester.getRect(find.byKey(strip));
+        expect(stripRect.contains(tester.getCenter(find.byKey(letter('T')))),
+            isTrue);
+      });
+
+      testWidgets('touching a letter jumps its first tile to the top',
+          (tester) async {
+        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        final top = tester.getRect(grid).top;
+
+        final gesture =
+            await tester.startGesture(tester.getCenter(find.byKey(letter('K'))));
+        await tester.pump();
+        // A big letter bubble shows while the finger is down.
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('likelyHereLetterBubble')),
+            matching: find.text('K'),
+          ),
+          findsOneWidget,
+        );
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('likelyHereLetterBubble')), findsNothing);
+        expect(tester.getRect(find.byKey(const Key('likelyHereChip_K0'))).top,
+            closeTo(top, 0.5));
+        // It jumps, never filters: everyone is still on the grid.
+        expect(find.byKey(const Key('likelyHereChip_A0')), findsNothing);
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('likelyHereChip_A0')),
+          -200,
+          scrollable: find.descendant(of: grid, matching: find.byType(Scrollable)),
+        );
+        expect(find.byKey(const Key('likelyHereChip_A0')), findsOneWidget);
+      });
+
+      testWidgets('dragging along the strip scrubs to the letter under it',
+          (tester) async {
+        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        final top = tester.getRect(grid).top;
+        final from = tester.getCenter(find.byKey(letter('B')));
+        final to = tester.getCenter(find.byKey(letter('F')));
+
+        final gesture = await tester.startGesture(from);
+        await tester.pump();
+        await gesture.moveTo(to);
+        await tester.pump();
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('likelyHereLetterBubble')),
+            matching: find.text('F'),
+          ),
+          findsOneWidget,
+        );
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(tester.getRect(find.byKey(const Key('likelyHereChip_F0'))).top,
+            closeTo(top, 0.5));
+      });
+
+      testWidgets('a vertical drag in the left gutter scrubs too',
+          (tester) async {
+        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        final gridRect = tester.getRect(grid);
+        final firstTile =
+            tester.getRect(find.byKey(const Key('likelyHereChip_A0')));
+        // The gutter is the grid's side padding, clear of the tiles.
+        final x = (gridRect.left + firstTile.left) / 2;
+        expect(x, lessThan(firstTile.left));
+        final from = Offset(x, tester.getCenter(find.byKey(letter('A'))).dy);
+        final to = Offset(x, tester.getCenter(find.byKey(letter('H'))).dy);
+
+        final gesture = await tester.startGesture(from);
+        await gesture.moveTo(from + const Offset(0, 30));
+        await tester.pump();
+        await gesture.moveTo(to);
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(tester.getRect(find.byKey(const Key('likelyHereChip_H0'))).top,
+            closeTo(gridRect.top, 0.5));
+      });
+
+      testWidgets('is one adjustable control for screen readers',
+          (tester) async {
+        final semantics = tester.ensureSemantics();
+        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        final top = tester.getRect(grid).top;
+        final node = find.semantics.byLabel('Jump to letter');
+
+        expect(
+          tester.getSemantics(find.byKey(strip)),
+          containsSemantics(
+            label: 'Jump to letter',
+            value: 'A',
+            isSlider: true,
+            hasIncreaseAction: true,
+          ),
+        );
+
+        tester.semantics.performAction(node, SemanticsAction.increase);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getSemantics(find.byKey(strip)),
+          containsSemantics(
+            value: 'B',
+            hasIncreaseAction: true,
+            hasDecreaseAction: true,
+          ),
+        );
+        expect(tester.getRect(find.byKey(const Key('likelyHereChip_B0'))).top,
+            closeTo(top, 0.5));
+
+        tester.semantics.performAction(node, SemanticsAction.decrease);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getSemantics(find.byKey(strip)),
+          containsSemantics(value: 'A'),
+        );
+        semantics.dispose();
+      });
+
+      testWidgets('follows the letter at the top while the grid scrolls',
+          (tester) async {
+        final semantics = tester.ensureSemantics();
+        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        final tile = tester.getRect(find.byKey(const Key('likelyHereChip_A0')));
+        // About three rows down: the top row now starts with E1 (tiles go
+        // A0 A1 B0 / B1 C0 C1 / D0 D1 E0 / E1 F0 F1).
+        await tester.drag(grid, Offset(0, -3.3 * (tile.height + 8)));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.getSemantics(find.byKey(strip)),
+          containsSemantics(value: 'E'),
+        );
+        semantics.dispose();
+      });
     });
 
     testWidgets('the grid has no search: List owns searching', (tester) async {
@@ -817,7 +1141,8 @@ void main() {
 
       // Back on the grid: the new person's chip is there, already Here,
       // and a snackbar confirms it.
-      expect(find.text('Newbie Guest'), findsOneWidget);
+      expect(find.text('Newbie'), findsOneWidget);
+      expect(find.text('GUEST'), findsOneWidget);
       expect(find.text('Newbie Guest added · Here'), findsOneWidget);
       expect(find.byKey(const Key('addSheetNameField')), findsNothing);
     });
@@ -880,12 +1205,20 @@ void main() {
           findsOneWidget);
       expect(find.byKey(const Key('likelyHereChip_visitor_Guest Two')),
           findsOneWidget);
-      expect(find.text('Guest One'), findsOneWidget);
-      expect(find.text('Guest Two'), findsOneWidget);
+      // Same given name, told apart by the surname line.
+      expect(find.text('Guest'), findsNWidgets(2));
+      expect(find.text('ONE'), findsOneWidget);
+      expect(find.text('TWO'), findsOneWidget);
 
       // Header tally counts both guests present; the four roster members
       // are still left.
-      expect(find.text('4 left'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('headerTallyTail')),
+          matching: find.text('4 left'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('2'), findsOneWidget);
 
       // Both are saved as Guest Marks: present, with no member ID.
@@ -1271,7 +1604,7 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(nameField, findsNothing);
-      expect(find.text('Newbie Guest'), findsOneWidget);
+      expect(find.text('Newbie'), findsOneWidget);
       expect(find.text('Newbie Guest added · Here'), findsOneWidget);
       expect(pillShown(tester), isTrue);
     });
@@ -1511,7 +1844,13 @@ void main() {
 
       await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
       await tester.pump();
-      expect(find.text('3 left'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('headerTallyTail')),
+          matching: find.text('3 left'),
+        ),
+        findsOneWidget,
+      );
       expect(tester.getSize(fill).width, closeTo(track.width / 4, 0.01));
     });
   });
@@ -1754,8 +2093,8 @@ void main() {
       matching: find.byType(Scrollable),
     );
 
-    /// Forty people with no history: a newcomer sorts last, far below the
-    /// fold.
+    /// Forty people, all "Member …": a newcomer named Zed sorts last, far
+    /// below the fold.
     final bigRoster = [
       Family(
         id: 'f-big',
@@ -1786,10 +2125,11 @@ void main() {
       );
     }
 
-    /// The tile showing [name]. The test directory cannot create members, so
-    /// a newcomer is added id-less and keyed `likelyHereChip_`.
+    /// The tile for [name], found by its given-name headline. The test
+    /// directory cannot create members, so a newcomer is added id-less and
+    /// keyed `likelyHereChip_`.
     Finder tileOf(String name) => find.ancestor(
-          of: find.text(name),
+          of: find.text(name.split(' ').first),
           matching: find.byWidgetPredicate(
             (w) =>
                 w.key is ValueKey<String> &&
