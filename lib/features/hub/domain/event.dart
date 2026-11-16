@@ -5,7 +5,6 @@ import '../../attendance/models/attendance_start_mode.dart';
 import '../../attendance/models/marking_mode.dart';
 import '../../attendance/models/roster_grouping.dart';
 import '../../checkon/domain/check_on_follow_up.dart';
-import '../../sessions/domain/insights_config.dart';
 
 class Event {
   final String id;
@@ -28,11 +27,6 @@ class Event {
   /// falls back to [kDefaultMarkingMode] rather than prompting, so existing
   /// events pick up the default without an extra step.
   final MarkingMode? markingMode;
-
-  /// Per-event Insights presets: viewing range, Regular and Lapsed thresholds,
-  /// and which sections show. `null` means nothing has been chosen and the
-  /// defaults apply, exactly as for [markingMode]. See ADR 0007.
-  final InsightsConfig? insightsConfig;
 
   /// "Who to check on" ticks: member id -> the flag and last-present day the
   /// owner followed up on. See [CheckOnFollowUp].
@@ -60,7 +54,6 @@ class Event {
     this.defaultAttendanceStartMode,
     this.rosterGrouping,
     this.markingMode,
-    this.insightsConfig,
     this.checkOnFollowUps = const {},
     this.checkOnStopFlagging = const {},
     this.isShared = false,
@@ -77,11 +70,6 @@ class Event {
   /// none has been chosen.
   MarkingMode get resolvedMarkingMode => markingMode ?? kDefaultMarkingMode;
 
-  /// The Insights presets this event actually uses, applying defaults when
-  /// nothing has been chosen.
-  InsightsConfig get resolvedInsightsConfig =>
-      insightsConfig ?? const InsightsConfig();
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -95,9 +83,8 @@ class Event {
         'defaultAttendanceStartMode': defaultAttendanceStartMode!.name,
       if (rosterGrouping != null) 'rosterGrouping': rosterGrouping!.name,
       if (markingMode != null) 'markingMode': markingMode!.name,
-      if (insightsConfig != null) ...insightsConfig!.toJson(),
-      // Discrete keys, like the Insights presets: the Drive merge is
-      // last-write-wins per event, so each answer stays its own field.
+      // Discrete keys: the Drive merge is last-write-wins per event, so each
+      // answer stays its own field.
       if (checkOnFollowUps.isNotEmpty)
         'checkOnFollowUps': {
           for (final e in checkOnFollowUps.entries) e.key: e.value.toJson(),
@@ -125,7 +112,6 @@ class Event {
     AttendanceStartMode? defaultAttendanceStartMode,
     RosterGrouping? rosterGrouping,
     MarkingMode? markingMode,
-    InsightsConfig? insightsConfig,
     Map<String, CheckOnFollowUp>? checkOnFollowUps,
     Set<String>? checkOnStopFlagging,
     bool? isShared,
@@ -149,7 +135,6 @@ class Event {
           defaultAttendanceStartMode ?? this.defaultAttendanceStartMode,
       rosterGrouping: rosterGrouping ?? this.rosterGrouping,
       markingMode: markingMode ?? this.markingMode,
-      insightsConfig: insightsConfig ?? this.insightsConfig,
       checkOnFollowUps: checkOnFollowUps ?? this.checkOnFollowUps,
       checkOnStopFlagging: checkOnStopFlagging ?? this.checkOnStopFlagging,
       isShared: isShared ?? this.isShared,
@@ -176,7 +161,6 @@ class Event {
       MarkingMode.values,
       json['markingMode'] as String?,
     );
-    final insights = InsightsConfig.fromJson(json);
     final followUps = <String, CheckOnFollowUp>{};
     final rawFollowUps = json['checkOnFollowUps'];
     if (rawFollowUps is Map) {
@@ -207,7 +191,6 @@ class Event {
       defaultAttendanceStartMode: startMode,
       rosterGrouping: grouping,
       markingMode: mode,
-      insightsConfig: insights.isEmpty ? null : insights,
       checkOnFollowUps: followUps,
       checkOnStopFlagging: {
         for (final id in json['checkOnStopFlagging'] as List<dynamic>? ?? [])

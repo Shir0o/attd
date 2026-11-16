@@ -1,5 +1,9 @@
 # 0007. Insights Configuration Lives on the Event
 
+- Status: Superseded
+
+The Insights page and its per-event configuration were removed; see `docs/superpowers/specs/2026-11-15-who-to-check-on-design.md` for what replaces them.
+
 ## Context
 Insights thresholds are not universal: "attended at least 80% of the last 8 sessions" is a reasonable bar for a weekly class and a meaningless one for a monthly meeting. Users asked for the **Regular** threshold, the **Lapsed Attendee** rule, the viewing range, and section visibility to be configurable.
 
