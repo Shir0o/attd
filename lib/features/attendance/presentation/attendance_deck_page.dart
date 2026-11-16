@@ -23,18 +23,11 @@ import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
 import 'attendance_roster_list.dart';
 import 'fast_marking/fast_marking_model.dart';
-import 'fast_marking/households_view.dart';
-import 'fast_marking/initials_pad_view.dart';
 import 'fast_marking/likely_here_view.dart';
-import 'fast_marking/rapid_entry_view.dart';
 import 'mark_everyone_sheet.dart';
 import 'session_summary_page.dart';
 import 'done_progress_pill.dart';
 import 'swipeable_card.dart';
-
-/// Which marking surface the session is currently showing. The third one is
-/// whichever fast mode the event's preset names.
-enum _Surface { deck, list, fast }
 
 class AttendanceDeckPage extends StatefulWidget {
   const AttendanceDeckPage({
@@ -108,7 +101,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
   StreamSubscription? _saveErrorSubscription;
-  _Surface _surface = _Surface.deck;
   final List<int> _history = [];
 
   Session get _currentSession => _markingSession.session;
@@ -165,18 +157,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     const SwipeProgress(dx: 0, rightProgress: 0, leftProgress: 0),
   );
 
-  bool get _isDeckMode => _surface == _Surface.deck;
-
-  /// The header toggle's segments, in order; the fast surface only exists when
-  /// the event picked a fast marking mode.
-  List<_Surface> get _surfaces => [
-        _Surface.deck,
-        _Surface.list,
-        if (_markingMode != MarkingMode.none) _Surface.fast,
-      ];
-
-  MarkingMode get _markingMode => widget.markingMode ?? kDefaultMarkingMode;
-
   /// True when the List opened from a bulk default (all-present / smart): the
   /// user confirms exceptions rather than marking from scratch.
   bool get _confirmMode =>
@@ -221,14 +201,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   @override
   void initState() {
     super.initState();
-    // A bulk-default session (all-present / smart) always opens on the confirm
-    // List — confirming exceptions is a different job from marking from
-    // scratch. Otherwise the event's fast-marking preset picks the surface,
-    // falling back to the Deck when it is off.
-    _surface = widget.initialListMode
-        ? _Surface.list
-        : (_markingMode == MarkingMode.none ? _Surface.deck : _Surface.fast);
-
     if (widget.markingSession != null) {
       _markingSession = widget.markingSession!;
       _ownsMarkingSession = false;
@@ -260,9 +232,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     debugPrint(
         'DEBUG: AttendanceDeckPage.initState: membersCount=${widget.members.length}, members=${widget.members.map((m) => m.displayName).toList()}');
 
-    if (_markingMode != MarkingMode.none) {
-      unawaited(_primeRecentSessions());
-    }
     _subscribeToMembers();
     _subscribeToEvents();
 
@@ -715,13 +684,8 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             children: [
               _buildHeader(colorScheme),
               Expanded(
-                child: switch (_surface) {
-                  _Surface.deck => _buildDeckBody(colorScheme),
-                  _Surface.list => _buildListBody(),
-                  _Surface.fast => _buildFastMarkingBody(),
-                },
+                child: _buildGrid(),
               ),
-              if (_isDeckMode) _buildDeckFooter(colorScheme),
             ],
           ),
         ),
@@ -836,39 +800,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             ],
           ),
         ),
-        // Centered Deck/List segmented control.
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Center(
-            // Scales down rather than overflows on a narrow phone or large
-            // text, as the Material toggle it replaces did.
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: ConvSegmented(
-              key: const Key('deckListModeToggle'),
-              options: [
-                const ConvSegmentOption(
-                  label: 'Deck',
-                  icon: Icons.style_outlined,
-                ),
-                const ConvSegmentOption(
-                  label: 'List',
-                  icon: Icons.list_alt,
-                ),
-                // The third segment is whichever fast mode the event picked.
-                if (_markingMode != MarkingMode.none)
-                  ConvSegmentOption(
-                    label: _markingMode.shortLabel,
-                    icon: Icons.bolt_outlined,
-                  ),
-              ],
-              selectedIndex: _surfaces.indexOf(_surface),
-              onChanged: (i) => setState(() => _surface = _surfaces[i]),
-              disableAnimations: widget.disableAnimations,
-              ),
-            ),
-          ),
-        ),
         // Confirm mode keeps its contained bar. While marking, Done itself
         // carries the progress (M6).
         if (_confirmMode)
@@ -885,28 +816,20 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
                   : Stack(
                       children: [
                         Positioned.fill(child: ColoredBox(color: c.cardSoft)),
-                        if (!_isDeckMode) ...[
-                          // The absent fill runs under the present one, so
-                          // only its own share past the present fill shows.
-                          ConvProgressFill(
-                            key: const Key('headerProgressAbsent'),
-                            fraction: (present + absent) / total,
-                            color: c.absent,
-                            disableAnimations: widget.disableAnimations,
-                          ),
-                          ConvProgressFill(
-                            key: const Key('headerProgressPresent'),
-                            fraction: present / total,
-                            color: c.present,
-                            disableAnimations: widget.disableAnimations,
-                          ),
-                        ] else
-                          ConvProgressFill(
-                            key: const Key('headerProgressPresent'),
-                            fraction: progress,
-                            color: c.present,
-                            disableAnimations: widget.disableAnimations,
-                          ),
+                        // The absent fill runs under the present one, so
+                        // only its own share past the present fill shows.
+                        ConvProgressFill(
+                          key: const Key('headerProgressAbsent'),
+                          fraction: (present + absent) / total,
+                          color: c.absent,
+                          disableAnimations: widget.disableAnimations,
+                        ),
+                        ConvProgressFill(
+                          key: const Key('headerProgressPresent'),
+                          fraction: present / total,
+                          color: c.present,
+                          disableAnimations: widget.disableAnimations,
+                        ),
                       ],
                     ),
             ),
@@ -916,43 +839,22 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     );
   }
 
-  /// The event's chosen fast marking surface. Every one of them writes through
-  /// the same per-member and per-family callbacks the List uses, so marks made
-  /// here are indistinguishable from marks made anywhere else in the session.
-  Widget _buildFastMarkingBody() {
+  /// The marking surface: the name grid, whatever the event's stored marking
+  /// mode says. It writes through the same per-member callback every mark uses.
+  Widget _buildGrid() {
     final roster = FastMarkingRoster(
       session: _currentSession,
       members: _sessionMembers,
       families: _sessionFamilies,
       index: _memoisedActiveRosterIndex,
     );
-    return switch (_markingMode) {
-      MarkingMode.rapidEntry => RapidEntryView(
-          roster: roster,
-          onToggle: _toggleMemberFromList,
-          onAddGuest: _showAddMemberSheet,
-        ),
-      MarkingMode.likelyHere => LikelyHereView(
-          roster: roster,
-          onToggle: _toggleMemberFromList,
-          onAddGuest: () => _showAddMemberSheet(morphFrom: _addSomeoneSource),
-          addSomeoneKey: _addSomeoneSource,
-          disableAnimations: widget.disableAnimations,
-        ),
-      MarkingMode.households => HouseholdsView(
-          roster: roster,
-          onToggle: _toggleMemberFromList,
-          onFamilyToggle: _toggleFamilyFromList,
-          onAddGuest: _showAddMemberSheet,
-        ),
-      MarkingMode.initialsPad => InitialsPadView(
-          roster: roster,
-          onToggle: _toggleMemberFromList,
-          onAddGuest: _showAddMemberSheet,
-          disableAnimations: widget.disableAnimations,
-        ),
-      MarkingMode.none => const SizedBox.shrink(),
-    };
+    return LikelyHereView(
+      roster: roster,
+      onToggle: _toggleMemberFromList,
+      onAddGuest: () => _showAddMemberSheet(morphFrom: _addSomeoneSource),
+      addSomeoneKey: _addSomeoneSource,
+      disableAnimations: widget.disableAnimations,
+    );
   }
 
   Widget _buildListBody() {
