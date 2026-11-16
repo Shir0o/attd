@@ -60,11 +60,50 @@ Removed entirely and replaced by "Who to check on". See
   editor and "When to tell me" scheduling are cut.
 - Export moves to the History page.
 
-## Queue
+### 7. Families
+- Cut the whole feature (list, details, suggest, assign solo members,
+  resolve duplicates) and the "Manage Families" settings row.
+- Why: its two uses, family marking and grouping the list by family, are
+  already cut. The surname under each name disambiguates.
+- Stored family data is left in place and ignored. Backup, the storage
+  inspector, onboarding mock-ups, and the event editor reference families
+  and need updating when this is built.
 
-7. Families (five screens).
-8. Settings: backup and sync.
-9. Settings: reports, CISA, reminders, app lock, duplicate entry points.
+### 8. Backup and sync
+- Kept: Google Drive sign-in and backup, Sync Now, version history, Google
+  Sheets sync (owner needs it), Backup to Local Storage.
+- Cut: the Background Auto-Sync toggle (always on when signed in) and the
+  Require Wi-Fi toggle.
+- Moved behind developer options: Manage Backup Data (storage inspector).
+
+### 9. Rest of Settings
+- Kept: Theme, App Lock, crash diagnostics opt-in, Privacy Policy,
+  Feedback, About.
+- **Manage Members (all members): kept.** It is the app-wide member list,
+  distinct from an event's roster. Merging duplicate members moves here as
+  an action; today it lives only inside Manage Backup Data, which is going
+  behind developer options.
+- **Reminders: kept.** The owner sometimes forgets to take attendance. The
+  existing behaviour is the requirement: a local notification after the
+  session's scheduled start, suppressed once attendance is recorded.
+  Simplified to one on/off switch; the offset selector is cut and fixed at
+  one hour after start (Claude's call).
+- **CISA Campus Tracker: kept but hidden** behind the existing developer
+  unlock (tap the version number), including the "Sync to CISA" button on
+  the session summary. The general public never sees it.
+- Reports: cut the "Enable Report Export" toggle and Advanced Reporting;
+  one "Export CSV" on the History page.
+
+### 10. First-timers
+- "Add someone" adds to the roster by default, so a newcomer has a history
+  and "Newcomer follow-up" / "One-time visitor" can flag them. Marking a
+  one-off guest stays available as the secondary choice; guest marks are
+  never flagged.
+
+## Review complete
+
+Every area has been reviewed. Remaining work is implementation, per the
+linked designs.
 
 ## Found along the way
 

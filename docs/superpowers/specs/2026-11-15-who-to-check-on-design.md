@@ -109,7 +109,9 @@ The session summary shown after Done carries one line when relevant:
 ## Constraints
 
 - Local-first: computed on device from stored sessions; no network.
-- Guests and members without a stable id are never flagged.
+- Only roster members are flagged; guest marks never are. To make the two
+  newcomer rules work, "Add someone" in the marking grid adds to the roster
+  by default, with "mark as a one-off guest" as the secondary choice.
 - Follow-up ticks and stop-flagging choices are stored with the event data
   so they survive backup and restore.
 - Fluid Humanist design system; WCAG AA (dot states differ by fill and
