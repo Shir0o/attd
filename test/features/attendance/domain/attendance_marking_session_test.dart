@@ -222,20 +222,36 @@ void main() {
             attendee: 'Alice Adams',
             status: AttendanceStatus.present,
             recordedAt: DateTime(2026, 10, 14, 9, 0),
-            recordedBy: 'System (Preseed)',
+            recordedBy: 'User',
           ),
           SessionRecord(
             memberId: 'm2',
             attendee: 'Bob Brown',
             status: AttendanceStatus.absent,
             recordedAt: DateTime(2026, 10, 14, 9, 0),
-            recordedBy: 'System (Preseed)',
+            recordedBy: 'User',
           ),
         ],
       );
     });
 
-    test('initializes baseline status and preseed records correctly', () {
+    test('a new session starts with nobody marked', () async {
+      final fresh = baseSession.copyWith(records: const []);
+      final markingSession = AttendanceMarkingSession(
+        session: fresh,
+        baseMembers: [memberA, memberB],
+        sessionRepository: sessionRepo,
+      );
+
+      expect(markingSession.hasUserEdits, isFalse);
+      expect(markingSession.getStatus(memberA), AttendanceStatus.absent);
+      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
+
+      await markingSession.markMember(memberA, AttendanceStatus.present);
+      expect(markingSession.hasUserEdits, isTrue);
+    });
+
+    test('initializes with the session records and nothing to undo', () {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
         baseMembers: [memberA, memberB],
@@ -249,17 +265,9 @@ void main() {
       expect(markingSession.session.id, 'session-100');
       expect(markingSession.sessionMembers.length, 2);
       expect(markingSession.sessionFamilies.length, 2);
-      expect(markingSession.baselineStatus['m1'], AttendanceStatus.present);
-      expect(markingSession.baselineStatus['m2'], AttendanceStatus.absent);
-      expect(markingSession.baselineFor(memberA), AttendanceStatus.present);
-      expect(markingSession.baselineFor(memberB), AttendanceStatus.absent);
-
-      // Preseeded records do not count as user edits
-      expect(markingSession.isTouched(memberA), isFalse);
-      expect(markingSession.isTouched(memberB), isFalse);
-      expect(markingSession.hasUserEdits, isFalse);
+      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
+      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
       expect(markingSession.canUndo, isFalse);
-      expect(markingSession.changedCount, 0);
     });
 
     test('optimistic marking updates state immediately and enqueues background save', () async {
@@ -281,10 +289,7 @@ void main() {
 
       expect(notified, isTrue);
       expect(markingSession.getStatus(memberB), AttendanceStatus.present);
-      expect(markingSession.isTouched(memberB), isTrue);
       expect(markingSession.hasUserEdits, isTrue);
-      expect(markingSession.isChanged(memberB), isTrue);
-      expect(markingSession.changedCount, 1);
       expect(markingSession.canUndo, isTrue);
 
       // Await pending saves
@@ -545,7 +550,7 @@ void main() {
       expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
     });
 
-    test('markAll and resetToBaseline execute atomically', () async {
+    test('markAll marks every given member in one snapshot', () async {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
         baseMembers: [memberA, memberB],
@@ -555,12 +560,6 @@ void main() {
       await markingSession.markAll([memberA, memberB], present: false);
       expect(markingSession.getStatus(memberA), AttendanceStatus.absent);
       expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
-      expect(markingSession.changedCount, 1); // memberA changed from present to absent
-
-      await markingSession.resetToBaseline();
-      expect(markingSession.getStatus(memberA), AttendanceStatus.present);
-      expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
-      expect(markingSession.changedCount, 0);
     });
 
     test('editMemberName and removeMemberFromSession update records properly', () async {

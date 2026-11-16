@@ -11,9 +11,6 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
-import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
-import 'package:attendance_tracker/features/attendance/models/roster_grouping.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
@@ -248,8 +245,6 @@ void main() {
 
   Event todayEvent({
     List<String> memberIds = const [],
-    RosterGrouping? rosterGrouping = RosterGrouping.byStatus,
-    AttendanceStartMode? defaultAttendanceStartMode,
   }) {
     final now = DateTime.now();
     return Event(
@@ -259,8 +254,6 @@ void main() {
       frequency: 'Weekly',
       repeatingDays: [DateFormat('EEEE').format(now)],
       memberIds: memberIds,
-      defaultAttendanceStartMode: defaultAttendanceStartMode,
-      rosterGrouping: rosterGrouping,
       createdAt: now,
     );
   }
@@ -352,127 +345,33 @@ void main() {
     await tester.tap(find.text('Sunday Service'));
     await tester.pumpAndSettle();
 
-    // The start-mode picker appears. Confirm the default.
-    expect(find.byKey(const Key('startModeConfirmButton')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('startModeConfirmButton')));
-    await tester.pumpAndSettle();
+    // No picker stands in the way: the grid opens straight away.
+    expect(find.byKey(const Key('startModeConfirmButton')), findsNothing);
+    expect(find.byKey(const Key('groupingConfirmButton')), findsNothing);
+    expect(find.byKey(const Key('likelyHereChip_member-1')), findsOneWidget);
 
     expect(sessionRepository.createdSessions, hasLength(1));
     expect(sessionRepository.createdSessions.single.title, 'Sunday Service');
     expect(sessionRepository.createdSessions.single.eventId, 'event-1');
+    // A new session starts with nobody marked.
+    expect(sessionRepository.createdSessions.single.records, isEmpty);
   });
 
-  testWidgets(
-      'first attendance asks for a grouping preset and saves it to the event',
-      (tester) async {
-    attendanceRepository.families = [
-      Family(
-        id: 'family-1',
-        displayName: 'Family 1',
-        members: [Member(id: 'member-1', displayName: 'Alice')],
-        updatedAt: DateTime.now(),
-      ),
-    ];
-
-    await pumpView(tester);
-    eventRepository.emit([
-      // No grouping chosen yet → the one-time prompt should appear.
-      todayEvent(memberIds: ['member-1'], rosterGrouping: null)
-    ]);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Sunday Service'));
-    await tester.pumpAndSettle();
-
-    // Grouping prompt appears first (before the start-mode picker).
-    expect(find.byKey(const Key('groupingConfirmButton')), findsOneWidget);
-    expect(find.byKey(const Key('startModeConfirmButton')), findsNothing);
-
-    // Pick Family, then continue.
-    await tester.tap(find.byKey(const Key('grouping_byFamily')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('groupingConfirmButton')));
-    await tester.pumpAndSettle();
-
-    // The choice is persisted on the event.
-    expect(eventRepository.updatedEvents, isNotEmpty);
-    expect(
-      eventRepository.updatedEvents.last.rosterGrouping,
-      RosterGrouping.byFamily,
-    );
-
-    // Then the normal start-mode picker follows.
-    expect(find.byKey(const Key('startModeConfirmButton')), findsOneWidget);
-  });
-
-  testWidgets(
-      'subsequent attendance reuses remembered start mode without showing picker',
-      (tester) async {
-    attendanceRepository.families = [
-      Family(
-        id: 'family-1',
-        displayName: 'Family 1',
-        members: [Member(id: 'member-1', displayName: 'Alice')],
-        updatedAt: DateTime.now(),
-      ),
-    ];
-
-    await pumpView(tester);
-    eventRepository.emit([
-      todayEvent(
-        memberIds: ['member-1'],
-        defaultAttendanceStartMode: AttendanceStartMode.allPresent,
-      )
-    ]);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Sunday Service'));
-    await tester.pumpAndSettle();
-
-    // The start-mode picker does NOT appear because defaultAttendanceStartMode is set.
-    expect(find.byKey(const Key('startModeConfirmButton')), findsNothing);
-
-    expect(sessionRepository.createdSessions, hasLength(1));
-    expect(sessionRepository.createdSessions.single.title, 'Sunday Service');
-    expect(sessionRepository.createdSessions.single.eventId, 'event-1');
-  });
-
-  testWidgets('action menu: Attendance Mode allows changing start mode',
+  testWidgets('event three-dot menu no longer offers the mode entries',
       (tester) async {
     await pumpView(tester);
-    eventRepository.emit([
-      todayEvent(defaultAttendanceStartMode: AttendanceStartMode.allAbsent)
-    ]);
+    eventRepository.emit([todayEvent()]);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
 
-    expect(find.text('Attendance Mode'), findsOneWidget);
-    expect(find.text('Start with all absent'), findsOneWidget);
-
-    await tester.tap(find.text('Attendance Mode'));
-    await tester.pumpAndSettle();
-
-    // Sheet title and save button appear
-    expect(find.text('Attendance Mode'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
-
-    // Pick "Start with all present"
-    await tester.tap(
-      find.byKey(
-        ValueKey('start_mode_${AttendanceStartMode.allPresent.name}'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-
-    expect(eventRepository.updatedEvents, isNotEmpty);
-    expect(
-      eventRepository.updatedEvents.last.defaultAttendanceStartMode,
-      AttendanceStartMode.allPresent,
-    );
+    expect(find.text('Attendance Mode'), findsNothing);
+    expect(find.text('Fast Marking Mode'), findsNothing);
+    expect(find.byKey(const Key('eventMenuFastMarkingMode')), findsNothing);
+    // The rest of the menu is untouched.
+    expect(find.text('View Insights'), findsOneWidget);
+    expect(find.text('Manage Members'), findsOneWidget);
   });
 
   testWidgets('action menu: Manage Members navigates to members page',
@@ -1102,44 +1001,6 @@ void main() {
     // No new session was created — we navigated to the deck for the
     // existing incomplete session.
     expect(sessionRepository.createdSessions, isEmpty);
-  });
-
-  testWidgets('event three-dot menu allows changing fast marking mode',
-      (tester) async {
-    final event = todayEvent();
-
-    await pumpView(tester);
-    eventRepository.emit([event]);
-    await tester.pumpAndSettle();
-
-    // Open three-dot menu
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-
-    // Verify Fast Marking Mode tile is present
-    expect(find.byKey(const Key('eventMenuFastMarkingMode')), findsOneWidget);
-    expect(find.text('Fast Marking Mode'), findsOneWidget);
-
-    // Tap Fast Marking Mode
-    await tester.tap(find.byKey(const Key('eventMenuFastMarkingMode')));
-    await tester.pumpAndSettle();
-
-    // Verify options are displayed in the bottom sheet
-    expect(find.byKey(const Key('marking_mode_option_initialsPad')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('marking_mode_option_initialsPad')));
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.byKey(const Key('markingModeConfirmButton')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('markingModeConfirmButton')));
-    await tester.pumpAndSettle();
-
-    // Verify the event repository received updateEvent with initialsPad
-    expect(eventRepository.updatedEvents, isNotEmpty);
-    expect(
-      eventRepository.updatedEvents.last.markingMode,
-      MarkingMode.initialsPad,
-    );
   });
 
   testWidgets('shared event displays SHARED pill badge and read-only event hides destructive menu items',

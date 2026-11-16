@@ -5,17 +5,10 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
-import 'package:attendance_tracker/features/attendance/models/marking_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/features/attendance/presentation/done_progress_pill.dart';
-import 'package:attendance_tracker/features/attendance/presentation/fast_marking/fast_marking_shared.dart';
-import 'package:attendance_tracker/features/attendance/domain/attendance_marking_session.dart';
-import 'package:attendance_tracker/features/attendance/presentation/fast_marking/fast_marking_model.dart';
-import 'package:attendance_tracker/features/attendance/presentation/fast_marking/households_view.dart';
-import 'package:attendance_tracker/features/attendance/presentation/fast_marking/initials_pad_view.dart';
-import 'package:attendance_tracker/features/attendance/presentation/fast_marking/rapid_entry_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,7 +55,7 @@ Session _session({
           attendee: m.displayName,
           status: seed,
           recordedAt: at,
-          recordedBy: 'System (Preseed)',
+          recordedBy: 'User',
         ),
     ],
   );
@@ -100,11 +93,9 @@ List<Session> _history() => [
 
 typedef Harness = ({MockSessionRepository sessions});
 
-/// Pumps the real session page. [mode] is the event's stored marking mode,
-/// which the page ignores: it always shows the grid.
+/// Pumps the real session page, which is always the name grid.
 Future<Harness> pumpPage(
-  WidgetTester tester,
-  MarkingMode mode, {
+  WidgetTester tester, {
   AttendanceStatus seed = AttendanceStatus.absent,
   bool withHistory = false,
   List<Family>? families,
@@ -126,144 +117,6 @@ Future<Harness> pumpPage(
         sessionRepository: sessions,
         attendanceRepository: MockAttendanceRepository(),
         eventRepository: MockEventRepository(),
-        markingMode: mode,
-        disableAnimations: disableAnimations,
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-  return (sessions: sessions);
-}
-
-/// Mounts one fast view on its own, backed by a real marking session. The
-/// session page no longer reaches rapid entry, households or the initials pad
-/// (they are deleted in a follow-up), so their own behaviour is exercised here.
-class _ViewHost extends StatefulWidget {
-  const _ViewHost({
-    required this.mode,
-    required this.session,
-    required this.members,
-    required this.families,
-    required this.sessionRepository,
-    required this.disableAnimations,
-  });
-
-  final MarkingMode mode;
-  final Session session;
-  final List<Member> members;
-  final List<Family> families;
-  final MockSessionRepository sessionRepository;
-  final bool disableAnimations;
-
-  @override
-  State<_ViewHost> createState() => _ViewHostState();
-}
-
-class _ViewHostState extends State<_ViewHost> {
-  late final AttendanceMarkingSession _marking = AttendanceMarkingSession(
-    session: widget.session,
-    baseMembers: widget.members,
-    families: widget.families,
-    sessionRepository: widget.sessionRepository,
-    attendanceRepository: MockAttendanceRepository(),
-    eventRepository: MockEventRepository(),
-  )..addListener(() => setState(() {}));
-
-  @override
-  void dispose() {
-    _marking.dispose();
-    super.dispose();
-  }
-
-  void _addGuest() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddMemberSheet(
-        onAdd: (name, isPresent, isGuest, existing) {
-          _marking.addAttendee(
-            name,
-            isPresent: isPresent,
-            isGuest: isGuest,
-            existingMember: existing,
-          );
-        },
-        disableAnimations: widget.disableAnimations,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final roster = FastMarkingRoster(
-      session: _marking.session,
-      members: _marking.sessionMembers,
-      families: _marking.sessionFamilies,
-    );
-    Future<void> toggle(Member m, bool present) =>
-        _marking.toggleMember(m, present);
-    return Scaffold(
-      body: SafeArea(
-        child: switch (widget.mode) {
-          MarkingMode.rapidEntry => RapidEntryView(
-              roster: roster,
-              onToggle: toggle,
-              onAddGuest: _addGuest,
-            ),
-          MarkingMode.households => HouseholdsView(
-              roster: roster,
-              onToggle: toggle,
-              onFamilyToggle: _marking.markFamily,
-              onAddGuest: _addGuest,
-            ),
-          MarkingMode.initialsPad => InitialsPadView(
-              roster: roster,
-              onToggle: toggle,
-              onAddGuest: _addGuest,
-              disableAnimations: widget.disableAnimations,
-            ),
-          _ => throw ArgumentError('not a view-only mode: ${widget.mode}'),
-        },
-      ),
-    );
-  }
-}
-
-/// Pumps [mode]: the grid on the real page, any other fast surface on its own.
-Future<Harness> pumpMode(
-  WidgetTester tester,
-  MarkingMode mode, {
-  AttendanceStatus seed = AttendanceStatus.absent,
-  bool withHistory = false,
-  List<Family>? families,
-  bool disableAnimations = true,
-  ThemeData? theme,
-}) async {
-  if (mode == MarkingMode.likelyHere || mode == MarkingMode.none) {
-    return pumpPage(
-      tester,
-      mode,
-      seed: seed,
-      withHistory: withHistory,
-      families: families,
-      disableAnimations: disableAnimations,
-      theme: theme,
-    );
-  }
-  final sessions = MockSessionRepository();
-  if (withHistory) sessions.setSessions(_history());
-  final roster = families ?? [_nguyens, _okafor];
-  final members = roster.expand((f) => f.members).toList();
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: theme,
-      home: _ViewHost(
-        mode: mode,
-        session: _session(seed: seed, members: members),
-        members: members,
-        families: roster,
-        sessionRepository: sessions,
         disableAnimations: disableAnimations,
       ),
     ),
@@ -286,26 +139,18 @@ Future<AttendanceStatus?> savedStatus(
   return null;
 }
 
-Future<void> typeQuery(WidgetTester tester, Key field, String query) async {
-  await tester.enterText(find.byKey(field), query);
-  await tester.pumpAndSettle();
-}
-
 void main() {
   group('the page always opens on the grid', () {
-    for (final mode in MarkingMode.values) {
-      testWidgets('${mode.name}: whatever the event stored, it is the grid',
-          (tester) async {
-        await pumpPage(tester, mode);
-        expect(find.byKey(const Key('likelyHereChip_an')), findsOneWidget);
-        expect(find.byKey(const Key('rapidEntryField')), findsNothing);
-        expect(find.byKey(const Key('householdsField')), findsNothing);
-        expect(find.byKey(const Key('initialsKey_D')), findsNothing);
-      });
-    }
+    testWidgets('it is the grid, with no fast-marking surface', (tester) async {
+      await pumpPage(tester);
+      expect(find.byKey(const Key('likelyHereChip_an')), findsOneWidget);
+      expect(find.byKey(const Key('rapidEntryField')), findsNothing);
+      expect(find.byKey(const Key('householdsField')), findsNothing);
+      expect(find.byKey(const Key('initialsKey_D')), findsNothing);
+    });
 
     testWidgets('there is no Deck/List/fast switch', (tester) async {
-      await pumpPage(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(find.byKey(const Key('deckListModeToggle')), findsNothing);
       expect(find.byType(ConvSegmented), findsNothing);
       expect(find.text('Deck'), findsNothing);
@@ -314,180 +159,12 @@ void main() {
 
     testWidgets('the grid shows one "N left" and no "Likely here" heading',
         (tester) async {
-      await pumpPage(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(find.textContaining('left'), findsOneWidget);
       expect(find.text('4 left'), findsOneWidget);
       expect(find.byKey(const Key('likelyHereRemaining')), findsNothing);
       expect(find.text('LIKELY HERE'), findsNothing);
       expect(find.text('Likely here'), findsNothing);
-    });
-  });
-
-  group('rapid entry', () {
-    testWidgets('shows nothing until a query is typed', (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsNothing);
-    });
-
-    testWidgets('filters the roster as you type', (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'ngu');
-
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsOneWidget);
-      expect(find.byKey(const Key('fastMarkingResult_sam')), findsNothing);
-    });
-
-    testWidgets('subtitle displays attendee last name for members without family',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'sam');
-
-      expect(find.byKey(const Key('fastMarkingResult_sam')), findsOneWidget);
-      // Sam Okafor is an auto-singleton so familyName is null; subtitle should show 'Okafor'
-      expect(find.text('Okafor'), findsOneWidget);
-    });
-
-    testWidgets('tapping a result marks that person present', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'duc');
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-
-      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
-    });
-
-    testWidgets('clears the query after a mark so the next name can be typed',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'duc');
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-
-      final field = tester.widget<TextField>(
-        find.byKey(const Key('rapidEntryField')),
-      );
-      expect(field.controller!.text, isEmpty);
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsNothing);
-    });
-
-    testWidgets('keeps focus on the field after a mark', (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'duc');
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-
-      final field = tester.widget<TextField>(
-        find.byKey(const Key('rapidEntryField')),
-      );
-      expect(field.focusNode!.hasFocus, isTrue);
-    });
-
-    testWidgets('the return key marks the only match', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'sam');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(await savedStatus(h.sessions, 'sam'), AttendanceStatus.present);
-    });
-
-    testWidgets('the return key does nothing when the top hits tie',
-        (tester) async {
-      final h = await pumpMode(tester, MarkingMode.rapidEntry);
-      // Three Nguyens all match "ngu" as a word prefix — no unambiguous winner.
-      await typeQuery(tester, const Key('rapidEntryField'), 'ngu');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-
-      expect(await savedStatus(h.sessions, 'an'), isNull);
-      expect(await savedStatus(h.sessions, 'duc'), isNull);
-    });
-
-    testWidgets('an already-marked person reads as here and toggles back',
-        (tester) async {
-      final h = await pumpMode(
-        tester,
-        MarkingMode.rapidEntry,
-        seed: AttendanceStatus.present,
-      );
-      await typeQuery(tester, const Key('rapidEntryField'), 'sam');
-      expect(find.text('Already here'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('fastMarkingResult_sam')));
-      await tester.pumpAndSettle();
-      expect(await savedStatus(h.sessions, 'sam'), AttendanceStatus.absent);
-    });
-
-    testWidgets('undo restores the status the person had before the mark',
-        (tester) async {
-      final h = await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'duc');
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
-
-      await tester.tap(find.byKey(const Key('fastMarkingUndo_duc')));
-      await tester.pumpAndSettle();
-      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.absent);
-    });
-
-    testWidgets('offers to add a guest when nobody matches', (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'zzzz');
-      expect(find.byKey(const Key('fastMarkingAddGuest')), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
-    });
-
-    testWidgets('the clear button empties the query', (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'ngu');
-      await tester.tap(find.byKey(const Key('fastMarkingClear')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsNothing);
-    });
-
-    testWidgets('a member listed under two households appears once',
-        (tester) async {
-      final hall = Family(
-        id: 'f-hall',
-        displayName: 'Hall cleaning',
-        members: [Member(id: 'an', displayName: 'An Nguyen')],
-      );
-      await pumpMode(
-        tester,
-        MarkingMode.rapidEntry,
-        families: [_nguyens, _okafor, hall],
-      );
-      await typeQuery(tester, const Key('rapidEntryField'), 'an ng');
-
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsOneWidget);
-      expect(find.text('1 MATCH'), findsOneWidget);
-    });
-
-    testWidgets('a guest added this session can be found and reads as here',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'Guest One');
-      await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const Key('addSheetNameField')),
-        'Guest One',
-      );
-      await tester.tap(find.byKey(const Key('addSheetMarkGuest')));
-      await tester.pumpAndSettle();
-
-      await typeQuery(tester, const Key('rapidEntryField'), 'guest');
-      final row = find.byKey(const Key('fastMarkingResult_visitor_Guest One'));
-      expect(row, findsOneWidget);
-      expect(
-        find.descendant(of: row, matching: find.text('Already here')),
-        findsOneWidget,
-      );
     });
   });
 
@@ -507,7 +184,7 @@ void main() {
 
     testWidgets('orders the grid alphabetically, ignoring attendance history',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere, withHistory: true);
+      await pumpPage(tester, withHistory: true);
 
       // Duc attended all four and An none, but the grid is A to Z.
       expect(chipOrder(tester), [
@@ -519,9 +196,7 @@ void main() {
     });
 
     testWidgets('alphabetical order ignores case', (tester) async {
-      await pumpMode(
-        tester,
-        MarkingMode.likelyHere,
+      await pumpPage(tester,
         families: [
           Family(
             id: 'f-mixed',
@@ -545,7 +220,7 @@ void main() {
 
     testWidgets('a guest added this session sorts in with everyone',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -565,7 +240,7 @@ void main() {
     });
 
     testWidgets('tapping a chip marks that person present', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.likelyHere);
+      final h = await pumpPage(tester);
       await tester.tap(find.byKey(const Key('likelyHereChip_bao')));
       await tester.pumpAndSettle();
 
@@ -573,7 +248,7 @@ void main() {
     });
 
     testWidgets('tapping a marked chip unmarks it', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.likelyHere);
+      final h = await pumpPage(tester);
       await tester.tap(find.byKey(const Key('likelyHereChip_bao')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('likelyHereChip_bao')));
@@ -584,7 +259,7 @@ void main() {
 
     testWidgets('the remaining count drops as people are marked',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(find.text('4 left'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('likelyHereChip_bao')));
@@ -596,7 +271,7 @@ void main() {
         'a marked tile keeps its text, drops the "Here" label, and reads as '
         'selected', (tester) async {
       final semantics = tester.ensureSemantics();
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       const chip = Key('likelyHereChip_bao');
       expect(
         tester.getSemantics(find.byKey(chip)),
@@ -631,9 +306,7 @@ void main() {
       testWidgets(
           'the given name is the headline in full-strength ink '
           '(${dark ? 'dark' : 'light'})', (tester) async {
-        await pumpMode(
-          tester,
-          MarkingMode.likelyHere,
+        await pumpPage(tester,
           theme: dark ? AppTheme.darkTheme() : AppTheme.lightTheme(),
         );
         final ink =
@@ -652,9 +325,7 @@ void main() {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await pumpMode(
-        tester,
-        MarkingMode.likelyHere,
+      await pumpPage(tester,
         families: [
           Family(
             id: 'f-long',
@@ -714,7 +385,7 @@ void main() {
 
       testWidgets('lists only the letters some name starts with',
           (tester) async {
-        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        await pumpPage(tester, families: crowd);
         expect(find.byKey(strip), findsOneWidget);
         for (final l in letters.split('')) {
           expect(find.byKey(letter(l)), findsOneWidget);
@@ -729,7 +400,7 @@ void main() {
 
       testWidgets('touching a letter jumps its first tile to the top',
           (tester) async {
-        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        await pumpPage(tester, families: crowd);
         final top = tester.getRect(grid).top;
 
         final gesture =
@@ -761,7 +432,7 @@ void main() {
 
       testWidgets('dragging along the strip scrubs to the letter under it',
           (tester) async {
-        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        await pumpPage(tester, families: crowd);
         final top = tester.getRect(grid).top;
         final from = tester.getCenter(find.byKey(letter('B')));
         final to = tester.getCenter(find.byKey(letter('F')));
@@ -786,7 +457,7 @@ void main() {
 
       testWidgets('a vertical drag in the left gutter scrubs too',
           (tester) async {
-        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        await pumpPage(tester, families: crowd);
         final gridRect = tester.getRect(grid);
         final firstTile =
             tester.getRect(find.byKey(const Key('likelyHereChip_A0')));
@@ -811,7 +482,7 @@ void main() {
       testWidgets('is one adjustable control for screen readers',
           (tester) async {
         final semantics = tester.ensureSemantics();
-        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        await pumpPage(tester, families: crowd);
         final top = tester.getRect(grid).top;
         final node = find.semantics.byLabel('Jump to letter');
 
@@ -850,7 +521,7 @@ void main() {
       testWidgets('follows the letter at the top while the grid scrolls',
           (tester) async {
         final semantics = tester.ensureSemantics();
-        await pumpMode(tester, MarkingMode.likelyHere, families: crowd);
+        await pumpPage(tester, families: crowd);
         final tile = tester.getRect(find.byKey(const Key('likelyHereChip_A0')));
         // About three rows down: the top row now starts with E1 (tiles go
         // A0 A1 B0 / B1 C0 C1 / D0 D1 E0 / E1 F0 F1).
@@ -866,14 +537,14 @@ void main() {
     });
 
     testWidgets('the grid has no search', (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(find.byKey(const Key('likelyHereSearch')), findsNothing);
       expect(find.byType(TextField), findsNothing);
     });
 
     testWidgets('marking a chip does not push it to the end or shift other chips',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere, withHistory: true);
+      await pumpPage(tester, withHistory: true);
 
       List<String> getChipOrder() => tester
           .widgetList<Widget>(
@@ -899,7 +570,7 @@ void main() {
 
     testWidgets('unranked chips display attendee uppercase last name instead of NEW, and only given name in title',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       // Roster without history: Sam Okafor and Nguyen family members
       expect(find.text('OKAFOR'), findsOneWidget);
       expect(find.text('NGUYEN'), findsNWidgets(3));
@@ -917,9 +588,7 @@ void main() {
     testWidgets('unranked chips for single-name member display full name and no duplicate surname subtitle',
         (tester) async {
       final singleMember = Member(id: 'cher', displayName: 'Cher');
-      await pumpMode(
-        tester,
-        MarkingMode.likelyHere,
+      await pumpPage(tester,
         families: [
           Family(
             id: 'f-cher',
@@ -936,7 +605,7 @@ void main() {
 
     testWidgets('the floating "Add someone" pill opens the add sheet',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(
         find.descendant(
           of: find.byKey(const Key('likelyHereAddGuest')),
@@ -951,7 +620,7 @@ void main() {
 
     testWidgets('the "Add someone" pill presses in when motion is on',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      await pumpPage(tester, disableAnimations: false);
       final pill = find.byKey(const Key('likelyHereAddGuest'));
       final pressable = find.ancestor(
         of: pill,
@@ -978,7 +647,7 @@ void main() {
 
     testWidgets('the "Add someone" pill does not scale when motion is off',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(
         find.descendant(
           of: find.byType(ConvPressable),
@@ -989,261 +658,24 @@ void main() {
     });
   });
 
-  group('households', () {
-    testWidgets('search returns a household card', (tester) async {
-      await pumpMode(tester, MarkingMode.households);
-      await typeQuery(tester, const Key('householdsField'), 'nguyen');
-
-      expect(find.byKey(const Key('householdCard_f-nguyen')), findsOneWidget);
-      expect(find.text('Mark all 3 present'), findsOneWidget);
-    });
-
-    testWidgets('one button marks the whole family present', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.households);
-      await typeQuery(tester, const Key('householdsField'), 'nguyen');
-      await tester.tap(find.byKey(const Key('householdMarkAll_f-nguyen')));
-      await tester.pumpAndSettle();
-
-      for (final id in ['an', 'duc', 'bao']) {
-        expect(await savedStatus(h.sessions, id), AttendanceStatus.present);
-      }
-    });
-
-    testWidgets('a member can be dropped back out of a marked household',
-        (tester) async {
-      final h = await pumpMode(
-        tester,
-        MarkingMode.households,
-        seed: AttendanceStatus.present,
-      );
-      await typeQuery(tester, const Key('householdsField'), 'nguyen');
-      await tester.tap(find.byKey(const Key('householdMember_bao')));
-      await tester.pumpAndSettle();
-
-      expect(await savedStatus(h.sessions, 'bao'), AttendanceStatus.absent);
-      expect(await savedStatus(h.sessions, 'an'), AttendanceStatus.present);
-    });
-
-    testWidgets('matches a household through one of its members',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.households);
-      await typeQuery(tester, const Key('householdsField'), 'duc');
-      expect(find.byKey(const Key('householdCard_f-nguyen')), findsOneWidget);
-    });
-
-    testWidgets('an auto-singleton household renders as a plain row',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.households);
-      await typeQuery(tester, const Key('householdsField'), 'okafor');
-
-      expect(find.byKey(const Key('householdCard_f-okafor')), findsNothing);
-      expect(find.byKey(const Key('fastMarkingResult_sam')), findsOneWidget);
-    });
-
-    testWidgets('offers to add a guest when nothing matches', (tester) async {
-      await pumpMode(tester, MarkingMode.households);
-      await typeQuery(tester, const Key('householdsField'), 'zzzz');
-      expect(find.byKey(const Key('fastMarkingAddGuest')), findsOneWidget);
-    });
-  });
-
-  group('initials pad', () {
-    testWidgets('shows no results until a first initial is picked',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsNothing);
-    });
-
-    testWidgets('one initial narrows the roster', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_A')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsOneWidget);
-      expect(find.byKey(const Key('fastMarkingResult_duc')), findsNothing);
-    });
-
-    testWidgets('a second initial narrows it further', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_B')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('initialsKey_N')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const Key('fastMarkingResult_bao')), findsOneWidget);
-      expect(find.byKey(const Key('fastMarkingResult_an')), findsNothing);
-    });
-
-    testWidgets('letters nobody matches are not tappable', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_Q')));
-      await tester.pumpAndSettle();
-
-      // Q was inert, so the pad is still at the first stage.
-      expect(find.text('Pick a first-name initial'), findsOneWidget);
-    });
-
-    testWidgets('a letter stays live once its last match is marked',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_S')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('fastMarkingResult_sam')));
-      await tester.pumpAndSettle();
-
-      // Sam is still reachable, shown as already here, so a mark can be
-      // checked or taken back from the pad.
-      await tester.tap(find.byKey(const Key('initialsKey_S')));
-      await tester.pumpAndSettle();
-      final row = find.byKey(const Key('fastMarkingResult_sam'));
-      expect(row, findsOneWidget);
-      expect(
-        find.descendant(of: row, matching: find.text('Already here')),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('tapping a result marks that person present', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_D')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-
-      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
-    });
-
-    testWidgets('marking resets the pad for the next person', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_D')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Pick a first-name initial'), findsOneWidget);
-    });
-
-    testWidgets('backspace steps back one initial', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_B')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('initialsKey_N')));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('initialsKey_back')));
-      await tester.pumpAndSettle();
-      expect(find.text('Now a surname initial'), findsOneWidget);
-    });
-
-    testWidgets('clearing the first chip returns to the full pad',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_B')));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('initialsChip_first')));
-      await tester.pumpAndSettle();
-      expect(find.text('Pick a first-name initial'), findsOneWidget);
-    });
-
-    testWidgets('undo restores the previous status', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.initialsPad);
-      await tester.tap(find.byKey(const Key('initialsKey_D')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('fastMarkingUndo_duc')));
-      await tester.pumpAndSettle();
-      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.absent);
-    });
-
-    testWidgets(
-        'navigating from the grid to summary and toggling member updates UI and model',
-        (tester) async {
-      final h = await pumpMode(tester, MarkingMode.likelyHere);
-
-      // Finish session to navigate to summary page via pushReplacement
-      await tester.tap(find.byKey(const Key('finishSessionButton')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Attendance Roster'), findsOneWidget);
-
-      // Find the toggle for one of the absent members, e.g. Duc Nguyen ('duc')
-      final ducToggleFinder =
-          find.byKey(const ValueKey('memberToggle_duc_Duc Nguyen'));
-      expect(ducToggleFinder, findsOneWidget);
-      expect(tester.widget<ConvToggle>(ducToggleFinder).value, isFalse);
-
-      // Tap toggle to mark present
-      await tester.tap(ducToggleFinder);
-      await tester.pumpAndSettle();
-
-      // UI should reflect present (value == true)
-      expect(tester.widget<ConvToggle>(ducToggleFinder).value, isTrue);
-
-      // Session repository should also reflect present
-      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
-    });
-  });
-
   group('every surface reports into the same session', () {
-    for (final mode in [
-      MarkingMode.rapidEntry,
-      MarkingMode.likelyHere,
-      MarkingMode.households,
-      MarkingMode.initialsPad,
-    ]) {
-      testWidgets('${mode.name}: a mark made here is saved to the session',
-          (tester) async {
-        final h = await pumpMode(tester, mode);
+    testWidgets('a mark made here is saved to the session', (tester) async {
+      final h = await pumpPage(tester);
+      await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
+      await tester.pumpAndSettle();
+      expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
+    });
 
-        switch (mode) {
-          case MarkingMode.rapidEntry:
-            await typeQuery(tester, const Key('rapidEntryField'), 'duc');
-            await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-          case MarkingMode.likelyHere:
-            await tester.tap(find.byKey(const Key('likelyHereChip_duc')));
-          case MarkingMode.households:
-            await typeQuery(tester, const Key('householdsField'), 'duc nguyen');
-            await tester.tap(find.byKey(const Key('householdMember_duc')));
-          case MarkingMode.initialsPad:
-            await tester.tap(find.byKey(const Key('initialsKey_D')));
-            await tester.pumpAndSettle();
-            await tester.tap(find.byKey(const Key('fastMarkingResult_duc')));
-          case MarkingMode.none:
-            fail('not a fast surface');
-        }
-        await tester.pumpAndSettle();
-
-        expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
-      });
-
-      testWidgets('${mode.name}: a guest can be added without leaving',
-          (tester) async {
-        await pumpMode(tester, mode);
-        switch (mode) {
-          case MarkingMode.rapidEntry:
-            await typeQuery(tester, const Key('rapidEntryField'), 'zzzz');
-            await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
-          case MarkingMode.likelyHere:
-            await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
-          case MarkingMode.households:
-            await typeQuery(tester, const Key('householdsField'), 'zzzz');
-            await tester.tap(find.byKey(const Key('fastMarkingAddGuest')));
-          case MarkingMode.initialsPad:
-            await tester.tap(find.byKey(const Key('initialsAddGuest')));
-          case MarkingMode.none:
-            fail('not a fast surface');
-        }
-        await tester.pumpAndSettle();
-        expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
-      });
-    }
+    testWidgets('a guest can be added without leaving', (tester) async {
+      await pumpPage(tester);
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('addSheetNameField')), findsOneWidget);
+    });
 
     testWidgets('newly added attendee shows up in the Likely Here grid immediately',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(find.byKey(const Key('likelyHereChip_newbie')), findsNothing);
 
       await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
@@ -1270,7 +702,7 @@ void main() {
           '(text scale $textScale)', (tester) async {
         tester.platformDispatcher.textScaleFactorTestValue = textScale;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-        await pumpMode(tester, MarkingMode.likelyHere);
+        await pumpPage(tester);
 
         await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
         await tester.pumpAndSettle();
@@ -1299,7 +731,7 @@ void main() {
 
     testWidgets('two guests marked in one session get their own tiles',
         (tester) async {
-      final h = await pumpMode(tester, MarkingMode.likelyHere);
+      final h = await pumpPage(tester);
 
       for (final name in ['Guest One', 'Guest Two']) {
         await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
@@ -1351,9 +783,7 @@ void main() {
   group('a pre-marked session opens on the grid with those people marked', () {
     testWidgets('everyone arrives marked, and the grid can flip somebody',
         (tester) async {
-      final h = await pumpPage(
-        tester,
-        MarkingMode.likelyHere,
+      final h = await pumpPage(tester,
         seed: AttendanceStatus.present,
       );
       expect(find.text('0 left'), findsOneWidget);
@@ -1364,65 +794,9 @@ void main() {
       expect(find.text('1 left'), findsOneWidget);
     });
 
-    testWidgets('the household button clears a family that is already here',
-        (tester) async {
-      final h = await pumpMode(
-        tester,
-        MarkingMode.households,
-        seed: AttendanceStatus.present,
-      );
-      await typeQuery(tester, const Key('householdsField'), 'nguyen');
-
-      expect(find.text('Clear all 3'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('householdMarkAll_f-nguyen')));
-      await tester.pumpAndSettle();
-
-      for (final id in ['an', 'duc', 'bao']) {
-        expect(await savedStatus(h.sessions, id), AttendanceStatus.absent);
-      }
-    });
   });
 
-  group('undo covers both directions', () {
-    testWidgets('an accidental un-mark can be taken back', (tester) async {
-      final h = await pumpMode(
-        tester,
-        MarkingMode.rapidEntry,
-        seed: AttendanceStatus.present,
-      );
-      await typeQuery(tester, const Key('rapidEntryField'), 'sam');
-      await tester.tap(find.byKey(const Key('fastMarkingResult_sam')));
-      await tester.pumpAndSettle();
-      expect(await savedStatus(h.sessions, 'sam'), AttendanceStatus.absent);
-
-      await tester.tap(find.byKey(const Key('fastMarkingUndo_sam')));
-      await tester.pumpAndSettle();
-      expect(await savedStatus(h.sessions, 'sam'), AttendanceStatus.present);
-    });
-  });
-
-  group('search results explain themselves', () {
-    testWidgets('the matched run of the name is highlighted', (tester) async {
-      await pumpMode(tester, MarkingMode.rapidEntry);
-      await typeQuery(tester, const Key('rapidEntryField'), 'ngu');
-
-      final name = tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(const Key('fastMarkingResult_an')),
-          matching: find.byWidgetPredicate(
-            (w) => w is Text && w.textSpan != null,
-          ),
-        ),
-      );
-      final spans = (name.textSpan! as TextSpan).children!.cast<TextSpan>();
-      final highlighted = spans.singleWhere(
-        (s) => s.style?.backgroundColor != null,
-      );
-      expect(highlighted.text, 'Ngu');
-    });
-  });
-
-  group('every surface survives a real phone', () {
+  group('the grid survives a real phone', () {
     // Regression: a 60pt grid tile fitted a one-line name on the desktop-sized
     // default test surface but overflowed on a phone, where "Regular Member 1"
     // wraps to two lines; the grid's own caption row overflowed there too.
@@ -1439,36 +813,14 @@ void main() {
       ),
     ];
 
-    for (final mode in [
-      MarkingMode.rapidEntry,
-      MarkingMode.likelyHere,
-      MarkingMode.households,
-      MarkingMode.initialsPad,
-    ]) {
-      testWidgets('${mode.name}: long names do not overflow at phone width',
-          (tester) async {
-        tester.view.physicalSize = const Size(822, 1782); // 411x891 logical
-        tester.view.devicePixelRatio = 2;
-        addTearDown(tester.view.reset);
+    testWidgets('long names do not overflow at phone width', (tester) async {
+      tester.view.physicalSize = const Size(822, 1782); // 411x891 logical
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
 
-        await pumpMode(tester, mode, families: longRoster);
-        expect(tester.takeException(), isNull, reason: 'on entry');
-
-        switch (mode) {
-          case MarkingMode.rapidEntry:
-            await typeQuery(tester, const Key('rapidEntryField'), 'regular');
-          case MarkingMode.households:
-            await typeQuery(tester, const Key('householdsField'), 'feather');
-          case MarkingMode.initialsPad:
-            await tester.tap(find.byKey(const Key('initialsKey_R')));
-            await tester.pumpAndSettle();
-          case MarkingMode.likelyHere:
-          case MarkingMode.none:
-            break;
-        }
-        expect(tester.takeException(), isNull, reason: 'with results showing');
-      });
-    }
+      await pumpPage(tester, families: longRoster);
+      expect(tester.takeException(), isNull, reason: 'on entry');
+    });
   });
 
   group('the "Add someone" pill grows into the add sheet', () {
@@ -1480,7 +832,7 @@ void main() {
       tester.view.physicalSize = const Size(822, 1782); // 411x891 logical
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
-      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      await pumpPage(tester, disableAnimations: false);
     }
 
     bool pillShown(WidgetTester tester) => tester
@@ -1722,7 +1074,7 @@ void main() {
 
     testWidgets('with the test flag it is the plain sheet, focused at once',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       await tester.tap(pill);
       await tester.pump();
       await tester.pump();
@@ -1743,9 +1095,7 @@ void main() {
 
     testWidgets('a Likely tile pops on press and the mark still lands',
         (tester) async {
-      final h = await pumpMode(
-        tester,
-        MarkingMode.likelyHere,
+      final h = await pumpPage(tester,
         disableAnimations: false,
       );
       final chip = find.byKey(const Key('likelyHereChip_duc'));
@@ -1762,80 +1112,8 @@ void main() {
       expect(await savedStatus(h.sessions, 'duc'), AttendanceStatus.present);
     });
 
-    testWidgets('a pad key pops on press and still types its letter',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
-      final key = find.byKey(const Key('initialsKey_D'));
-
-      final gesture = await tester.startGesture(tester.getCenter(key));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 110));
-      expect(scaleIn(tester, key), lessThan(1));
-
-      // Cancelling springs back without typing the letter.
-      await gesture.cancel();
-      await tester.pumpAndSettle();
-      expect(scaleIn(tester, key), closeTo(1, 0.001));
-      expect(find.byKey(const Key('initialsChip_first')), findsNothing);
-
-      await tester.tap(key);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('initialsChip_first')), findsOneWidget);
-    });
-
-    testWidgets('icon keys and unmatched letters do not pop', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
-      // Backspace and reset are icon keys, and a letter with no match is
-      // disabled: none of them scale.
-      for (final key in ['back', 'reset', 'Z']) {
-        expect(
-          find.descendant(
-            of: find.byKey(Key('initialsKey_$key')),
-            matching: find.byType(Transform),
-          ),
-          findsNothing,
-          reason: key,
-        );
-      }
-    });
-
-    testWidgets('an initials chip no longer scales and still clears',
-        (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
-      await tester.tap(find.byKey(const Key('initialsKey_D')));
-      await tester.pumpAndSettle();
-      final chip = find.byKey(const Key('initialsChip_first'));
-
-      final gesture = await tester.startGesture(tester.getCenter(chip));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 110));
-      expect(
-        find.descendant(of: chip, matching: find.byType(Transform)),
-        findsNothing,
-      );
-
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(chip, findsNothing);
-      expect(find.text('Pick a first-name initial'), findsOneWidget);
-    });
-
-    testWidgets('list rows do not pop', (tester) async {
-      await pumpMode(tester, MarkingMode.initialsPad, disableAnimations: false);
-      await tester.tap(find.byKey(const Key('initialsKey_D')));
-      await tester.pumpAndSettle();
-      expect(find.byType(FastMarkingRow), findsWidgets);
-      expect(
-        find.descendant(
-          of: find.byType(FastMarkingRow),
-          matching: find.byType(ConvPressable),
-        ),
-        findsNothing,
-      );
-    });
-
     testWidgets('the tally rolls to the new counts', (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      await pumpPage(tester, disableAnimations: false);
       final tail = find.byKey(const Key('headerTallyTail'));
       final present = find.byKey(const Key('headerTallyPresent'));
 
@@ -1863,7 +1141,7 @@ void main() {
 
     testWidgets("Done's progress fill eases instead of jumping",
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      await pumpPage(tester, disableAnimations: false);
       final fill = find.descendant(
         of: find.byKey(const Key('doneProgressFill')),
         matching: find.byType(ColoredBox),
@@ -1886,7 +1164,7 @@ void main() {
 
     testWidgets("with motion off the tally and Done's fill snap",
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       final fill = find.descendant(
         of: find.byKey(const Key('doneProgressFill')),
         matching: find.byType(ColoredBox),
@@ -1930,7 +1208,7 @@ void main() {
 
     testWidgets('marking replaces the thin bar with the Done pill',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       expect(find.byKey(const Key('headerProgressPresent')), findsNothing);
       expect(find.byKey(const Key('headerProgressAbsent')), findsNothing);
       expect(tester.getSize(fill).width, 0);
@@ -1938,7 +1216,7 @@ void main() {
     });
 
     testWidgets("Done's fill grows with each decision", (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       final w = tester.getSize(done).width;
       await mark(tester, ['duc']);
       expect(tester.getSize(fill).width, closeTo(w / 4, 0.01));
@@ -1949,7 +1227,7 @@ void main() {
 
     testWidgets('nobody left: fully violet, on-primary label, one glow',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere, disableAnimations: false);
+      await pumpPage(tester, disableAnimations: false);
       final c = tester.element(done).conv;
       final w = tester.getSize(done).width;
       await mark(tester, ['duc', 'an', 'bao']);
@@ -1972,7 +1250,7 @@ void main() {
 
     testWidgets('with motion off completion is the same state, no glow',
         (tester) async {
-      await pumpMode(tester, MarkingMode.likelyHere);
+      await pumpPage(tester);
       final c = tester.element(done).conv;
       await mark(tester, ['duc', 'an', 'bao', 'sam']);
       expect(glow, findsNothing);
@@ -1984,7 +1262,7 @@ void main() {
     });
 
     testWidgets('Done still finishes the session', (tester) async {
-      final h = await pumpMode(tester, MarkingMode.likelyHere);
+      final h = await pumpPage(tester);
       await mark(tester, ['duc']);
       await tester.tap(done);
       await tester.pumpAndSettle();
@@ -2000,7 +1278,7 @@ void main() {
         tester.platformDispatcher.textScaleFactorTestValue = scale;
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearAllTestValues);
-        await pumpMode(tester, MarkingMode.likelyHere);
+        await pumpPage(tester);
 
         // The header (tally, Done pill) and the grid fit without overflow.
         expect(tester.takeException(), isNull);
@@ -2043,9 +1321,7 @@ void main() {
       tester.view.physicalSize = const Size(822, 1782); // 411x891 logical
       tester.view.devicePixelRatio = 2;
       addTearDown(tester.view.reset);
-      await pumpMode(
-        tester,
-        MarkingMode.likelyHere,
+      await pumpPage(tester,
         families: families,
         disableAnimations: disableAnimations,
         // The app's floating snackbar, which the flight lands on.

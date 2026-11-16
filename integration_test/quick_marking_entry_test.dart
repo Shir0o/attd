@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_roster_list.dart';
 import 'package:attendance_tracker/features/attendance/presentation/fast_marking/likely_here_view.dart';
 
@@ -11,9 +10,8 @@ import 'robots/hub_robot.dart';
 import 'robots/event_robot.dart';
 import 'robots/members_robot.dart';
 
-/// "02 Quick marking" — whichever start mode is chosen when beginning a
-/// session, the marking page is the name grid. A bulk start (all present, smart
-/// defaults) simply arrives with those people already marked.
+/// "02 Quick marking" — beginning a session opens the name grid with nobody
+/// marked.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -59,7 +57,7 @@ void main() {
       await hub.goBack();
     }
 
-    testWidgets('All absent -> the grid, nobody marked', (tester) async {
+    testWidgets('A new session -> the grid, nobody marked', (tester) async {
       await bootstrap(
         tester,
         'Absent Event',
@@ -67,58 +65,13 @@ void main() {
       );
 
       final hub = HubRobot(tester);
-      await hub.tapEventCardWithMode(
-        'Absent Event',
-        AttendanceStartMode.allAbsent,
-      );
+      await hub.tapEventCard('Absent Event');
       await tester.pumpAndSettle();
 
       await tester.pumpUntilFound(find.byType(LikelyHereView));
       expect(find.byType(LikelyHereView), findsOneWidget);
       expect(find.byType(AttendanceRosterList), findsNothing);
       expect(find.text('2 left'), findsOneWidget);
-    });
-
-    testWidgets('All present -> the grid, everyone marked', (tester) async {
-      await bootstrap(
-        tester,
-        'Present Event',
-        ['Alice Present', 'Bob Present', 'Carol Present'],
-      );
-
-      final hub = HubRobot(tester);
-      await hub.tapEventCardWithMode(
-        'Present Event',
-        AttendanceStartMode.allPresent,
-      );
-      await tester.pumpAndSettle();
-
-      await tester.pumpUntilFound(find.byType(LikelyHereView));
-      expect(find.byType(LikelyHereView), findsOneWidget);
-      expect(find.byType(AttendanceRosterList), findsNothing);
-      expect(find.text('Alice'), findsOneWidget);
-      expect(find.text('Bob'), findsOneWidget);
-      expect(find.text('Carol'), findsOneWidget);
-      expect(find.text('0 left'), findsOneWidget);
-    });
-
-    testWidgets('Smart defaults -> the grid', (tester) async {
-      await bootstrap(
-        tester,
-        'Smart Event',
-        ['Alice Smart', 'Bob Smart'],
-      );
-
-      final hub = HubRobot(tester);
-      await hub.tapEventCardWithMode(
-        'Smart Event',
-        AttendanceStartMode.perMemberDefault,
-      );
-      await tester.pumpAndSettle();
-
-      await tester.pumpUntilFound(find.byType(LikelyHereView));
-      expect(find.byType(LikelyHereView), findsOneWidget);
-      expect(find.byType(AttendanceRosterList), findsNothing);
     });
   });
 }

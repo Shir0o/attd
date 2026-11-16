@@ -127,6 +127,32 @@ void main() {
       expect(member.updatedAt, DateTime.parse('2025-03-25T10:00:00.000Z'));
     });
 
+    test('old JSON carrying the removed defaultStatus key still loads', () {
+      final json = {
+        'id': 'm1',
+        'displayName': 'John',
+        'defaultStatus': 'present',
+        'updatedAt': '2025-03-25T10:00:00.000Z',
+      };
+      final member = Member.fromJson(json);
+      expect(member.id, 'm1');
+      expect(member.displayName, 'John');
+      // It is no longer written back.
+      expect(member.toJson().containsKey('defaultStatus'), isFalse);
+    });
+
+    test('a family stored with members that carry defaultStatus still loads', () {
+      final family = Family.fromJson({
+        'id': 'f1',
+        'displayName': 'Smith',
+        'members': [
+          {'id': 'm1', 'displayName': 'John Smith', 'defaultStatus': 'present'},
+          {'id': 'm2', 'displayName': 'Jane Smith', 'defaultStatus': 'bogus'},
+        ],
+      });
+      expect(family.members.map((m) => m.id), ['m1', 'm2']);
+    });
+
     test('fromJson defaults updatedAt to epoch when missing', () {
       final json = {
         'id': 'm1',

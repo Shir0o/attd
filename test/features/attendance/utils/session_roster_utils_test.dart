@@ -133,44 +133,4 @@ void main() {
     });
   });
 
-  group('memberLastName', () {
-    test('extracts the last token of multi-token names', () {
-      expect(memberLastName('John Doe'), 'Doe');
-      expect(memberLastName('Mary Jane Watson'), 'Watson');
-    });
-
-    test('returns the single name when only one token exists', () {
-      expect(memberLastName('Cher'), 'Cher');
-    });
-
-    test('handles leading, trailing, and multiple spaces', () {
-      expect(memberLastName('  Alice   Wonderland  '), 'Wonderland');
-    });
-
-    test('returns empty string for blank names', () {
-      expect(memberLastName(''), '');
-      expect(memberLastName('   '), '');
-    });
-  });
-
-  group('memberGivenName', () {
-    test('extracts all tokens except the last of multi-token names', () {
-      expect(memberGivenName('John Doe'), 'John');
-      expect(memberGivenName('Mary Jane Watson'), 'Mary Jane');
-    });
-
-    test('returns the single name when only one token exists', () {
-      expect(memberGivenName('Cher'), 'Cher');
-    });
-
-    test('handles leading, trailing, and multiple spaces', () {
-      expect(memberGivenName('  Alice   Wonderland  '), 'Alice');
-      expect(memberGivenName('  Mary   Jane   Watson  '), 'Mary Jane');
-    });
-
-    test('returns empty string for blank names', () {
-      expect(memberGivenName(''), '');
-      expect(memberGivenName('   '), '');
-    });
-  });
 }
