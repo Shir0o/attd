@@ -68,10 +68,9 @@ void main() {
       // 4. Start attendance and mark John Doe
       await hub.tapEventCard('Test Event');
       await tester.pumpAndSettle();
-      await attendance.useDeck();
-      await tester.pumpUntilFound(find.text('John Doe'));
-      await tester.takeScreenshot(binding, 'data_03_attendance_card');
-      await attendance.markPresent();
+      await attendance.waitForGrid();
+      await tester.takeScreenshot(binding, 'data_03_attendance_grid');
+      await attendance.toggleTile(0);
       await tester.pumpAndSettle();
       
       // Cancel session partway - Use tooltip to avoid ambiguity with absent button

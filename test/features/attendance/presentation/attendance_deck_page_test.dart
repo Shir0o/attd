@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
@@ -11,7 +12,6 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
-import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:flutter/material.dart';
@@ -175,7 +175,7 @@ class MockSessionRepository extends SessionRepository {
 }
 
 /// [MockSessionRepository] whose saveSnapshot blocks until [saveGate] fires,
-/// letting tests observe the deck while a write is still in flight.
+/// letting tests observe the page while a write is still in flight.
 class DelayedSessionRepository extends MockSessionRepository {
   final Completer<void> saveGate = Completer<void>();
 
@@ -186,697 +186,505 @@ class DelayedSessionRepository extends MockSessionRepository {
   }
 }
 
+Session _session({
+  List<SessionRecord> records = const [],
+  String title = 'Test Session',
+}) {
+  final now = DateTime(2026, 5, 24);
+  return Session(
+    id: 's1',
+    title: title,
+    sessionDate: now,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: 'User',
+    currentVersion: 1,
+    records: records,
+  );
+}
+
+SessionRecord _record(
+  Member m,
+  AttendanceStatus status, {
+  String by = 'User',
+}) =>
+    SessionRecord(
+      memberId: m.id,
+      attendee: m.displayName,
+      status: status,
+      recordedAt: DateTime(2026, 5, 24),
+      recordedBy: by,
+    );
+
+Future<void> _pumpPage(
+  WidgetTester tester, {
+  required Session session,
+  required List<Member> members,
+  required MockSessionRepository sessions,
+  List<Family>? families,
+  MarkingMode? markingMode,
+  AttendanceStartMode? startMode,
+  bool initialListMode = false,
+  RosterGrouping? rosterGrouping,
+  MockAttendanceRepository? attendance,
+  MockEventRepository? events,
+  Event? event,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: AttendanceDeckPage(
+        session: session,
+        members: members,
+        families: families,
+        sessionRepository: sessions,
+        attendanceRepository: attendance ?? MockAttendanceRepository(),
+        eventRepository: events ?? MockEventRepository(),
+        event: event,
+        markingMode: markingMode,
+        startMode: startMode,
+        initialListMode: initialListMode,
+        rosterGrouping: rosterGrouping,
+        disableAnimations: true,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Finder _chip(String id) => find.byKey(Key('likelyHereChip_$id'));
+
+/// The header tally's present number.
+Finder _headerPresent(String text) => find.descendant(
+      of: find.byKey(const Key('headerTallyPresent')),
+      matching: find.text(text),
+    );
+
+/// The header tally's "N left".
+Finder _headerLeft(String text) => find.descendant(
+      of: find.byKey(const Key('headerTallyTail')),
+      matching: find.text(text),
+    );
+
+/// Whether the tile reads as marked present to a screen reader.
+bool _isMarked(WidgetTester tester, Finder tile) {
+  final data = tester.getSemantics(tile).getSemanticsData();
+  return data.flagsCollection.isSelected == ui.Tristate.isTrue;
+}
+
 void main() {
-  testWidgets('AttendanceDeckPage swipes right to mark present', (
-    WidgetTester tester,
-  ) async {
-    final fakeRepo = MockSessionRepository();
-    final member = Member(id: '1', displayName: 'Test User');
-    final members = [member];
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      currentVersion: 1,
-      records: [],
-    );
+  final alice = Member(id: 'a', displayName: 'Alice');
+  final bob = Member(id: 'b', displayName: 'Bob');
+  final charlie = Member(id: 'c', displayName: 'Charlie');
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: members,
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pumpAndSettle();
+  group('marking on the grid', () {
+    testWidgets('tapping a name marks them present and saves', (tester) async {
+      final repo = MockSessionRepository();
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice],
+        sessions: repo,
+      );
 
-    // Find the card (SwipeableCard)
-    final cardFinder = find.byType(SwipeableCard);
-    expect(cardFinder, findsOneWidget);
+      await tester.tap(_chip('a'));
+      await tester.pumpAndSettle();
 
-    // Swipe Right
-    await tester.drag(cardFinder, const Offset(300, 0));
-    await tester.pump(); // Start animation
-    await tester.pumpAndSettle(); // Wait for animation
+      expect(repo.savedSessions.length, 1);
+      final saved = repo.savedSessions.first.records;
+      expect(saved.single.attendee, 'Alice');
+      expect(saved.single.status, AttendanceStatus.present);
+      expect(_headerPresent('1'), findsOneWidget);
+      expect(_headerLeft('0 left'), findsOneWidget);
+    });
 
-    // Verify repository was called
-    expect(fakeRepo.savedSessions.length, 1);
-    final savedRecords = fakeRepo.savedSessions.first.records;
-    expect(savedRecords.length, 1);
-    expect(savedRecords.first.attendee, 'Test User');
-    expect(savedRecords.first.status, AttendanceStatus.present);
+    testWidgets('tapping a marked name unmarks them', (tester) async {
+      final repo = MockSessionRepository();
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice],
+        sessions: repo,
+      );
 
-    // Verify we are at the summary page (it shows the session title)
-    await tester.pumpAndSettle();
-    expect(find.text('Test Session'), findsOneWidget);
-    // The summary no longer carries a Present/Absent hero: it opens on the
-    // roster (issue 196).
-    expect(find.text('PRESENT'), findsNothing);
+      await tester.tap(_chip('a'));
+      await tester.pumpAndSettle();
+      await tester.tap(_chip('a'));
+      await tester.pumpAndSettle();
+
+      expect(repo.savedSessions.last.records.single.status,
+          AttendanceStatus.absent);
+      expect(_headerPresent('0'), findsOneWidget);
+      expect(_headerLeft('1 left'), findsOneWidget);
+    });
+
+    testWidgets(
+        'toggling one member does not affect another member sharing the same '
+        'name', (tester) async {
+      final repo = MockSessionRepository();
+      // Two distinct members that happen to share a display name.
+      final aliceOne = Member(id: 'a', displayName: 'Alice');
+      final aliceTwo = Member(id: 'b', displayName: 'Alice');
+      await _pumpPage(
+        tester,
+        session: _session(records: [
+          _record(aliceOne, AttendanceStatus.present),
+          _record(aliceTwo, AttendanceStatus.present),
+        ]),
+        members: [aliceOne, aliceTwo],
+        families: [
+          Family(id: 'fam', displayName: 'Smiths', members: [aliceOne, aliceTwo]),
+        ],
+        sessions: repo,
+      );
+
+      // Toggle only the first Alice (id 'a') off.
+      await tester.tap(_chip('a'));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last;
+      // Both members still have exactly one record each: the second Alice's
+      // record must not be wiped by the name collision.
+      expect(saved.records.where((r) => r.memberId == 'a'), hasLength(1));
+      expect(saved.records.where((r) => r.memberId == 'b'), hasLength(1));
+      expect(saved.records.firstWhere((r) => r.memberId == 'a').status,
+          AttendanceStatus.absent);
+      expect(saved.records.firstWhere((r) => r.memberId == 'b').status,
+          AttendanceStatus.present);
+    });
   });
 
-  testWidgets('AttendanceDeckPage swipes left to mark absent', (
-    WidgetTester tester,
-  ) async {
-    final fakeRepo = MockSessionRepository();
-    final member = Member(id: '1', displayName: 'Test User');
-    final members = [member];
-    final session = Session(
-      id: 's1',
-      title: 'Test Session',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      currentVersion: 1,
-      records: [],
-    );
+  group('the page is always the grid', () {
+    testWidgets('whatever mode, start mode or list flag the caller passes',
+        (tester) async {
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice, bob],
+        sessions: MockSessionRepository(),
+        markingMode: MarkingMode.rapidEntry,
+        startMode: AttendanceStartMode.allPresent,
+        initialListMode: true,
+        rosterGrouping: RosterGrouping.byFamily,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: members,
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pumpAndSettle();
+      expect(_chip('a'), findsOneWidget);
+      expect(_chip('b'), findsOneWidget);
+      expect(find.byKey(const Key('rapidEntryField')), findsNothing);
+      expect(find.byKey(const Key('deckListModeToggle')), findsNothing);
+      expect(find.byKey(const Key('rosterMarkAllPresent')), findsNothing);
+      expect(find.textContaining('Confirm'), findsNothing);
+      expect(find.text('Reset'), findsNothing);
+    });
 
-    // Tap Absent button (instead of drag for more reliable transition test)
-    await tester.tap(find.byKey(const Key('absentButton')));
-    await tester.pump(); // Start transition
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pumpAndSettle();
+    testWidgets('a session with an empty roster still shows the grid page',
+        (tester) async {
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: const [],
+        sessions: MockSessionRepository(),
+        markingMode: MarkingMode.none,
+      );
 
-    expect(fakeRepo.savedSessions.length, 1);
-    expect(
-      fakeRepo.savedSessions.first.records.first.status,
-      AttendanceStatus.absent,
-    );
-
-    // Verify Summary Screen
-    await tester.pump(const Duration(milliseconds: 1000));
-    await tester.pumpAndSettle();
-    expect(find.text('Test Session'), findsOneWidget);
-    // The summary no longer carries a Present/Absent hero: it opens on the
-    // roster (issue 196).
-    expect(find.text('PRESENT'), findsNothing);
+      expect(find.text('Nobody on this roster yet.'), findsOneWidget);
+      expect(find.byKey(const Key('finishSessionButton')), findsOneWidget);
+    });
   });
 
-  testWidgets('swipe advances to the next card before the save completes', (
-    WidgetTester tester,
-  ) async {
-    final repo = DelayedSessionRepository();
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      currentVersion: 1,
-      records: const [],
-    );
+  group('pre-marked sessions', () {
+    testWidgets('a preseeded session shows its present people as marked',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpPage(
+        tester,
+        session: _session(records: [
+          _record(alice, AttendanceStatus.present,
+              by: 'System (Preseed - Smart)'),
+          // Bob is left blank (no record).
+          _record(charlie, AttendanceStatus.absent,
+              by: 'System (Preseed - Smart)'),
+        ]),
+        members: [alice, bob, charlie],
+        sessions: MockSessionRepository(),
+        startMode: AttendanceStartMode.perMemberDefault,
+        initialListMode: true,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [
-            Member(id: 'a', displayName: 'Alice'),
-            Member(id: 'b', displayName: 'Bob'),
-            Member(id: 'c', displayName: 'Charlie'),
-          ],
-          sessionRepository: repo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pumpAndSettle();
+      expect(_isMarked(tester, _chip('a')), isTrue);
+      expect(_isMarked(tester, _chip('b')), isFalse);
+      expect(_isMarked(tester, _chip('c')), isFalse);
+      expect(_headerPresent('1'), findsOneWidget);
+      expect(_headerLeft('2 left'), findsOneWidget);
+      semantics.dispose();
+    });
 
-    // Swipe Alice present; the fly-off completes but the disk write is gated.
-    await tester.drag(find.byType(SwipeableCard), const Offset(300, 0));
-    await tester.pump(); // start dismiss animation
-    await tester.pump(const Duration(milliseconds: 800)); // fly-off → onSwipeRight
-    await tester.pump(); // render next card
+    testWidgets('a past session reopened shows what was recorded',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      await _pumpPage(
+        tester,
+        session: _session(records: [
+          _record(alice, AttendanceStatus.present),
+          _record(bob, AttendanceStatus.absent),
+          _record(charlie, AttendanceStatus.present),
+        ]),
+        members: [alice, bob, charlie],
+        sessions: MockSessionRepository(),
+      );
 
-    // Bob's card is already on screen while the write is still pending.
-    expect(find.text('Bob'), findsOneWidget);
-    expect(repo.savedSessions, isEmpty);
+      expect(_isMarked(tester, _chip('a')), isTrue);
+      expect(_isMarked(tester, _chip('b')), isFalse);
+      expect(_isMarked(tester, _chip('c')), isTrue);
+      expect(_headerPresent('2'), findsOneWidget);
+      expect(_headerLeft('1 left'), findsOneWidget);
+      semantics.dispose();
+    });
 
-    // Release the gate: the queued write lands with Alice marked present.
-    repo.saveGate.complete();
-    await tester.pumpAndSettle();
-    expect(repo.savedSessions, hasLength(1));
-    expect(repo.savedSessions.first.records.first.attendee, 'Alice');
-    expect(
-      repo.savedSessions.first.records.first.status,
-      AttendanceStatus.present,
-    );
+    testWidgets('marking on top of the preseed keeps the others untouched',
+        (tester) async {
+      final repo = MockSessionRepository();
+      await _pumpPage(
+        tester,
+        session: _session(records: [
+          _record(alice, AttendanceStatus.present, by: 'System (Preseed)'),
+          _record(charlie, AttendanceStatus.absent, by: 'System (Preseed)'),
+        ]),
+        members: [alice, bob, charlie],
+        sessions: repo,
+      );
+
+      await tester.tap(_chip('b'));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last;
+      expect(saved.records, hasLength(3));
+      expect(saved.records.firstWhere((r) => r.memberId == 'a').status,
+          AttendanceStatus.present);
+      expect(saved.records.firstWhere((r) => r.memberId == 'b').status,
+          AttendanceStatus.present);
+      expect(saved.records.firstWhere((r) => r.memberId == 'c').status,
+          AttendanceStatus.absent);
+    });
   });
 
-  testWidgets(
-      'finishing the deck waits for pending saves before showing the summary',
-      (WidgetTester tester) async {
-    final repo = DelayedSessionRepository();
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      currentVersion: 1,
-      records: const [],
-    );
+  group('the header tally', () {
+    final kevin = Member(id: 'k', displayName: 'Kevin Garrido');
+    final tony = Member(id: 't', displayName: 'Tony Wang');
+    final fely = Member(id: 'f', displayName: 'Fely Keh');
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [Member(id: 'a', displayName: 'Alice')],
-          sessionRepository: repo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pumpAndSettle();
+    testWidgets('a member listed under two families counts once',
+        (tester) async {
+      final families = [
+        Family(id: 'f1', displayName: 'Garrido', members: [kevin, fely]),
+        Family(id: 'f2', displayName: 'Wang', members: [tony, kevin]),
+      ];
+      await _pumpPage(
+        tester,
+        session: _session(records: [
+          _record(kevin, AttendanceStatus.present, by: 'System (Preseed)'),
+          _record(tony, AttendanceStatus.present, by: 'System (Preseed)'),
+        ]),
+        // Mirrors the hub, which flattens the event's families.
+        members: families.expand((f) => f.members).toList(),
+        families: families,
+        sessions: MockSessionRepository(),
+      );
 
-    // Mark the only member present; the final write is still in flight.
-    await tester.drag(find.byType(SwipeableCard), const Offset(300, 0));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 800));
-    await tester.pump();
+      expect(_headerPresent('2'), findsOneWidget);
+      expect(_headerLeft('1 left'), findsOneWidget);
+    });
 
-    // Deck shows "All marked." and defers navigation until the write lands.
-    expect(find.text('All marked.'), findsOneWidget);
-    expect(find.byType(SessionSummaryPage), findsNothing);
-    expect(repo.savedSessions, isEmpty);
+    testWidgets("a namesake's record doesn't mark another member present",
+        (tester) async {
+      final tony2 = Member(id: 't2', displayName: 'Tony Wang');
+      final families = [
+        Family(id: 'f1', displayName: 'Garrido', members: [kevin, fely]),
+        Family(id: 'f2', displayName: 'Wang', members: [tony, tony2]),
+      ];
+      await _pumpPage(
+        tester,
+        session: _session(records: [
+          _record(kevin, AttendanceStatus.present, by: 'System (Preseed)'),
+          _record(tony, AttendanceStatus.present, by: 'System (Preseed)'),
+        ]),
+        members: families.expand((f) => f.members).toList(),
+        families: families,
+        sessions: MockSessionRepository(),
+      );
 
-    repo.saveGate.complete();
-    await tester.pumpAndSettle();
-
-    expect(repo.savedSessions, hasLength(1));
-    expect(find.byType(SessionSummaryPage), findsOneWidget);
+      expect(_headerPresent('2'), findsOneWidget);
+      expect(_headerLeft('2 left'), findsOneWidget);
+    });
   });
 
-  testWidgets('AttendanceDeckPage add-sheet picking a global member appends to event.memberIds', (
-    WidgetTester tester,
-  ) async {
-    final fakeRepo = MockSessionRepository();
-    final attendanceRepo = MockAttendanceRepository();
-    final eventRepo = MockEventRepository();
+  group('finishing', () {
+    testWidgets('Done saves and opens the summary', (tester) async {
+      final repo = MockSessionRepository();
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice, bob],
+        sessions: repo,
+      );
 
-    final inEvent = Member(id: '1', displayName: 'Alice');
-    final globalOnly = Member(id: '2', displayName: 'Bob');
-    attendanceRepo.seed([
-      Family(id: 'f', displayName: 'F', members: [inEvent, globalOnly]),
-    ]);
+      await tester.tap(_chip('a'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pumpAndSettle();
 
-    final event = Event(
-      id: 'e1',
-      title: 'Test Session',
-      time: const TimeOfDay(hour: 9, minute: 0),
-      frequency: 'Weekly',
-      memberIds: const ['1'],
-      createdAt: DateTime.now(),
-    );
-    eventRepo.seed(event);
+      expect(find.byType(SessionSummaryPage), findsOneWidget);
+      expect(find.text('Test Session'), findsOneWidget);
+      expect(repo.savedSessions.last.records.single.status,
+          AttendanceStatus.present);
+    });
 
-    final session = Session(
-      id: 's1',
-      eventId: 'e1',
-      title: 'Test Session',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      records: const [],
-    );
+    testWidgets('Done waits for pending saves before showing the summary',
+        (tester) async {
+      final repo = DelayedSessionRepository();
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice],
+        sessions: repo,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [inEvent],
-          sessionRepository: fakeRepo,
-          attendanceRepository: attendanceRepo,
-          eventRepository: eventRepo,
-          event: event,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      // Mark the only member present; the write is still in flight.
+      await tester.tap(_chip('a'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pump();
 
-    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
-    await tester.pumpAndSettle();
+      expect(find.byType(SessionSummaryPage), findsNothing);
+      expect(repo.savedSessions, isEmpty);
 
-    await tester.enterText(find.byType(TextField), 'Bob');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Bob').last);
-    await tester.pumpAndSettle();
+      repo.saveGate.complete();
+      await tester.pumpAndSettle();
 
-    expect(eventRepo.updateCalls.length, 1);
-    expect(eventRepo.updateCalls.last.memberIds, containsAll(['1', '2']));
-    expect(fakeRepo.savedSessions, isNotEmpty);
-    expect(
-      fakeRepo.savedSessions.last.records.any((r) => r.memberId == '2'),
-      isTrue,
-    );
+      expect(repo.savedSessions, hasLength(1));
+      expect(find.byType(SessionSummaryPage), findsOneWidget);
+    });
+
+    testWidgets('the grid does not finish by itself when everyone is marked',
+        (tester) async {
+      await _pumpPage(
+        tester,
+        session: _session(),
+        members: [alice],
+        sessions: MockSessionRepository(),
+      );
+
+      await tester.tap(_chip('a'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SessionSummaryPage), findsNothing);
+      expect(_headerLeft('0 left'), findsOneWidget);
+    });
   });
 
-  testWidgets('AttendanceDeckPage add-sheet new name without Guest creates global member', (
-    WidgetTester tester,
-  ) async {
-    final fakeRepo = MockSessionRepository();
-    final attendanceRepo = MockAttendanceRepository();
-    final eventRepo = MockEventRepository();
+  group('adding someone', () {
+    testWidgets('picking a global member appends to event.memberIds',
+        (tester) async {
+      final fakeRepo = MockSessionRepository();
+      final attendanceRepo = MockAttendanceRepository();
+      final eventRepo = MockEventRepository();
 
-    final m = Member(id: '1', displayName: 'Alice');
-    attendanceRepo.seed([
-      Family(id: 'f0', displayName: 'F', members: [m]),
-    ]);
+      final inEvent = Member(id: '1', displayName: 'Alice');
+      final globalOnly = Member(id: '2', displayName: 'Bob');
+      attendanceRepo.seed([
+        Family(id: 'f', displayName: 'F', members: [inEvent, globalOnly]),
+      ]);
 
-    final event = Event(
-      id: 'e1',
-      title: 'Test Session',
-      time: const TimeOfDay(hour: 9, minute: 0),
-      frequency: 'Weekly',
-      memberIds: const ['1'],
-      createdAt: DateTime.now(),
-    );
-    eventRepo.seed(event);
+      final event = Event(
+        id: 'e1',
+        title: 'Test Session',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        memberIds: const ['1'],
+        createdAt: DateTime.now(),
+      );
+      eventRepo.seed(event);
 
-    final session = Session(
-      id: 's1',
-      eventId: 'e1',
-      title: 'Test Session',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      records: const [],
-    );
+      await _pumpPage(
+        tester,
+        session: _session().copyWith(eventId: 'e1'),
+        members: [inEvent],
+        sessions: fakeRepo,
+        attendance: attendanceRepo,
+        events: eventRepo,
+        event: event,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [m],
-          sessionRepository: fakeRepo,
-          attendanceRepository: attendanceRepo,
-          eventRepository: eventRepo,
-          event: event,
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('deckAddGuestButton')));
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Bob');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bob').last);
+      await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Charlie');
-    await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
-    await tester.pumpAndSettle();
+      expect(eventRepo.updateCalls.length, 1);
+      expect(eventRepo.updateCalls.last.memberIds, containsAll(['1', '2']));
+      expect(fakeRepo.savedSessions, isNotEmpty);
+      expect(
+        fakeRepo.savedSessions.last.records.any((r) => r.memberId == '2'),
+        isTrue,
+      );
+    });
 
-    expect(attendanceRepo.addedFamilies.length, 1);
-    expect(attendanceRepo.addedMembers.length, 1);
-    final newId = attendanceRepo.addedMembers.first.id;
-    expect(eventRepo.updateCalls.last.memberIds, contains(newId));
-    expect(
-      fakeRepo.savedSessions.last.records
-          .firstWhere((r) => r.attendee == 'Charlie')
-          .memberId,
-      equals(newId),
-    );
-  });
+    testWidgets('a new name without Guest creates a global member',
+        (tester) async {
+      final fakeRepo = MockSessionRepository();
+      final attendanceRepo = MockAttendanceRepository();
+      final eventRepo = MockEventRepository();
 
-  testWidgets('AttendanceDeckPage toggles to list mode and back preserves state',
-      (WidgetTester tester) async {
-    final fakeRepo = MockSessionRepository();
-    final alice = Member(id: 'a', displayName: 'Alice');
-    final bob = Member(id: 'b', displayName: 'Bob');
-    final family = Family(
-      id: 'fam',
-      displayName: 'The Family',
-      members: [alice, bob],
-    );
+      final m = Member(id: '1', displayName: 'Alice');
+      attendanceRepo.seed([
+        Family(id: 'f0', displayName: 'F', members: [m]),
+      ]);
 
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      currentVersion: 1,
-      records: const [],
-    );
+      final event = Event(
+        id: 'e1',
+        title: 'Test Session',
+        time: const TimeOfDay(hour: 9, minute: 0),
+        frequency: 'Weekly',
+        memberIds: const ['1'],
+        createdAt: DateTime.now(),
+      );
+      eventRepo.seed(event);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [alice, bob],
-          families: [family],
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-          disableAnimations: true,
-          // Family preset so the list groups by family (the grouping toggle is
-          // gone — grouping is now a per-event preset).
-          rosterGrouping: RosterGrouping.byFamily,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await _pumpPage(
+        tester,
+        session: _session().copyWith(eventId: 'e1'),
+        members: [m],
+        sessions: fakeRepo,
+        attendance: attendanceRepo,
+        events: eventRepo,
+        event: event,
+      );
 
-    // Deck mode: SwipeableCard present.
-    expect(find.byType(SwipeableCard), findsOneWidget);
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
 
-    // Switch to list mode.
-    await tester.tap(find.text('List'));
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Charlie');
+      await tester.tap(find.byKey(const Key('addSheetAddToRoster')));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(SwipeableCard), findsNothing);
-    expect(find.text('The Family'), findsOneWidget);
-    expect(find.text('Alice'), findsOneWidget);
-    expect(find.text('Bob'), findsOneWidget);
-
-    // Tap "all present" on the family — should save attendance for both.
-    await tester.tap(find.byKey(const ValueKey('familyAllPresent_fam')));
-    await tester.pumpAndSettle();
-
-    final saved = fakeRepo.savedSessions.last;
-    expect(saved.records.length, 2);
-    expect(
-      saved.records.every((r) => r.status == AttendanceStatus.present),
-      isTrue,
-    );
-
-    // Switch back to deck mode — first member still queued.
-    await tester.tap(find.text('Deck'));
-    await tester.pumpAndSettle();
-    expect(find.byType(SwipeableCard), findsOneWidget);
-  });
-
-  testWidgets(
-      'AttendanceDeckPage shows family label and "mark family present" button',
-      (WidgetTester tester) async {
-    final fakeRepo = MockSessionRepository();
-    final alice = Member(id: 'a', displayName: 'Alice');
-    final bob = Member(id: 'b', displayName: 'Bob');
-    final family = Family(
-      id: 'fam',
-      displayName: 'The Family',
-      members: [alice, bob],
-    );
-
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      createdBy: 'User',
-      currentVersion: 1,
-      records: const [],
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [alice, bob],
-          families: [family],
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Family name visible on the card (rendered as uppercase eyebrow). Both
-    // the active card and the next-card peek render it.
-    expect(find.text('THE FAMILY'), findsWidgets);
-
-    // The "mark family present" button is shown for multi-member families.
-    expect(find.byKey(const Key('markFamilyPresentButton')), findsOneWidget);
-
-    // Tapping it records all family members present and advances past them.
-    await tester.tap(find.byKey(const Key('markFamilyPresentButton')));
-    await tester.pumpAndSettle();
-
-    expect(fakeRepo.savedSessions.last.records.length, 2);
-    expect(
-      fakeRepo.savedSessions.last.records
-          .every((r) => r.status == AttendanceStatus.present),
-      isTrue,
-    );
-
-    // Since we advanced past all members, we land on the summary page.
-    expect(find.text('Test'), findsOneWidget);
-  });
-
-  testWidgets(
-      'AttendanceDeckPage list-mode mark-all writes bulk records and Undo restores',
-      (WidgetTester tester) async {
-    final fakeRepo = MockSessionRepository();
-    final alice = Member(id: 'a', displayName: 'Alice');
-    final bob = Member(id: 'b', displayName: 'Bob');
-    final family = Family(
-      id: 'fam',
-      displayName: 'Smiths',
-      members: [alice, bob],
-    );
-    final now = DateTime(2026, 5, 24);
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: now,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: 'User',
-      records: [
-        SessionRecord(
-          memberId: 'a',
-          attendee: 'Alice',
-          status: AttendanceStatus.absent,
-          recordedAt: now,
-          recordedBy: 'User',
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [alice, bob],
-          families: [family],
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('List'));
-    await tester.pumpAndSettle();
-
-    // In the marking list the bulk action is a direct "All present" button
-    // (the grouping toggle / mark-everyone sheet moved out of this surface).
-    await tester.tap(find.byKey(const Key('rosterMarkAllPresent')));
-    await tester.pumpAndSettle();
-
-    final saved = fakeRepo.savedSessions.last;
-    expect(saved.records.length, 2);
-    expect(
-      saved.records.every((r) => r.status == AttendanceStatus.present),
-      isTrue,
-    );
-    expect(saved.records.first.recordedBy, 'User (Bulk)');
-
-    expect(find.text('Undo'), findsOneWidget);
-    await tester.tap(find.text('Undo'));
-    await tester.pumpAndSettle();
-
-    final restored = fakeRepo.savedSessions.last;
-    expect(restored.records.length, 1);
-    expect(restored.records.single.memberId, 'a');
-    expect(restored.records.single.status, AttendanceStatus.absent);
-  });
-
-  testWidgets(
-      'AttendanceDeckPage with System (Preseed - Smart) records skips them in navigation',
-      (WidgetTester tester) async {
-    final fakeRepo = MockSessionRepository();
-    final alice = Member(id: 'a', displayName: 'Alice');
-    final bob = Member(id: 'b', displayName: 'Bob');
-    final charlie = Member(id: 'c', displayName: 'Charlie');
-    
-    final now = DateTime(2026, 5, 24);
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: now,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: 'User',
-      records: [
-        SessionRecord(
-          memberId: 'a',
-          attendee: 'Alice',
-          status: AttendanceStatus.present,
-          recordedAt: now,
-          recordedBy: 'System (Preseed - Smart)',
-        ),
-        // Bob is left blank (no record)
-        SessionRecord(
-          memberId: 'c',
-          attendee: 'Charlie',
-          status: AttendanceStatus.absent,
-          recordedAt: now,
-          recordedBy: 'System (Preseed - Smart)',
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [alice, bob, charlie],
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Since Alice is preseeded with smart defaults, deck should start at Bob
-    expect(find.text('Bob'), findsOneWidget);
-    expect(find.text('Alice'), findsNothing);
-
-    // Tap Present on Bob
-    await tester.tap(find.byKey(const Key('presentButton')));
-    await tester.pumpAndSettle();
-
-    // Since Charlie is also preseeded, marking Bob should finish the session and navigate to Summary
-    // (Session title 'Test' is visible on Summary page)
-    expect(find.text('Test'), findsOneWidget);
-    // The summary no longer carries a Present/Absent hero: it opens on the
-    // roster (issue 196).
-    expect(find.text('PRESENT'), findsNothing);
-    
-    // Verify Bob is marked present, and Alice and Charlie retain their preseeded status
-    final saved = fakeRepo.savedSessions.last;
-    expect(saved.records.length, 3);
-    expect(saved.records.firstWhere((r) => r.memberId == 'a').status, AttendanceStatus.present);
-    expect(saved.records.firstWhere((r) => r.memberId == 'b').status, AttendanceStatus.present);
-    expect(saved.records.firstWhere((r) => r.memberId == 'c').status, AttendanceStatus.absent);
-  });
-
-  testWidgets(
-      'toggling one member does not affect another member sharing the same name',
-      (WidgetTester tester) async {
-    final fakeRepo = MockSessionRepository();
-    // Two distinct members that happen to share a display name.
-    final aliceOne = Member(id: 'a', displayName: 'Alice');
-    final aliceTwo = Member(id: 'b', displayName: 'Alice');
-    final family = Family(
-      id: 'fam',
-      displayName: 'Smiths',
-      members: [aliceOne, aliceTwo],
-    );
-    final now = DateTime(2026, 5, 24);
-    final session = Session(
-      id: 's1',
-      title: 'Test',
-      sessionDate: now,
-      createdAt: now,
-      updatedAt: now,
-      createdBy: 'User',
-      records: [
-        for (final m in [aliceOne, aliceTwo])
-          SessionRecord(
-            memberId: m.id,
-            attendee: m.displayName,
-            status: AttendanceStatus.present,
-            recordedAt: now,
-            recordedBy: 'User',
-          ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AttendanceDeckPage(
-          markingMode: MarkingMode.none,
-          session: session,
-          members: [aliceOne, aliceTwo],
-          families: [family],
-          sessionRepository: fakeRepo,
-          attendanceRepository: MockAttendanceRepository(),
-          eventRepository: MockEventRepository(),
-          disableAnimations: true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('List'));
-    await tester.pumpAndSettle();
-
-    // Toggle only the first Alice (id 'a') off.
-    await tester.tap(find.byKey(const ValueKey('memberToggle_a_Alice')));
-    await tester.pumpAndSettle();
-
-    final saved = fakeRepo.savedSessions.last;
-    // Both members still have exactly one record each — the second Alice's
-    // record must not be wiped by the name collision.
-    expect(saved.records.where((r) => r.memberId == 'a'), hasLength(1));
-    expect(saved.records.where((r) => r.memberId == 'b'), hasLength(1));
-    expect(saved.records.firstWhere((r) => r.memberId == 'a').status,
-        AttendanceStatus.absent);
-    expect(saved.records.firstWhere((r) => r.memberId == 'b').status,
-        AttendanceStatus.present);
+      expect(attendanceRepo.addedFamilies.length, 1);
+      expect(attendanceRepo.addedMembers.length, 1);
+      final newId = attendanceRepo.addedMembers.first.id;
+      expect(eventRepo.updateCalls.last.memberIds, contains(newId));
+      expect(
+        fakeRepo.savedSessions.last.records
+            .firstWhere((r) => r.attendee == 'Charlie')
+            .memberId,
+        equals(newId),
+      );
+    });
   });
 
   group('keep-vs-discard on exit', () {
-    // An all-present session as it exists when the deck opens: every member is
-    // pre-marked present by the preseed, none touched by the user.
+    // A session as it exists when the page opens from a bulk default: every
+    // member is pre-marked present by the preseed, none touched by the user.
     Session allPresentSession(List<Member> members) => Session(
           id: 'keep-1',
           eventId: 'e1',
@@ -898,10 +706,10 @@ void main() {
           ],
         );
 
-    // Pushes the deck on top of a base route so that popping it actually pops
-    // (a deck mounted as `home:` has nothing to pop back to, so PopScope would
+    // Pushes the page on top of a base route so that popping it actually pops
+    // (a page mounted as `home:` has nothing to pop back to, so PopScope would
     // never fire).
-    Future<void> pumpDeckPushed(
+    Future<void> pumpPagePushed(
       WidgetTester tester, {
       required MockSessionRepository repo,
       required List<Member> members,
@@ -916,15 +724,12 @@ void main() {
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => AttendanceDeckPage(
-                        markingMode: MarkingMode.none,
                         session: allPresentSession(members),
                         deleteOnCancel: deleteOnCancel,
                         members: members,
                         sessionRepository: repo,
                         attendanceRepository: MockAttendanceRepository(),
                         eventRepository: MockEventRepository(),
-                        startMode: AttendanceStartMode.allPresent,
-                        initialListMode: true,
                         disableAnimations: true,
                       ),
                     ),
@@ -940,14 +745,15 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('cancelling the deck (X) discards the session', (tester) async {
-      final repo = MockSessionRepository();
-      final members = [
-        Member(id: '1', displayName: 'Dan'),
-        Member(id: '2', displayName: 'Eve'),
-      ];
+    final members = [
+      Member(id: '1', displayName: 'Dan'),
+      Member(id: '2', displayName: 'Eve'),
+    ];
 
-      await pumpDeckPushed(tester, repo: repo, members: members);
+    testWidgets('cancelling the page (X) discards the session',
+        (tester) async {
+      final repo = MockSessionRepository();
+      await pumpPagePushed(tester, repo: repo, members: members);
 
       await tester.tap(find.byTooltip('Cancel'));
       await tester.pumpAndSettle();
@@ -955,16 +761,10 @@ void main() {
       expect(repo.deleteCalls, contains('keep-1'));
     });
 
-    testWidgets(
-        'cancelling a resumed session (deleteOnCancel: false) keeps it',
+    testWidgets('cancelling a resumed session (deleteOnCancel: false) keeps it',
         (tester) async {
       final repo = MockSessionRepository();
-      final members = [
-        Member(id: '1', displayName: 'Dan'),
-        Member(id: '2', displayName: 'Eve'),
-      ];
-
-      await pumpDeckPushed(
+      await pumpPagePushed(
         tester,
         repo: repo,
         members: members,
@@ -982,21 +782,16 @@ void main() {
         'cancelling after an edit prompts, and Discard deletes the session',
         (tester) async {
       final repo = MockSessionRepository();
-      final members = [
-        Member(id: '1', displayName: 'Dan'),
-        Member(id: '2', displayName: 'Eve'),
-      ];
-
-      await pumpDeckPushed(tester, repo: repo, members: members);
+      await pumpPagePushed(tester, repo: repo, members: members);
 
       // Make a real edit: toggle Dan off.
-      await tester.tap(find.byKey(const ValueKey('memberToggle_1_Dan')));
+      await tester.tap(_chip('1'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Cancel'));
       await tester.pumpAndSettle();
 
-      // Edits exist → confirmation dialog instead of silent discard.
+      // Edits exist, so a confirmation dialog replaces the silent discard.
       expect(find.text('Save as is'), findsOneWidget);
       expect(repo.deleteCalls, isEmpty);
 
@@ -1006,18 +801,30 @@ void main() {
       expect(repo.deleteCalls, contains('keep-1'));
     });
 
-    testWidgets(
-        'cancelling after an edit then Save-as-is keeps the session',
+    testWidgets('dismissing the prompt stays on the grid', (tester) async {
+      final repo = MockSessionRepository();
+      await pumpPagePushed(tester, repo: repo, members: members);
+
+      await tester.tap(_chip('1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Tap the scrim outside the dialog.
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save as is'), findsNothing);
+      expect(_chip('1'), findsOneWidget);
+      expect(repo.deleteCalls, isEmpty);
+    });
+
+    testWidgets('cancelling after an edit then Save-as-is keeps the session',
         (tester) async {
       final repo = MockSessionRepository();
-      final members = [
-        Member(id: '1', displayName: 'Dan'),
-        Member(id: '2', displayName: 'Eve'),
-      ];
+      await pumpPagePushed(tester, repo: repo, members: members);
 
-      await pumpDeckPushed(tester, repo: repo, members: members);
-
-      await tester.tap(find.byKey(const ValueKey('memberToggle_1_Dan')));
+      await tester.tap(_chip('1'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('Cancel'));
@@ -1026,114 +833,21 @@ void main() {
       await tester.tap(find.text('Save as is'));
       await tester.pumpAndSettle();
 
-      // Saving keeps the edited session — no cleanup delete.
+      // Saving keeps the edited session: no cleanup delete.
       expect(repo.deleteCalls, isEmpty);
     });
 
-    testWidgets('confirming an all-present session keeps it', (tester) async {
+    testWidgets('finishing a pre-marked session keeps it', (tester) async {
       final repo = MockSessionRepository();
-      final members = [
-        Member(id: '1', displayName: 'Dan'),
-        Member(id: '2', displayName: 'Eve'),
-      ];
+      await pumpPagePushed(tester, repo: repo, members: members);
 
-      await pumpDeckPushed(tester, repo: repo, members: members);
-
-      // The sticky Confirm bar (confirm mode) → pushReplacement to the summary.
-      await tester.tap(find.textContaining('Confirm'));
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
       await tester.pumpAndSettle();
 
       expect(find.byType(SessionSummaryPage), findsOneWidget);
-      // Confirming replaces the deck route rather than popping it, so the
-      // session must survive — no cleanup delete.
+      // Finishing replaces the page rather than popping it, so the session
+      // must survive: no cleanup delete.
       expect(repo.deleteCalls, isEmpty);
-    });
-  });
-
-  group('confirm-mode header present tally matches the Confirm CTA', () {
-    SessionRecord present(Member m) => SessionRecord(
-          memberId: m.id,
-          attendee: m.displayName,
-          status: AttendanceStatus.present,
-          recordedAt: DateTime(2026, 10, 1),
-          recordedBy: 'System (Preseed - Smart)',
-        );
-
-    Future<void> pumpConfirm(
-      WidgetTester tester,
-      List<Family> families,
-      List<SessionRecord> records,
-    ) async {
-      final at = DateTime(2026, 10, 1);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AttendanceDeckPage(
-            session: Session(
-              id: 'current',
-              title: 'Music Fellowship',
-              sessionDate: at,
-              records: records,
-              createdAt: at,
-              updatedAt: at,
-              createdBy: 'User',
-            ),
-            // Mirrors the hub, which flattens the event's families.
-            members: families.expand((f) => f.members).toList(),
-            families: families,
-            sessionRepository: MockSessionRepository(),
-            attendanceRepository: MockAttendanceRepository(),
-            eventRepository: MockEventRepository(),
-            startMode: AttendanceStartMode.perMemberDefault,
-            initialListMode: true,
-            disableAnimations: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-    }
-
-    /// The header tally's present number — the first figure in its row.
-    String headerPresent(WidgetTester tester) {
-      final row = find
-          .ancestor(of: find.text('0 changed'), matching: find.byType(Row))
-          .first;
-      return tester
-          .widgetList<Text>(find.descendant(of: row, matching: find.byType(Text)))
-          .first
-          .data!;
-    }
-
-    final kevin = Member(id: 'k', displayName: 'Kevin Garrido');
-    final tony = Member(id: 't', displayName: 'Tony Wang');
-    final fely = Member(id: 'f', displayName: 'Fely Keh');
-
-    testWidgets('a member listed under two families counts once',
-        (tester) async {
-      await pumpConfirm(
-        tester,
-        [
-          Family(id: 'f1', displayName: 'Garrido', members: [kevin, fely]),
-          Family(id: 'f2', displayName: 'Wang', members: [tony, kevin]),
-        ],
-        [present(kevin), present(tony)],
-      );
-      expect(find.text('Confirm 2 present'), findsOneWidget);
-      expect(headerPresent(tester), '2');
-    });
-
-    testWidgets("a namesake's record doesn't mark another member present",
-        (tester) async {
-      final tony2 = Member(id: 't2', displayName: 'Tony Wang');
-      await pumpConfirm(
-        tester,
-        [
-          Family(id: 'f1', displayName: 'Garrido', members: [kevin, fely]),
-          Family(id: 'f2', displayName: 'Wang', members: [tony, tony2]),
-        ],
-        [present(kevin), present(tony)],
-      );
-      expect(find.text('Confirm 2 present'), findsOneWidget);
-      expect(headerPresent(tester), '2');
     });
   });
 }

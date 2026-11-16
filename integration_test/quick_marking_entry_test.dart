@@ -5,21 +5,15 @@ import 'package:integration_test/integration_test.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_start_mode.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_roster_list.dart';
 import 'package:attendance_tracker/features/attendance/presentation/fast_marking/likely_here_view.dart';
-import 'package:attendance_tracker/features/attendance/presentation/swipeable_card.dart';
 
 import 'utils/test_utils.dart';
-import 'robots/attendance_robot.dart';
 import 'robots/hub_robot.dart';
 import 'robots/event_robot.dart';
 import 'robots/members_robot.dart';
 
-/// "02 Quick marking" — the start mode chosen when beginning a session
-/// determines the entry view:
-///   - All absent      -> the event's fast marking mode (Likely here by
-///                        default; the speed-swipe deck when it is off),
-///                        with Deck and List a segment away
-///   - All present      -> roster List view (toggle off exceptions)
-///   - Smart defaults    -> roster List view (toggle exceptions)
+/// "02 Quick marking" — whichever start mode is chosen when beginning a
+/// session, the marking page is the name grid. A bulk start (all present, smart
+/// defaults) simply arrives with those people already marked.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -65,7 +59,7 @@ void main() {
       await hub.goBack();
     }
 
-    testWidgets('All absent -> the event fast marking mode', (tester) async {
+    testWidgets('All absent -> the grid, nobody marked', (tester) async {
       await bootstrap(
         tester,
         'Absent Event',
@@ -79,34 +73,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // A new event's fast marking preset defaults to Likely here, so that is
-      // the entry view rather than the deck.
       await tester.pumpUntilFound(find.byType(LikelyHereView));
       expect(find.byType(LikelyHereView), findsOneWidget);
-      expect(find.byType(SwipeableCard), findsNothing);
       expect(find.byType(AttendanceRosterList), findsNothing);
+      expect(find.text('2 left'), findsOneWidget);
     });
 
-    testWidgets('All absent -> deck is one segment away', (tester) async {
-      await bootstrap(
-        tester,
-        'Deck Event',
-        ['Alice Deck', 'Bob Deck'],
-      );
-
-      final hub = HubRobot(tester);
-      await hub.tapEventCardWithMode(
-        'Deck Event',
-        AttendanceStartMode.allAbsent,
-      );
-      await tester.pumpAndSettle();
-
-      await AttendanceRobot(tester).useDeck();
-      expect(find.byType(SwipeableCard), findsWidgets);
-      expect(find.byType(LikelyHereView), findsNothing);
-    });
-
-    testWidgets('All present -> roster list, everyone present', (tester) async {
+    testWidgets('All present -> the grid, everyone marked', (tester) async {
       await bootstrap(
         tester,
         'Present Event',
@@ -120,18 +93,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // List view: roster present, no swipe deck.
-      await tester.pumpUntilFound(find.byType(AttendanceRosterList));
-      expect(find.byType(AttendanceRosterList), findsOneWidget);
-      expect(find.byType(SwipeableCard), findsNothing);
-
-      // Roster renders every member as a toggle row (preseeded present).
-      expect(find.text('Alice Present'), findsOneWidget);
-      expect(find.text('Bob Present'), findsOneWidget);
-      expect(find.text('Carol Present'), findsOneWidget);
+      await tester.pumpUntilFound(find.byType(LikelyHereView));
+      expect(find.byType(LikelyHereView), findsOneWidget);
+      expect(find.byType(AttendanceRosterList), findsNothing);
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('Bob'), findsOneWidget);
+      expect(find.text('Carol'), findsOneWidget);
+      expect(find.text('0 left'), findsOneWidget);
     });
 
-    testWidgets('Smart defaults -> roster list', (tester) async {
+    testWidgets('Smart defaults -> the grid', (tester) async {
       await bootstrap(
         tester,
         'Smart Event',
@@ -145,10 +116,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Smart defaults also open directly in the roster List view.
-      await tester.pumpUntilFound(find.byType(AttendanceRosterList));
-      expect(find.byType(AttendanceRosterList), findsOneWidget);
-      expect(find.byType(SwipeableCard), findsNothing);
+      await tester.pumpUntilFound(find.byType(LikelyHereView));
+      expect(find.byType(LikelyHereView), findsOneWidget);
+      expect(find.byType(AttendanceRosterList), findsNothing);
     });
   });
 }
