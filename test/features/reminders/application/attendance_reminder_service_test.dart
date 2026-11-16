@@ -16,7 +16,6 @@ import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/reminders/application/attendance_reminder_service.dart';
 import 'package:attendance_tracker/features/reminders/application/reminder_settings_controller.dart';
-import 'package:attendance_tracker/features/reminders/domain/reminder_offset_preset.dart';
 
 class MockFlutterLocalNotificationsPlugin extends Mock
     implements FlutterLocalNotificationsPlugin {}
@@ -88,7 +87,7 @@ void main() {
       when(() => mockNotifications.cancelAll()).thenAnswer((_) async {});
     });
 
-    test('calculateReminderTime adds offset to event start time', () {
+    test('calculateReminderTime is one hour after the event start time', () {
       final service = AttendanceReminderService(
         notificationsPlugin: mockNotifications,
         settingsController: settingsController,
@@ -109,7 +108,6 @@ void main() {
       final reminderTime = service.calculateReminderTime(
         event: event,
         targetDate: sessionDate,
-        offset: const Duration(hours: 1),
       );
 
       expect(reminderTime, DateTime(2026, 10, 25, 11, 0));
@@ -179,7 +177,6 @@ void main() {
 
     test('syncReminders schedules notification when reminder time is in future and unrecorded', () async {
       await settingsController.setEnabled(true);
-      await settingsController.setOffset(ReminderOffsetPreset.oneHour);
 
       final event = Event(
         id: 'e1',
@@ -209,7 +206,7 @@ void main() {
         sessionRepository: mockSessionRepo,
       );
 
-      // Now is 18:00, event is at 19:00, 1h offset makes reminder 20:00 (future)
+      // Now is 18:00, event is at 19:00, the fixed 1h delay makes it 20:00.
       final now = DateTime(2026, 10, 25, 18, 0);
       await service.syncReminders(currentTime: now);
 
@@ -223,6 +220,61 @@ void main() {
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             payload: any(named: 'payload'),
           )).called(1);
+    });
+
+    test('syncReminders ignores a stored offset and fires one hour after start',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        ReminderSettingsController.enabledKey: true,
+        // Retired offset selector; a stored 15-minute choice is ignored.
+        'attendance_reminders_offset_minutes': 15,
+      });
+      final storedPrefs = await SharedPreferences.getInstance();
+      final controller = ReminderSettingsController(prefs: storedPrefs);
+
+      final event = Event(
+        id: 'e1',
+        title: 'Midweek Study',
+        time: const TimeOfDay(hour: 19, minute: 0),
+        frequency: 'One-time',
+        oneTimeDate: DateTime(2026, 10, 25),
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      when(() => mockEventRepo.fetchAllEvents()).thenAnswer((_) async => [event]);
+      when(() => mockSessionRepo.fetchAllSessions()).thenAnswer((_) async => []);
+      when(() => mockNotifications.zonedSchedule(
+            id: any(named: 'id'),
+            title: any(named: 'title'),
+            body: any(named: 'body'),
+            scheduledDate: any(named: 'scheduledDate'),
+            notificationDetails: any(named: 'notificationDetails'),
+            androidScheduleMode: any(named: 'androidScheduleMode'),
+            payload: any(named: 'payload'),
+          )).thenAnswer((_) async {});
+
+      final service = AttendanceReminderService(
+        notificationsPlugin: mockNotifications,
+        settingsController: controller,
+        eventRepository: mockEventRepo,
+        sessionRepository: mockSessionRepo,
+      );
+
+      await service.syncReminders(currentTime: DateTime(2026, 10, 25, 18, 0));
+
+      final captured = verify(() => mockNotifications.zonedSchedule(
+            id: any(named: 'id'),
+            title: any(named: 'title'),
+            body: any(named: 'body'),
+            scheduledDate: captureAny(named: 'scheduledDate'),
+            notificationDetails: any(named: 'notificationDetails'),
+            androidScheduleMode: any(named: 'androidScheduleMode'),
+            payload: any(named: 'payload'),
+          )).captured.single as DateTime;
+      expect(
+        captured.millisecondsSinceEpoch,
+        DateTime(2026, 10, 25, 20, 0).millisecondsSinceEpoch,
+      );
     });
 
     test('requestPermissions delegates to android implementation when present', () async {

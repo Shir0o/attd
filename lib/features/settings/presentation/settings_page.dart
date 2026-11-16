@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../reports/report_export_page.dart';
 import '../../settings/application/app_lock_controller.dart';
 import '../../settings/application/theme_controller.dart';
 import '../data/google_sheets_service.dart';
@@ -713,69 +712,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               );
                             }
-                          },
-                        ),
-                        ListenableBuilder(
-                          listenable: widget.themeController,
-                          builder: (context, _) {
-                            final isReportExportEnabled =
-                                widget.themeController.isReportExportEnabled;
-                            return Column(
-                              children: [
-                                _SettingRow(
-                                  key: const ValueKey(
-                                    'enable_report_export_tile',
-                                  ),
-                                  icon: Icons.ios_share,
-                                  title: 'Enable Report Export',
-                                  subtitle: 'Show export and reporting options',
-                                  showChevron: false,
-                                  trailing: Switch(
-                                    value: isReportExportEnabled,
-                                    onChanged: (val) {
-                                      widget.themeController
-                                          .updateReportExportEnabled(val);
-                                    },
-                                  ),
-                                ),
-                                if (isReportExportEnabled) ...[
-                                  _SettingRow(
-                                    icon: Icons.summarize,
-                                    title: 'Advanced Reporting',
-                                    subtitle: 'Filter and export custom reports',
-                                    onTap: () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ReportExportPage(
-                                            sessionRepository:
-                                                widget.sessionRepository,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  _SettingRow(
-                                    icon: Icons.file_download_outlined,
-                                    title: 'Export Report',
-                                    subtitle: 'Download CSV',
-                                    onTap: () async {
-                                      final scaffoldMessenger =
-                                          ScaffoldMessenger.of(context);
-                                      try {
-                                        await widget.localBackupService
-                                            .exportData();
-                                      } catch (e) {
-                                        scaffoldMessenger.showSnackBar(
-                                          SnackBar(
-                                            content: Text('Export failed: $e'),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ],
-                            );
                           },
                         ),
                       ],
