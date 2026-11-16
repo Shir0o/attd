@@ -110,11 +110,8 @@ Future<void> main() async {
 
   final backgroundSyncService = BackgroundSyncService();
   await backgroundSyncService.initialize();
-  if (prefs.getBool('drive_sync_enabled') == true &&
-      (prefs.getBool(DriveService.backgroundSyncEnabledKey) ?? true)) {
-    await backgroundSyncService.registerPeriodicSync(
-      wifiOnly: prefs.getBool(DriveService.backgroundSyncWifiOnlyKey) ?? true,
-    );
+  if (prefs.getBool('drive_sync_enabled') == true) {
+    await backgroundSyncService.registerPeriodicSync();
   }
 
   final reminderSettingsController = ReminderSettingsController(prefs: prefs);

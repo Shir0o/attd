@@ -12,6 +12,8 @@ import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
+import 'package:attendance_tracker/features/settings/presentation/duplicate_members_cleanup_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 class MockAttendanceRepository extends AttendanceRepository {
@@ -534,6 +536,47 @@ void main() {
       await tester.tap(find.text('Got it'));
       await tester.pumpAndSettle();
       expect(find.text('Historical Accuracy'), findsNothing);
+    });
+
+    testWidgets('all-members page offers Merge duplicates, opening the cleanup sheet',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.pumpWidget(host(
+        attendance: mockAttendanceRepo,
+        sessions: _StubSessionRepository(),
+      ));
+      await tester.pumpAndSettle();
+
+      final merge = find.byKey(const ValueKey('merge_duplicates_button'));
+      expect(merge, findsOneWidget);
+      expect(find.byTooltip('Merge duplicates'), findsOneWidget);
+
+      await tester.tap(merge);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DuplicateMembersCleanupSheet), findsOneWidget);
+    });
+
+    testWidgets('an event roster does not offer Merge duplicates',
+        (tester) async {
+      final event = Event(
+        id: 'e1',
+        title: 'Test Event',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'Weekly',
+        repeatingDays: ['Monday'],
+        createdAt: DateTime.now(),
+      );
+      mockEventRepo.event = event;
+      await tester.pumpWidget(host(
+        attendance: mockAttendanceRepo,
+        sessions: _StubSessionRepository(),
+        events: mockEventRepo,
+        event: event,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('merge_duplicates_button')), findsNothing);
     });
 
     // While the duplicate dialog is open, the FAB shows a

@@ -78,14 +78,21 @@ void main() {
         ).thenAnswer((_) async {});
 
         final service = BackgroundSyncService(workmanager: mockWorkmanager);
-        await service.registerPeriodicSync(wifiOnly: true);
+        await service.registerPeriodicSync();
 
         verify(
           () => mockWorkmanager.registerPeriodicTask(
             backgroundSyncUniqueName,
             backgroundSyncTaskName,
             frequency: const Duration(hours: 12),
-            constraints: any(named: 'constraints'),
+            constraints: any(
+              named: 'constraints',
+              that: isA<Constraints>().having(
+                (c) => c.networkType,
+                'networkType',
+                NetworkType.connected,
+              ),
+            ),
             existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
           ),
         ).called(1);
@@ -140,24 +147,38 @@ void main() {
       verifyNever(() => mockDriveService.init());
     });
 
-    test('skips when background sync preference is disabled', () async {
+    test('ignores a stored background sync opt-out and still syncs', () async {
       SharedPreferences.setMockInitialValues({
         'drive_sync_enabled': true,
-        DriveService.backgroundSyncEnabledKey: false,
+        // Retired toggle; an old "off" value must not disable auto-sync.
+        'background_sync_enabled': false,
       });
+
+      when(() => mockDriveService.init()).thenAnswer((_) async {});
+      when(() => mockDriveService.currentUser).thenReturn(mockUser);
+      when(
+        () => mockDriveService.syncFiles(
+          actionTitle: any(named: 'actionTitle'),
+          tags: any(named: 'tags'),
+        ),
+      ).thenAnswer((_) async {});
 
       final result = await performBackgroundSync(
         driveServiceBuilder: () => mockDriveService,
       );
 
       expect(result, isTrue);
-      verifyNever(() => mockDriveService.init());
+      verify(
+        () => mockDriveService.syncFiles(
+          actionTitle: any(named: 'actionTitle'),
+          tags: any(named: 'tags'),
+        ),
+      ).called(1);
     });
 
     test('records skipped status when user is not signed in', () async {
       SharedPreferences.setMockInitialValues({
         'drive_sync_enabled': true,
-        DriveService.backgroundSyncEnabledKey: true,
       });
 
       when(() => mockDriveService.init()).thenAnswer((_) async {});
@@ -180,8 +201,7 @@ void main() {
       () async {
         SharedPreferences.setMockInitialValues({
           'drive_sync_enabled': true,
-          DriveService.backgroundSyncEnabledKey: true,
-        });
+          });
 
         when(() => mockDriveService.init()).thenAnswer((_) async {});
         when(() => mockDriveService.currentUser).thenReturn(mockUser);
@@ -212,7 +232,6 @@ void main() {
     test('returns false and records error when sync throws', () async {
       SharedPreferences.setMockInitialValues({
         'drive_sync_enabled': true,
-        DriveService.backgroundSyncEnabledKey: true,
       });
 
       when(() => mockDriveService.init()).thenAnswer((_) async {});
@@ -241,8 +260,7 @@ void main() {
       () async {
         SharedPreferences.setMockInitialValues({
           'drive_sync_enabled': true,
-          DriveService.backgroundSyncEnabledKey: true,
-        });
+          });
 
         when(() => mockDriveService.init()).thenAnswer((_) async {});
         when(() => mockDriveService.currentUser).thenReturn(mockUser);
@@ -271,7 +289,6 @@ void main() {
     test('invokes sharedEventSyncBuilder when provided', () async {
       SharedPreferences.setMockInitialValues({
         'drive_sync_enabled': true,
-        DriveService.backgroundSyncEnabledKey: true,
       });
 
       when(() => mockDriveService.init()).thenAnswer((_) async {});
@@ -298,7 +315,6 @@ void main() {
     test('continues and succeeds when sharedEventSync throws', () async {
       SharedPreferences.setMockInitialValues({
         'drive_sync_enabled': true,
-        DriveService.backgroundSyncEnabledKey: true,
       });
 
       when(() => mockDriveService.init()).thenAnswer((_) async {});
@@ -393,45 +409,9 @@ void main() {
 
 
   group('DriveService Background Sync Settings', () {
-    test('setBackgroundSyncEnabled updates preferences and notifies listeners', () async {
-      SharedPreferences.setMockInitialValues({});
-      final service = DriveService();
-      await service.init();
-      expect(service.isBackgroundSyncEnabled, isTrue);
-
-      bool notified = false;
-      service.addListener(() => notified = true);
-
-      await service.setBackgroundSyncEnabled(false);
-      expect(service.isBackgroundSyncEnabled, isFalse);
-      expect(notified, isTrue);
-
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(DriveService.backgroundSyncEnabledKey), isFalse);
-    });
-
-    test('setBackgroundSyncWifiOnly updates preferences and notifies listeners', () async {
-      SharedPreferences.setMockInitialValues({});
-      final service = DriveService();
-      await service.init();
-      expect(service.isBackgroundSyncWifiOnly, isTrue);
-
-      bool notified = false;
-      service.addListener(() => notified = true);
-
-      await service.setBackgroundSyncWifiOnly(false);
-      expect(service.isBackgroundSyncWifiOnly, isFalse);
-      expect(notified, isTrue);
-
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(DriveService.backgroundSyncWifiOnlyKey), isFalse);
-    });
-
     test('init loads saved background sync status and time', () async {
       final now = DateTime.now();
       SharedPreferences.setMockInitialValues({
-        DriveService.backgroundSyncEnabledKey: false,
-        DriveService.backgroundSyncWifiOnlyKey: false,
         DriveService.lastBackgroundSyncTimeKey: now.toIso8601String(),
         DriveService.lastBackgroundSyncStatusKey: 'Success',
       });
@@ -442,8 +422,6 @@ void main() {
       expect(service.isSyncing, isFalse);
       expect(service.lastSyncTime, isNull);
       expect(service.currentUser, isNull);
-      expect(service.isBackgroundSyncEnabled, isFalse);
-      expect(service.isBackgroundSyncWifiOnly, isFalse);
       expect(service.lastBackgroundSyncTime?.toIso8601String(), now.toIso8601String());
       expect(service.lastBackgroundSyncStatus, 'Success');
     });

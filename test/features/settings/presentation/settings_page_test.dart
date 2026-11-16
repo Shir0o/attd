@@ -2,6 +2,7 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/settings/application/app_lock_controller.dart';
+import 'package:attendance_tracker/features/settings/application/developer_unlock.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
 import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:attendance_tracker/features/settings/data/background_sync_service.dart';
@@ -117,12 +118,6 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   bool isDriveSyncEnabled = false;
 
   @override
-  bool isBackgroundSyncEnabled = true;
-
-  @override
-  bool isBackgroundSyncWifiOnly = true;
-
-  @override
   DateTime? lastBackgroundSyncTime;
 
   @override
@@ -137,18 +132,6 @@ class FakeDriveService extends ChangeNotifier implements DriveService {
   bool overwriteLocalCalled = false;
   int syncFilesCalls = 0;
 
-
-  @override
-  Future<void> setBackgroundSyncEnabled(bool enabled) async {
-    isBackgroundSyncEnabled = enabled;
-    notifyListeners();
-  }
-
-  @override
-  Future<void> setBackgroundSyncWifiOnly(bool wifiOnly) async {
-    isBackgroundSyncWifiOnly = wifiOnly;
-    notifyListeners();
-  }
 
 
   @override
@@ -254,9 +237,7 @@ class _PushCountObserver extends NavigatorObserver {
 
 class FakeLocalBackupService extends LocalBackupService {
   bool backupCalled = false;
-  bool exportCalled = false;
   bool throwOnBackup = false;
-  bool throwOnExport = false;
 
   @override
   Future<void> createBackup() async {
@@ -264,14 +245,6 @@ class FakeLocalBackupService extends LocalBackupService {
       throw StateError('backup failed');
     }
     backupCalled = true;
-  }
-
-  @override
-  Future<void> exportData() async {
-    if (throwOnExport) {
-      throw StateError('export failed');
-    }
-    exportCalled = true;
   }
 }
 
@@ -290,8 +263,17 @@ Widget _settingsPage({
       eventRepository: MockEventRepository(),
       sessionRepository: MockSessionRepository(),
       appLockController: appLockController,
+      backgroundSyncService: _stubBackgroundSync(),
     ),
   );
+}
+
+/// Workmanager has no platform side in widget tests; stub it out.
+MockBackgroundSyncService _stubBackgroundSync() {
+  final service = MockBackgroundSyncService();
+  when(() => service.registerPeriodicSync()).thenAnswer((_) async {});
+  when(() => service.cancelSync()).thenAnswer((_) async {});
+  return service;
 }
 
 void main() {
@@ -396,20 +378,15 @@ void main() {
       const Offset(0, -300),
     );
     expect(find.text('Backup to Local Storage'), findsOneWidget);
-    await tester.dragUntilVisible(
-      find.text('Enable Report Export'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    expect(find.text('Enable Report Export'), findsOneWidget);
-    expect(find.text('Export Report'), findsNothing);
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-    expect(find.text('Export Report'), findsOneWidget);
+    // Report export moved to the History page; Settings has no report rows.
+    expect(find.text('Enable Report Export', skipOffstage: false), findsNothing);
+    expect(find.text('Advanced Reporting', skipOffstage: false), findsNothing);
+    expect(find.text('Export Report', skipOffstage: false), findsNothing);
   });
 
   testWidgets('SettingsPage toggles Drive Sync', (tester) async {
     final driveService = FakeDriveService();
+    final backgroundSync = _stubBackgroundSync();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
     final eventRepo = MockEventRepository();
@@ -424,6 +401,7 @@ void main() {
           attendanceRepository: attendanceRepo,
           eventRepository: eventRepo,
           sessionRepository: sessionRepo,
+          backgroundSyncService: backgroundSync,
         ),
       ),
     );
@@ -441,6 +419,8 @@ void main() {
     expect(driveService.currentUser, isNotNull);
     // "Sync Now" button should appear (inline FilledButton)
     expect(find.text('Sync Now'), findsOneWidget);
+    // Auto-sync is always on while signed in.
+    verify(() => backgroundSync.registerPeriodicSync()).called(1);
 
     // Sign out via the dedicated button (need to scroll to find it if necessary)
     await tester.dragUntilVisible(
@@ -460,9 +440,10 @@ void main() {
     // Not signed in – card shown, Sync Now hidden
     expect(find.text('Not signed in', skipOffstage: false), findsOneWidget);
     expect(find.text('Sync Now'), findsNothing);
+    verify(() => backgroundSync.cancelSync()).called(1);
   });
 
-  testWidgets('SettingsPage calls backup and export', (tester) async {
+  testWidgets('SettingsPage calls backup', (tester) async {
     final driveService = FakeDriveService();
     final localBackupService = FakeLocalBackupService();
     final attendanceRepo = MockAttendanceRepository();
@@ -493,20 +474,6 @@ void main() {
     await tester.tap(find.text('Backup to Local Storage'));
     await tester.pump();
     expect(localBackupService.backupCalled, isTrue);
-
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('Export Report'),
-      find.byType(ListView),
-      const Offset(0, -300),
-    );
-    await tester.ensureVisible(find.text('Export Report'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Export Report'));
-    await tester.pump();
-    expect(localBackupService.exportCalled, isTrue);
   });
 
   testWidgets('SettingsPage shows about dialog on version tap', (tester) async {
@@ -564,12 +531,10 @@ void main() {
     expect(prefs.getInt('theme_mode'), ThemeMode.dark.index);
   });
 
-  testWidgets('SettingsPage shows backup and export failure snackbars', (
+  testWidgets('SettingsPage shows backup failure snackbar', (
     tester,
   ) async {
-    final localBackupService = FakeLocalBackupService()
-      ..throwOnBackup = true
-      ..throwOnExport = true;
+    final localBackupService = FakeLocalBackupService()..throwOnBackup = true;
 
     await tester.pumpWidget(
       _settingsPage(
@@ -591,31 +556,32 @@ void main() {
 
     expect(find.textContaining('Backup failed: Bad state: backup failed'),
         findsOneWidget);
+  });
 
-    ScaffoldMessenger.of(tester.element(find.byType(SettingsPage)))
-        .hideCurrentSnackBar();
+  testWidgets('Manage Backup Data is hidden until developer options unlock', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_settingsPage(themeController: themeController));
     await tester.pumpAndSettle();
 
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-
+    expect(
+      find.byKey(const ValueKey('manage_backup_data_tile'), skipOffstage: false),
+      findsNothing,
+    );
+    // Backup to Local Storage stays visible to everyone.
     await tester.dragUntilVisible(
-      find.text('Export Report'),
+      find.text('Backup to Local Storage'),
       find.byType(ListView),
       const Offset(0, -300),
     );
-    await tester.ensureVisible(find.text('Export Report'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Export Report'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Export failed: Bad state: export failed'),
-        findsOneWidget);
+    expect(find.text('Backup to Local Storage'), findsOneWidget);
   });
 
-  testWidgets('SettingsPage opens manage backup data and advanced reporting', (
+  testWidgets('SettingsPage opens manage backup data when unlocked', (
     tester,
   ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(DeveloperUnlock.prefsKey, true);
     await tester.pumpWidget(_settingsPage(themeController: themeController));
     await tester.pumpAndSettle();
 
@@ -630,24 +596,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Storage inspector'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
-
-    await themeController.updateReportExportEnabled(true);
-    await tester.pumpAndSettle();
-
-    await tester.dragUntilVisible(
-      find.text('Advanced Reporting'),
-      find.byType(ListView),
-      const Offset(0, -200),
-    );
-    await tester.ensureVisible(find.text('Advanced Reporting'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Advanced Reporting'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Export reports'), findsOneWidget);
   });
 
   testWidgets('signIn failure shows snackbar', (tester) async {
@@ -767,6 +715,7 @@ void main() {
           attendanceRepository: MockAttendanceRepository(),
           eventRepository: MockEventRepository(),
           sessionRepository: MockSessionRepository(),
+          backgroundSyncService: _stubBackgroundSync(),
         ),
       ),
     );
@@ -945,12 +894,10 @@ void main() {
     expect(prefs.getString('googleSheetsUrl'), '');
   });
 
-  testWidgets('Background Auto-Sync section renders when signed in', (tester) async {
+  testWidgets('Auto-Sync status renders without toggles when signed in', (tester) async {
     final fakeDrive = FakeDriveService();
     fakeDrive.currentUser = FakeGoogleSignInAccount();
     fakeDrive.isDriveSyncEnabled = true;
-    fakeDrive.isBackgroundSyncEnabled = true;
-    fakeDrive.isBackgroundSyncWifiOnly = true;
     fakeDrive.lastBackgroundSyncTime = DateTime.now();
     fakeDrive.lastBackgroundSyncStatus = 'Success';
 
@@ -960,9 +907,17 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Background Auto-Sync'), findsOneWidget);
-    expect(find.text('Require Wi-Fi'), findsOneWidget);
+    expect(find.byKey(const ValueKey('auto_sync_status_tile')), findsOneWidget);
     expect(find.textContaining('Last auto-synced'), findsOneWidget);
+    expect(find.text('Background Auto-Sync'), findsNothing);
+    expect(find.text('Require Wi-Fi'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('auto_sync_status_tile')),
+        matching: find.byType(Switch),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('Sync button displays SnackBar message on SyncInterruptedException', (tester) async {

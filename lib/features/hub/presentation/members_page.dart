@@ -9,6 +9,7 @@ import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
+import '../../settings/presentation/duplicate_members_cleanup_sheet.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
 
@@ -765,12 +766,29 @@ class _MembersPageState extends State<MembersPage> {
                 ),
               ),
             )
-          else
+          else ...[
+            // Merging lives on the all-members list only, not an event roster.
+            if (!isEventMode && widget.sessionRepository != null)
+              IconButton(
+                key: const ValueKey('merge_duplicates_button'),
+                icon: const Icon(Icons.merge_type),
+                tooltip: 'Merge duplicates',
+                onPressed: () => showDuplicateMembersCleanupSheet(
+                  context: context,
+                  attendanceRepository: widget.attendanceRepository,
+                  sessionRepository: widget.sessionRepository!,
+                  onComplete: () async {
+                    await _loadFamilies();
+                    await _loadUsageStats();
+                  },
+                ),
+              ),
             IconButton(
               icon: const Icon(Icons.info_outline),
               onPressed: _showRenameInfo,
               tooltip: 'About historical records',
             ),
+          ],
         ],
       ),
       body: Column(

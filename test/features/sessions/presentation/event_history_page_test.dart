@@ -15,6 +15,8 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/data/attendance_repository.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/reports/report_export_service.dart';
+import 'package:attendance_tracker/features/reports/report_models.dart';
 
 class MockAttendanceRepository extends AttendanceRepository {
   @override
@@ -363,6 +365,29 @@ class _MockAttendanceRepoWithMembers extends MockAttendanceRepository {
   }
 }
 
+class _FakeReportExportService extends ReportExportService {
+  _FakeReportExportService({required super.sessionRepository, this.error});
+
+  final Object? error;
+  ReportRequest? lastRequest;
+
+  @override
+  Future<ReportExportResult> exportReport(ReportRequest request) async {
+    lastRequest = request;
+    if (error != null) throw error!;
+    return const ReportExportResult(
+      filePath: '/tmp/history.csv',
+      format: ReportFormat.csv,
+      summary: ReportSummary(
+        sessionCount: 1,
+        recordCount: 0,
+        present: 0,
+        absent: 0,
+      ),
+    );
+  }
+}
+
 void _registerUncoveredPathTests() {
   group('EventHistoryPage uncovered paths', () {
     late MockSessionRepository sessions;
@@ -408,6 +433,61 @@ void _registerUncoveredPathTests() {
         createdBy: 'tester',
       );
     }
+
+    testWidgets('Export CSV exports this event as CSV and shares the file',
+        (tester) async {
+      final exporter = _FakeReportExportService(sessionRepository: sessions);
+      final shared = <String>[];
+      await tester.pumpWidget(MaterialApp(
+        home: EventHistoryPage(
+          event: event,
+          sessionRepository: sessions,
+          attendanceRepository: attendance,
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+          reportExportService: exporter,
+          shareFile: (path) async => shared.add(path),
+        ),
+      ));
+      sessions.emit([sampleSession()]);
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Export CSV'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('export_csv_button')));
+      await tester.pumpAndSettle();
+
+      expect(exporter.lastRequest?.format, ReportFormat.csv);
+      expect(exporter.lastRequest?.selectedEventTitles, ['History Event']);
+      expect(exporter.lastRequest?.syncToGoogleSheets, isFalse);
+      expect(shared, ['/tmp/history.csv']);
+    });
+
+    testWidgets('Export CSV failure shows a snackbar', (tester) async {
+      final exporter = _FakeReportExportService(
+        sessionRepository: sessions,
+        error: StateError('disk full'),
+      );
+      final shared = <String>[];
+      await tester.pumpWidget(MaterialApp(
+        home: EventHistoryPage(
+          event: event,
+          sessionRepository: sessions,
+          attendanceRepository: attendance,
+          eventRepository: MockEventRepository(),
+          disableAnimations: true,
+          reportExportService: exporter,
+          shareFile: (path) async => shared.add(path),
+        ),
+      ));
+      sessions.emit([]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('export_csv_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Export failed'), findsOneWidget);
+      expect(shared, isEmpty);
+    });
 
     testWidgets('renders the empty state when there are no event sessions',
         (tester) async {

@@ -55,12 +55,12 @@ Future<bool> performBackgroundSync({
     WidgetsFlutterBinding.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
 
+    // Auto-sync is always on while Drive sync is enabled. The retired
+    // 'background_sync_enabled' preference is deliberately ignored.
     final driveSyncEnabled = prefs.getBool('drive_sync_enabled') ?? false;
-    final bgSyncEnabled =
-        prefs.getBool(DriveService.backgroundSyncEnabledKey) ?? true;
 
-    if (!driveSyncEnabled || !bgSyncEnabled) {
-      _log.info('Background sync skipped: disabled in preferences');
+    if (!driveSyncEnabled) {
+      _log.info('Background sync skipped: Drive sync not enabled');
       return true;
     }
 
@@ -162,21 +162,21 @@ class BackgroundSyncService {
     }
   }
 
-  Future<void> registerPeriodicSync({bool wifiOnly = true}) async {
+  /// Registers the 12-hour auto-sync on any network connection. The update
+  /// policy replaces a task registered earlier with a Wi-Fi-only constraint.
+  Future<void> registerPeriodicSync() async {
     try {
-      final networkType =
-          wifiOnly ? NetworkType.unmetered : NetworkType.connected;
       await _workmanager.registerPeriodicTask(
         backgroundSyncUniqueName,
         backgroundSyncTaskName,
         frequency: const Duration(hours: 12),
         constraints: Constraints(
-          networkType: networkType,
+          networkType: NetworkType.connected,
         ),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       );
       _log.info(
-        'Registered periodic background sync task (wifiOnly: $wifiOnly)',
+        'Registered periodic background sync task',
       );
     } catch (e, st) {
       _log.warning('Failed to register periodic background sync', e, st);

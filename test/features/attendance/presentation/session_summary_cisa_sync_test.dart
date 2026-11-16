@@ -9,6 +9,7 @@ import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
+import 'package:attendance_tracker/features/settings/application/developer_unlock.dart';
 import 'package:attendance_tracker/features/settings/data/cisa_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,7 +99,8 @@ void main() {
   late List<Member> testMembers;
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    // The CISA button is a developer option; most tests run unlocked.
+    SharedPreferences.setMockInitialValues({DeveloperUnlock.prefsKey: true});
     testSession = Session(
       id: 's-101',
       title: 'Youth Fellowship',
@@ -117,6 +119,34 @@ void main() {
       ],
     );
     testMembers = [Member(id: 'm-1', displayName: 'Alex')];
+  });
+
+  testWidgets('hides Sync to CISA until developer options are unlocked, even when configured',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      CisaSyncService.keyCisaSyncUrl: 'https://cisa.example.org/api/intake',
+      CisaSyncService.keyCisaSyncToken: 'token',
+    });
+    final mockCisaService = _MockCisaSyncService();
+    when(() => mockCisaService.close()).thenReturn(null);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionSummaryPage(
+          session: testSession,
+          members: testMembers,
+          sessionRepository: _MockSessionRepository(),
+          attendanceRepository: _MockAttendanceRepository(),
+          eventRepository: _MockEventRepository(),
+          cisaSyncService: mockCisaService,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('sync_cisa_button')), findsNothing);
+    expect(find.byTooltip('Sync to CISA Gathering'), findsNothing);
   });
 
   testWidgets('renders Sync to CISA button on SessionSummaryPage', (tester) async {
