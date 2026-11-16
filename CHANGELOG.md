@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.21.0](https://github.com/Shir0o/attd/compare/v1.20.4...v1.21.0) (2026-11-16)
+
+
+### Features
+
+* **attendance:** alphabetical grid with side letter strip ([#327](https://github.com/Shir0o/attd/issues/327)) ([3871288](https://github.com/Shir0o/attd/commit/3871288ce2978c5e29d492694614f36578f2e4e2))
+* **checkon:** who to check on replaces Insights ([#326](https://github.com/Shir0o/attd/issues/326)) ([8973162](https://github.com/Shir0o/attd/commit/8973162bf4b2c8066d139f2f80d2774cc9e16585))
+
+
+### Refactoring
+
+* **settings:** always-on auto-sync, hide developer-only tools ([#329](https://github.com/Shir0o/attd/issues/329)) ([5bf279e](https://github.com/Shir0o/attd/commit/5bf279e8d9ae1132af5ebc66dc47e92b0003cce4))
+
 ## [1.20.4](https://github.com/Shir0o/attd/compare/v1.20.3...v1.20.4) (2026-11-15)
 
 
