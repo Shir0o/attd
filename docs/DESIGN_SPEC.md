@@ -86,11 +86,3 @@ We eschew the "Material 2" drop-shadow style in favor of **Tonal Layering**.
 * **Don't** use pure black (#000000) for text. Use `on-surface` (#35313b) to maintain the soft aesthetic.
 * **Don't** use sharp corners. Everything must adhere to the `rounded-md` or `rounded-full` scale.
 * **Don't** stack more than three levels of surface containers. Too much nesting leads to visual clutter.
-
----
-
-## 7. Contextual Component: The "Swipe-Action" Track
-Given the "Speed Swipe" context, the core interaction component is a horizontal track.
-* **Track:** `surface-container-highest` (#e8dfed), `rounded-full`.
-* **Handle:** A `primary` gradient pill with a "chevron-right" icon.
-* **Micro-interaction:** As the handle is swiped, the track color should dynamically fill with `primary-fixed` (#cab6ff), creating a tactile sense of progress.

@@ -26,9 +26,8 @@ The Members tab is where you manage your roster.
 ### 3. Attendance Taking
 The core interaction of the app.
 - **Event Selection**: Choose from existing events or create a "custom" session.
-- **Swipe Action**: Use the signature "Fluid Humanist" swipe tracks to record attendance status.
+- **Name Grid**: Everyone on the roster appears as a tile in one alphabetical grid. Tap a name to mark them present, and use the letter strip at the side to jump to a letter.
 - **Real-time Stats**: View the percentage of present members as you go.
-- **Labels**: Assign labels (e.g., "Visitor," "Staff") during the attendance flow.
 
 ### 4. Handing Off a Session
 Ask someone else to take attendance for one session, on their own phone. No accounts and no connection between the phones are needed.

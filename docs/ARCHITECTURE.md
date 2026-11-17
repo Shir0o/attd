@@ -24,7 +24,6 @@ Contains global data models and base repositories that are used across multiple 
 Each directory represents a standalone functional module.
 - `attendance/`: Core UI and logic for taking attendance.
 - `auth/`: Google OAuth integration and user session management.
-- `families/`: Management of member groups (families).
 - `hub/`: The main dashboard and event listing.
 - `onboarding/`: Initial user setup experience.
 - `reports/`: Logic for exporting data to CSV or Google Sheets.
