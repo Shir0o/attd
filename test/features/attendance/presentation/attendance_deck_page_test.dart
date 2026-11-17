@@ -585,6 +585,56 @@ void main() {
           saved.where((r) => r.status == AttendanceStatus.absent), hasLength(3));
     });
 
+    testWidgets(
+        'Done on a reopened partial session fills absences for the rest of '
+        'the roster only', (tester) async {
+      final repo = MockSessionRepository();
+      final dave = Member(id: 'd', displayName: 'Dave');
+      final erin = Member(id: 'e', displayName: 'Erin');
+      final aliceRecord = SessionRecord(
+        memberId: alice.id,
+        attendee: alice.displayName,
+        status: AttendanceStatus.present,
+        recordedAt: DateTime(2026, 5, 24, 9),
+        recordedBy: 'Helper',
+      );
+      final bobRecord = SessionRecord(
+        memberId: bob.id,
+        attendee: bob.displayName,
+        status: AttendanceStatus.absent,
+        recordedAt: DateTime(2026, 5, 24, 9, 5),
+        recordedBy: 'Helper',
+      );
+      final guestRecord = SessionRecord(
+        memberId: null,
+        attendee: 'Gus Guest',
+        status: AttendanceStatus.present,
+        recordedAt: DateTime(2026, 5, 24, 9, 10),
+        recordedBy: 'Helper',
+      );
+      final existing = [aliceRecord, bobRecord, guestRecord];
+      await _pumpPage(
+        tester,
+        session: _session(records: existing),
+        members: [alice, bob, charlie, dave, erin],
+        sessions: repo,
+      );
+
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pumpAndSettle();
+
+      final saved = repo.savedSessions.last.records;
+      expect(saved, hasLength(6));
+      // Existing records are unchanged.
+      expect(saved, containsAll(existing));
+      // Everyone else on the roster gets an absent record.
+      final added = saved.where((r) => !existing.contains(r)).toList();
+      expect(added.map((r) => r.memberId).toSet(), {'c', 'd', 'e'});
+      expect(added.every((r) => r.status == AttendanceStatus.absent), isTrue);
+      // Nothing extra for guests.
+      expect(saved.where((r) => r.memberId == null), [guestRecord]);
+    });
+
     testWidgets('the grid does not finish by itself when everyone is marked',
         (tester) async {
       await _pumpPage(
