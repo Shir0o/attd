@@ -25,7 +25,7 @@ The explicit user permission prompt (defaulting to off) requested upon first app
 _Avoid_: Tracking opt-in, telemetry flag
 
 **Attendance Mark**:
-A single attendance record: a person, a status (present/absent/late), a recorded-at timestamp, and the actor who recorded it. Stored inside a Session; links to a person by stable member ID with a denormalized name snapshot.
+A single attendance record: a person, a status (present/absent), a recorded-at timestamp, and the actor who recorded it. Stored inside a Session; links to a person by stable member ID with a denormalized name snapshot.
 _Avoid_: Attendance entry, attendance row
 
 **Orphaned Mark**:
@@ -41,7 +41,7 @@ A storage-inspector flag (duplicate, orphaned, empty) shown with the context nee
 _Avoid_: Bulk cleanup, auto-clean, flagged record
 
 **Attendee Surname**:
-The last whitespace-delimited token of an attendee's display name, used across marking modes (such as Likely Here chips and fast-marking subtitles) to disambiguate attendees and replace generic "NEW" or "Loner" labels when attendance history or household groupings are absent. On Likely Here chips where the Attendee Surname is displayed as the subtitle, the primary title displays only the attendee's given name(s) to avoid duplicate surname display; single-token names display their full name in the title and omit the surname subtitle.
+The last whitespace-delimited token of an attendee's display name, shown as the subtitle under each name tile on the marking grid to tell apart people who share a given name. Where the Attendee Surname is displayed as the subtitle, the tile title shows only the attendee's given name(s); single-token names show their full name in the title and omit the surname subtitle.
 _Avoid_: Family name fallback, attendee tail
 
 **Static History Snapshot**:
@@ -57,7 +57,7 @@ A read-only simulation executed prior to any bulk mutation or duplicate cleanup 
 _Avoid_: Unverified cleanup, blind migration
 
 **Duplicate Pruning**:
-The idempotent removal of redundant attendance marks (matching event title, session date, and attendee name) or duplicate member profiles across families, retaining exactly one canonical record.
+The idempotent removal of redundant attendance marks (matching event title, session date, and attendee name) or duplicate member profiles (including ones stored in different Family Records), retaining exactly one canonical record.
 _Avoid_: Mass wipe, duplicate purge
 
 **Handoff**:
@@ -77,47 +77,31 @@ Every member the user knows, across all events. A person in the Member Directory
 _Avoid_: Global roster, all members, master roster
 
 **Event Roster**:
-The members expected at one event; the denominator of its Attendance Rate. Adding someone from the Member Directory to an event puts them on its Event Roster; a brand-new person added to the roster is created in the Member Directory and the Event Roster together.
+The members expected at one event; the people Who to Check On evaluates. Adding someone from the Member Directory to an event puts them on its Event Roster; a brand-new person added to the roster is created in the Member Directory and the Event Roster together.
 _Avoid_: Roster (unqualified), event members, attendee list
 
 **Guest Mark**:
 An attendance mark recorded for an attendee not on the event's roster (any event, including a Handed-off Event, where it is the only way to add someone), preserving the attendee name snapshot with a null member ID for the session without adding them to the roster. Adding someone to the roster instead creates a member, not a Guest Mark. Legitimate attendance: never flagged by the storage inspector.
 _Avoid_: Walk-in, temporary member, unlisted attendee, unlinked mark
 
-**Insights**:
-The per-event analytics surface presenting attendance trends, people views, and attendance-quality metrics as a single configurable stack of sections. Reached from the Hub event card and the Hub event menu; scoped to one event at a time.
-_Avoid_: Stats, analytics dashboard, reports
+**Who to Check On**:
+The hub card and report that flag Event Roster members who may need a follow-up, using five fixed rules (Not coming recently, Sudden drop, Gone quiet, Newcomer follow-up, One-time visitor). The numbers are the same for every event and there are no settings. Only roster members are evaluated, from their present marks in the event's sessions; Guest Marks are never flagged. Derived on read, never stored.
+_Avoid_: Insights, analytics, watchlist, at-risk list
 
-**Attendance Rate**:
-Present marks divided by the count of roster members expected at a session. Guests are excluded from the denominator, because a Guest Mark can never be absent and would only ever push the rate upward. A late mark counts as a full present and never moves this number.
-_Avoid_: Turnout percentage, show rate
-
-**Regular**:
-A member meeting an event's configured consistency threshold across the most recent window of sessions (default: attended at least 80% of the last 8). The threshold and window are per-event Insights Configuration, not global constants.
-_Avoid_: Consistent member, faithful attendee, core member
-
-**Lapsed Attendee**:
-A member who qualified as a Regular across the prior window and has since missed a configured number of consecutive sessions (default 3). Requires a minimum of prior sessions (default 4) before any verdict is rendered; below that the section reports insufficient data rather than a false negative. The inverse of a Regular, and distinct from a member who was never consistent.
-_Avoid_: At-risk member, inactive member, dropout, watchlist
-
-**First Seen**:
-The date of the earliest non-deleted session of an event carrying a mark for a person. Derived on read, never stored. Only as old as the recorded data, so a person who attended before the app was adopted reads as newly seen at their next mark.
-_Avoid_: Join date, member since, signup date
-
-**Insights Configuration**:
-The per-event presets governing what Insights computes and shows — viewing range, Regular threshold and window, Lapsed rule, and section visibility — stored on the Event beside the existing roster grouping and marking mode presets. A preset, not derived data.
-_Avoid_: Stats settings, dashboard preferences
+**Family Record**:
+Storage only: the container (`families.json`) in which members are stored. A person without a household lives in an auto-singleton Family Record of their own. The app has no family screens and no family marking or grouping; people are marked and listed individually.
+_Avoid_: Household, loner, family marking
 
 **Attendance Marking Session**:
 The in-process domain module and state coordinator governing active attendance recording, optimistic persistence serialization, undo history, and member/guest identity resolution for a session.
-_Avoid_: Deck state, attendance controller, marking manager
+_Avoid_: Marking state, attendance controller, marking manager
 
 **Storage Inspector**:
 The diagnostic engine that scans repository data for Review Suggestions, tombstones, orphaned records, and duplicate collisions without dynamic casts into storage implementations.
 _Avoid_: Cleanup tool, DB cleaner, backup manager
 
 **Active Roster Index**:
-The in-memory search, query, and ranking index derived from an Event Roster and historical sessions, providing tokenized surname matching, initials lookup, and likelihood ordering behind a single query interface.
+The in-memory name index derived from an Event Roster: the given name and Attendee Surname of each member for the marking grid, and the substring matching behind the session summary's search. Roster order is alphabetical; there is no likelihood ranking.
 _Avoid_: Search helper, initials indexer, likelihood cache
 
 **Cloud Snapshot**:
@@ -139,9 +123,5 @@ _Avoid_: Age gate, birth-year screen, child check
 
 
 **Attendance Reminder**:
-A local notification scheduled to alert coordinators when attendance has not yet been marked for a scheduled event. Configured with a global toggle and a relative time offset (defaulting to 1 hour after scheduled event start time), automatically suppressed or dismissed if attendance marks already exist for that event on that date.
+A local notification scheduled to alert coordinators when attendance has not yet been marked for a scheduled event. Configured with a single global on/off switch and always fires 1 hour after the scheduled event start time, automatically suppressed or dismissed if attendance marks already exist for that event on that date.
 _Avoid_: Push notification, attendance alarm, event ping
-
-**Reminder Offset**:
-The configurable relative duration (e.g. at start, 15m, 30m, 1h, 2h) elapsed after an event's scheduled start time before an Attendance Reminder fires.
-_Avoid_: Delay timer, notification interval

@@ -1,5 +1,7 @@
 # 0006. Roster-Only Denominator for Attendance Rate
 
+> **Note (2026-11-16):** Insights, the surface this ADR describes, was replaced by "who to check on" (see [the design](../superpowers/specs/2026-11-15-who-to-check-on-design.md)). The rule's spirit still holds there: only roster members are evaluated, from their present marks (a late mark is present), and Guest Marks are never flagged. There is no event-wide attendance rate any more, so the denominator wording below is historical.
+
 ## Context
 `SessionRoster` promotes any attendee without a matching roster member into the session's display map as a visitor (`isVisitor: true`). The two Insights surfaces then disagreed about whether those people count: `EventTrendPage` iterated `roster.sortedMembers` and so counted guests in both the present numerator and the total denominator, while `ConsistentMembersPage` iterated the member list and never saw them at all. The same event produced two different attendance rates depending on which screen you opened.
 

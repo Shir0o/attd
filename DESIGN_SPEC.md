@@ -20,7 +20,7 @@ All values are sRGB approximations of the OKLCH tokens in `attd/project/app.css`
 | `danger` | `#BA1A1A` | `#FFB4AB` | Destructive actions (delete) — ≥4.5:1 on the light surface ladder |
 
 ### Surface ladder
-`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the rule between paired stat tiles on Insights).
+`bg` → `bg2` → `bg3` → `card` → `cardSoft`. Use shifts in tone — never hairline borders — to delimit sections. Hairlines (`hair`) are only for narrow dividers inside cards (e.g. the rule between paired stat tiles).
 
 ### Ink ladder
 `ink` (primary text), `ink2` (body), `ink3` (captions / eyebrow), `ink4` (faint / decorative).
@@ -29,7 +29,7 @@ All values are sRGB approximations of the OKLCH tokens in `attd/project/app.css`
 
 Two-font pairing wired up in [`app_typography.dart`](lib/core/design/app_typography.dart):
 
-* **Fraunces** (display + headline). Optical-size 72/144. Used for display numerals, screen titles, family/member headlines.
+* **Fraunces** (display + headline). Optical-size 72/144. Used for display numerals, screen titles, member headlines.
 * **Geist** (body + label + title). Used everywhere else.
 
 Key scale:
@@ -37,10 +37,10 @@ Key scale:
 | Style | Family | Size | Purpose |
 | --- | --- | --- | --- |
 | `displayLarge` | Fraunces | 56 | Onboarding welcomes |
-| `displayMedium` | Fraunces | 44 | Family edit name, Members "17 people" |
+| `displayMedium` | Fraunces | 44 | Members "17 people" |
 | `displaySmall` | Fraunces | 36 | "What are we tracking?" |
-| `headlineMedium` | Fraunces | 26 | "Mark attendance", Family card name |
-| `headlineSmall` | Fraunces | 22 | Family card name (compact), event title in rows |
+| `headlineMedium` | Fraunces | 26 | "Mark attendance" |
+| `headlineSmall` | Fraunces | 22 | Event title in rows |
 | `bodyMedium` | Geist | 15 | Default body |
 | `labelSmall` | Geist | 11 (uppercase, +14% tracking) | Eyebrow / all-caps captions |
 
@@ -61,7 +61,6 @@ The prototype's primitives map to Flutter widgets under `lib/core/design/widgets
 * `ConvFab` — 60×60 squircle with primary glow.
 * `ConvCard` / `ConvCardSoft` — 24px / 22px radius surfaces.
 * `ConvSearchField` — 14px radius (`AppRadii.compactR`) tonal `cardSoft` search bar with leading `Icons.search_rounded`, borderless `TextField` (including on focus, per the no-line rule), conditional clear button (`Icons.clear_rounded`), and optional trailing widget (e.g. inline add button or match counter).
-* **Late affordance** — 32px clock dot (`Icons.schedule_outlined`) centred in a 44px tap target on the Session Summary roster row, between the name column and the 56×32 `ConvToggle`. Off state: no background, glyph in `ink4`. On state: `clayDeep` glyph on a `clayDeep`-at-18% wash over `card`. Absent rows render an empty 44px spacer in the same slot so toggles stay in a column; a late attendee is a present attendee, so the row background stays the present tint. The row subtitle reads "Marked present · late" with the "· late" run in `clayDeep` at weight 500 — the icon is never the only carrier of meaning, and since the Session Summary hero was removed the subtitle is the only carrier. A late mark is always a full present and never moves a count; lateness is reported on Insights as its own rate. Tonal shifts only, per the no-line rule.
 
 ## 5. Elevation
 
@@ -76,25 +75,20 @@ Most surfaces are flat — depth comes from tonal layering (e.g. `card` on `bg2`
 * Toggle thumb slides 200 ms with `cubic-bezier(0.2, 0.7, 0.3, 1)`.
 * Page transitions are intentionally **off** (we keep `NoTransitionsBuilder`). The editorial layout reads better when screens snap.
 * **Exception: shared-element handoffs.** Pages still snap, but the violet control the user touched may visibly become the next thing on top of the instant change (e.g. the Hub **+** travelling on an arc into the **Create event** pill). See ADR 0008.
-* **Morphing sheets.** A filled control (`ConvMorphSource`) can grow into a bottom sheet via `showConvMorphSheet` (`morph`): the sheet starts at the control's rect and radius, the control's colour fades out over ~15–55% while the content fades in from ~30% with a 6 px settle, and the keyboard rises only once the sheet has formed. Cancel (scrim, back) collapses it back into the control (~300 ms); drag-down and submit slide it off the bottom instead. Today only the Likely here **Add someone** pill uses it; text buttons and icons keep the plain slide-up sheet.
-* **Landing flight.** Submitting that sheet flies a violet shuttle (`showConvLandingFlight`, `morph`) on an arc from the control used to where the person landed: their Likely here tile when it is fully on screen, otherwise the "added · Here" snackbar. Its label fades out over the first ~30% and its corners ease from the stadium to the tile radius. The grid never scrolls to the tile.
+* **Morphing sheets.** A filled control (`ConvMorphSource`) can grow into a bottom sheet via `showConvMorphSheet` (`morph`): the sheet starts at the control's rect and radius, the control's colour fades out over ~15–55% while the content fades in from ~30% with a 6 px settle, and the keyboard rises only once the sheet has formed. Cancel (scrim, back) collapses it back into the control (~300 ms); drag-down and submit slide it off the bottom instead. Today only the marking grid's **Add someone** pill uses it; text buttons and icons keep the plain slide-up sheet.
+* **Landing flight.** Submitting that sheet flies a violet shuttle (`showConvLandingFlight`, `morph`) on an arc from the control used to where the person landed: their name tile on the grid when it is fully on screen, otherwise the "added · Here" snackbar. Its label fades out over the first ~30% and its corners ease from the stadium to the tile radius. The grid never scrolls to the tile.
 * **Tally and progress.** The marking header's counts roll their changed digits like an odometer (`ConvRollingNumber`, `house`; up when the count rises, down when it falls) and the progress fills ease to their new width (`ConvProgressFill`, `house`).
 * **Done carries progress** (`DoneProgressPill`). The header's **Done** is a violet pill. While marking, its pale violet wash fills with a violet `ConvProgressFill` at the session progress (replacing the thin bar) and the label turns on-primary where the fill passes under it. At 0 left it is fully violet and one glow ring fades out (~700 ms, decelerate), once per completion. Confirm lists keep their two-tone present/absent bar and a solid violet Done.
 * **Skeleton crossfade** (`SkeletonSwitcher`). Every skeleton page crossfades skeleton to content over 200 ms instead of snapping; the 800 ms minimum skeleton time is unchanged. A sliver skeleton (the Hub) fades its loaded list in over the same 200 ms.
-* **Segmented thumb.** The selected thumb of `ConvSegmented` (Insights range, roster grouping, the deck's Deck/List/fast toggle) slides and resizes to the new segment over `house`.
-* **Insights bars.** On first load each bar grows from the baseline over ~500 ms (`morph` curve) staggered ~40 ms per bar while the headline rate counts up; when the range changes the bars tween from their old to new heights over `house` and never regrow.
+* **Segmented thumb.** The selected thumb of `ConvSegmented` (wherever a two-way choice is needed) slides and resizes to the new segment over `house`.
 * Motion tokens (`AppMotion`):
   * `morph` — 400 ms, `cubic-bezier(0.05, 0.7, 0.1, 1)` (emphasized decelerate). Container transforms and shared elements.
   * `house` — 220 ms, `cubic-bezier(0.2, 0.7, 0.3, 1)`. In-surface changes: counts, thumbs, tiles, bar heights.
   * `exit` — 200 ms, `cubic-bezier(0.3, 0, 0.8, 0.15)` (emphasized accelerate). Dismissals and collapsing back into the source.
 * Violet primary pills and FABs press in (`ConvPressable`, scale 0.97 over ~110 ms while the shadow tightens, spring back over ~260 ms). Mark tiles use the *pop* preset (scale 0.94, spring back over ~320 ms).
 * All of the above runs only when `motionEnabled(context, disableAnimations: ...)` is true: it is false when the widget's `disableAnimations` flag is set or the system "Remove animations" setting is on, and then behaviour is exactly as without motion.
-* Swipe-deck stamps fade in proportional to drag distance and rotate per `swipe.jsx`.
+* Name tiles on the grid use the *pop* press preset above; the side letter strip jumps the grid to a letter and never filters.
 
-## 7. Two screens unique to Convocation
+## 7. Who to check on
 
-These don't exist in the prototype HTML — they're invented from Play-Store promo frames in `attd/project/marketing.jsx`:
-
-* **Insights** — one per-event page: attendance-rate chart with a single range control (12 wk / 6 mo / Year) governing every section (labelled by session count, since a monthly event has no twelve weeks of history), best/lowest/average, Regulars (members clearing a configurable share of a configurable window, 80% of 8 by default), guests, lateness, growth, per-member table, first-timers, streaks and median size. Sections are configurable per event and a section without enough data says how many more sessions it needs. Reached from the Hub event card sliver and the event menu. Replaces the separate Trends and Regulars screens.
-
-Every figure is derived on read from data already in `SessionRepository` and `AttendanceRepository`. The only stored addition is the per-event Insights Configuration on `Event` (ADR 0007); no statistic is ever persisted.
+A hub card and a report list roster members flagged by five fixed rules (Not coming recently, Sudden drop, Gone quiet, Newcomer follow-up, One-time visitor). Each row shows the reason in one line and the last eight meetings as dots. Every figure is derived on read from sessions and the event roster; nothing is persisted.
