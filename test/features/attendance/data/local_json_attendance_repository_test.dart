@@ -229,107 +229,6 @@ void main() {
       expect(families.single.isAutoSingleton, isFalse);
     });
 
-    test('moveMemberToFamily moves and prunes source auto-singleton family', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final singleton =
-          await repo.addFamily('Alice Smith', isAutoSingleton: true);
-      await repo.addMember(
-        singleton.id,
-        Member(id: 'm1', displayName: 'Alice Smith'),
-      );
-      final target = await repo.addFamily('Smith');
-      await repo.addMember(
-        target.id,
-        Member(id: 'm2', displayName: 'Bob Smith'),
-      );
-      final updatedTarget = await repo.moveMemberToFamily('m1', target.id);
-      expect(updatedTarget.members.map((m) => m.id), containsAll(['m1', 'm2']));
-      expect(updatedTarget.isAutoSingleton, isFalse);
-      final all = await repo.fetchFamilies();
-      expect(all.any((f) => f.id == singleton.id), isFalse);
-    });
-
-    test('moveMemberToFamily does not prune manually created family when it becomes empty', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final manualFam =
-          await repo.addFamily('Manual Smith', isAutoSingleton: false);
-      await repo.addMember(
-        manualFam.id,
-        Member(id: 'm1', displayName: 'Alice Smith'),
-      );
-      final target = await repo.addFamily('Smith');
-      await repo.addMember(
-        target.id,
-        Member(id: 'm2', displayName: 'Bob Smith'),
-      );
-      await repo.moveMemberToFamily('m1', target.id);
-      final all = await repo.fetchFamilies();
-      final source = all.firstWhere((f) => f.id == manualFam.id);
-      expect(source.members, isEmpty);
-    });
-
-    test('moveMemberToFamily does not prune target auto-singleton family when member is moved to the family they are already in', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final singleton =
-          await repo.addFamily('Alice Smith', isAutoSingleton: true);
-      await repo.addMember(
-        singleton.id,
-        Member(id: 'm1', displayName: 'Alice Smith'),
-      );
-      final updated = await repo.moveMemberToFamily('m1', singleton.id);
-      expect(updated.members.single.id, 'm1');
-      expect(updated.isAutoSingleton, isTrue);
-      final all = await repo.fetchFamilies();
-      expect(all.any((f) => f.id == singleton.id), isTrue);
-    });
-
-    test('moveMemberToFamily throws when member is not found', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final fam = await repo.addFamily('Smith');
-      expect(
-        () => repo.moveMemberToFamily('nope', fam.id),
-        throwsStateError,
-      );
-    });
-
-    test('moveMemberToFamily throws when target family is not found',
-        () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final src = await repo.addFamily('Alice', isAutoSingleton: true);
-      await repo.addMember(
-        src.id,
-        Member(id: 'm1', displayName: 'Alice'),
-      );
-      expect(
-        () => repo.moveMemberToFamily('m1', 'missing'),
-        throwsStateError,
-      );
-    });
-
-    test('detachMember throws when member is not found', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      expect(() => repo.detachMember('nope'), throwsStateError);
-    });
-
-    test('detachMember creates a singleton family for the member', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final fam = await repo.addFamily('Smith');
-      await repo.addMember(
-        fam.id,
-        Member(id: 'm1', displayName: 'Alice Smith'),
-      );
-      await repo.addMember(
-        fam.id,
-        Member(id: 'm2', displayName: 'Bob Smith'),
-      );
-      final singleton = await repo.detachMember('m1');
-      expect(singleton.isAutoSingleton, isTrue);
-      expect(singleton.members.single.id, 'm1');
-      final all = await repo.fetchFamilies();
-      final source = all.firstWhere((f) => f.id == fam.id);
-      expect(source.members.map((m) => m.id), ['m2']);
-    });
-
     test('fetchFamilies recovers from healthy backup file when main file is corrupted', () async {
       final mainFile = File(dbPath);
       final backupFile = File('$dbPath.bak');
@@ -390,13 +289,6 @@ void main() {
       expect(mainFile.existsSync(), isTrue);
     });
 
-    test('AttendanceRepository default implementations throw UnimplementedError', () async {
-      final repo = _TestAttendanceRepository();
-      expect(() => repo.moveMemberToFamily('m', 'f'), throwsA(isA<UnimplementedError>()));
-      expect(() => repo.detachMember('m'), throwsA(isA<UnimplementedError>()));
-      expect(() => repo.deleteFamily('f'), throwsA(isA<UnimplementedError>()));
-    });
-
     test('fetchAllFamilies works correctly', () async {
       final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
       final now = DateTime.now();
@@ -449,37 +341,5 @@ void main() {
       // Clean up the directory created at tmp path so it doesn't block other tests
       await tempDirVar.delete(recursive: true);
     });
-
-    test('deleteFamily marks family soft-deleted and detaches live members to singletons', () async {
-      final repo = LocalJsonAttendanceRepository(storagePath: dbPath);
-      final family = await repo.addFamily('Smith');
-      await repo.addMember(family.id, Member(id: 'm1', displayName: 'Alice'));
-      await repo.addMember(family.id, Member(id: 'm2', displayName: 'Bob', deletedAt: DateTime.now()));
-
-      await repo.deleteFamily(family.id);
-
-      final families = await repo.fetchFamilies();
-      expect(families.any((f) => f.id == family.id), isFalse);
-      expect(families.any((f) => f.displayName == 'Alice' && f.isAutoSingleton), isTrue);
-    });
   });
 }
-
-
-class _TestAttendanceRepository extends AttendanceRepository {
-  @override
-  Future<List<Family>> fetchFamilies() async => [];
-  @override
-  Future<void> saveFamilies(List<Family> families) async {}
-  @override
-  Future<Family> addMember(String familyId, Member member) async => throw UnimplementedError();
-  @override
-  Future<Family> addFamily(String displayName, {bool isAutoSingleton = false}) async => throw UnimplementedError();
-  @override
-  Stream<List<Family>> streamFamilies() => Stream.empty();
-  @override
-  Future<void> refresh() async {}
-  @override
-  Future<void> pruneSoftDeleted(DateTime threshold) async {}
-}
-

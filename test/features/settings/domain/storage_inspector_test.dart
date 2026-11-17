@@ -41,10 +41,6 @@ class _FakeAttendanceRepo extends AttendanceRepository {
       throw UnimplementedError();
 
   @override
-  Future<Family> moveMemberToFamily(String memberId, String targetFamilyId) =>
-      throw UnimplementedError();
-
-  @override
   Future<void> pruneSoftDeleted(DateTime threshold) async {}
 
   @override

@@ -12,9 +12,8 @@ class Family {
   final DateTime? deletedAt;
 
   /// True when this family is just a per-member singleton bucket
-  /// (auto-created when a member is added without an explicit family).
-  /// Such families render as flat member rows in the roster list rather than
-  /// as a group header — see [AttendanceRosterList].
+  /// (auto-created when a member is added without an explicit family), so a
+  /// person without a household is still stored inside a family record.
   final bool isAutoSingleton;
 
   late final String displayNameLowercase = displayName.toLowerCase();
