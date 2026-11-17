@@ -64,8 +64,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return [
       const _OnboardingSlide(
         eyebrow: '01 · Quick marking',
-        title: 'Swipe with one thumb.',
-        description: 'Right for present, left for absent. The deck handles the rest.',
+        title: 'Tap the names.',
+        description:
+            'Everyone is on one alphabetical grid. Tap whoever is here, then tap Done.',
         art: OnboardingDeckArt(),
       ),
       const _OnboardingSlide(

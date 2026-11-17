@@ -25,7 +25,15 @@ void main() {
     testWidgets('renders first slide initially', (tester) async {
       await tester.pumpWidget(buildOnboardingPage());
 
-      expect(find.text('Swipe with one thumb.'), findsOneWidget);
+      expect(find.text('Tap the names.'), findsOneWidget);
+      expect(
+        find.text(
+          'Everyone is on one alphabetical grid. Tap whoever is here, then tap Done.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Swipe'), findsNothing);
+      expect(find.textContaining('deck'), findsNothing);
       expect(find.byType(OnboardingDeckArt), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Next'), findsNothing);
