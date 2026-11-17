@@ -10,6 +10,7 @@ import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../checkon/domain/check_on_board.dart';
+import '../../handoff/domain/handoff_file.dart';
 import '../../settings/presentation/duplicate_members_cleanup_sheet.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -107,7 +108,11 @@ class _MembersPageState extends State<MembersPage> {
     }
 
     try {
-      final families = await widget.attendanceRepository.fetchFamilies();
+      // The roster of a handed-off event belongs to someone else's event; it
+      // is not part of this phone's own member directory.
+      final families = (await widget.attendanceRepository.fetchFamilies())
+          .where((f) => !f.id.startsWith(handoffIdPrefix))
+          .toList();
 
       final elapsed = DateTime.now().difference(startTime);
       final remaining = const Duration(milliseconds: 800) - elapsed;

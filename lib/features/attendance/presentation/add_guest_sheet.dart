@@ -35,6 +35,7 @@ class AddMemberSheet extends StatefulWidget {
     this.availableMembers = const [],
     this.rosterMemberIds,
     this.disableAnimations = false,
+    this.guestOnly = false,
   });
 
   final void Function(
@@ -51,6 +52,11 @@ class AddMemberSheet extends StatefulWidget {
 
   /// The host page's test/override flag for decorative motion.
   final bool disableAnimations;
+
+  /// Someone else's (handed-off) event: its roster is not this person's to
+  /// change, so the only choice is marking a guest. Existing members are not
+  /// suggested either, since tapping one would put them on the roster.
+  final bool guestOnly;
 
   @override
   State<AddMemberSheet> createState() => _AddMemberSheetState();
@@ -146,7 +152,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     }
 
     final query = _nameController.text.toLowerCase().trim();
-    final suggestions = query.isEmpty
+    final suggestions = query.isEmpty || widget.guestOnly
         ? <Member>[]
         : uniqueMembers
             // Use precomputed cached lowercase display name to avoid repeated
@@ -203,7 +209,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                 textInputAction: TextInputAction.done,
                 style: AppTypography.geist(fontSize: 17, color: c.ink),
                 onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _addNew(asGuest: false),
+                onSubmitted: (_) => _addNew(asGuest: widget.guestOnly),
                 decoration: InputDecoration(
                   hintText: 'Full name',
                   hintStyle: AppTypography.geist(fontSize: 17, color: c.ink3),
@@ -252,35 +258,53 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               const SizedBox(height: 16),
               const ConvEyebrow('Someone new'),
               const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    key: _rosterPill,
-                    child: _SubmitPill(
-                      key: const Key('addSheetAddToRoster'),
-                      label: 'Add to roster',
-                      filled: true,
-                      disableAnimations: widget.disableAnimations,
-                      onTap: () => _addNew(asGuest: false),
-                    ),
+              if (widget.guestOnly)
+                Container(
+                  key: _guestPill,
+                  child: _SubmitPill(
+                    key: const Key('addSheetMarkGuest'),
+                    label: 'Mark as guest',
+                    filled: true,
+                    disableAnimations: widget.disableAnimations,
+                    onTap: () => _addNew(asGuest: true),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    key: _guestPill,
-                    child: _SubmitPill(
-                      key: const Key('addSheetMarkGuest'),
-                      label: 'Mark as guest',
-                      filled: false,
-                      onTap: () => _addNew(asGuest: true),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      key: _rosterPill,
+                      child: _SubmitPill(
+                        key: const Key('addSheetAddToRoster'),
+                        label: 'Add to roster',
+                        filled: true,
+                        disableAnimations: widget.disableAnimations,
+                        onTap: () => _addNew(asGuest: false),
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      key: _guestPill,
+                      child: _SubmitPill(
+                        key: const Key('addSheetMarkGuest'),
+                        label: 'Mark as guest',
+                        filled: false,
+                        onTap: () => _addNew(asGuest: true),
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 8),
               Text(
-                firstName.isEmpty
-                    ? 'Either way, they are marked here.'
-                    : 'Either way, $firstName is marked here.',
+                widget.guestOnly
+                    ? (firstName.isEmpty
+                        ? 'They are marked here as a guest. The roster is not '
+                            'changed.'
+                        : '$firstName is marked here as a guest. The roster '
+                            'is not changed.')
+                    : firstName.isEmpty
+                        ? 'Either way, they are marked here.'
+                        : 'Either way, $firstName is marked here.',
                 textAlign: TextAlign.center,
                 style: AppTypography.geist(fontSize: 12, color: c.ink3),
               ),

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/session_summary_page.dart';
+import 'package:attendance_tracker/features/handoff/presentation/send_back_page.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_deck_page.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -699,6 +700,119 @@ void main() {
             .memberId,
         equals(newId),
       );
+    });
+  });
+
+  group('a handed-off event', () {
+    final handedOff = Event(
+      id: 'handoff:ev-1',
+      title: 'Test Session',
+      time: const TimeOfDay(hour: 0, minute: 0),
+      frequency: 'One-time',
+      oneTimeDate: DateTime(2026, 5, 24),
+      memberIds: const ['handoff:a'],
+      handoffEventId: 'ev-1',
+      createdAt: DateTime(2026, 5, 20),
+    );
+    final theirAlice = Member(id: 'handoff:a', displayName: 'Alice');
+
+    Future<
+        ({
+          MockSessionRepository sessions,
+          MockAttendanceRepository attendance,
+          MockEventRepository events,
+        })> pump(WidgetTester tester) async {
+      final sessions = MockSessionRepository();
+      final attendance = MockAttendanceRepository()
+        ..seed([
+          Family(id: 'handoff:ev-1', displayName: 'Roster', members: [
+            theirAlice,
+          ]),
+          Family(
+            id: 'own',
+            displayName: 'Own',
+            members: [Member(id: 'own-bob', displayName: 'Bob Own')],
+          ),
+        ]);
+      final events = MockEventRepository()..seed(handedOff);
+      await _pumpPage(
+        tester,
+        session: _session().copyWith(eventId: handedOff.id),
+        members: [theirAlice],
+        sessions: sessions,
+        attendance: attendance,
+        events: events,
+        event: handedOff,
+      );
+      return (sessions: sessions, attendance: attendance, events: events);
+    }
+
+    testWidgets('Add someone offers only a guest mark', (tester) async {
+      await pump(tester);
+
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('addSheetMarkGuest')), findsOneWidget);
+      expect(find.byKey(const Key('addSheetAddToRoster')), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'Bob');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('roster is not changed'), findsOneWidget);
+      // The helper's own member "Bob Own" is not suggested.
+      expect(find.byKey(const Key('addSheetSuggestion_own-bob')), findsNothing);
+    });
+
+    testWidgets('a name is recorded as a guest and never creates a member',
+        (tester) async {
+      final r = await pump(tester);
+
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Visitor Vic');
+      await tester.tap(find.byKey(const Key('addSheetMarkGuest')));
+      await tester.pumpAndSettle();
+
+      final guest = r.sessions.savedSessions.last.records
+          .singleWhere((x) => x.attendee == 'Visitor Vic');
+      expect(guest.memberId, isNull);
+      expect(guest.status, AttendanceStatus.present);
+      expect(r.attendance.addedFamilies, isEmpty);
+      expect(r.attendance.addedMembers, isEmpty);
+      expect(r.events.updateCalls, isEmpty);
+    });
+
+    testWidgets('submitting the keyboard also records a guest',
+        (tester) async {
+      final r = await pump(tester);
+
+      await tester.tap(find.byKey(const Key('likelyHereAddGuest')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Keyboard Kim');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        r.sessions.savedSessions.last.records
+            .singleWhere((x) => x.attendee == 'Keyboard Kim')
+            .memberId,
+        isNull,
+      );
+      expect(r.attendance.addedMembers, isEmpty);
+    });
+
+    testWidgets('Done leads to Send back, not the summary', (tester) async {
+      final r = await pump(tester);
+
+      await tester.tap(_chip('handoff:a'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('finishSessionButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SendBackPage), findsOneWidget);
+      expect(find.byType(SessionSummaryPage), findsNothing);
+      expect(find.byKey(const Key('sendBackButton')), findsOneWidget);
+      expect(r.sessions.savedSessions.last.records, hasLength(1));
     });
   });
 

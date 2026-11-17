@@ -30,13 +30,19 @@ The core interaction of the app.
 - **Real-time Stats**: View the percentage of present members as you go.
 - **Labels**: Assign labels (e.g., "Visitor," "Staff") during the attendance flow.
 
-### 4. Google Drive Sync
+### 4. Handing Off a Session
+Ask someone else to take attendance for one session, on their own phone. No accounts and no connection between the phones are needed.
+- **Hand off**: Open an event's menu and choose **Hand off**. The app explains what the file holds, then opens your phone's share sheet. The file is plain and unencrypted and contains only the event name, the date and the roster names, so send it to someone you trust.
+- **Helper**: They install the app and open the file (tap it, or use **Open handoff file** at the top of the Hub). The event appears on their Hub marked **Someone else's**. They mark names as usual; **Add someone** records a guest. When they tap **Done** they choose **Send back**, which shares a result file with you. Afterwards they can remove the event and everything it brought from their phone.
+- **You**: Open the result file. You see who marked and how many were present first, and nothing changes until you tap **Add to session**. Present beats absent if you had already marked someone, and adding the same file twice changes nothing.
+
+### 5. Google Drive Sync
 Keep your data safe across multiple devices.
 - **Automatic Sync**: Data is synced on app launch and whenever major changes occur.
 - **Manual Backups**: Create timestamped snapshots from the Settings page.
 - **Merge Engine**: No data is lost; edits from different devices are intelligently merged using a "last-write-wins" strategy.
 
-### 5. Reporting and Export
+### 6. Reporting and Export
 Get your data into external tools for deeper analysis.
 - **CSV Export**: Generate a standard comma-separated file for Excel or Numbers.
 - **Google Sheets Sync**: Direct integration that pushes attendance records to a specified Google Sheet.

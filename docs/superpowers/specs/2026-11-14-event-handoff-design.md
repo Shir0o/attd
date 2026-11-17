@@ -1,7 +1,7 @@
 # Event handoff — design
 
-Status: draft, design only. Not scheduled for implementation; to be validated
-in real use when built. Date: 2026-11-14. Supersedes the approach in
+Status: implemented (see ADR 0011); still to be validated in real use on
+devices. Date: 2026-11-14. Supersedes the approach in
 ADR 0005 (scoped Google Drive subfolder sharing).
 
 ## Intent

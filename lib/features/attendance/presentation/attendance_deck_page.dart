@@ -12,6 +12,9 @@ import '../utils/session_roster_utils.dart';
 import '../data/attendance_repository.dart';
 import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
+import '../../handoff/data/handoff_service.dart';
+import '../../handoff/data/handoff_sharer.dart';
+import '../../handoff/presentation/send_back_page.dart';
 import '../../settings/data/drive_service.dart';
 import 'add_guest_sheet.dart';
 import 'fast_marking/fast_marking_model.dart';
@@ -32,9 +35,14 @@ class AttendanceDeckPage extends StatefulWidget {
     this.disableAnimations = false,
     this.deleteOnCancel = false,
     this.markingSession,
+    this.handoffSharer,
   });
 
   final AttendanceMarkingSession? markingSession;
+
+  /// Opens the share sheet from Send back on a handed-off event. Tests pass a
+  /// fake.
+  final HandoffSharer? handoffSharer;
   final Session session;
   final List<Member> members;
   final SessionRepository sessionRepository;
@@ -63,6 +71,10 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
   StreamSubscription? _saveErrorSubscription;
+
+  /// Someone else's event: marks only, no changes to its roster.
+  bool get _isHandedOff =>
+      (_currentEvent ?? widget.event)?.isHandedOff ?? false;
 
   Session get _currentSession => _markingSession.session;
   List<Member> get _sessionMembers => _markingSession.sessionMembers;
@@ -209,11 +221,13 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     bool isGuest,
     Member? existingMember,
   ) async {
+    // On a handed-off event everyone added is a guest, whatever asks.
+    final handedOff = _isHandedOff;
     final resolved = await _markingSession.addAttendee(
       name,
       isPresent: isPresent,
-      isGuest: isGuest,
-      existingMember: existingMember,
+      isGuest: isGuest || handedOff,
+      existingMember: handedOff ? null : existingMember,
     );
     if (mounted) {
       setState(() {
@@ -236,6 +250,27 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
         .then((_) => _drainSaves())
         .then((_) {
       if (!mounted) return;
+      if (_isHandedOff) {
+        // The helper's next step is sending the marks back, not a summary.
+        final event = _currentEvent ?? widget.event!;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => SendBackPage(
+              event: event,
+              session: _currentSession,
+              sessionRepository: widget.sessionRepository,
+              service: HandoffService(
+                attendanceRepository: widget.attendanceRepository,
+                eventRepository: widget.eventRepository,
+                sessionRepository: widget.sessionRepository,
+              ),
+              sharer: widget.handoffSharer,
+              disableAnimations: widget.disableAnimations,
+            ),
+          ),
+        );
+        return;
+      }
       _ownsMarkingSession = false;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -262,8 +297,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     bool isGuest,
     Member? existingMember,
   ) async {
-    final member =
-        await _addAttendee(name, isPresent, isGuest, existingMember);
+    final member = await _addAttendee(name, isPresent, isGuest, existingMember);
     if (!mounted) return member;
     // A newcomer's tile sorts in alphabetically with everyone, often
     // off-screen; confirm it happened.
@@ -297,12 +331,14 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             addedName = name.trim();
             added = _addFromSheet(name, isPresent, isGuest, existingMember);
           },
-          availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
+          availableMembers:
+              _allMembers.isNotEmpty ? _allMembers : widget.members,
           rosterMemberIds: {
             for (final m in _sessionMembers)
               if (m.id.isNotEmpty) m.id,
           },
           disableAnimations: widget.disableAnimations,
+          guestOnly: _isHandedOff,
         );
     // Submits pop with an AddMemberSheetResult (the control used and its
     // rect) as the sheet starts to slide away.

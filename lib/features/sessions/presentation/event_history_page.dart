@@ -305,25 +305,20 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
 
                               return Dismissible(
                                 key: ValueKey('dismiss_session_${session.id}'),
-                                direction: widget.event.isReadOnly
-                                    ? DismissDirection.none
-                                    : DismissDirection.endToStart,
+                                direction: DismissDirection.endToStart,
                                 background: Container(
                                     color: Colors
                                         .transparent), // Required by Flutter if secondaryBackground is set
-                                secondaryBackground: widget.event.isReadOnly
-                                    ? null
-                                    : _buildSwipeBackground(
-                                        context,
-                                        'Delete Session',
-                                        colorScheme.error,
-                                        Icons.delete_outline,
-                                        false,
-                                      ),
+                                secondaryBackground: _buildSwipeBackground(
+                                  context,
+                                  'Delete Session',
+                                  colorScheme.error,
+                                  Icons.delete_outline,
+                                  false,
+                                ),
                                 confirmDismiss: (direction) async {
-                                  if (!widget.event.isReadOnly &&
-                                      direction ==
-                                          DismissDirection.endToStart) {
+                                  if (direction ==
+                                      DismissDirection.endToStart) {
                                     await _deleteSession(session);
                                   }
                                   return false;

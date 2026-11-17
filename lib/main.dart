@@ -8,6 +8,9 @@ import 'data/session_repository.dart';
 import 'features/auth/application/google_auth_service.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/attendance/data/attendance_repository.dart';
+import 'features/handoff/data/handoff_service.dart';
+import 'features/handoff/data/incoming_handoff_files.dart';
+import 'features/handoff/presentation/handoff_intake.dart';
 import 'features/hub/data/event_repository.dart';
 import 'features/hub/data/local_event_repository.dart';
 import 'features/hub/presentation/hub_page.dart';
@@ -33,6 +36,7 @@ import 'firebase_options.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'dart:typed_data';
 import 'dart:ui';
 import 'core/crashlytics/crash_reporting_service.dart';
 import 'core/crashlytics/firebase_crash_reporting_service.dart';
@@ -160,6 +164,7 @@ class AttendanceApp extends StatefulWidget {
     this.crashReportingService,
     this.reminderSettingsController,
     this.reminderService,
+    this.incomingHandoffFiles,
     this.disableAnimations = false,
   }) : repository = repository ?? LocalJsonAttendanceRepository(),
        sessionRepository = sessionRepository ?? LocalJsonSessionRepository(),
@@ -180,6 +185,9 @@ class AttendanceApp extends StatefulWidget {
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
   final AttendanceReminderService? reminderService;
+
+  /// Files the system opens in the app (Android). Tests pass a fake.
+  final IncomingHandoffFiles? incomingHandoffFiles;
   final bool disableAnimations;
 
   @override
@@ -190,11 +198,31 @@ class _AttendanceAppState extends State<AttendanceApp>
     with WidgetsBindingObserver {
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _quickActions = QuickActionsService();
+  late final HandoffIntake _handoffIntake;
+  late final IncomingHandoffFiles _incomingHandoffFiles;
+
+  /// A handoff file that arrived while onboarding was still showing; opened
+  /// once it is done.
+  Uint8List? _pendingHandoff;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _handoffIntake = HandoffIntake(
+      navigatorKey: _navigatorKey,
+      service: HandoffService(
+        attendanceRepository: widget.repository,
+        eventRepository: widget.eventRepository,
+        sessionRepository: widget.sessionRepository,
+      ),
+      disableAnimations: widget.disableAnimations,
+    );
+    _incomingHandoffFiles =
+        widget.incomingHandoffFiles ?? IncomingHandoffFiles();
+    _incomingHandoffFiles.listen(_onIncomingHandoff);
+    widget.onboardingController.addListener(_openPendingHandoff);
 
     // Defer heavy initialization to prevent blocking the first frame paint
     Future.microtask(() {
@@ -203,6 +231,9 @@ class _AttendanceAppState extends State<AttendanceApp>
       // Restore sync session and trigger initial sync if enabled
       widget.driveService?.init();
       _quickActions.initialize(navigatorKey: _navigatorKey);
+      _incomingHandoffFiles.takeInitialFile().then((bytes) {
+        if (bytes != null) _onIncomingHandoff(bytes);
+      });
 
       // Prompt for anonymous crash diagnostics consent on first open if needed
       final navContext = _navigatorKey.currentContext;
@@ -213,6 +244,26 @@ class _AttendanceAppState extends State<AttendanceApp>
         );
       }
     });
+  }
+
+  void _onIncomingHandoff(Uint8List bytes) {
+    if (widget.onboardingController.shouldShowOnboarding) {
+      _pendingHandoff = bytes;
+      return;
+    }
+    // Wait for the navigator: a file that launched the app arrives first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handoffIntake.open(bytes);
+    });
+  }
+
+  void _openPendingHandoff() {
+    final bytes = _pendingHandoff;
+    if (bytes == null || widget.onboardingController.shouldShowOnboarding) {
+      return;
+    }
+    _pendingHandoff = null;
+    _onIncomingHandoff(bytes);
   }
 
   Future<void> _runMaintenance() async {
@@ -253,6 +304,8 @@ class _AttendanceAppState extends State<AttendanceApp>
 
   @override
   void dispose() {
+    widget.onboardingController.removeListener(_openPendingHandoff);
+    _incomingHandoffFiles.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -299,6 +352,7 @@ class _AttendanceAppState extends State<AttendanceApp>
                 crashReportingService: widget.crashReportingService,
                 reminderSettingsController: widget.reminderSettingsController,
                 reminderService: widget.reminderService,
+                handoffIntake: _handoffIntake,
                 disableAnimations: widget.disableAnimations,
               );
         return MaterialApp(

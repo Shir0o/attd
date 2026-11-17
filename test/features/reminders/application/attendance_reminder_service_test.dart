@@ -222,6 +222,43 @@ void main() {
           )).called(1);
     });
 
+    test('syncReminders skips an event handed off by someone else', () async {
+      await settingsController.setEnabled(true);
+
+      final handedOff = Event(
+        id: 'handoff:e1',
+        title: 'Borrowed',
+        time: const TimeOfDay(hour: 0, minute: 0),
+        frequency: 'One-time',
+        oneTimeDate: DateTime(2026, 10, 25),
+        handoffEventId: 'e1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      when(() => mockEventRepo.fetchAllEvents())
+          .thenAnswer((_) async => [handedOff]);
+      when(() => mockSessionRepo.fetchAllSessions())
+          .thenAnswer((_) async => []);
+
+      final service = AttendanceReminderService(
+        notificationsPlugin: mockNotifications,
+        settingsController: settingsController,
+        eventRepository: mockEventRepo,
+        sessionRepository: mockSessionRepo,
+      );
+      await service.syncReminders(currentTime: DateTime(2026, 10, 25, 18, 0));
+
+      verifyNever(() => mockNotifications.zonedSchedule(
+            id: any(named: 'id'),
+            title: any(named: 'title'),
+            body: any(named: 'body'),
+            scheduledDate: any(named: 'scheduledDate'),
+            notificationDetails: any(named: 'notificationDetails'),
+            androidScheduleMode: any(named: 'androidScheduleMode'),
+            payload: any(named: 'payload'),
+          ));
+    });
+
     test('syncReminders ignores a stored offset and fires one hour after start',
         () async {
       SharedPreferences.setMockInitialValues({

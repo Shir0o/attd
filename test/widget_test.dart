@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
@@ -14,6 +15,8 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/handoff/data/incoming_handoff_files.dart';
+import 'package:attendance_tracker/features/handoff/domain/handoff_file.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/onboarding/application/onboarding_controller.dart';
@@ -203,6 +206,90 @@ void main() {
 
     // Verify default view is Attendance Hub
     expect(find.text('Today'), findsOneWidget);
+  });
+
+  group('handoff files', () {
+    final handoffBytes = HandoffCodec.encodeBytes(
+      HandoffRoster(
+        eventId: 'ev-1',
+        eventTitle: 'Sunday Service',
+        sessionDate: DateTime(2026, 11, 15),
+        roster: const [HandoffPerson(id: 'm1', name: 'Alice')],
+      ),
+    );
+
+    Future<_FakeIncomingFiles> pumpApp(
+      WidgetTester tester, {
+      required bool onboarded,
+      Uint8List? initial,
+    }) async {
+      SharedPreferences.setMockInitialValues(
+        onboarded ? {'onboarding_completed': true} : {},
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final incoming = _FakeIncomingFiles(initial);
+      final eventRepo = MockEventRepository()..emit([]);
+      await tester.pumpWidget(
+        AttendanceApp(
+          themeController: ThemeController(prefs),
+          onboardingController: OnboardingController(prefs),
+          repository: MockAttendanceRepository(),
+          sessionRepository: MockSessionRepository(),
+          eventRepository: eventRepo,
+          authRepository: MockAuthRepository(),
+          incomingHandoffFiles: incoming,
+          prefs: prefs,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+      return incoming;
+    }
+
+    testWidgets('a file that launched the app is opened', (tester) async {
+      await pumpApp(tester, onboarded: true, initial: handoffBytes);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Added to your events'), findsOneWidget);
+    });
+
+    testWidgets('a file opened while running is opened', (tester) async {
+      final incoming = await pumpApp(tester, onboarded: true);
+      expect(find.text('Added to your events'), findsNothing);
+
+      incoming.deliver(handoffBytes);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Added to your events'), findsOneWidget);
+    });
+
+    testWidgets('a damaged file is explained', (tester) async {
+      final incoming = await pumpApp(tester, onboarded: true);
+
+      incoming.deliver(Uint8List.fromList([0, 1, 2]));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Could not open the file'), findsOneWidget);
+    });
+
+    testWidgets('a file that arrives during onboarding waits for it',
+        (tester) async {
+      final incoming = await pumpApp(tester, onboarded: false);
+
+      incoming.deliver(handoffBytes);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Added to your events'), findsNothing);
+
+      final app = tester.widget<AttendanceApp>(find.byType(AttendanceApp));
+      await app.onboardingController.setCoordinatorAgeAffirmed(true);
+      await app.onboardingController.completeOnboarding();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+
+      expect(find.text('Added to your events'), findsOneWidget);
+    });
   });
 
   testWidgets('AttendanceApp renders onboarding when not completed',
@@ -514,3 +601,27 @@ void testAttendanceAppDefaults() {
   });
 }
 
+
+/// Stands in for the platform channel: [initial] is the file that launched the
+/// app and [deliver] a file opened while it runs.
+class _FakeIncomingFiles extends IncomingHandoffFiles {
+  _FakeIncomingFiles(this.initial);
+
+  Uint8List? initial;
+  void Function(Uint8List bytes)? _onFile;
+
+  @override
+  Future<Uint8List?> takeInitialFile() async {
+    final bytes = initial;
+    initial = null;
+    return bytes;
+  }
+
+  @override
+  void listen(void Function(Uint8List bytes) onFile) => _onFile = onFile;
+
+  void deliver(Uint8List bytes) => _onFile?.call(bytes);
+
+  @override
+  void dispose() => _onFile = null;
+}

@@ -1,5 +1,7 @@
 # 0005. Scoped Google Drive Subfolder Sharing for Multi-User Attendance Collaboration
 
+- Status: Superseded by [ADR 0011](0011-one-shot-event-handoff.md)
+
 ## Context
 Users need to collaborate with others to take attendance for a specific subset of events without exposing their entire database (unshared events, private notes, or family structures) and without creating security/2FA friction by sharing a single Google account login. The app is privacy-first, local-first, and lacks a centralized multi-tenant database backend.
 

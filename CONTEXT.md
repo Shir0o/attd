@@ -60,17 +60,17 @@ _Avoid_: Unverified cleanup, blind migration
 The idempotent removal of redundant attendance marks (matching event title, session date, and attendee name) or duplicate member profiles across families, retaining exactly one canonical record.
 _Avoid_: Mass wipe, duplicate purge
 
-**Shared Event**:
-An event whose roster and attendance marking sessions are scoped and published to a shared cloud folder, granting another Google user permission to co-record attendance.
-_Avoid_: Co-worker event, team event
+**Handoff**:
+A one-shot delegation of one session of one event: the owner sends a plain file holding the event name, the session date and the roster names; the helper marks on their own phone and sends a Handoff Result back. No account, server or sync.
+_Avoid_: Shared event, collaboration, co-recording
 
-**Shared Slice**:
-The isolated data payload containing only the specific event definitions, linked member profiles, and session marks required for a Shared Event, strictly excluding unshared events and private notes.
-_Avoid_: Database export, partial backup
+**Handed-off Event**:
+An event on the helper's phone that came from someone else's Handoff, marked `handoffEventId`. It can be marked and sent back, never edited, and its roster lives under namespaced ids so it can be removed without touching the helper's own data.
+_Avoid_: Shared event, read-only event, borrowed event
 
-**Share Collaborator**:
-A Google account authorized to view a Shared Event and record attendance marks within its sessions.
-_Avoid_: Co-worker, sub-user, assistant taker
+**Handoff Result**:
+The file the helper sends back: event id, session date, marks (member id, name, status, recorded-at), guest marks and an optional helper name. The owner reviews it, then merges it into the session for that event and date.
+_Avoid_: Sync, shared slice
 
 **Member Directory**:
 Every member the user knows, across all events. A person in the Member Directory is not expected at any particular event until they are on that event's Event Roster.
@@ -81,7 +81,7 @@ The members expected at one event; the denominator of its Attendance Rate. Addin
 _Avoid_: Roster (unqualified), event members, attendee list
 
 **Guest Mark**:
-An attendance mark recorded for an attendee not on the event's roster (any event, shared or not), preserving the attendee name snapshot with a null member ID for the session without adding them to the roster. Adding someone to the roster instead creates a member, not a Guest Mark. Legitimate attendance: never flagged by the storage inspector.
+An attendance mark recorded for an attendee not on the event's roster (any event, including a Handed-off Event, where it is the only way to add someone), preserving the attendee name snapshot with a null member ID for the session without adding them to the roster. Adding someone to the roster instead creates a member, not a Guest Mark. Legitimate attendance: never flagged by the storage inspector.
 _Avoid_: Walk-in, temporary member, unlisted attendee, unlinked mark
 
 **Insights**:
@@ -105,7 +105,7 @@ The date of the earliest non-deleted session of an event carrying a mark for a p
 _Avoid_: Join date, member since, signup date
 
 **Insights Configuration**:
-The per-event presets governing what Insights computes and shows — viewing range, Regular threshold and window, Lapsed rule, and section visibility — stored on the Event beside the existing roster grouping and marking mode presets. A preset, not derived data. Read-only on a Shared Event the user does not own.
+The per-event presets governing what Insights computes and shows — viewing range, Regular threshold and window, Lapsed rule, and section visibility — stored on the Event beside the existing roster grouping and marking mode presets. A preset, not derived data.
 _Avoid_: Stats settings, dashboard preferences
 
 **Attendance Marking Session**:
@@ -119,10 +119,6 @@ _Avoid_: Cleanup tool, DB cleaner, backup manager
 **Active Roster Index**:
 The in-memory search, query, and ranking index derived from an Event Roster and historical sessions, providing tokenized surname matching, initials lookup, and likelihood ordering behind a single query interface.
 _Avoid_: Search helper, initials indexer, likelihood cache
-
-**Shared Event Synchronization**:
-The ports-and-adapters synchronization coordinator that mediates between Google Drive subfolders / Shared Slices and local repositories without leaking storage schemas into UI controllers.
-_Avoid_: Drive sync, sharing helper, cloud bridge
 
 **Cloud Snapshot**:
 A point-in-time archive of the app's repositories stored in Google Drive only when sync detects actual data changes (or prior to a destructive recovery action), annotated with a bounded list of the exact domain items changed and subject to automatic retention thinning.
