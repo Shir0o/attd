@@ -161,6 +161,90 @@ void main() {
     expect(toggle.value, isTrue);
   });
 
+  group('Flag again', () {
+    Event stoppedEvent() => Event(
+          id: 'e1',
+          title: 'Test Event',
+          time: const TimeOfDay(hour: 10, minute: 0),
+          frequency: 'Weekly',
+          repeatingDays: ['Monday'],
+          memberIds: ['1', '2'],
+          checkOnStopFlagging: {'1'},
+          isShared: true,
+          sharedFolderId: 'folder-1',
+          createdAt: DateTime(2025, 1, 1),
+        );
+
+    Future<void> pumpPage(WidgetTester tester, Event event) async {
+      mockAttendanceRepo.families = [
+        Family(
+          id: 'f1',
+          displayName: 'Family 1',
+          members: [
+            Member(id: '1', displayName: 'Alice'),
+            Member(id: '2', displayName: 'Bob'),
+          ],
+          updatedAt: DateTime.now(),
+        )
+      ];
+      mockEventRepo.event = event;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MembersPage(
+            attendanceRepository: mockAttendanceRepo,
+            eventRepository: mockEventRepo,
+            event: event,
+            disableAnimations: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows only for stopped members and persists with copyWith',
+        (tester) async {
+      await pumpPage(tester, stoppedEvent());
+
+      expect(find.byKey(const ValueKey('flag_again_1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('flag_again_2')), findsNothing);
+      expect(find.text('Flag again'), findsOneWidget);
+      expect(find.textContaining('Not flagged'), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('flag_again_1'))).height,
+        greaterThanOrEqualTo(48),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('flag_again_1')));
+      await tester.pumpAndSettle();
+
+      final saved = mockEventRepo.updatedEvents.single;
+      expect(saved.checkOnStopFlagging, isEmpty);
+      expect(saved.memberIds, ['1', '2']);
+      expect(saved.isShared, isTrue);
+      expect(saved.sharedFolderId, 'folder-1');
+      expect(find.byKey(const ValueKey('flag_again_1')), findsNothing);
+      expect(find.textContaining('Not flagged'), findsNothing);
+    });
+
+    testWidgets('shows nothing when nobody is stopped', (tester) async {
+      await pumpPage(
+        tester,
+        stoppedEvent().copyWith(checkOnStopFlagging: const {}),
+      );
+      expect(find.text('Flag again'), findsNothing);
+    });
+
+    testWidgets('reports a failed save', (tester) async {
+      await pumpPage(tester, stoppedEvent());
+      mockEventRepo.updateError = StateError('boom');
+
+      await tester.tap(find.byKey(const ValueKey('flag_again_1')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Failed to update event'), findsOneWidget);
+    });
+  });
+
   testWidgets('MembersPage crossfades its skeleton into the list (#222 M7)', (
     WidgetTester tester,
   ) async {

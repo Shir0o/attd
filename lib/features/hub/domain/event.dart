@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/session.dart';
 import '../../checkon/domain/check_on_follow_up.dart';
 
 class Event {
@@ -172,4 +173,17 @@ class Event {
 
   @override
   int get hashCode => id.hashCode;
+}
+
+/// Which sessions belong to an event. Shared by the History page and its CSV
+/// export so both list the same sessions.
+extension EventSessions on Event {
+  bool owns(Session session) {
+    final sessionEventId = session.eventId;
+    if (sessionEventId != null && sessionEventId.isNotEmpty) {
+      return sessionEventId == id;
+    }
+    // Legacy fallback: only match by title if no eventId is present.
+    return session.title.trim() == title.trim();
+  }
 }

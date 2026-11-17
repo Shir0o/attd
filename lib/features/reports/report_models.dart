@@ -1,15 +1,13 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import '../hub/domain/event.dart';
 
-enum ReportFormat { csv, pdf, image }
+enum ReportFormat { csv }
 
 class ReportRequest {
   ReportRequest({
     required this.startDate,
     required this.endDate,
     required this.format,
-    this.syncToGoogleSheets = false,
-    this.selectedEventTitles = const [],
+    this.event,
   }) : assert(
          !endDate.isBefore(startDate),
          'End date must be after start date',
@@ -18,22 +16,21 @@ class ReportRequest {
   final DateTime startDate;
   final DateTime endDate;
   final ReportFormat format;
-  final bool syncToGoogleSheets;
-  final List<String> selectedEventTitles;
+
+  /// When set, only this event's sessions are exported.
+  final Event? event;
 
   ReportRequest copyWith({
     DateTime? startDate,
     DateTime? endDate,
     ReportFormat? format,
-    bool? syncToGoogleSheets,
-    List<String>? selectedEventTitles,
+    Event? event,
   }) {
     return ReportRequest(
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       format: format ?? this.format,
-      syncToGoogleSheets: syncToGoogleSheets ?? this.syncToGoogleSheets,
-      selectedEventTitles: selectedEventTitles ?? this.selectedEventTitles,
+      event: event ?? this.event,
     );
   }
 }
@@ -65,37 +62,9 @@ class ReportExportResult {
     required this.filePath,
     required this.format,
     required this.summary,
-    this.sheetSync,
   });
 
   final String filePath;
   final ReportFormat format;
   final ReportSummary summary;
-  final SheetSyncResult? sheetSync;
-}
-
-class SheetSyncResult {
-  const SheetSyncResult({
-    required this.attempted,
-    required this.success,
-    this.shareLink,
-    this.error,
-  });
-
-  final bool attempted;
-  final bool success;
-  final String? shareLink;
-  final String? error;
-}
-
-class ReportShareOption {
-  const ReportShareOption({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final AsyncCallback onTap;
 }

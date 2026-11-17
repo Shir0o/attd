@@ -9,6 +9,7 @@ import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
+import '../../checkon/domain/check_on_board.dart';
 import '../../settings/presentation/duplicate_members_cleanup_sheet.dart';
 import '../data/event_repository.dart';
 import '../domain/event.dart';
@@ -725,6 +726,24 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
+  Future<void> _flagAgain(Member member) async {
+    final event = _currentEvent;
+    if (event == null || widget.eventRepository == null) return;
+    // copyWith (via withoutStopFlagging), not a fresh Event, so the event's
+    // other fields survive.
+    final updatedEvent = event.withoutStopFlagging(member.id);
+    setState(() => _currentEvent = updatedEvent);
+    try {
+      await widget.eventRepository!.updateEvent(updatedEvent);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update event: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
@@ -930,6 +949,10 @@ class _MembersPageState extends State<MembersPage> {
           onDelete: () => widget.selectionMode
               ? _toggleSelection(m, false)
               : _toggleEventMember(m, false),
+          onFlagAgain: !widget.selectionMode &&
+                  (_currentEvent?.checkOnStopFlagging.contains(m.id) ?? false)
+              ? () => _flagAgain(m)
+              : null,
         ));
       }
     } else {
@@ -1018,6 +1041,7 @@ class _MemberRow extends StatelessWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
+    this.onFlagAgain,
   });
 
   final Member member;
@@ -1027,6 +1051,9 @@ class _MemberRow extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
+  /// Set only for a member who is set to "stop flagging" for this event.
+  final VoidCallback? onFlagAgain;
+
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
@@ -1034,8 +1061,10 @@ class _MemberRow extends StatelessWidget {
         ? '?'
         : member.displayName.characters.first.toUpperCase();
 
-    final subtitleText =
+    final statusText =
         isEventMode ? (isSelected ? 'Assigned' : 'Not assigned') : 'Member';
+    final subtitleText =
+        onFlagAgain != null ? '$statusText · Not flagged' : statusText;
 
     return Dismissible(
       key: ValueKey('dismiss_${member.id}_$isEventMode'),
@@ -1112,6 +1141,29 @@ class _MemberRow extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onFlagAgain != null)
+                  Semantics(
+                    button: true,
+                    label: 'Flag ${member.displayName} again',
+                    excludeSemantics: true,
+                    child: TextButton(
+                      key: ValueKey('flag_again_${member.id}'),
+                      onPressed: onFlagAgain,
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        foregroundColor: c.ink2,
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Text(
+                        'Flag again',
+                        style: AppTypography.geist(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: c.ink2,
+                        ),
+                      ),
+                    ),
+                  ),
                 if (isEventMode)
                   ConvToggle(value: isSelected, onChanged: onToggle)
                 else
