@@ -67,7 +67,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         title: 'Tap the names.',
         description:
             'Everyone is on one alphabetical grid. Tap whoever is here, then tap Done.',
-        art: OnboardingDeckArt(),
+        art: OnboardingGridArt(),
       ),
       const _OnboardingSlide(
         eyebrow: '02 · Session history',

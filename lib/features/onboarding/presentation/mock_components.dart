@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/design/app_radii.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_primitives.dart';
 import '../../../core/design/widgets/conv_theme.dart';
@@ -8,129 +9,147 @@ import '../../../core/design/widgets/conv_theme.dart';
 // Onboarding editorial art widgets (mirror screens.jsx 545–709)
 // ─────────────────────────────────────────────────────────────
 
-/// Overlapping member cards with rotating present/absent stamps.
-class OnboardingDeckArt extends StatelessWidget {
-  const OnboardingDeckArt({super.key});
+/// Static mock of the real marking grid: name tiles sorted A to Z, a few
+/// filled violet as present, and the slim letter strip down the right edge.
+/// Decorative only, so it is excluded from semantics.
+class OnboardingGridArt extends StatelessWidget {
+  const OnboardingGridArt({super.key});
+
+  static const _members = [
+    (given: 'Alma', surname: 'Reyes'),
+    (given: 'Ben', surname: 'Okafor'),
+    (given: 'Cara', surname: 'Lindqvist'),
+    (given: 'Dev', surname: 'Patel'),
+    (given: 'Elena', surname: 'Voss'),
+    (given: 'Finn', surname: 'Hale'),
+    (given: 'Gia', surname: 'Moretti'),
+    (given: 'Hugo', surname: 'Brandt'),
+    (given: 'Iris', surname: 'Tanaka'),
+  ];
+  static const _present = {1, 4, 6};
+  static const _letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+  static const _columns = 3;
+  static const _tileHeight = 56.0;
+  static const _gap = 8.0;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 280,
-      height: 280,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          // Back card — fanned left, Absent stamp on its top-left corner.
-          Transform.translate(
-            offset: const Offset(-30, 0),
-            child: Transform.rotate(
-              angle: -0.122, // -7°
-              child: const _DeckCard(
-                letter: 'J',
-                name: 'Jane Smith',
-                tone: ConvTone.absent,
-                width: 168,
-                height: 222,
-                avatarSize: 62,
-                nameSize: 17,
-                stampLabel: 'Absent',
-                stampAlignment: Alignment.topLeft,
+    final c = context.conv;
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 290,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var r = 0; r < _members.length ~/ _columns; r++) ...[
+                    if (r > 0) const SizedBox(height: _gap),
+                    Row(
+                      children: [
+                        for (var k = 0; k < _columns; k++) ...[
+                          if (k > 0) const SizedBox(width: _gap),
+                          Expanded(
+                            child: _GridTile(
+                              given: _members[r * _columns + k].given,
+                              surname: _members[r * _columns + k].surname,
+                              isPresent: _present.contains(r * _columns + k),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
-          ),
-          // Front card — fanned right, Present stamp on its top-right corner.
-          Transform.translate(
-            offset: const Offset(28, 0),
-            child: Transform.rotate(
-              angle: 0.087, // 5°
-              child: const _DeckCard(
-                letter: 'J',
-                name: 'John Doe',
-                tone: ConvTone.present,
-                width: 192,
-                height: 250,
-                avatarSize: 78,
-                nameSize: 22,
-                stampLabel: 'Present',
-                stampAlignment: Alignment.topRight,
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 18,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final letter in _letters)
+                    Container(
+                      width: 18,
+                      height: 18,
+                      alignment: Alignment.center,
+                      decoration: letter == _letters.first
+                          ? BoxDecoration(
+                              color: c.primary,
+                              shape: BoxShape.circle,
+                            )
+                          : null,
+                      child: Text(
+                        letter,
+                        style: AppTypography.geist(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color:
+                              letter == _letters.first ? c.onPrimary : c.ink3,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DeckCard extends StatelessWidget {
-  const _DeckCard({
-    required this.letter,
-    required this.name,
-    required this.tone,
-    required this.width,
-    required this.height,
-    required this.avatarSize,
-    required this.nameSize,
-    required this.stampLabel,
-    required this.stampAlignment,
+class _GridTile extends StatelessWidget {
+  const _GridTile({
+    required this.given,
+    required this.surname,
+    required this.isPresent,
   });
 
-  final String letter;
-  final String name;
-  final ConvTone tone;
-  final double width;
-  final double height;
-  final double avatarSize;
-  final double nameSize;
-  final String stampLabel;
-  final Alignment stampAlignment;
+  final String given;
+  final String surname;
+  final bool isPresent;
 
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final stampOnLeft = stampAlignment == Alignment.topLeft;
-    return SizedBox(
-      width: width,
-      height: height,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Positioned.fill forces the card to the fixed SizedBox size, while
-          // FittedBox keeps the content from overflowing under large
-          // accessibility text scales.
-          Positioned.fill(
-            child: ConvCard(
-              padding: const EdgeInsets.all(18),
-              child: Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ConvAvatar(letter: letter, size: avatarSize, tone: tone),
-                      const SizedBox(height: 12),
-                      Text(
-                        name,
-                        style: AppTypography.fraunces(
-                          fontSize: nameSize,
-                          fontWeight: FontWeight.w500,
-                          color: c.ink,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    return Container(
+      height: OnboardingGridArt._tileHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isPresent ? c.present : c.card,
+        borderRadius: AppRadii.compactR,
+      ),
+      // FittedBox keeps the text inside the tile under large text scales.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              given,
+              style: AppTypography.geist(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                height: 1.15,
+                color: isPresent ? c.onPrimary : c.ink,
               ),
             ),
-          ),
-          Positioned(
-            top: 14,
-            left: stampOnLeft ? 14 : null,
-            right: stampOnLeft ? null : 14,
-            child: ConvStamp(label: stampLabel, tone: tone),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              surname.toUpperCase(),
+              style: AppTypography.eyebrow(
+                color: isPresent ? c.onPrimary : c.ink2,
+                fontSize: 9,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
