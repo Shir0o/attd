@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
 import 'package:attendance_tracker/core/presentation/no_transitions_builder.dart';
@@ -12,6 +13,9 @@ import 'package:attendance_tracker/features/attendance/models/attendance_status.
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/handoff/data/handoff_sharer.dart';
+import 'package:attendance_tracker/features/handoff/data/incoming_handoff_files.dart';
+import 'package:attendance_tracker/features/handoff/presentation/handoff_intake.dart';
+import 'package:attendance_tracker/features/handoff/presentation/send_back_page.dart';
 import 'package:attendance_tracker/features/handoff/domain/handoff_file.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
@@ -22,6 +26,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../handoff/handoff_test_support.dart' as handoff;
+
+class _RecordingIntake extends HandoffIntake {
+  _RecordingIntake()
+      : super(
+          navigatorKey: GlobalKey<NavigatorState>(),
+          service: handoff.FakeHandoffService(),
+        );
+
+  final opened = <Uint8List>[];
+
+  @override
+  Future<void> open(Uint8List bytes) async => opened.add(bytes);
+}
 
 class FakeHandoffSharer extends HandoffSharer {
   final sent = <({HandoffDocument document, String fileName, String text})>[];
@@ -207,6 +226,8 @@ void main() {
     bool systemDisableAnimations = false,
     bool snapPages = false,
     HandoffSharer? handoffSharer,
+    HandoffIntake? handoffIntake,
+    PickHandoffBytes? pickHandoffBytes,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -233,6 +254,8 @@ void main() {
           eventRepository: eventRepository,
           attendanceRepository: attendanceRepository,
           handoffSharer: handoffSharer,
+          handoffIntake: handoffIntake,
+          pickHandoffBytes: pickHandoffBytes,
           disableAnimations: disableAnimations,
         ),
       ),
@@ -1049,6 +1072,198 @@ void main() {
       expect(find.textContaining('Could not prepare'), findsOneWidget);
     });
   });
+
+  group('someone else\'s (handed-off) event', () {
+    Event handedOffToday() {
+      final now = DateTime.now();
+      return Event(
+        id: 'handoff:ev-1',
+        title: 'Borrowed Service',
+        time: const TimeOfDay(hour: 0, minute: 0),
+        frequency: 'One-time',
+        oneTimeDate: DateTime(now.year, now.month, now.day),
+        memberIds: const ['handoff:m1'],
+        handoffEventId: 'ev-1',
+        createdAt: now,
+      );
+    }
+
+    List<String?> menuTitles(WidgetTester tester) => tester
+        .widgetList<ListTile>(
+          find.descendant(
+            of: find.byType(BottomSheet),
+            matching: find.byType(ListTile),
+          ),
+        )
+        .map((t) => (t.title! as Text).data)
+        .toList();
+
+    testWidgets('is labelled as someone else\'s and has no time of its own',
+        (tester) async {
+      await pumpView(tester);
+      eventRepository.emit([handedOffToday()]);
+      await tester.pumpAndSettle();
+
+      expect(find.text("SOMEONE ELSE'S"), findsOneWidget);
+      expect(find.text('SHARED'), findsNothing);
+      expect(find.textContaining('12:00 AM'), findsNothing);
+      expect(find.text('TODAY'), findsOneWidget);
+    });
+
+    testWidgets('offers only Remove before anything is marked', (tester) async {
+      await pumpView(tester);
+      eventRepository.emit([handedOffToday()]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(menuTitles(tester), ['Remove from my phone']);
+      expect(find.text('Edit Event'), findsNothing);
+      expect(find.text('Hand off'), findsNothing);
+      expect(find.text('View History'), findsNothing);
+    });
+
+    testWidgets('offers Send back once marks exist', (tester) async {
+      sessionRepository.sessions = [handoff.markedSession()];
+      await pumpView(tester);
+      eventRepository.emit([handedOffToday()]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(menuTitles(tester), ['Send back', 'Remove from my phone']);
+    });
+
+    testWidgets('Remove asks first and then removes the event',
+        (tester) async {
+      await pumpView(tester);
+      eventRepository.emit([handedOffToday()]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove from my phone'));
+      await tester.pumpAndSettle();
+      expect(find.text('Remove from this phone?'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(eventRepository.deletedEventIds, isEmpty);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove from my phone'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirmRemoveHandedOff')));
+      await tester.pumpAndSettle();
+
+      expect(eventRepository.deletedEventIds, ['handoff:ev-1']);
+    });
+
+    testWidgets('tapping a marked one goes to Send back, not the summary',
+        (tester) async {
+      final marked = handoff.markedSession().copyWith(
+            eventId: 'handoff:ev-1',
+            sessionDate: DateTime(
+              DateTime.now().year,
+              DateTime.now().month,
+              DateTime.now().day,
+            ),
+          );
+      sessionRepository.sessions = [marked];
+      await pumpView(tester);
+      eventRepository.emit([handedOffToday()]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Borrowed Service'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SendBackPage), findsOneWidget);
+    });
+
+    testWidgets('an ordinary event is not labelled', (tester) async {
+      await pumpView(tester);
+      eventRepository.emit([todayEvent()]);
+      await tester.pumpAndSettle();
+      expect(find.text("SOMEONE ELSE'S"), findsNothing);
+    });
+  });
+
+  group('Open handoff file', () {
+    testWidgets('is absent when the app cannot open files', (tester) async {
+      await pumpView(tester);
+      eventRepository.emit([todayEvent()]);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('openHandoffFileButton')), findsNothing);
+    });
+
+    testWidgets('picks a file and hands its bytes to the intake',
+        (tester) async {
+      final intake = _RecordingIntake();
+      await pumpView(
+        tester,
+        handoffIntake: intake,
+        pickHandoffBytes: () async => Uint8List.fromList([1, 2, 3]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSize(find.byKey(const Key('openHandoffFileButton'))).height,
+        greaterThanOrEqualTo(48),
+      );
+      await tester.tap(find.byKey(const Key('openHandoffFileButton')));
+      await tester.pumpAndSettle();
+
+      expect(intake.opened.single, Uint8List.fromList([1, 2, 3]));
+    });
+
+    testWidgets('cancelling the picker opens nothing', (tester) async {
+      final intake = _RecordingIntake();
+      await pumpView(
+        tester,
+        handoffIntake: intake,
+        pickHandoffBytes: () async => null,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('openHandoffFileButton')));
+      await tester.pumpAndSettle();
+
+      expect(intake.opened, isEmpty);
+    });
+
+    testWidgets('a refused file is explained', (tester) async {
+      await pumpView(
+        tester,
+        handoffIntake: _RecordingIntake(),
+        pickHandoffBytes: () async =>
+            throw const HandoffFormatException('Too large.'),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('openHandoffFileButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Too large.'), findsOneWidget);
+    });
+
+    testWidgets('an unexpected picker failure is reported', (tester) async {
+      await pumpView(
+        tester,
+        handoffIntake: _RecordingIntake(),
+        pickHandoffBytes: () async => throw StateError('no picker'),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('openHandoffFileButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Could not open that file.'), findsOneWidget);
+    });
+  });
+
 
   testWidgets('HubAttendanceView renders when a session has 0 attendees (all absent)', (tester) async {
     final now = DateTime.now();

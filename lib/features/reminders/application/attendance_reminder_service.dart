@@ -198,7 +198,9 @@ class AttendanceReminderService {
     }
 
     final events = await _eventRepository.fetchAllEvents();
-    final activeEvents = events.where((e) => e.deletedAt == null).toList();
+    // An event handed off by someone else has no schedule of its own.
+    final activeEvents =
+        events.where((e) => e.deletedAt == null && !e.isHandedOff).toList();
     final allSessions = await _sessionRepository.fetchAllSessions();
 
     for (final event in activeEvents) {

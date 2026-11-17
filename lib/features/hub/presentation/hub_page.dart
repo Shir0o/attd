@@ -9,6 +9,8 @@ import '../../settings/data/local_backup_service.dart';
 import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
 import '../../handoff/data/handoff_sharer.dart';
+import '../../handoff/data/incoming_handoff_files.dart';
+import '../../handoff/presentation/handoff_intake.dart';
 import '../data/event_repository.dart';
 import 'hub_attendance_view.dart';
 
@@ -22,6 +24,8 @@ class HubPage extends StatefulWidget {
     this.driveService,
     this.localBackupService,
     this.handoffSharer,
+    this.handoffIntake,
+    this.pickHandoffBytes,
     this.appLockController,
     this.crashReportingService,
     this.reminderSettingsController,
@@ -36,6 +40,8 @@ class HubPage extends StatefulWidget {
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
   final HandoffSharer? handoffSharer;
+  final HandoffIntake? handoffIntake;
+  final PickHandoffBytes? pickHandoffBytes;
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
@@ -57,6 +63,8 @@ class _HubPageState extends State<HubPage> {
       driveService: widget.driveService,
       localBackupService: widget.localBackupService,
       handoffSharer: widget.handoffSharer,
+      handoffIntake: widget.handoffIntake,
+      pickHandoffBytes: widget.pickHandoffBytes,
       appLockController: widget.appLockController,
       crashReportingService: widget.crashReportingService,
       reminderSettingsController: widget.reminderSettingsController,

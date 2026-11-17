@@ -161,6 +161,38 @@ void main() {
     expect(toggle.value, isTrue);
   });
 
+  testWidgets('MembersPage keeps a handed-off roster out of the directory',
+      (tester) async {
+    mockAttendanceRepo.families = [
+      Family(
+        id: 'f1',
+        displayName: 'Own',
+        members: [Member(id: '1', displayName: 'Own Alice')],
+        updatedAt: DateTime.now(),
+      ),
+      Family(
+        id: 'handoff:ev-1',
+        displayName: 'Borrowed Roster',
+        members: [Member(id: 'handoff:m1', displayName: 'Their Bob')],
+        updatedAt: DateTime.now(),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MembersPage(
+          attendanceRepository: mockAttendanceRepo,
+          eventRepository: mockEventRepo,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Own Alice'), findsWidgets);
+    expect(find.textContaining('Their Bob'), findsNothing);
+  });
+
   group('Flag again', () {
     Event stoppedEvent() => Event(
           id: 'e1',

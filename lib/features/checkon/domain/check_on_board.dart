@@ -21,7 +21,9 @@ class CheckOnBoard {
   final List<CheckOnEntry> entries;
   final Set<CheckOnEntry> _followedUp;
 
-  /// Computes the board for the live [events]. Deleted events are skipped.
+  /// Computes the board for the live [events]. Deleted events are skipped, and
+  /// so are events handed off by someone else: their roster is not this
+  /// phone's to follow up on.
   factory CheckOnBoard.compute({
     required Iterable<Event> events,
     required List<Member> members,
@@ -30,7 +32,7 @@ class CheckOnBoard {
     final entries = <CheckOnEntry>[];
     final followedUp = <CheckOnEntry>{};
     for (final event in events) {
-      if (event.deletedAt != null) continue;
+      if (event.deletedAt != null || event.isHandedOff) continue;
       for (final entry in checkOnForEvent(
         event: event,
         members: members,

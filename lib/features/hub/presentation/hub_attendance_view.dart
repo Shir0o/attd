@@ -29,8 +29,13 @@ import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
+import '../../handoff/data/handoff_service.dart';
 import '../../handoff/data/handoff_sharer.dart';
+import '../../handoff/data/incoming_handoff_files.dart';
+import '../../handoff/presentation/handoff_intake.dart';
+import '../../handoff/presentation/send_back_page.dart';
 import '../../handoff/domain/handoff_builder.dart';
+import '../../handoff/domain/handoff_file.dart';
 import '../../handoff/presentation/handoff_explainer.dart';
 import '../../checkon/presentation/check_on_hub_card.dart';
 import '../../checkon/presentation/check_on_report_page.dart';
@@ -45,6 +50,8 @@ class HubAttendanceView extends StatefulWidget {
     this.driveService,
     this.localBackupService,
     this.handoffSharer,
+    this.handoffIntake,
+    this.pickHandoffBytes,
     this.appLockController,
     this.crashReportingService,
     this.reminderSettingsController,
@@ -61,6 +68,13 @@ class HubAttendanceView extends StatefulWidget {
 
   /// Opens the share sheet for handoff files. Tests pass a fake.
   final HandoffSharer? handoffSharer;
+
+  /// Where an opened handoff file goes. Without one there is no "Open handoff
+  /// file" entry (only tests build the hub without it).
+  final HandoffIntake? handoffIntake;
+
+  /// Chooses the file for "Open handoff file". Tests pass a fake.
+  final PickHandoffBytes? pickHandoffBytes;
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
@@ -134,6 +148,30 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       debugPrint(
           'DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
     }
+  }
+
+  HandoffService get _handoffService => HandoffService(
+        attendanceRepository: widget.attendanceRepository,
+        eventRepository: widget.eventRepository,
+        sessionRepository: widget.sessionRepository,
+      );
+
+  /// The in-app way to open a handoff file, for when tapping an attachment
+  /// does not reach the app.
+  Future<void> _openHandoffFile() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await (widget.pickHandoffBytes ?? pickHandoffFileBytes)();
+      if (bytes == null) return;
+      await widget.handoffIntake?.open(bytes);
+    } on HandoffFormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not open that file.')),
+      );
+    }
+    _refreshData();
   }
 
   int get _todayEventCount => _events.where(_isEventToday).length;
@@ -260,6 +298,10 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
   }
 
   void _showEventMenu(BuildContext context, Event event) {
+    if (event.isHandedOff) {
+      _showHandedOffMenu(context, event);
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -324,6 +366,66 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
         ),
       ),
     );
+  }
+
+  /// Someone else's event: no edit, roster, history or hand-off. The helper
+  /// can send marks back again and remove it.
+  void _showHandedOffMenu(BuildContext context, Event event) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_sessionsForEvent(event).isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.ios_share_outlined),
+                  title: const Text('Send back'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openSendBack(event);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Remove from my phone'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  final ok = await confirmRemoveHandedOff(context, event);
+                  if (!ok) return;
+                  await _handoffService.remove(event);
+                  _refreshData();
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSendBack(Event event) async {
+    final sessions = _sessionsForEvent(event)
+      ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+    if (sessions.isEmpty) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SendBackPage(
+          event: event,
+          session: sessions.first,
+          sessionRepository: widget.sessionRepository,
+          service: _handoffService,
+          sharer: widget.handoffSharer,
+          disableAnimations: widget.disableAnimations,
+        ),
+      ),
+    );
+    _refreshData();
   }
 
   /// Explains what the file holds, then opens the share sheet with it. The
@@ -460,6 +562,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   ],
                 ),
                 actions: [
+                  if (widget.handoffIntake != null)
+                    IconButton(
+                      key: const Key('openHandoffFileButton'),
+                      icon: const Icon(Icons.file_open_outlined),
+                      onPressed: _openHandoffFile,
+                      tooltip: 'Open handoff file',
+                    ),
                   IconButton(
                     icon: const Icon(Icons.settings),
                     onPressed: _navigateToSettings,
@@ -780,7 +889,13 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     debugPrint(
         'DEBUG: HubAttendanceView.onTap: foundSession=${foundSession?.id}, membersCount=${sessionMembers.length}');
 
-    if (sessionMembers.isEmpty && foundSession == null) {
+    if (event.isHandedOff && foundSession != null) {
+      // Already marked: the next step is sending the marks back.
+      await _openSendBack(event);
+      return;
+    }
+
+    if (sessionMembers.isEmpty && foundSession == null && !event.isHandedOff) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1017,7 +1132,9 @@ class _RestStateCard extends StatelessWidget {
                                   Icon(Icons.schedule, size: 13, color: c.ink3),
                                   const SizedBox(width: 6),
                                   Text(
-                                    event.time.format(context),
+                                    event.isHandedOff
+                                        ? 'Handed off to you'
+                                        : event.time.format(context),
                                     style: AppTypography.geist(
                                       fontSize: 12,
                                       color: c.ink3,
@@ -1119,10 +1236,14 @@ class _HeroEventCardState extends State<_HeroEventCard>
   @override
   Widget build(BuildContext context) {
     final c = context.conv;
-    final time = widget.event.time.format(context);
-    final pillLabel = widget.isToday
-        ? 'TODAY · $time'
-        : '${DateFormat('EEE').format(widget.status.displayDate).toUpperCase()} · $time';
+    // A handed-off event has no time of its own, only the day handed off.
+    final time = widget.event.isHandedOff
+        ? null
+        : widget.event.time.format(context);
+    final dayLabel = widget.isToday
+        ? 'TODAY'
+        : DateFormat('EEE').format(widget.status.displayDate).toUpperCase();
+    final pillLabel = time == null ? dayLabel : '$dayLabel · $time';
 
     return Container(
       decoration: BoxDecoration(
@@ -1537,7 +1658,11 @@ class _EventRow extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          status.taken ? 'Marked' : event.time.format(context),
+                          status.taken
+                              ? 'Marked'
+                              : event.isHandedOff
+                                  ? 'Handed off to you'
+                                  : event.time.format(context),
                           style: AppTypography.geist(
                             fontSize: 12,
                             color: status.taken ? c.present : c.ink3,
@@ -1589,10 +1714,14 @@ class _TodayRow extends StatelessWidget {
     // than relying on a space separator that some locales omit.
     final use24Hour = MediaQuery.of(context).alwaysUse24HourFormat;
     final dummyDate = DateTime(2020, 1, 1, event.time.hour, event.time.minute);
-    final hh = use24Hour
-        ? DateFormat('HH:mm').format(dummyDate)
-        : DateFormat('h:mm').format(dummyDate);
-    final ampm = use24Hour ? '' : DateFormat('a').format(dummyDate);
+    final hh = event.isHandedOff
+        ? '—'
+        : use24Hour
+            ? DateFormat('HH:mm').format(dummyDate)
+            : DateFormat('h:mm').format(dummyDate);
+    final ampm = use24Hour || event.isHandedOff
+        ? ''
+        : DateFormat('a').format(dummyDate);
 
     return Opacity(
       opacity: status.taken ? 0.66 : 1,

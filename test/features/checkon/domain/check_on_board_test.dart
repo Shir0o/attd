@@ -161,6 +161,21 @@ void main() {
       expect(board.entries, isEmpty);
     });
 
+    test('skips events handed off by someone else', () {
+      final handedOff = _event().copyWith(handoffEventId: 'ev-1');
+      final sessions = _sessions({_ann: 'xx.....', _bob: 'xxxx...'});
+
+      expect(_board([handedOff], sessions).entries, isEmpty);
+
+      // The helper's own event is unaffected alongside it.
+      final own = _event(id: 'own', title: 'Own');
+      final mixed = _board(
+        [handedOff, own],
+        [..._sessions({_ann: 'xx.....'}, eventId: 'own', title: 'Own')],
+      );
+      expect(mixed.entries.map((e) => e.eventId).toSet(), {'own'});
+    });
+
     test('stop flagging hides the person on that event only', () {
       final sessions = [
         ..._sessions({_ann: 'xx....'}),

@@ -305,8 +305,7 @@ abstract final class HandoffCodec {
     );
     final marks = <HandoffMark>[];
     final seen = <String>{};
-    for (final entry
-        in _list(raw['marks'], HandoffLimits.maxMarks, 'marks')) {
+    for (final entry in _list(raw['marks'], HandoffLimits.maxMarks, 'marks')) {
       final map = _map(entry, const {
         'memberId',
         'name',
