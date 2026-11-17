@@ -20,27 +20,12 @@ abstract class AttendanceRepository {
 
   Future<Family> addFamily(String displayName, {bool isAutoSingleton = false});
 
-  /// Moves [memberId] out of its current family and into [targetFamilyId].
-  /// If the source family becomes empty as a result, it is left in place
-  /// (soft-deleted families are pruned separately). The target family is
-  /// returned with the member appended; its [Family.isAutoSingleton] is
-  /// flipped to false once it holds more than one member.
-  Future<Family> moveMemberToFamily(String memberId, String targetFamilyId) =>
-      throw UnimplementedError();
-
-  /// Removes [memberId] from its current family and places it in a fresh
-  /// singleton family named after the member. Returns the new singleton.
-  Future<Family> detachMember(String memberId) => throw UnimplementedError();
-
   Stream<List<Family>> streamFamilies();
 
   Future<void> refresh();
 
   /// Permanently removes items that were marked as deleted before [threshold].
   Future<void> pruneSoftDeleted(DateTime threshold);
-
-  /// Soft-deletes a family and unassociates all its members into auto-singletons.
-  Future<void> deleteFamily(String familyId) => throw UnimplementedError();
 
   /// Fetches all families including soft-deleted ones (tombstones).
   Future<List<Family>> fetchAllFamilies() => fetchFamilies();
@@ -259,114 +244,6 @@ class LocalJsonAttendanceRepository extends AttendanceRepository {
     final families = await _loadRawFamilies();
     await saveFamilies([...families, family]);
     return family;
-  }
-
-  @override
-  Future<Family> moveMemberToFamily(
-    String memberId,
-    String targetFamilyId,
-  ) async {
-    final families = await _loadRawFamilies();
-    final now = DateTime.now();
-    Member? moving;
-    final stripped = families.map((family) {
-      if (!family.members.any((m) => m.id == memberId)) return family;
-      final remaining = <Member>[];
-      for (final m in family.members) {
-        if (m.id == memberId) {
-          moving = m;
-        } else {
-          remaining.add(m);
-        }
-      }
-      return family.copyWith(members: remaining, updatedAt: now);
-    }).where((f) => f.id == targetFamilyId || !f.isAutoSingleton || f.members.isNotEmpty).toList();
-    if (moving == null) {
-      throw StateError('Member $memberId not found in any family');
-    }
-    final updated = stripped.map((family) {
-      if (family.id != targetFamilyId) return family;
-      final newMembers = [...family.members, moving!.copyWith(updatedAt: now)];
-      final liveCount = newMembers.where((m) => m.deletedAt == null).length;
-      return family.copyWith(
-        members: newMembers,
-        updatedAt: now,
-        isAutoSingleton: family.isAutoSingleton && liveCount <= 1,
-      );
-    }).toList();
-    if (!updated.any((f) => f.id == targetFamilyId)) {
-      throw StateError('Target family $targetFamilyId not found');
-    }
-    await saveFamilies(updated);
-    final saved = updated.firstWhere((f) => f.id == targetFamilyId);
-    return saved.copyWith(
-      members: saved.members.where((m) => m.deletedAt == null).toList(),
-    );
-  }
-
-  @override
-  Future<Family> detachMember(String memberId) async {
-    final families = await _loadRawFamilies();
-    final now = DateTime.now();
-    Member? moving;
-    final stripped = families.map((family) {
-      if (!family.members.any((m) => m.id == memberId)) return family;
-      final remaining = <Member>[];
-      for (final m in family.members) {
-        if (m.id == memberId) {
-          moving = m;
-        } else {
-          remaining.add(m);
-        }
-      }
-      return family.copyWith(members: remaining, updatedAt: now);
-    }).where((f) => !f.isAutoSingleton || f.members.isNotEmpty).toList();
-    if (moving == null) {
-      throw StateError('Member $memberId not found in any family');
-    }
-    final singleton = Family(
-      id: const Uuid().v4(),
-      displayName: moving!.displayName,
-      members: [moving!.copyWith(updatedAt: now)],
-      updatedAt: now,
-      isAutoSingleton: true,
-    );
-    await saveFamilies([...stripped, singleton]);
-    return singleton;
-  }
-
-  @override
-  Future<void> deleteFamily(String familyId) async {
-    final families = await _loadRawFamilies();
-    final now = DateTime.now();
-    final updated = <Family>[];
-    final detachedSingletons = <Family>[];
-
-    for (final family in families) {
-      if (family.id == familyId) {
-        if (family.deletedAt != null) {
-          updated.add(family);
-          continue;
-        }
-        updated.add(family.copyWith(
-          deletedAt: now,
-          updatedAt: now,
-        ));
-        for (final member in family.members) {
-          if (member.deletedAt != null) continue;
-          detachedSingletons.add(Family(
-            id: const Uuid().v4(),
-            displayName: member.displayName,
-            members: [member.copyWith(updatedAt: now)],
-            updatedAt: now,
-            isAutoSingleton: true,
-          ));
-        }
-      } else {
-        updated.add(family);
-      }
-    }
-    await saveFamilies([...updated, ...detachedSingletons]);
   }
 
   @override
