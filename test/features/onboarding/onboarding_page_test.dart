@@ -34,7 +34,7 @@ void main() {
       );
       expect(find.textContaining('Swipe'), findsNothing);
       expect(find.textContaining('deck'), findsNothing);
-      expect(find.byType(OnboardingDeckArt), findsOneWidget);
+      expect(find.byType(OnboardingGridArt), findsOneWidget);
       expect(find.text('Skip'), findsOneWidget);
       expect(find.text('Next'), findsNothing);
     });
@@ -161,7 +161,7 @@ void main() {
       expect(getStartedButton.onPressed, isNull);
     });
 
-    testWidgets('deck art card does not overflow under large text scale',
+    testWidgets('grid art does not overflow under large text scale',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -170,15 +170,39 @@ void main() {
               builder: (context) => MediaQuery(
                 data: MediaQuery.of(context)
                     .copyWith(textScaler: const TextScaler.linear(2.0)),
-                child: const Center(child: OnboardingDeckArt()),
+                child: const Center(child: OnboardingGridArt()),
               ),
             ),
           ),
         ),
       );
 
-      expect(find.byType(OnboardingDeckArt), findsOneWidget);
+      expect(find.byType(OnboardingGridArt), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    for (final mode in [Brightness.light, Brightness.dark]) {
+      testWidgets('slide 1 shows the name grid art in $mode', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(brightness: mode),
+            home: OnboardingPage(onboardingController: controller),
+          ),
+        );
+
+        expect(find.byType(OnboardingGridArt), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(OnboardingGridArt),
+            matching: find.text('Alma'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Jane Smith'), findsNothing);
+        expect(find.text('John Doe'), findsNothing);
+        expect(find.text('Present'), findsNothing);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
