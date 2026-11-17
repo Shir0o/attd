@@ -164,9 +164,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Duplicate cleanup'), findsOneWidget);
-    expect(find.text('Ana Morelos'), findsOneWidget);
-    expect(find.text('Morelos'), findsOneWidget);
-    expect(find.text('Loner'), findsOneWidget);
+    // The group title, then each record under its own stored name; no family
+    // or "Loner" label.
+    expect(find.text('Ana Morelos'), findsNWidgets(3));
+    expect(find.text('Morelos'), findsNothing);
+    expect(find.text('Loner'), findsNothing);
     expect(find.textContaining('ID m-ana'), findsWidgets);
 
     // The group starts as "Keep both"; including it opts into the merge.

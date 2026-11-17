@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/design/app_radii.dart';
 import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
-import '../models/family.dart';
+import '../domain/active_roster_index.dart';
 import '../models/member.dart';
 
 /// The control that submitted an [AddMemberSheet].
@@ -33,7 +33,6 @@ class AddMemberSheet extends StatefulWidget {
     super.key,
     required this.onAdd,
     this.availableMembers = const [],
-    this.families = const [],
     this.rosterMemberIds,
     this.disableAnimations = false,
   });
@@ -45,7 +44,6 @@ class AddMemberSheet extends StatefulWidget {
     Member? existingMember,
   ) onAdd;
   final List<Member> availableMembers;
-  final List<Family> families;
 
   /// Ids on this event's roster. When given, each suggestion says whether
   /// the person is already on this event.
@@ -118,13 +116,20 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     );
   }
 
-  String _subtitleFor(Member member, Map<String, String> memberFamilyMap) {
-    final household = memberFamilyMap[member.id] ?? 'Loner';
+  /// Whether [member]'s name has an Attendee Surname apart from a given name.
+  static bool _hasSurname(Member member) =>
+      ActiveRosterIndex.tokenizeName(member.displayName).length > 1;
+
+  /// A suggestion's subtitle: the Attendee Surname, then whether the person is
+  /// on this event when the roster is known. Empty when neither applies.
+  String _subtitleFor(Member member) {
     final roster = widget.rosterMemberIds;
-    if (roster == null) return household;
-    return roster.contains(member.id)
-        ? '$household · on this event'
-        : '$household · not on this event';
+    return [
+      if (_hasSurname(member))
+        ActiveRosterIndex.extractLastName(member.displayName),
+      if (roster != null)
+        roster.contains(member.id) ? 'On this event' : 'Not on this event',
+    ].join(' · ');
   }
 
   @override
@@ -137,15 +142,6 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     for (final m in widget.availableMembers) {
       if (m.deletedAt == null && (m.id.isEmpty || seenIds.add(m.id))) {
         uniqueMembers.add(m);
-      }
-    }
-
-    final memberFamilyMap = <String, String>{};
-    for (final f in widget.families) {
-      for (final m in f.members) {
-        if (!f.isAutoSingleton && f.displayName.isNotEmpty) {
-          memberFamilyMap[m.id] = f.displayName;
-        }
       }
     }
 
@@ -239,7 +235,14 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                         _SuggestionRow(
                           key: Key('addSheetSuggestion_${member.id}'),
                           member: member,
-                          subtitle: _subtitleFor(member, memberFamilyMap),
+                          // The surname sits in the subtitle, so the title
+                          // carries only the given name(s).
+                          title: _hasSurname(member)
+                              ? ActiveRosterIndex.extractGivenName(
+                                  member.displayName,
+                                )
+                              : member.displayName,
+                          subtitle: _subtitleFor(member),
                           onTap: (rect) => _addExisting(member, rect),
                         ),
                     ],
@@ -293,11 +296,13 @@ class _SuggestionRow extends StatelessWidget {
   const _SuggestionRow({
     super.key,
     required this.member,
+    required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
   final Member member;
+  final String title;
   final String subtitle;
 
   /// Receives the row's global rect.
@@ -337,17 +342,19 @@ class _SuggestionRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        member.displayName,
+                        title,
                         style: AppTypography.geist(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: c.ink,
                         ),
                       ),
-                      Text(
-                        subtitle,
-                        style: AppTypography.geist(fontSize: 12, color: c.ink3),
-                      ),
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          style:
+                              AppTypography.geist(fontSize: 12, color: c.ink3),
+                        ),
                     ],
                   ),
                 ),

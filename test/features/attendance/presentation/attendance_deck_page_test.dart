@@ -218,7 +218,6 @@ Future<void> _pumpPage(
   required Session session,
   required List<Member> members,
   required MockSessionRepository sessions,
-  List<Family>? families,
   MockAttendanceRepository? attendance,
   MockEventRepository? events,
   Event? event,
@@ -228,7 +227,6 @@ Future<void> _pumpPage(
       home: AttendanceDeckPage(
         session: session,
         members: members,
-        families: families,
         sessionRepository: sessions,
         attendanceRepository: attendance ?? MockAttendanceRepository(),
         eventRepository: events ?? MockEventRepository(),
@@ -320,9 +318,6 @@ void main() {
           _record(aliceTwo, AttendanceStatus.present),
         ]),
         members: [aliceOne, aliceTwo],
-        families: [
-          Family(id: 'fam', displayName: 'Smiths', members: [aliceOne, aliceTwo]),
-        ],
         sessions: repo,
       );
 
@@ -483,7 +478,6 @@ void main() {
         ]),
         // Mirrors the hub, which flattens the event's families.
         members: families.expand((f) => f.members).toList(),
-        families: families,
         sessions: MockSessionRepository(),
       );
 
@@ -505,7 +499,6 @@ void main() {
           _record(tony, AttendanceStatus.present),
         ]),
         members: families.expand((f) => f.members).toList(),
-        families: families,
         sessions: MockSessionRepository(),
       );
 

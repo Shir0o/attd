@@ -432,9 +432,7 @@ class _DuplicateMembersCleanupSheetState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            occurrence.isLoner
-                                ? 'Loner'
-                                : occurrence.family.displayName,
+                            occurrence.member.displayName,
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,

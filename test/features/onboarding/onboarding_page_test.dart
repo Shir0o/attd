@@ -44,8 +44,12 @@ void main() {
       // Slide 2 -> Slide 3
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Roll up by family.'), findsOneWidget);
-      expect(find.byType(OnboardingFamilyArt), findsOneWidget);
+      expect(find.text('Everyone in one list.'), findsOneWidget);
+      expect(find.byType(OnboardingMembersArt), findsOneWidget);
+      expect(
+        find.textContaining(RegExp('famil', caseSensitive: false)),
+        findsNothing,
+      );
 
       // Slide 3 -> Slide 4 (final)
       await tester.fling(find.byType(PageView), const Offset(-500, 0), 1000);

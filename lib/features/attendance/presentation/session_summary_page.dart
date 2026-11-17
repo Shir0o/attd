@@ -12,7 +12,6 @@ import '../../settings/application/developer_unlock.dart';
 import '../../settings/data/cisa_sync_service.dart';
 import '../../settings/data/drive_service.dart';
 import '../domain/attendance_marking_session.dart';
-import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
 import 'add_guest_sheet.dart';
@@ -23,7 +22,6 @@ class SessionSummaryPage extends StatefulWidget {
     super.key,
     required this.session,
     required this.members,
-    this.families,
     required this.sessionRepository,
     this.attendanceRepository,
     this.eventRepository,
@@ -36,7 +34,6 @@ class SessionSummaryPage extends StatefulWidget {
 
   final Session session;
   final List<Member> members;
-  final List<Family>? families;
   final SessionRepository sessionRepository;
   final AttendanceRepository? attendanceRepository;
   final EventRepository? eventRepository;
@@ -58,7 +55,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
   bool _isSyncingCisa = false;
   bool _devUnlocked = false;
   List<Member> _allMembers = [];
-  List<Family> _allFamilies = [];
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
@@ -88,7 +84,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       _markingSession = AttendanceMarkingSession(
         session: widget.session,
         baseMembers: widget.members,
-        families: widget.families,
         event: widget.event,
         sessionRepository: widget.sessionRepository,
         attendanceRepository: widget.attendanceRepository,
@@ -154,10 +149,8 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
         widget.attendanceRepository?.streamFamilies().listen((families) {
       if (mounted) {
         setState(() {
-          _allFamilies = families;
           _allMembers = families.expand((f) => f.members).toList();
         });
-        _markingSession.updateFamilies(families);
       }
     });
   }
@@ -185,31 +178,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
       return _allMembers.where((m) => ids.contains(m.id)).toList();
     }
     return widget.members;
-  }
-
-  List<Family> get _displayFamilies {
-    if (widget.families != null && widget.families!.isNotEmpty) {
-      return widget.families!;
-    }
-    final ev = _currentEvent;
-    if (_allFamilies.isNotEmpty) {
-      final ids =
-          ev?.memberIds.toSet() ?? widget.members.map((m) => m.id).toSet();
-      final result = <Family>[];
-      for (final f in _allFamilies) {
-        final filtered = f.members.where((m) => ids.contains(m.id)).toList();
-        if (filtered.isEmpty) continue;
-        result.add(f.copyWith(members: filtered));
-      }
-      if (result.isNotEmpty) return result;
-    }
-    return [
-      Family(
-        id: '_synthetic_all',
-        displayName: 'All members',
-        members: _displayMembers,
-      ),
-    ];
   }
 
   @override
@@ -416,9 +384,6 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
           _addAttendee(name, isPresent, isGuest, existingMember);
         },
         availableMembers: _allMembers,
-        families: _allFamilies.isNotEmpty
-            ? _allFamilies
-            : (widget.families ?? const []),
         disableAnimations: widget.disableAnimations,
       ),
     );
@@ -551,7 +516,7 @@ class _SessionSummaryPageState extends State<SessionSummaryPage> {
             Expanded(
               child: AttendanceRosterList(
                 session: _currentSession,
-                families: _displayFamilies,
+                members: _displayMembers,
                 onToggle: _toggleAttendance,
                 onEdit: _editMemberName,
                 onRemove: _removeMemberFromSession,

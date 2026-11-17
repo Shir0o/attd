@@ -380,7 +380,7 @@ void main() {
   );
 
   testWidgets(
-    'AddMemberSheet deduplicates identical member IDs and disambiguates members with identical names',
+    'AddMemberSheet deduplicates identical member IDs and shows the surname under each name',
     (tester) async {
       final m1 = Member(id: 'm1', displayName: 'Zoe Alvarez');
       final m2 = Member(id: 'm2', displayName: 'Zoe Alvarez');
@@ -397,10 +397,6 @@ void main() {
                       builder: (_) => AddMemberSheet(
                         onAdd: (_, __, ___, ____) {},
                         availableMembers: [m1, m1, m2],
-                        families: [
-                          Family(id: 'f1', displayName: 'Alvarez East', members: [m1]),
-                          Family(id: 'f2', displayName: 'Alvarez West', members: [m2]),
-                        ],
                       ),
                     );
                   },
@@ -419,9 +415,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Only 2 suggestions should exist (m1 deduplicated from [m1, m1, m2])
-      expect(find.text('Zoe Alvarez'), findsNWidgets(2));
-      expect(find.text('Alvarez East'), findsOneWidget);
-      expect(find.text('Alvarez West'), findsOneWidget);
+      expect(find.byKey(const Key('addSheetSuggestion_m1')), findsOneWidget);
+      expect(find.byKey(const Key('addSheetSuggestion_m2')), findsOneWidget);
+      expect(find.text('Zoe'), findsNWidgets(2));
+      expect(find.text('Alvarez'), findsNWidgets(2));
     },
   );
 }

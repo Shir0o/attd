@@ -18,7 +18,7 @@ The Hub is your home screen, providing a bird's-eye view of your organization.
 
 ### 2. Member Management
 The Members tab is where you manage your roster.
-- **Adding Members**: Support for manual entry or bulk family additions.
+- **Adding Members**: Type a name and add it. Everyone is kept in one alphabetical list.
 - **Search & Filter**: Find members instantly as you type.
 - **Duplicate Prevention**: The system warns you if a member with a similar name already exists.
 - **Soft Delete**: Deleting a member preserves their historical records while removing them from the active list.

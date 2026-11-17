@@ -255,7 +255,6 @@ void main() {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
         baseMembers: [memberA, memberB],
-        families: baseFamilies,
         event: baseEvent,
         sessionRepository: sessionRepo,
         attendanceRepository: attendanceRepo,
@@ -264,7 +263,6 @@ void main() {
 
       expect(markingSession.session.id, 'session-100');
       expect(markingSession.sessionMembers.length, 2);
-      expect(markingSession.sessionFamilies.length, 2);
       expect(markingSession.getStatus(memberA), AttendanceStatus.present);
       expect(markingSession.getStatus(memberB), AttendanceStatus.absent);
       expect(markingSession.canUndo, isFalse);
@@ -274,7 +272,6 @@ void main() {
       final markingSession = AttendanceMarkingSession(
         session: baseSession,
         baseMembers: [memberA, memberB],
-        families: baseFamilies,
         event: baseEvent,
         sessionRepository: sessionRepo,
         attendanceRepository: attendanceRepo,

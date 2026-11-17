@@ -11,7 +11,6 @@ import '../../hub/data/event_repository.dart';
 import '../../hub/domain/event.dart';
 import '../data/attendance_repository.dart';
 import '../models/attendance_status.dart';
-import '../models/family.dart';
 import '../models/member.dart';
 
 final _log = AppLogger('AttendanceMarkingSession');
@@ -23,7 +22,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
   AttendanceMarkingSession({
     required Session session,
     required List<Member> baseMembers,
-    List<Family>? families,
     Event? event,
     required SessionRepository sessionRepository,
     AttendanceRepository? attendanceRepository,
@@ -37,16 +35,8 @@ class AttendanceMarkingSession extends ChangeNotifier {
         _currentSession = session,
         _event = event {
     _sessionMembers.addAll(baseMembers);
-    if (families != null && families.isNotEmpty) {
-      _baseFamilies = List.from(families);
-    }
 
     if (streamUpdates) {
-      if (_attendanceRepository != null) {
-        _membersSub = _attendanceRepository.streamFamilies().listen((f) {
-          updateFamilies(f);
-        });
-      }
       if (_eventRepository != null && _event?.id != null) {
         final eventId = _event!.id;
         _eventsSub = _eventRepository.streamEvents().listen((events) {
@@ -69,8 +59,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
   Session _currentSession;
   Event? _event;
   final List<Member> _sessionMembers = [];
-  List<Family>? _baseFamilies;
-  List<Family> _allFamilies = const [];
 
   final List<Session> _undoStack = [];
   static const int _maxUndoDepth = 50;
@@ -79,7 +67,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
   final StreamController<Object> _saveErrorController =
       StreamController<Object>.broadcast();
 
-  StreamSubscription? _membersSub;
   StreamSubscription? _eventsSub;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -94,31 +81,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
 
   /// All members in this session (including newly added members/guests).
   List<Member> get sessionMembers => List.unmodifiable(_sessionMembers);
-
-  /// Resolved families for this session.
-  List<Family> get sessionFamilies {
-    if (_baseFamilies != null && _baseFamilies!.isNotEmpty) {
-      return _baseFamilies!;
-    }
-    if (_allFamilies.isNotEmpty) {
-      final eventIds = _sessionMembers.map((m) => m.id).toSet();
-      final result = <Family>[];
-      for (final f in _allFamilies) {
-        final filtered =
-            f.members.where((m) => eventIds.contains(m.id)).toList();
-        if (filtered.isEmpty) continue;
-        result.add(f.copyWith(members: filtered));
-      }
-      if (result.isNotEmpty) return result;
-    }
-    return [
-      Family(
-        id: '_synthetic_all',
-        displayName: 'All members',
-        members: _sessionMembers,
-      ),
-    ];
-  }
 
   /// Whether an undo action is available.
   bool get canUndo => _undoStack.isNotEmpty;
@@ -579,12 +541,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
     }
   }
 
-  /// Updates available families context (e.g. from attendance repository stream).
-  void updateFamilies(List<Family> families) {
-    _allFamilies = List.from(families);
-    notifyListeners();
-  }
-
   /// Updates event context (e.g. from event repository stream).
   void updateEvent(Event event) {
     _event = event;
@@ -605,7 +561,6 @@ class AttendanceMarkingSession extends ChangeNotifier {
 
   @override
   void dispose() {
-    _membersSub?.cancel();
     _eventsSub?.cancel();
     _saveErrorController.close();
     super.dispose();
