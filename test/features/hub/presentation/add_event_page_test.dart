@@ -6,6 +6,8 @@ import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/data/session_repository.dart';
 import 'package:attendance_tracker/data/session_version.dart';
+import 'package:attendance_tracker/features/attendance/models/family.dart';
+import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
@@ -287,6 +289,68 @@ void main() {
     expect(saved.sharedFolderId, 'folder-1');
     expect(saved.collaborators, ['a@example.com']);
     expect(saved.isReadOnly, isTrue);
+  });
+
+  testWidgets(
+      'roster opens the event members page and saving keeps its changes',
+      (tester) async {
+    final event = Event(
+      id: 'event-1',
+      title: 'Original',
+      time: const TimeOfDay(hour: 9, minute: 30),
+      frequency: 'Weekly',
+      repeatingDays: const ['Sunday'],
+      memberIds: const ['m1'],
+      checkOnStopFlagging: const {'m1'},
+      createdAt: DateTime(2025, 1, 1),
+    );
+    final repository = _EventRepository([event]);
+    final attendance = MockAttendanceRepository()
+      ..setFamilies([
+        Family(
+          id: 'f1',
+          displayName: 'F1',
+          members: [
+            Member(id: 'm1', displayName: 'Alice'),
+            Member(id: 'm2', displayName: 'Bob'),
+          ],
+          updatedAt: DateTime(2025, 1, 1),
+        ),
+      ]);
+
+    await tester.pumpWidget(
+      _wrap(
+        AddEventPage(
+          eventRepository: repository,
+          attendanceRepository: attendance,
+          eventToEdit: event,
+          disableAnimations: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('1 person'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('1 person'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manage Event Members'), findsOneWidget);
+
+    await tester.tap(find.text('Bob'));
+    await tester.pumpAndSettle();
+    expect(repository.events.single.memberIds, ['m1', 'm2']);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('2 people'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('save_event_button')));
+    await tester.pumpAndSettle();
+    expect(repository.events.single.memberIds, ['m1', 'm2']);
+    expect(repository.events.single.checkOnStopFlagging, {'m1'});
   });
 
   testWidgets('validates event name before saving', (tester) async {

@@ -98,7 +98,7 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
           startDate: DateTime(1970),
           endDate: DateTime(9999),
           format: ReportFormat.csv,
-          selectedEventTitles: [widget.event.title],
+          event: widget.event,
         ),
       );
       final share = widget.shareFile ??
@@ -216,13 +216,8 @@ class _EventHistoryPageState extends State<EventHistoryPage> {
                           }
 
                           final allSessions = snapshot.data ?? [];
-                          final eventSessions = allSessions.where((s) {
-                            if (s.eventId != null && s.eventId!.isNotEmpty) {
-                              return s.eventId == widget.event.id;
-                            }
-                            // Legacy fallback: only match by title if no eventId is present
-                            return s.title.trim() == widget.event.title.trim();
-                          }).toList();
+                          final eventSessions =
+                              allSessions.where(widget.event.owns).toList();
 
                           // Sort by date descending
                           eventSessions.sort(

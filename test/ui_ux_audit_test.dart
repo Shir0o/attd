@@ -312,8 +312,7 @@ void main() {
       await tester.tap(eventMenu);
       await tester.pumpAndSettle();
       expect(find.text('Fast Marking Mode'), findsNothing);
-      expect(find.text('Delete Event'), findsOneWidget);
-      // The destructive "Delete Event" row uses `context.conv.danger`.
+      expect(find.text('Delete Event'), findsNothing);
       await expectUsable(tester);
       await maybeExpectGolden(tester, 'step_event_options_sheet');
 

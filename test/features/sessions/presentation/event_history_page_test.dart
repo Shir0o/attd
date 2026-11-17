@@ -457,8 +457,7 @@ void _registerUncoveredPathTests() {
       await tester.pumpAndSettle();
 
       expect(exporter.lastRequest?.format, ReportFormat.csv);
-      expect(exporter.lastRequest?.selectedEventTitles, ['History Event']);
-      expect(exporter.lastRequest?.syncToGoogleSheets, isFalse);
+      expect(exporter.lastRequest?.event?.id, 'e1');
       expect(shared, ['/tmp/history.csv']);
     });
 

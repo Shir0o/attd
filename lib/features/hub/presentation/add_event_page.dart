@@ -39,6 +39,10 @@ class _AddEventPageState extends State<AddEventPage> {
   late DateTime _selectedDate;
   late Set<String> _selectedDays;
   late Set<String> _selectedMemberIds;
+
+  /// The stored copy of the event being edited. The roster page saves to the
+  /// store directly, so this is refreshed after it closes.
+  Event? _persisted;
   bool _isLoading = true;
   final List<String> _linkedSessions = [];
 
@@ -66,6 +70,7 @@ class _AddEventPageState extends State<AddEventPage> {
   void initState() {
     super.initState();
     final event = widget.eventToEdit;
+    _persisted = event;
 
     if (event != null) {
       _nameController = TextEditingController(text: event.title);
@@ -230,8 +235,8 @@ class _AddEventPageState extends State<AddEventPage> {
         repeatingDays: _frequency != 'One-time' ? _selectedDays.toList() : [],
         memberIds: _selectedMemberIds.toList(),
         // Fields this form does not edit must survive the save.
-        checkOnFollowUps: widget.eventToEdit?.checkOnFollowUps ?? const {},
-        checkOnStopFlagging: widget.eventToEdit?.checkOnStopFlagging ?? const {},
+        checkOnFollowUps: _persisted?.checkOnFollowUps ?? const {},
+        checkOnStopFlagging: _persisted?.checkOnStopFlagging ?? const {},
         isShared: widget.eventToEdit?.isShared ?? false,
         sharedFolderId: widget.eventToEdit?.sharedFolderId,
         collaborators: widget.eventToEdit?.collaborators ?? const [],
@@ -581,6 +586,30 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 
   Future<void> _openRosterPicker() async {
+    final existing = widget.eventToEdit;
+    if (existing != null) {
+      // Same per-event members page the hub menu used to open; it saves
+      // roster changes itself, so reload what it stored.
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => MembersPage(
+            event: existing.copyWith(memberIds: _selectedMemberIds.toList()),
+            attendanceRepository: widget.attendanceRepository,
+            sessionRepository: widget.sessionRepository,
+            eventRepository: widget.eventRepository,
+            disableAnimations: widget.disableAnimations,
+          ),
+        ),
+      );
+      final stored = await widget.eventRepository.findEventById(existing.id);
+      if (stored != null && mounted) {
+        setState(() {
+          _persisted = stored;
+          _selectedMemberIds = stored.memberIds.toSet();
+        });
+      }
+      return;
+    }
     final result = await Navigator.of(context).push<List<String>>(
       MaterialPageRoute(
         builder: (context) => MembersPage(
