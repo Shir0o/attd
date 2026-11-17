@@ -1020,14 +1020,15 @@ void main() {
       expect(find.text('1 / 1'), findsOneWidget);
     });
 
-    testWidgets('MembersPage in directory mode does not list a member twice '
-        'when they are also in an auto-singleton family', (tester) async {
+    testWidgets('MembersPage in directory mode is one alphabetical list with '
+        'no family headers, each member once', (tester) async {
       final members = [
         Member(id: 'm1', displayName: 'Ana Morelos'),
         Member(id: 'm2', displayName: 'Beto Morelos'),
         Member(id: 'm3', displayName: 'Carla Morelos'),
         Member(id: 'm4', displayName: 'Diego Morelos'),
       ];
+      final zed = Member(id: 'm5', displayName: 'Aaron Zed');
       mockAttendanceRepo.families = [
         Family(
           id: 'f1',
@@ -1043,6 +1044,12 @@ void main() {
             members: [m],
             updatedAt: DateTime.now(),
           ),
+        Family(
+          id: 'solo-m5',
+          displayName: 'Aaron Zed',
+          isAutoSingleton: true,
+          members: [zed],
+        ),
       ];
 
       await tester.pumpWidget(
@@ -1055,14 +1062,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('MORELOS · 4'), findsOneWidget);
+      expect(find.text('5 people'), findsOneWidget);
+      expect(find.text('MEMBERS · 5'), findsOneWidget);
+      expect(find.textContaining('MORELOS ·'), findsNothing);
       expect(find.textContaining('LONERS'), findsNothing);
-      for (final m in members) {
+      expect(find.textContaining('famil'), findsNothing);
+      for (final m in [...members, zed]) {
         expect(find.text(m.displayName), findsOneWidget);
       }
+      // Someone stored without a household sorts in with everyone else.
+      expect(
+        tester.getTopLeft(find.text('Aaron Zed')).dy,
+        lessThan(tester.getTopLeft(find.text('Ana Morelos')).dy),
+      );
     });
 
-    testWidgets('MembersPage in event mode disambiguates distinct members sharing identical names', (tester) async {
+    testWidgets('MembersPage in event mode lists distinct members sharing identical names without family labels', (tester) async {
       final member1 = Member(id: 'm1', displayName: 'Luis Vazquez');
       final member2 = Member(id: 'm2', displayName: 'Luis Vazquez');
       mockAttendanceRepo.families = [
@@ -1091,8 +1106,10 @@ void main() {
 
       expect(find.text('Luis Vazquez'), findsNWidgets(2));
       expect(find.text('ROSTER · 2'), findsOneWidget);
-      expect(find.text('Assigned · Vazquez North'), findsOneWidget);
-      expect(find.text('Not assigned · Vazquez South'), findsOneWidget);
+      expect(find.text('Assigned'), findsOneWidget);
+      expect(find.text('Not assigned'), findsOneWidget);
+      expect(find.textContaining('Vazquez North'), findsNothing);
+      expect(find.textContaining('Vazquez South'), findsNothing);
 
       await tester.enterText(
         find.byKey(const ValueKey('member_search_field')),

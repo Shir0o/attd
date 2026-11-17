@@ -7,7 +7,6 @@ import '../../../core/design/app_typography.dart';
 import '../../../core/design/widgets/conv_widgets.dart';
 import '../domain/active_roster_index.dart';
 import '../models/attendance_status.dart';
-import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
 import '../../../data/session.dart';
@@ -21,7 +20,7 @@ class AttendanceRosterList extends StatefulWidget {
   const AttendanceRosterList({
     super.key,
     required this.session,
-    required this.families,
+    required this.members,
     required this.onToggle,
     this.onEdit,
     this.onRemove,
@@ -30,7 +29,7 @@ class AttendanceRosterList extends StatefulWidget {
   });
 
   final Session session;
-  final List<Family> families;
+  final List<Member> members;
   final MemberToggle onToggle;
 
   final void Function(Member member)? onEdit;
@@ -71,25 +70,18 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
 
   late ActiveRosterIndex _rosterIndex = _buildIndex();
 
-  ActiveRosterIndex _buildIndex() {
-    final allMembers =
-        widget.families.expand((f) => f.members).toList(growable: false);
-    return ActiveRosterIndex(members: allMembers);
-  }
+  ActiveRosterIndex _buildIndex() =>
+      ActiveRosterIndex(members: widget.members);
 
   @override
   void didUpdateWidget(AttendanceRosterList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.families != oldWidget.families) {
+    if (widget.members != oldWidget.members) {
       _rosterIndex = _buildIndex();
     }
   }
 
-  SessionRoster _buildRoster() {
-    final allMembers =
-        widget.families.expand((f) => f.members).toList(growable: false);
-    return SessionRoster(widget.session, allMembers);
-  }
+  SessionRoster _buildRoster() => SessionRoster(widget.session, widget.members);
 
   bool _matchesQuery(String valueLower) =>
       _rosterIndex.matchesLowercased(valueLower, _query);
@@ -107,16 +99,6 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
   Widget _buildContent(BuildContext context) {
     final c = context.conv;
     final roster = _buildRoster();
-
-    final familyMemberIds =
-        widget.families.expand((f) => f.members.map((m) => m.id)).toSet();
-    final visitors = <Member>[];
-    for (final entry in roster.displayMembersMap.entries) {
-      if (!familyMemberIds.contains(entry.key)) {
-        visitors.add(entry.value);
-      }
-    }
-    visitors.sort((a, b) => a.displayName.compareTo(b.displayName));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -143,7 +125,7 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
           ),
         ),
         Expanded(
-          child: _buildStatusList(roster, visitors, c),
+          child: _buildStatusList(roster, c),
         ),
       ],
     );
@@ -183,27 +165,10 @@ class _AttendanceRosterListState extends State<AttendanceRosterList> {
     );
   }
 
-  Widget _buildStatusList(
-    SessionRoster roster,
-    List<Member> visitors,
-    ConvocationColors c,
-  ) {
-    final allDisplayed = <Member>[];
-    final seen = <String>{};
-    for (final family in widget.families) {
-      for (final m in family.members) {
-        final displayed = roster.displayMembersMap[m.id];
-        if (displayed == null) continue;
-        // A member can belong to more than one family (e.g. a real family and
-        // an auto-singleton); render each member only once.
-        if (!seen.add(displayed.id)) continue;
-        allDisplayed.add(displayed);
-      }
-    }
-    allDisplayed.addAll(visitors);
-    allDisplayed.sort((a, b) => a.displayName.compareTo(b.displayName));
-
-    final filtered = allDisplayed
+  Widget _buildStatusList(SessionRoster roster, ConvocationColors c) {
+    // The roster is keyed by member id, so a member stored under more than
+    // one family record is still listed once.
+    final filtered = roster.sortedMembers
         .where((m) => _matchesQuery(m.displayNameLowercase))
         .toList();
     final present = filtered

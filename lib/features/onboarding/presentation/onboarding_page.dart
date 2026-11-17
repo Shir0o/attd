@@ -75,10 +75,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
         art: OnboardingHistoryArt(),
       ),
       const _OnboardingSlide(
-        eyebrow: '03 · Members & families',
-        title: 'Roll up by family.',
-        description: 'Group members into families. Smart defaults speed up the rest.',
-        art: OnboardingFamilyArt(),
+        eyebrow: '03 · Members',
+        title: 'Everyone in one list.',
+        description: 'Add people once. Surnames tell namesakes apart.',
+        art: OnboardingMembersArt(),
       ),
       _OnboardingSlide(
         eyebrow: '04 · Yours, fully.',

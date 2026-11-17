@@ -833,9 +833,7 @@ class _MembersPageState extends State<MembersPage> {
   }
 
   Widget _buildHeader(ConvocationColors c, bool isEventMode) {
-    final families = _families ?? [];
-    final realFamilies = families.where((f) => !f.isAutoSingleton).toList();
-    final memberCount = _getAllMembers(families).length;
+    final memberCount = _getAllMembers(_families ?? []).length;
 
     if (isEventMode) {
       final selected = widget.selectionMode
@@ -856,22 +854,10 @@ class _MembersPageState extends State<MembersPage> {
         ],
       );
     }
-    final familyLabel =
-        '${realFamilies.length} ${realFamilies.length == 1 ? "family" : "families"}';
     final peopleLabel = memberCount == 1 ? '1 person' : '$memberCount people';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          peopleLabel,
-          style: AppTypography.displayNumber(fontSize: 32, color: c.ink),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          familyLabel,
-          style: AppTypography.displayNumber(fontSize: 22, color: c.ink3),
-        ),
-      ],
+    return Text(
+      peopleLabel,
+      style: AppTypography.displayNumber(fontSize: 32, color: c.ink),
     );
   }
 
@@ -941,19 +927,6 @@ class _MembersPageState extends State<MembersPage> {
 
     if (isEventMode) {
       final all = filter(_getAllMembers(families));
-      final nameCounts = <String, int>{};
-      for (final m in all) {
-        nameCounts[m.displayName] = (nameCounts[m.displayName] ?? 0) + 1;
-      }
-      final memberFamilyMap = <String, String>{};
-      for (final f in families) {
-        for (final m in f.members) {
-          if (!f.isAutoSingleton && f.displayName.isNotEmpty) {
-            memberFamilyMap[m.id] = f.displayName;
-          }
-        }
-      }
-
       all.sort((a, b) {
         final aSel = selectedIds.contains(a.id);
         final bSel = selectedIds.contains(b.id);
@@ -965,13 +938,10 @@ class _MembersPageState extends State<MembersPage> {
         children.add(ConvSectionLabel(label: 'Roster · ${all.length}'));
       }
       for (final m in all) {
-        final hasDuplicateName = (nameCounts[m.displayName] ?? 0) > 1;
-        final familyName = hasDuplicateName ? memberFamilyMap[m.id] : null;
         children.add(_MemberRow(
           member: m,
           isEventMode: true,
           isSelected: selectedIds.contains(m.id),
-          familyName: familyName,
           onToggle: (v) => widget.selectionMode
               ? _toggleSelection(m, v)
               : _toggleEventMember(m, v),
@@ -986,54 +956,22 @@ class _MembersPageState extends State<MembersPage> {
         ));
       }
     } else {
-      // A member can be referenced by more than one family (for example an
-      // auto-singleton left behind after the person joined a real family).
-      // The directory lists each member once, preferring the real family.
-      final seenMemberIds = <String>{};
-      final realFamilies = families.where((f) => !f.isAutoSingleton).toList()
+      // One alphabetical list. A member stored under more than one family
+      // record is listed once.
+      final all = filter(_getAllMembers(families))
         ..sort((a, b) => a.displayName.compareTo(b.displayName));
-      for (final f in realFamilies) {
-        final filtered = filter(f.members)
-            .where((m) => seenMemberIds.add(m.id))
-            .toList()
-          ..sort((a, b) => a.displayName.compareTo(b.displayName));
-        if (filtered.isEmpty) continue;
-        children.add(
-          ConvSectionLabel(label: '${f.displayName} · ${filtered.length}'),
-        );
-        for (final m in filtered) {
-          children.add(_MemberRow(
-            member: m,
-            isEventMode: false,
-            isSelected: false,
-            onToggle: (_) {},
-            onEdit: () => _editMember(m),
-            onDelete: () => _deleteMember(m),
-          ));
-        }
+      if (all.isNotEmpty) {
+        children.add(ConvSectionLabel(label: 'Members · ${all.length}'));
       }
-      final loners = <Member>[
-        for (final f in families)
-          if (f.isAutoSingleton) ...f.members,
-      ];
-      final filteredLoners = filter(loners)
-          .where((m) => !seenMemberIds.contains(m.id))
-          .toList()
-        ..sort((a, b) => a.displayName.compareTo(b.displayName));
-      if (filteredLoners.isNotEmpty) {
-        children.add(
-          ConvSectionLabel(label: 'Loners · ${filteredLoners.length}'),
-        );
-        for (final m in filteredLoners) {
-          children.add(_MemberRow(
-            member: m,
-            isEventMode: false,
-            isSelected: false,
-            onToggle: (_) {},
-            onEdit: () => _editMember(m),
-            onDelete: () => _deleteMember(m),
-          ));
-        }
+      for (final m in all) {
+        children.add(_MemberRow(
+          member: m,
+          isEventMode: false,
+          isSelected: false,
+          onToggle: (_) {},
+          onEdit: () => _editMember(m),
+          onDelete: () => _deleteMember(m),
+        ));
       }
     }
 
@@ -1100,7 +1038,6 @@ class _MemberRow extends StatelessWidget {
     required this.member,
     required this.isEventMode,
     required this.isSelected,
-    this.familyName,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
@@ -1110,7 +1047,6 @@ class _MemberRow extends StatelessWidget {
   final Member member;
   final bool isEventMode;
   final bool isSelected;
-  final String? familyName;
   final ValueChanged<bool> onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -1127,11 +1063,8 @@ class _MemberRow extends StatelessWidget {
 
     final statusText =
         isEventMode ? (isSelected ? 'Assigned' : 'Not assigned') : 'Member';
-    final baseSubtitle = (familyName != null && familyName!.isNotEmpty)
-        ? '$statusText · $familyName'
-        : statusText;
     final subtitleText =
-        onFlagAgain != null ? '$baseSubtitle · Not flagged' : baseSubtitle;
+        onFlagAgain != null ? '$statusText · Not flagged' : statusText;
 
     return Dismissible(
       key: ValueKey('dismiss_${member.id}_$isEventMode'),

@@ -42,7 +42,6 @@ void main() {
       await settings.tapManageMembers();
       // Verify the new Convocation header reports an empty roster.
       await tester.pumpUntilFound(find.text('0 people'));
-      expect(find.text('0 families'), findsOneWidget);
 
       // 4. Search Empty State
       print('DEBUG: Verifying Search empty state');

@@ -113,7 +113,6 @@ Future<Harness> pumpPage(
       home: AttendanceDeckPage(
         session: _session(seed: seed, members: members),
         members: members,
-        families: roster,
         sessionRepository: sessions,
         attendanceRepository: MockAttendanceRepository(),
         eventRepository: MockEventRepository(),

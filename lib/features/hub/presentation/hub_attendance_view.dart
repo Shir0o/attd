@@ -11,7 +11,6 @@ import '../../../data/session.dart';
 import '../../../data/session_repository.dart';
 import '../../attendance/data/attendance_repository.dart';
 import '../../attendance/models/attendance_status.dart';
-import '../../attendance/models/family.dart';
 import '../../attendance/models/member.dart';
 import '../../attendance/presentation/attendance_deck_page.dart';
 import '../../attendance/presentation/session_summary_page.dart';
@@ -72,7 +71,6 @@ class HubAttendanceView extends StatefulWidget {
 
 class _HubAttendanceViewState extends State<HubAttendanceView> {
   List<Member> _members = [];
-  List<Family> _families = [];
   bool _isLoading = true;
   List<Event> _events = [];
   List<Session> _sessions = [];
@@ -159,25 +157,12 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     final sessions = await widget.sessionRepository.loadSessions();
     if (mounted) {
       setState(() {
-        _families = families;
         _members = families.expand((f) => f.members).toList();
         _sessions = sessions;
       });
       debugPrint(
           'DEBUG: HubAttendanceView._refreshData: loaded ${_members.length} members and ${_sessions.length} sessions');
     }
-  }
-
-  List<Family> _familiesForEvent(Event event) {
-    final eventIds = event.memberIds.toSet();
-    final result = <Family>[];
-    for (final family in _families) {
-      final filtered =
-          family.members.where((m) => eventIds.contains(m.id)).toList();
-      if (filtered.isEmpty) continue;
-      result.add(family.copyWith(members: filtered));
-    }
-    return result;
   }
 
   int get _todayEventCount => _events.where(_isEventToday).length;
@@ -839,8 +824,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       return;
     }
 
-    final sessionFamilies = _familiesForEvent(event);
-
     if (foundSession != null) {
       // A session that exists here is always a confirmed/"Taken" session, so
       // tapping the card opens the summary (where individual statuses can still
@@ -851,7 +834,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           builder: (_) => SessionSummaryPage(
             session: session,
             members: sessionMembers,
-            families: sessionFamilies,
             sessionRepository: widget.sessionRepository,
             attendanceRepository: widget.attendanceRepository,
             eventRepository: widget.eventRepository,
@@ -877,7 +859,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             session: session,
             deleteOnCancel: true,
             members: sessionMembers,
-            families: sessionFamilies,
             sessionRepository: widget.sessionRepository,
             attendanceRepository: widget.attendanceRepository,
             eventRepository: widget.eventRepository,

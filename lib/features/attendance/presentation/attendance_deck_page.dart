@@ -7,7 +7,6 @@ import '../../../../data/session.dart';
 import '../../../../data/session_repository.dart';
 import '../domain/active_roster_index.dart';
 import '../domain/attendance_marking_session.dart';
-import '../models/family.dart';
 import '../models/member.dart';
 import '../utils/session_roster_utils.dart';
 import '../data/attendance_repository.dart';
@@ -25,7 +24,6 @@ class AttendanceDeckPage extends StatefulWidget {
     super.key,
     required this.session,
     required this.members,
-    this.families,
     required this.sessionRepository,
     required this.attendanceRepository,
     required this.eventRepository,
@@ -39,7 +37,6 @@ class AttendanceDeckPage extends StatefulWidget {
   final AttendanceMarkingSession? markingSession;
   final Session session;
   final List<Member> members;
-  final List<Family>? families;
   final SessionRepository sessionRepository;
   final AttendanceRepository attendanceRepository;
   final EventRepository eventRepository;
@@ -62,7 +59,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
   late final AttendanceMarkingSession _markingSession;
   bool _ownsMarkingSession = false;
   List<Member> _allMembers = [];
-  List<Family> _allFamilies = [];
   Event? _currentEvent;
   StreamSubscription? _membersSubscription;
   StreamSubscription? _eventsSubscription;
@@ -70,7 +66,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
 
   Session get _currentSession => _markingSession.session;
   List<Member> get _sessionMembers => _markingSession.sessionMembers;
-  List<Family> get _sessionFamilies => _markingSession.sessionFamilies;
   bool get _hasUserEdits => _markingSession.hasUserEdits;
   Future<void> _drainSaves() => _markingSession.drain();
 
@@ -138,7 +133,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
       _markingSession = AttendanceMarkingSession(
         session: widget.session,
         baseMembers: widget.members,
-        families: widget.families,
         event: widget.event,
         sessionRepository: widget.sessionRepository,
         attendanceRepository: widget.attendanceRepository,
@@ -187,9 +181,7 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
     _membersSubscription =
         widget.attendanceRepository.streamFamilies().listen((families) {
       if (!mounted) return;
-      _markingSession.updateFamilies(families);
       setState(() {
-        _allFamilies = families;
         _allMembers = families.expand((f) => f.members).toList();
       });
     });
@@ -250,7 +242,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
           builder: (_) => SessionSummaryPage(
             session: _currentSession,
             members: _sessionMembers,
-            families: _sessionFamilies,
             sessionRepository: widget.sessionRepository,
             attendanceRepository: widget.attendanceRepository,
             eventRepository: widget.eventRepository,
@@ -307,7 +298,6 @@ class _AttendanceDeckPageState extends State<AttendanceDeckPage> {
             added = _addFromSheet(name, isPresent, isGuest, existingMember);
           },
           availableMembers: _allMembers.isNotEmpty ? _allMembers : widget.members,
-          families: _allFamilies.isNotEmpty ? _allFamilies : (widget.families ?? const []),
           rosterMemberIds: {
             for (final m in _sessionMembers)
               if (m.id.isNotEmpty) m.id,

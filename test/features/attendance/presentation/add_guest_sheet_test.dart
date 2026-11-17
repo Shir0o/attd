@@ -1,5 +1,4 @@
 import 'package:attendance_tracker/core/design/widgets/conv_widgets.dart';
-import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/add_guest_sheet.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +13,7 @@ void main() {
   Future<List<_Added>> pumpSheet(
     WidgetTester tester, {
     Set<String>? rosterMemberIds,
+    List<Member>? availableMembers,
   }) async {
     final added = <_Added>[];
     await tester.pumpWidget(
@@ -31,10 +31,7 @@ void main() {
                     isGuest: isGuest,
                     existing: existing,
                   )),
-                  availableMembers: [jon, jonah],
-                  families: [
-                    Family(id: 'f-reyes', displayName: 'Reyes', members: [jon]),
-                  ],
+                  availableMembers: availableMembers ?? [jon, jonah],
                   rosterMemberIds: rosterMemberIds,
                 ),
               ),
@@ -141,8 +138,35 @@ void main() {
     await tester.enterText(find.byKey(const Key('addSheetNameField')), 'jon');
     await tester.pumpAndSettle();
 
-    expect(find.text('Reyes · not on this event'), findsOneWidget);
-    expect(find.text('Loner · on this event'), findsOneWidget);
+    expect(find.text('Reyes · Not on this event'), findsOneWidget);
+    expect(find.text('Abel · On this event'), findsOneWidget);
+  });
+
+  testWidgets('suggestions show the given name over the surname',
+      (tester) async {
+    await pumpSheet(tester);
+    await tester.enterText(find.byKey(const Key('addSheetNameField')), 'jon');
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const Key('addSheetSuggestion_jon'));
+    expect(find.descendant(of: row, matching: find.text('Jon')), findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.text('Reyes')),
+      findsOneWidget,
+    );
+    expect(find.text('Jon Reyes'), findsNothing);
+    expect(find.textContaining('Loner'), findsNothing);
+  });
+
+  testWidgets('a single-name suggestion has no surname subtitle',
+      (tester) async {
+    await pumpSheet(tester, availableMembers: [Member(id: 'cher', displayName: 'Cher')]);
+    await tester.enterText(find.byKey(const Key('addSheetNameField')), 'che');
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const Key('addSheetSuggestion_cher'));
+    expect(find.descendant(of: row, matching: find.text('Cher')), findsOneWidget);
+    expect(find.descendant(of: row, matching: find.byType(Text)), findsNWidgets(2));
   });
 
   group('a submit pops with the control used and where it was', () {

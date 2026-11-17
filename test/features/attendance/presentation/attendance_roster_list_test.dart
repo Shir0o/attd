@@ -3,7 +3,6 @@ import 'package:attendance_tracker/core/design/app_shimmer.dart';
 import 'package:attendance_tracker/data/session.dart';
 import 'package:attendance_tracker/data/session_record.dart';
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
-import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
 import 'package:attendance_tracker/features/attendance/presentation/attendance_roster_list.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +38,7 @@ Session sessionWith({
 Future<void> pumpRoster(
   WidgetTester tester, {
   required Session session,
-  required List<Family> families,
+  required List<Member> members,
   required List<ToggleCall> toggleLog,
 }) async {
   await tester.pumpWidget(
@@ -49,7 +48,7 @@ Future<void> pumpRoster(
           height: 800,
           child: AttendanceRosterList(
             session: session,
-            families: families,
+            members: members,
             disableAnimations: true,
             onToggle: (m, p) async {
               toggleLog.add((id: m.id, present: p));
@@ -66,16 +65,6 @@ void main() {
   final alice = Member(id: 'a', displayName: 'Alice');
   final bob = Member(id: 'b', displayName: 'Bob');
   final carol = Member(id: 'c', displayName: 'Carol');
-  final smiths = Family(
-    id: 'smith',
-    displayName: 'Smith Family',
-    members: [alice, bob],
-  );
-  final jones = Family(
-    id: 'jones',
-    displayName: 'Jones Family',
-    members: [carol],
-  );
 
   testWidgets('search by member name shows only that member', (tester) async {
     final session = sessionWith(members: [alice, bob, carol]);
@@ -83,7 +72,7 @@ void main() {
     await pumpRoster(
       tester,
       session: session,
-      families: [smiths, jones],
+      members: [alice, bob, carol],
       toggleLog: log,
     );
     await tester.enterText(
@@ -121,13 +110,12 @@ void main() {
     await pumpRoster(
       tester,
       session: session,
-      families: [smiths],
+      members: [alice, bob],
       toggleLog: <ToggleCall>[],
     );
     expect(find.text('MARKED PRESENT'), findsOneWidget);
     expect(find.text('MARKED ABSENT'), findsOneWidget);
-    // No family header, no By family / By status toggle, no bulk "All" pill.
-    expect(find.text('Smith Family'), findsNothing);
+    // No By family / By status toggle, no bulk "All" pill.
     expect(find.text('By family'), findsNothing);
     expect(find.text('By status'), findsNothing);
     expect(find.byKey(const Key('rosterGroupingToggle')), findsNothing);
@@ -136,23 +124,19 @@ void main() {
   });
 
   testWidgets(
-    'member in two families renders once in status view',
+    'member stored under two families renders once in status view',
     (tester) async {
-      final aliceSolo = Family(
-        id: 'alice-solo',
-        displayName: 'Alice',
-        members: [alice],
-        isAutoSingleton: true,
-      );
       final session = sessionWith(members: [alice, bob]);
       final log = <ToggleCall>[];
       await pumpRoster(
         tester,
         session: session,
-        families: [smiths, aliceSolo],
+        // What flattening a family plus a leftover auto-singleton yields.
+        members: [alice, bob, alice],
         toggleLog: log,
       );
       expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('Bob'), findsOneWidget);
     },
   );
 
@@ -179,7 +163,7 @@ void main() {
     await pumpRoster(
       tester,
       session: session,
-      families: [smiths],
+      members: [alice, bob],
       toggleLog: <ToggleCall>[],
     );
     expect(find.byKey(const ValueKey('memberLate_a')), findsNothing);
@@ -201,7 +185,7 @@ void main() {
               height: 800,
               child: AttendanceRosterList(
                 session: sessionWith(members: [alice, bob]),
-                families: [smiths],
+                members: [alice, bob],
                 disableAnimations: true,
                 onToggle: (m, p) async {},
                 onEdit: (m) => edited.add(m.id),
@@ -259,7 +243,7 @@ void main() {
       await pumpRoster(
         tester,
         session: sessionWith(members: [alice]),
-        families: [smiths],
+        members: [alice, bob],
         toggleLog: <ToggleCall>[],
       );
       expect(find.byTooltip('More actions for Alice'), findsNothing);
@@ -275,9 +259,7 @@ void main() {
             height: 800,
             child: AttendanceRosterList(
               session: sessionWith(members: [alice]),
-              families: [
-                Family(id: 'f', displayName: 'Solo', members: [alice]),
-              ],
+              members: [alice],
                       onToggle: (m, p) async {},
             ),
           ),
@@ -312,7 +294,7 @@ void main() {
             home: Scaffold(
               body: AttendanceRosterList(
                 session: sessionWith(members: [alice]),
-                families: const [],
+                members: const [],
                 disableAnimations: true,
                 onToggle: (_, __) async {},
                 onEdit: (_) {},

@@ -224,9 +224,16 @@ class OnboardingHistoryArt extends StatelessWidget {
   }
 }
 
-/// Family card with member chips, plus a loner card below.
-class OnboardingFamilyArt extends StatelessWidget {
-  const OnboardingFamilyArt({super.key});
+/// Cascading member rows: given name over the surname that tells namesakes
+/// apart.
+class OnboardingMembersArt extends StatelessWidget {
+  const OnboardingMembersArt({super.key});
+
+  static const _members = [
+    (given: 'Alice', surname: 'Smith'),
+    (given: 'Alice', surname: 'Wong'),
+    (given: 'Dan', surname: 'Rivera'),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -236,123 +243,43 @@ class OnboardingFamilyArt extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ConvCard(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          for (var i = 0; i < _members.length; i++) ...[
+            if (i > 0) const SizedBox(height: 10),
+            Transform.translate(
+              offset: Offset(i * 6.0, 0),
+              child: ConvCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: c.primary.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.family_restroom,
-                          color: c.primary, size: 24),
-                    ),
+                    ConvAvatar(letter: _members[i].given[0], size: 36),
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Smith',
+                          _members[i].given,
                           style: AppTypography.fraunces(
-                            fontSize: 19,
+                            fontSize: 18,
                             fontWeight: FontWeight.w500,
                             color: c.ink,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '4 members',
-                          style:
-                              AppTypography.geist(fontSize: 11, color: c.ink3),
+                          _members[i].surname.toUpperCase(),
+                          style: AppTypography.eyebrow(
+                            color: c.ink2,
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final n in ['Alice', 'Bob', 'Liam', 'Mia'])
-                      _MemberChip(name: n),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Transform.translate(
-            offset: const Offset(14, 0),
-            child: ConvCardSoft(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  const ConvAvatar(letter: 'D', size: 36),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Dan Solo',
-                        style: AppTypography.geist(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: c.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Loner',
-                        style:
-                            AppTypography.geist(fontSize: 11, color: c.ink3),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MemberChip extends StatelessWidget {
-  const _MemberChip({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.conv;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(4, 4, 10, 4),
-      decoration: BoxDecoration(
-        color: c.cardSoft,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ConvAvatar(letter: name[0], size: 22),
-          const SizedBox(width: 6),
-          Text(
-            name,
-            style: AppTypography.geist(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: c.ink,
-            ),
-          ),
+          ],
         ],
       ),
     );
