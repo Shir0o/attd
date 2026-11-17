@@ -28,6 +28,8 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          # Pinned on purpose; keep in sync across all workflows (see docs/DEVELOPMENT.md#upgrading-flutter).
+          flutter-version: '3.50.0'
           channel: stable
           cache: true
 

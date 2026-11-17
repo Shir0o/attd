@@ -6,7 +6,7 @@ title: Development Guide
 # 🛠 Development Guide
 
 ## Prerequisites
-- **Flutter SDK**: ^3.10.3 (Stable channel recommended)
+- **Flutter SDK**: 3.50.0 (the version CI is pinned to; see [Upgrading Flutter](#upgrading-flutter))
 - **Dart SDK**: ^3.0.0
 - **Android Studio / VS Code**: With Flutter/Dart extensions installed.
 - **Google Cloud Console**: Project with Google Drive and Sheets APIs enabled for OAuth integration.
@@ -79,6 +79,14 @@ We use GitHub Actions for automated testing:
 - **Fast Feedback CI (`ci.yml`)**: Runs static analysis, unit & widget tests, and coverage ratchet checks on every PR (completes in ~1–2 minutes).
 - **Integration Tests (`integration-tests.yml`)**: Runs full end-to-end suite on Firebase Test Lab nightly, on `workflow_dispatch`, or when a PR is tagged with the `ci:integration-test` label.
 - **Robo Tests (`robo-tests.yml`)**: Automated UI traversal on Firebase Test Lab nightly at 2 AM UTC.
+
+## Upgrading Flutter
+CI does not follow the stable channel. Every workflow that installs Flutter pins the exact version with `flutter-version: '3.50.0'` (plus `channel: stable`) in `.github/workflows/ci.yml`, `integration-tests.yml`, `robo-tests.yml` and `release.yml`. The version is repeated in each file, so a bump must change all four.
+
+To upgrade:
+1. Open a PR that changes `flutter-version` in all four workflows (and the version in Prerequisites above).
+2. Run `flutter pub get` on the new version; commit any `pubspec.lock` change the PR needs.
+3. CI must be green on the new version before merging. The PR runs `ci.yml` only; release, robo and integration workflows run on their own triggers, so apply the `ci:integration-test` label or run them with `workflow_dispatch` for a risky bump.
 
 ---
 *Refer to [Architecture](./ARCHITECTURE.md) for a deep dive into the code structure.*
