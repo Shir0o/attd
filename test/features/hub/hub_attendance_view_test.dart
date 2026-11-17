@@ -1136,6 +1136,21 @@ void main() {
       expect(menuTitles(tester), ['Send back', 'Remove from my phone']);
     });
 
+    testWidgets('Send back in the menu opens the Send back page',
+        (tester) async {
+      sessionRepository.sessions = [handoff.markedSession()];
+      await pumpView(tester);
+      eventRepository.emit([handedOffToday()]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send back'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SendBackPage), findsOneWidget);
+    });
+
     testWidgets('Remove asks first and then removes the event',
         (tester) async {
       await pumpView(tester);
