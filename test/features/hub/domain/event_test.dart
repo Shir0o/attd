@@ -85,7 +85,9 @@ void main() {
       expect(fromJson.title, 'Json Trim');
     });
 
-    test('old JSON carrying the removed preset keys still loads, and they are dropped', () {
+    test(
+        'old JSON carrying the removed preset keys still loads, and they are dropped',
+        () {
       final json = Event(
         id: 'event-presets',
         title: 'Preset Event',
@@ -150,44 +152,69 @@ void main() {
       expect(changed.deletedAt, isNull);
     });
 
-    test('supports sharing properties (isShared, sharedFolderId, collaborators, isReadOnly)', () {
-      final sharedEvent = Event(
-        id: 'shared-1',
-        title: 'Shared Event',
+    test('handoffEventId marks an event as handed off and round trips', () {
+      final handedOff = Event(
+        id: 'handoff:ev-1',
+        title: 'Sunday Service',
+        time: const TimeOfDay(hour: 10, minute: 0),
+        frequency: 'One-time',
+        createdAt: now,
+        handoffEventId: 'ev-1',
+      );
+      expect(handedOff.isHandedOff, isTrue);
+      expect(handedOff.toJson()['handoffEventId'], 'ev-1');
+      expect(Event.fromJson(handedOff.toJson()).handoffEventId, 'ev-1');
+      expect(handedOff.copyWith(title: 'Renamed').handoffEventId, 'ev-1');
+    });
+
+    test('an ordinary event is not handed off and writes no marker', () {
+      final ordinary = Event(
+        id: 'e1',
+        title: 'Own',
         time: const TimeOfDay(hour: 10, minute: 0),
         frequency: 'Weekly',
         createdAt: now,
-        isShared: true,
-        sharedFolderId: 'folder-123',
-        collaborators: ['collab@example.com'],
-        isReadOnly: true,
       );
+      expect(ordinary.isHandedOff, isFalse);
+      expect(ordinary.toJson().containsKey('handoffEventId'), isFalse);
+    });
+  });
 
-      expect(sharedEvent.isShared, isTrue);
-      expect(sharedEvent.sharedFolderId, 'folder-123');
-      expect(sharedEvent.collaborators, ['collab@example.com']);
-      expect(sharedEvent.isReadOnly, isTrue);
+  group('Event with legacy Drive-sharing keys', () {
+    // Drive sharing was removed. Files written by it still carry its keys;
+    // they must load as an ordinary event and the keys must not be written.
+    final now = DateTime(2025, 1, 1);
 
-      final json = sharedEvent.toJson();
-      expect(json['isShared'], isTrue);
-      expect(json['sharedFolderId'], 'folder-123');
-      expect(json['collaborators'], ['collab@example.com']);
-      expect(json['isReadOnly'], isTrue);
+    test('loads, ignores the keys, and does not write them back', () {
+      final legacy = <String, dynamic>{
+        'id': 'e-shared',
+        'title': 'Was Shared',
+        'time': '9:30',
+        'frequency': 'Weekly',
+        'repeatingDays': ['Sunday'],
+        'memberIds': ['m1'],
+        'isShared': true,
+        'sharedFolderId': 'folder-123',
+        'collaborators': ['collab@example.com'],
+        'isReadOnly': true,
+        'createdAt': now.toIso8601String(),
+        'updatedAt': now.toIso8601String(),
+      };
 
-      final parsed = Event.fromJson(json);
-      expect(parsed.isShared, isTrue);
-      expect(parsed.sharedFolderId, 'folder-123');
-      expect(parsed.collaborators, ['collab@example.com']);
-      expect(parsed.isReadOnly, isTrue);
+      final event = Event.fromJson(legacy);
+      expect(event.id, 'e-shared');
+      expect(event.memberIds, ['m1']);
+      expect(event.isHandedOff, isFalse);
 
-      final updated = sharedEvent.copyWith(
-        isShared: false,
-        collaborators: [],
-        isReadOnly: false,
-      );
-      expect(updated.isShared, isFalse);
-      expect(updated.collaborators, isEmpty);
-      expect(updated.isReadOnly, isFalse);
+      final json = event.toJson();
+      for (final key in [
+        'isShared',
+        'sharedFolderId',
+        'collaborators',
+        'isReadOnly',
+      ]) {
+        expect(json.containsKey(key), isFalse, reason: key);
+      }
     });
   });
   group('Event with legacy Insights keys', () {

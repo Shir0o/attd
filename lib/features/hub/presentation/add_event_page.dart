@@ -237,10 +237,6 @@ class _AddEventPageState extends State<AddEventPage> {
         // Fields this form does not edit must survive the save.
         checkOnFollowUps: _persisted?.checkOnFollowUps ?? const {},
         checkOnStopFlagging: _persisted?.checkOnStopFlagging ?? const {},
-        isShared: widget.eventToEdit?.isShared ?? false,
-        sharedFolderId: widget.eventToEdit?.sharedFolderId,
-        collaborators: widget.eventToEdit?.collaborators ?? const [],
-        isReadOnly: widget.eventToEdit?.isReadOnly ?? false,
         createdAt: createdAt,
       );
 

@@ -246,9 +246,9 @@ void main() {
     expect(repository.events.single.createdAt, createdAt);
   });
 
-  testWidgets('renaming keeps sharing and Who to check on settings', (tester) async {
+  testWidgets('renaming keeps Who to check on settings', (tester) async {
     final event = Event(
-      id: 'event-shared',
+      id: 'event-renamed',
       title: 'Original',
       time: const TimeOfDay(hour: 9, minute: 30),
       frequency: 'Weekly',
@@ -257,10 +257,6 @@ void main() {
         'm1': CheckOnFollowUp(flag: 'goneQuiet', lastPresent: DateTime(2025, 2, 3)),
       },
       checkOnStopFlagging: const {'m2'},
-      isShared: true,
-      sharedFolderId: 'folder-1',
-      collaborators: const ['a@example.com'],
-      isReadOnly: true,
       createdAt: DateTime(2025, 1, 1),
     );
     final repository = _EventRepository([event]);
@@ -285,10 +281,6 @@ void main() {
     expect(saved.title, 'Renamed');
     expect(saved.checkOnFollowUps['m1']?.flag, 'goneQuiet');
     expect(saved.checkOnStopFlagging, {'m2'});
-    expect(saved.isShared, isTrue);
-    expect(saved.sharedFolderId, 'folder-1');
-    expect(saved.collaborators, ['a@example.com']);
-    expect(saved.isReadOnly, isTrue);
   });
 
   testWidgets(

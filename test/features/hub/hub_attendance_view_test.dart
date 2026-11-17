@@ -15,28 +15,11 @@ import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
 import 'package:attendance_tracker/features/hub/presentation/hub_attendance_view.dart';
-import 'package:attendance_tracker/features/hub/domain/shared_event_sync.dart';
 import 'package:attendance_tracker/features/settings/application/theme_controller.dart';
-import 'package:attendance_tracker/features/settings/data/drive_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:intl/intl.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-class MockSharedEventSync extends Mock implements SharedEventSync {}
-class MockDriveApi extends Mock implements drive.DriveApi {}
-class MockFilesResource extends Mock implements drive.FilesResource {}
-class MockPermissionsResource extends Mock implements drive.PermissionsResource {}
-
-class FakeDriveService extends Fake implements DriveService {
-  FakeDriveService({this.fakeDriveApi});
-  final drive.DriveApi? fakeDriveApi;
-
-  @override
-  drive.DriveApi? get driveApi => fakeDriveApi;
-}
 
 class FakeAttendanceRepository extends AttendanceRepository {
   List<Family> families = [];
@@ -205,8 +188,6 @@ void main() {
 
   Future<void> pumpView(
     WidgetTester tester, {
-    DriveService? driveService,
-    SharedEventSync? sharedEventSync,
     bool disableAnimations = true,
     bool systemDisableAnimations = false,
     bool snapPages = false,
@@ -235,8 +216,6 @@ void main() {
           sessionRepository: sessionRepository,
           eventRepository: eventRepository,
           attendanceRepository: attendanceRepository,
-          driveService: driveService,
-          sharedEventSync: sharedEventSync,
           disableAnimations: disableAnimations,
         ),
       ),
@@ -952,123 +931,6 @@ void main() {
     // No new session was created — we navigated to the deck for the
     // existing incomplete session.
     expect(sessionRepository.createdSessions, isEmpty);
-  });
-
-  testWidgets('shared event displays SHARED pill badge and read-only event hides destructive menu items',
-      (tester) async {
-    final event = todayEvent().copyWith(
-      isShared: true,
-      isReadOnly: true,
-    );
-
-    await pumpView(tester);
-    eventRepository.emit([event]);
-    await tester.pumpAndSettle();
-
-    // Verify SHARED pill is displayed
-    expect(find.text('SHARED'), findsOneWidget);
-
-    // Open three-dot menu
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-
-    // Verify read-only menu restrictions
-    expect(find.text('Edit Event'), findsNothing);
-    expect(find.text('Share Event'), findsNothing);
-    expect(find.text('View History'), findsOneWidget);
-  });
-
-  testWidgets('owner event menu displays exactly Edit, Share and History',
-      (tester) async {
-    final event = todayEvent().copyWith(
-      isShared: false,
-      isReadOnly: false,
-    );
-
-    await pumpView(tester);
-    eventRepository.emit([event]);
-    await tester.pumpAndSettle();
-
-    // Open three-dot menu
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-
-    // Verify owner menu options
-    expect(find.text('Share Event'), findsOneWidget);
-    expect(find.text('Edit Event'), findsOneWidget);
-    expect(find.text('View History'), findsOneWidget);
-    expect(find.text('Manage Members'), findsNothing);
-    expect(find.text('Delete Event'), findsNothing);
-    expect(
-      find.descendant(
-        of: find.byType(BottomSheet),
-        matching: find.byType(ListTile),
-      ),
-      findsNWidgets(3),
-    );
-
-    // Tap Share Event when drive is not signed in shows SnackBar
-    await tester.tap(find.text('Share Event'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Please sign in to Google Drive in Settings to share events.'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('owner event menu opens ShareEventSheet when drive is signed in',
-      (tester) async {
-    final mockDriveApi = MockDriveApi();
-    final mockFiles = MockFilesResource();
-    final mockPermissions = MockPermissionsResource();
-    when(() => mockDriveApi.files).thenReturn(mockFiles);
-    when(() => mockDriveApi.permissions).thenReturn(mockPermissions);
-    when(() => mockFiles.list(q: any(named: 'q'), $fields: any(named: r'$fields')))
-        .thenAnswer((_) async => drive.FileList(files: []));
-
-    final fakeDrive = FakeDriveService(fakeDriveApi: mockDriveApi);
-
-    final event = todayEvent().copyWith(
-      isShared: false,
-      isReadOnly: false,
-    );
-
-    await pumpView(tester, driveService: fakeDrive);
-    eventRepository.emit([event]);
-    await tester.pumpAndSettle();
-
-    // Open three-dot menu
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-
-    // Tap Share Event
-    await tester.tap(find.text('Share Event'));
-    await tester.pumpAndSettle();
-
-    // Verify ShareEventSheet is displayed
-    expect(find.text('Share this event'), findsOneWidget);
-    expect(find.byKey(const Key('shareEventSwitch')), findsOneWidget);
-  });
-
-  testWidgets('HubAttendanceView triggers sharedEventSync on refresh', (tester) async {
-    final mockSync = MockSharedEventSync();
-    when(() => mockSync.syncSharedEvents()).thenAnswer((_) async {});
-
-    await pumpView(tester, sharedEventSync: mockSync);
-    await tester.pumpAndSettle();
-
-    verify(() => mockSync.syncSharedEvents()).called(1);
-  });
-
-  testWidgets('HubAttendanceView catches error from sharedEventSync gracefully', (tester) async {
-    final mockSync = MockSharedEventSync();
-    when(() => mockSync.syncSharedEvents()).thenThrow(Exception('Sync failed'));
-
-    await pumpView(tester, sharedEventSync: mockSync);
-    await tester.pumpAndSettle();
-
-    verify(() => mockSync.syncSharedEvents()).called(1);
-    expect(find.byType(HubAttendanceView), findsOneWidget);
   });
 
   testWidgets('HubAttendanceView renders when a session has 0 attendees (all absent)', (tester) async {

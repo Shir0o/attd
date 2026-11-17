@@ -29,9 +29,6 @@ import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
-import '../data/event_sharing_service.dart';
-import '../data/google_drive_shared_event_transport.dart';
-import 'share_event_sheet.dart';
 import '../../checkon/presentation/check_on_hub_card.dart';
 import '../../checkon/presentation/check_on_report_page.dart';
 
@@ -43,7 +40,6 @@ class HubAttendanceView extends StatefulWidget {
     required this.eventRepository,
     required this.attendanceRepository,
     this.driveService,
-    this.sharedEventSync,
     this.localBackupService,
     this.appLockController,
     this.crashReportingService,
@@ -57,7 +53,6 @@ class HubAttendanceView extends StatefulWidget {
   final EventRepository eventRepository;
   final AttendanceRepository attendanceRepository;
   final DriveService? driveService;
-  final SharedEventSync? sharedEventSync;
   final LocalBackupService? localBackupService;
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
@@ -121,38 +116,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
     });
   }
 
-  SharedEventSync? get _sharedEventSync {
-    if (widget.sharedEventSync != null) return widget.sharedEventSync;
-    final drive = widget.driveService;
-    if (drive == null || drive.driveApi == null) return null;
-    return SharedEventSync(
-      transport: GoogleDriveSharedEventTransport(
-        driveApiProvider: () => drive.driveApi,
-      ),
-      eventRepository: widget.eventRepository,
-      attendanceRepository: widget.attendanceRepository,
-      sessionRepository: widget.sessionRepository,
-    );
-  }
-
-  EventSharingService? get _eventSharingService {
-    final drive = widget.driveService;
-    if (drive == null || drive.driveApi == null) return null;
-    return EventSharingService(
-      driveApiProvider: () => drive.driveApi,
-    );
-  }
-
   Future<void> _refreshData() async {
-    try {
-      final sync = _sharedEventSync;
-      if (sync != null) {
-        await sync.syncSharedEvents();
-      }
-    } catch (e) {
-      debugPrint('Error syncing shared events: $e');
-    }
-
     final families = await widget.attendanceRepository.fetchFamilies();
     final sessions = await widget.sessionRepository.loadSessions();
     if (mounted) {
@@ -298,35 +262,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (!event.isReadOnly) ...[
-                ListTile(
-                  leading: const Icon(Icons.share_outlined),
-                  title: const Text('Share Event'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final sync = _sharedEventSync;
-                    if (sync == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              'Please sign in to Google Drive in Settings to share events.'),
-                        ),
-                      );
-                      return;
-                    }
-                    await ShareEventSheet.show(
-                      context,
-                      event: event,
-                      sharedEventSync: sync,
-                      eventSharingService: _eventSharingService,
-                      eventRepository: widget.eventRepository,
-                      attendanceRepository: widget.attendanceRepository,
-                      sessionRepository: widget.sessionRepository,
-                    );
-                    _refreshData();
-                  },
-                ),
-              ],
               ListTile(
                 leading: const Icon(Icons.history),
                 title: const Text('View History'),
@@ -348,7 +283,7 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   _refreshData();
                 },
               ),
-              if (!event.isReadOnly) ...[
+              if (!event.isHandedOff) ...[
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
                   title: const Text('Edit Event'),
@@ -1183,10 +1118,10 @@ class _HeroEventCardState extends State<_HeroEventCard>
                           controller: _pulseController,
                           animate: widget.isToday && !widget.disableAnimations,
                         ),
-                        if (widget.event.isShared) ...[
+                        if (widget.event.isHandedOff) ...[
                           const SizedBox(width: 8),
                           const ConvPill(
-                            label: 'SHARED',
+                            label: "SOMEONE ELSE'S",
                             fontSize: 11,
                             padding: EdgeInsets.symmetric(
                               horizontal: 8,
@@ -1532,10 +1467,10 @@ class _EventRow extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (event.isShared) ...[
+                        if (event.isHandedOff) ...[
                           const SizedBox(width: 6),
                           const ConvPill(
-                            label: 'SHARED',
+                            label: "SOMEONE ELSE'S",
                             fontSize: 10,
                             padding: EdgeInsets.symmetric(
                               horizontal: 6,
@@ -1661,10 +1596,10 @@ class _TodayRow extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (event.isShared) ...[
+                          if (event.isHandedOff) ...[
                             const SizedBox(width: 6),
                             const ConvPill(
-                              label: 'SHARED',
+                              label: "SOMEONE ELSE'S",
                               fontSize: 10,
                               padding: EdgeInsets.symmetric(
                                 horizontal: 6,

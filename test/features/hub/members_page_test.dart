@@ -170,8 +170,6 @@ void main() {
           repeatingDays: ['Monday'],
           memberIds: ['1', '2'],
           checkOnStopFlagging: {'1'},
-          isShared: true,
-          sharedFolderId: 'folder-1',
           createdAt: DateTime(2025, 1, 1),
         );
 
@@ -220,8 +218,6 @@ void main() {
       final saved = mockEventRepo.updatedEvents.single;
       expect(saved.checkOnStopFlagging, isEmpty);
       expect(saved.memberIds, ['1', '2']);
-      expect(saved.isShared, isTrue);
-      expect(saved.sharedFolderId, 'folder-1');
       expect(find.byKey(const ValueKey('flag_again_1')), findsNothing);
       expect(find.textContaining('Not flagged'), findsNothing);
     });

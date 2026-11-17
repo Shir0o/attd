@@ -9,7 +9,6 @@ import '../../settings/data/local_backup_service.dart';
 import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
 import '../data/event_repository.dart';
-import '../domain/shared_event_sync.dart';
 import 'hub_attendance_view.dart';
 
 class HubPage extends StatefulWidget {
@@ -20,7 +19,6 @@ class HubPage extends StatefulWidget {
     required this.attendanceRepository,
     required this.themeController,
     this.driveService,
-    this.sharedEventSync,
     this.localBackupService,
     this.appLockController,
     this.crashReportingService,
@@ -34,7 +32,6 @@ class HubPage extends StatefulWidget {
   final AttendanceRepository attendanceRepository;
   final ThemeController themeController;
   final DriveService? driveService;
-  final SharedEventSync? sharedEventSync;
   final LocalBackupService? localBackupService;
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
@@ -55,7 +52,6 @@ class _HubPageState extends State<HubPage> {
       attendanceRepository: widget.attendanceRepository,
       themeController: widget.themeController,
       driveService: widget.driveService,
-      sharedEventSync: widget.sharedEventSync,
       localBackupService: widget.localBackupService,
       appLockController: widget.appLockController,
       crashReportingService: widget.crashReportingService,

@@ -20,10 +20,10 @@ class Event {
   /// Members the owner chose to stop flagging on this event.
   final Set<String> checkOnStopFlagging;
 
-  final bool isShared;
-  final String? sharedFolderId;
-  final List<String> collaborators;
-  final bool isReadOnly;
+  /// Set on the helper's phone for an event someone else handed off: the
+  /// owner's event id. Null for every ordinary event. See the handoff feature.
+  final String? handoffEventId;
+
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -38,16 +38,16 @@ class Event {
     this.memberIds = const [],
     this.checkOnFollowUps = const {},
     this.checkOnStopFlagging = const {},
-    this.isShared = false,
-    this.sharedFolderId,
-    this.collaborators = const [],
-    this.isReadOnly = false,
+    this.handoffEventId,
     required this.createdAt,
     DateTime? updatedAt,
     this.deletedAt,
   })  : title = title.trim(),
         updatedAt = updatedAt ?? createdAt;
 
+
+  /// True for an event another person handed off to this phone to mark once.
+  bool get isHandedOff => handoffEventId != null;
 
   Map<String, dynamic> toJson() {
     return {
@@ -66,10 +66,7 @@ class Event {
         },
       if (checkOnStopFlagging.isNotEmpty)
         'checkOnStopFlagging': checkOnStopFlagging.toList()..sort(),
-      if (isShared) 'isShared': isShared,
-      if (sharedFolderId != null) 'sharedFolderId': sharedFolderId,
-      if (collaborators.isNotEmpty) 'collaborators': collaborators,
-      if (isReadOnly) 'isReadOnly': isReadOnly,
+      if (handoffEventId != null) 'handoffEventId': handoffEventId,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -86,10 +83,7 @@ class Event {
     List<String>? memberIds,
     Map<String, CheckOnFollowUp>? checkOnFollowUps,
     Set<String>? checkOnStopFlagging,
-    bool? isShared,
-    String? sharedFolderId,
-    List<String>? collaborators,
-    bool? isReadOnly,
+    String? handoffEventId,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -105,10 +99,7 @@ class Event {
       memberIds: memberIds ?? this.memberIds,
       checkOnFollowUps: checkOnFollowUps ?? this.checkOnFollowUps,
       checkOnStopFlagging: checkOnStopFlagging ?? this.checkOnStopFlagging,
-      isShared: isShared ?? this.isShared,
-      sharedFolderId: sharedFolderId ?? this.sharedFolderId,
-      collaborators: collaborators ?? this.collaborators,
-      isReadOnly: isReadOnly ?? this.isReadOnly,
+      handoffEventId: handoffEventId ?? this.handoffEventId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
@@ -149,13 +140,7 @@ class Event {
         for (final id in json['checkOnStopFlagging'] as List<dynamic>? ?? [])
           if (id is String) id,
       },
-      isShared: json['isShared'] as bool? ?? false,
-      sharedFolderId: json['sharedFolderId'] as String?,
-      collaborators: (json['collaborators'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
-      isReadOnly: json['isReadOnly'] as bool? ?? false,
+      handoffEventId: json['handoffEventId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
