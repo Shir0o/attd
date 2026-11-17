@@ -415,10 +415,18 @@ void main() {
       await tester.pumpAndSettle();
 
       // Only 2 suggestions should exist (m1 deduplicated from [m1, m1, m2])
-      expect(find.byKey(const Key('addSheetSuggestion_m1')), findsOneWidget);
-      expect(find.byKey(const Key('addSheetSuggestion_m2')), findsOneWidget);
-      expect(find.text('Zoe'), findsNWidgets(2));
-      expect(find.text('Alvarez'), findsNWidgets(2));
+      for (final id in ['m1', 'm2']) {
+        final row = find.byKey(Key('addSheetSuggestion_$id'));
+        expect(row, findsOneWidget);
+        expect(
+          find.descendant(of: row, matching: find.text('Zoe')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: row, matching: find.text('Alvarez')),
+          findsOneWidget,
+        );
+      }
     },
   );
 }
