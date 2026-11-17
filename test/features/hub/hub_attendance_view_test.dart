@@ -11,6 +11,8 @@ import 'package:attendance_tracker/features/attendance/data/attendance_repositor
 import 'package:attendance_tracker/features/attendance/models/attendance_status.dart';
 import 'package:attendance_tracker/features/attendance/models/family.dart';
 import 'package:attendance_tracker/features/attendance/models/member.dart';
+import 'package:attendance_tracker/features/handoff/data/handoff_sharer.dart';
+import 'package:attendance_tracker/features/handoff/domain/handoff_file.dart';
 import 'package:attendance_tracker/features/hub/data/event_repository.dart';
 import 'package:attendance_tracker/features/hub/domain/event.dart';
 import 'package:attendance_tracker/features/hub/presentation/add_event_page.dart';
@@ -20,6 +22,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakeHandoffSharer extends HandoffSharer {
+  final sent = <({HandoffDocument document, String fileName, String text})>[];
+
+  @override
+  Future<void> send({
+    required HandoffDocument document,
+    required String fileName,
+    required String text,
+  }) async {
+    sent.add((document: document, fileName: fileName, text: text));
+  }
+}
 
 class FakeAttendanceRepository extends AttendanceRepository {
   List<Family> families = [];
@@ -191,6 +206,7 @@ void main() {
     bool disableAnimations = true,
     bool systemDisableAnimations = false,
     bool snapPages = false,
+    HandoffSharer? handoffSharer,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -216,6 +232,7 @@ void main() {
           sessionRepository: sessionRepository,
           eventRepository: eventRepository,
           attendanceRepository: attendanceRepository,
+          handoffSharer: handoffSharer,
           disableAnimations: disableAnimations,
         ),
       ),
@@ -933,6 +950,106 @@ void main() {
     expect(sessionRepository.createdSessions, isEmpty);
   });
 
+  group('event menu and handoff', () {
+    Future<void> openMenu(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('menu is exactly Edit Event, Hand off, View History in order',
+        (tester) async {
+      await pumpView(tester);
+      eventRepository.emit([todayEvent()]);
+      await tester.pumpAndSettle();
+      await openMenu(tester);
+
+      final titles = tester
+          .widgetList<ListTile>(
+            find.descendant(
+              of: find.byType(BottomSheet),
+              matching: find.byType(ListTile),
+            ),
+          )
+          .map((t) => (t.title! as Text).data)
+          .toList();
+      expect(titles, ['Edit Event', 'Hand off', 'View History']);
+      expect(find.text('Share Event'), findsNothing);
+    });
+
+    testWidgets('Hand off explains the file, then opens the share sheet',
+        (tester) async {
+      final sharer = FakeHandoffSharer();
+      attendanceRepository.families = [
+        Family(
+          id: 'f1',
+          displayName: 'F',
+          members: [
+            Member(id: 'm1', displayName: 'Alice Johnson'),
+            Member(id: 'm2', displayName: 'Bob Smith'),
+            Member(id: 'm3', displayName: 'Not On Event'),
+          ],
+        ),
+      ];
+      await pumpView(tester, handoffSharer: sharer);
+      eventRepository.emit([todayEvent(memberIds: ['m1', 'm2'])]);
+      await tester.pumpAndSettle();
+      await openMenu(tester);
+
+      await tester.tap(find.text('Hand off'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('unencrypted'), findsOneWidget);
+      expect(find.textContaining('roster names'), findsOneWidget);
+      expect(sharer.sent, isEmpty, reason: 'nothing leaves before Continue');
+
+      await tester.tap(find.byKey(const Key('handoffExplainerContinue')));
+      await tester.pumpAndSettle();
+
+      final sent = sharer.sent.single;
+      final doc = sent.document as HandoffRoster;
+      expect(doc.eventId, 'event-1');
+      expect(doc.eventTitle, 'Sunday Service');
+      expect(doc.roster.map((p) => p.id), ['m1', 'm2']);
+      expect(doc.roster.map((p) => p.name), ['Alice Johnson', 'Bob Smith']);
+      final now = DateTime.now();
+      expect(doc.sessionDate, DateTime(now.year, now.month, now.day));
+      expect(sent.fileName, endsWith('.$handoffFileExtension'));
+      expect(sent.fileName, startsWith('sunday-service-'));
+    });
+
+    testWidgets('cancelling the explainer sends nothing', (tester) async {
+      final sharer = FakeHandoffSharer();
+      await pumpView(tester, handoffSharer: sharer);
+      eventRepository.emit([todayEvent()]);
+      await tester.pumpAndSettle();
+      await openMenu(tester);
+
+      await tester.tap(find.text('Hand off'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(sharer.sent, isEmpty);
+      expect(find.textContaining('unencrypted'), findsNothing);
+    });
+
+    testWidgets('a failure to build the file is reported, not thrown',
+        (tester) async {
+      final sharer = _ThrowingSharer();
+      await pumpView(tester, handoffSharer: sharer);
+      eventRepository.emit([todayEvent()]);
+      await tester.pumpAndSettle();
+      await openMenu(tester);
+
+      await tester.tap(find.text('Hand off'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('handoffExplainerContinue')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Could not prepare'), findsOneWidget);
+    });
+  });
+
   testWidgets('HubAttendanceView renders when a session has 0 attendees (all absent)', (tester) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -1284,3 +1401,14 @@ void main() {
   });
 }
 
+
+class _ThrowingSharer extends HandoffSharer {
+  @override
+  Future<void> send({
+    required HandoffDocument document,
+    required String fileName,
+    required String text,
+  }) async {
+    throw StateError('no share sheet');
+  }
+}

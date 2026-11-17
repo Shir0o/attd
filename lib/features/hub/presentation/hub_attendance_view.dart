@@ -29,6 +29,9 @@ import '../../../core/ui/app_error_feedback.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../reminders/application/attendance_reminder_service.dart';
 import '../../reminders/application/reminder_settings_controller.dart';
+import '../../handoff/data/handoff_sharer.dart';
+import '../../handoff/domain/handoff_builder.dart';
+import '../../handoff/presentation/handoff_explainer.dart';
 import '../../checkon/presentation/check_on_hub_card.dart';
 import '../../checkon/presentation/check_on_report_page.dart';
 
@@ -41,6 +44,7 @@ class HubAttendanceView extends StatefulWidget {
     required this.attendanceRepository,
     this.driveService,
     this.localBackupService,
+    this.handoffSharer,
     this.appLockController,
     this.crashReportingService,
     this.reminderSettingsController,
@@ -54,6 +58,9 @@ class HubAttendanceView extends StatefulWidget {
   final AttendanceRepository attendanceRepository;
   final DriveService? driveService;
   final LocalBackupService? localBackupService;
+
+  /// Opens the share sheet for handoff files. Tests pass a fake.
+  final HandoffSharer? handoffSharer;
   final AppLockController? appLockController;
   final CrashReportingService? crashReportingService;
   final ReminderSettingsController? reminderSettingsController;
@@ -263,6 +270,34 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit Event'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddEventPage(
+                        eventRepository: widget.eventRepository,
+                        attendanceRepository: widget.attendanceRepository,
+                        sessionRepository: widget.sessionRepository,
+                        eventToEdit: event,
+                        disableAnimations: widget.disableAnimations,
+                      ),
+                    ),
+                  );
+                  _refreshData();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.ios_share_outlined),
+                title: const Text('Hand off'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _handOff(event);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.history),
                 title: const Text('View History'),
                 onTap: () async {
@@ -283,34 +318,46 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
                   _refreshData();
                 },
               ),
-              if (!event.isHandedOff) ...[
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Edit Event'),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddEventPage(
-                          eventRepository: widget.eventRepository,
-                          attendanceRepository: widget.attendanceRepository,
-                          sessionRepository: widget.sessionRepository,
-                          eventToEdit: event,
-                          disableAnimations: widget.disableAnimations,
-                        ),
-                      ),
-                    );
-                    _refreshData();
-                  },
-                ),
-              ],
               const SizedBox(height: 16),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Explains what the file holds, then opens the share sheet with it. The
+  /// session handed off is the one tapping the card would open.
+  Future<void> _handOff(Event event) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final go = await showHandoffExplainer(context, eventTitle: event.title);
+    if (!go || !mounted) return;
+    try {
+      final date = calculateTargetDate(event, DateTime.now());
+      final ids = event.memberIds.toSet();
+      final doc = HandoffBuilder.buildHandoff(
+        eventId: event.id,
+        eventTitle: event.title,
+        sessionDate: date,
+        roster: [
+          for (final m in _members)
+            if (ids.contains(m.id)) (id: m.id, name: m.displayName),
+        ],
+      );
+      await (widget.handoffSharer ?? HandoffSharer()).send(
+        document: doc,
+        fileName: HandoffSharer.fileNameFor(event.title, date),
+        text: '${event.title} attendance for '
+            '${DateFormat('MMM d').format(date)}. Open this file in '
+            'Attendance Tracker.',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not prepare the handoff file. Try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _createNewSession() async {
