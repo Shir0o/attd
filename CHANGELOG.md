@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.22.0](https://github.com/Shir0o/attd/compare/v1.21.0...v1.22.0) (2026-11-18)
+
+
+### Features
+
+* **handoff:** one-shot event handoff replaces Drive sharing ([#340](https://github.com/Shir0o/attd/issues/340)) ([3104e2b](https://github.com/Shir0o/attd/commit/3104e2bf4c46fec0c676f9d83329e60fb458e71f))
+
+
+### Bug Fixes
+
+* **onboarding:** show the name grid on the first slide ([#342](https://github.com/Shir0o/attd/issues/342)) ([c017de9](https://github.com/Shir0o/attd/commit/c017de9ca7fb2d258dfef776538546503211a58e))
+
+
+### Refactoring
+
+* **attendance:** remove unused family repository methods ([#341](https://github.com/Shir0o/attd/issues/341)) ([ef4eac2](https://github.com/Shir0o/attd/commit/ef4eac261c7b2e8db4242616caf8a1c9f81ee656))
+* **families:** remove the Families feature ([#339](https://github.com/Shir0o/attd/issues/339)) ([af3ed48](https://github.com/Shir0o/attd/commit/af3ed483731e683a6b11fe2e1e0859e6c2c68b82))
+* **hub:** trim event menu, add flag-again, drop dead reports ([#337](https://github.com/Shir0o/attd/issues/337)) ([e30d0f1](https://github.com/Shir0o/attd/commit/e30d0f14fa1f8aa8817c6a2f43a2a102e2bcf80a))
+
 ## [1.21.0](https://github.com/Shir0o/attd/compare/v1.20.4...v1.21.0) (2026-11-16)
 
 
