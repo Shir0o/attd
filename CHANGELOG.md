@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.1](https://github.com/Shir0o/attd/compare/v1.22.0...v1.22.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **ui:** enforce WCAG AA contrast on hub section counts and darkInk3 ([#346](https://github.com/Shir0o/attd/issues/346)) ([09aba18](https://github.com/Shir0o/attd/commit/09aba181ab00a6425059e09bba7258ef19ccbd99))
+
 ## [1.22.0](https://github.com/Shir0o/attd/compare/v1.21.0...v1.22.0) (2026-11-18)
 
 
