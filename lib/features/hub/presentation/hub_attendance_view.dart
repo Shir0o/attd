@@ -732,7 +732,6 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
       return dateCompare != 0 ? dateCompare : byTime(a, b);
     });
 
-    final c = context.conv;
     final children = <Widget>[];
 
     // Rest state — nothing scheduled today, but events are still coming. Show a
@@ -797,9 +796,11 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 const ConvEyebrow('Also today'),
-                ConvEyebrow(
-                  '$laterCount later${doneCount > 0 ? ' · $doneCount done' : ''}',
-                  color: c.ink4,
+                Semantics(
+                  container: true,
+                  child: ConvEyebrow(
+                    '$laterCount later${doneCount > 0 ? ' · $doneCount done' : ''}',
+                  ),
                 ),
               ],
             ),
@@ -832,12 +833,22 @@ class _HubAttendanceViewState extends State<HubAttendanceView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              ConvEyebrow(hero != null || restState ? 'This week' : 'Upcoming'),
-              ConvEyebrow(
-                hero != null || restState
-                    ? '${otherEvents.length} · upcoming'
-                    : '${otherEvents.length} · this week',
-                color: c.ink4,
+              // Each label gets its own semantics node so screen readers and
+              // the WCAG text-contrast audit see them separately instead of
+              // merged into one unmeasurable "THIS WEEK\n1 · UPCOMING" node.
+              Semantics(
+                container: true,
+                child: ConvEyebrow(
+                  hero != null || restState ? 'This week' : 'Upcoming',
+                ),
+              ),
+              Semantics(
+                container: true,
+                child: ConvEyebrow(
+                  hero != null || restState
+                      ? '${otherEvents.length} · upcoming'
+                      : '${otherEvents.length} · this week',
+                ),
               ),
             ],
           ),
@@ -1237,9 +1248,8 @@ class _HeroEventCardState extends State<_HeroEventCard>
   Widget build(BuildContext context) {
     final c = context.conv;
     // A handed-off event has no time of its own, only the day handed off.
-    final time = widget.event.isHandedOff
-        ? null
-        : widget.event.time.format(context);
+    final time =
+        widget.event.isHandedOff ? null : widget.event.time.format(context);
     final dayLabel = widget.isToday
         ? 'TODAY'
         : DateFormat('EEE').format(widget.status.displayDate).toUpperCase();
@@ -1719,9 +1729,8 @@ class _TodayRow extends StatelessWidget {
         : use24Hour
             ? DateFormat('HH:mm').format(dummyDate)
             : DateFormat('h:mm').format(dummyDate);
-    final ampm = use24Hour || event.isHandedOff
-        ? ''
-        : DateFormat('a').format(dummyDate);
+    final ampm =
+        use24Hour || event.isHandedOff ? '' : DateFormat('a').format(dummyDate);
 
     return Opacity(
       opacity: status.taken ? 0.66 : 1,

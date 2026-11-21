@@ -61,7 +61,11 @@ class AppColors {
   static const Color darkCardSoft = Color(0xFF2D2538);
   static const Color darkInk = Color(0xFFF1EDF3);
   static const Color darkInk2 = Color(0xFFC7C1CE);
-  static const Color darkInk3 = Color(0xFF8A82A1);
+
+  /// Muted ink for dark surfaces. Light enough to clear WCAG AA (>= 4.5:1)
+  /// on every dark surface including [darkCardSoft], while staying clearly
+  /// below [darkInk2] in the hierarchy.
+  static const Color darkInk3 = Color(0xFF9991B0);
   static const Color darkInk4 = Color(0xFF5F576B);
   static const Color darkHair = Color(0xFF3A3247);
   static const Color darkPrimary = Color(0xFFB5A4D8);
