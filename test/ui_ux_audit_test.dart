@@ -190,15 +190,10 @@ void main() {
   /// Asserts the three audit lenses at the current screen: no framework
   /// exception (RenderFlex overflow included), Android tap targets, and WCAG
   /// text contrast.
-  Future<void> expectUsable(
-    WidgetTester tester, {
-    bool checkContrast = true,
-  }) async {
+  Future<void> expectUsable(WidgetTester tester) async {
     expect(tester.takeException(), isNull);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-    if (checkContrast) {
-      await expectLater(tester, meetsGuideline(textContrastGuideline));
-    }
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
   }
 
   /// Goldens are only written/compared when the suite runs with
@@ -280,6 +275,16 @@ void main() {
       await expectUsable(tester);
       await maybeExpectGolden(tester, 'step_manage_members');
 
+      // ── Manage Members → historical-records dialog ────────────────────
+      await tester.tap(find.byTooltip('About historical records'));
+      await tester.pumpAndSettle();
+      expect(find.text('Historical Accuracy'), findsOneWidget);
+      await expectUsable(tester);
+      await maybeExpectGolden(tester, 'step_historical_dialog');
+      await tester.tap(find.text('Got it'));
+      await tester.pumpAndSettle();
+      expect(find.text('Manage Members'), findsWidgets);
+
       // Back to Settings, then back to the Hub.
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -309,11 +314,41 @@ void main() {
       await tester.pumpAndSettle();
       // ConvEyebrow upper-cases its label.
       expect(find.text('NEW EVENT'), findsOneWidget);
-      // The add-event form's description text is scoped out of contrast on
-      // headless Linux environments where thin glyph anti-aliasing lowers
-      // detected contrast.
-      await expectUsable(tester, checkContrast: false);
+      await expectUsable(tester);
       await maybeExpectGolden(tester, 'step_add_event');
+    });
+
+    testWidgets('hub_section_count: WCAG AA in light and dark', (tester) async {
+      for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
+        final semantics = tester.ensureSemantics();
+
+        await pumpMainApp(
+          tester,
+          themeMode: themeMode,
+          size: const Size(390, 844),
+        );
+
+        try {
+          final count = find.text('1 · UPCOMING');
+          expect(count, findsOneWidget, reason: '$themeMode');
+          expect(count.hitTestable(), findsOneWidget, reason: '$themeMode');
+
+          // The count must be its own semantics node. When it merges into the
+          // header Row, textContrastGuideline cannot match the label to a Text
+          // and silently skips it.
+          final node = tester.getSemantics(count);
+          expect(node.label, '1 · UPCOMING', reason: '$themeMode');
+          expect(node.isMergedIntoParent, isFalse, reason: '$themeMode');
+
+          await expectUsable(tester);
+        } finally {
+          semantics.dispose();
+        }
+
+        // Unmount before the next theme so state does not leak between runs.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
     });
   });
 }
